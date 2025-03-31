@@ -14,7 +14,7 @@
 		"node": ">=20.0.0"
 	},
 	"lint-staged": {
-		"*.{ts}": ["biome check --files-ignore-unknown=true --colors=force"]
+		"*.{ts,tsx}": ["biome check --files-ignore-unknown=true --colors=force"]
 	},
 	"scripts": {
 		"dev": "turbo run dev --parallel --no-cache",
