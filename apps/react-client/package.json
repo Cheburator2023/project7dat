@@ -1,0 +1,64 @@
+{
+	"name": "react-client",
+	"version": "1.0.0",
+	"private": true,
+	"scripts": {
+		"dev": "cross-env NODE_ENV=development vite serve",
+		"build": "cross-env NODE_ENV=production vite build",
+		"start": "serve -s build",
+		"prod": "npm build && npm start"
+	},
+	"dependencies": {
+		"@mui/x-charts": "latest",
+		"@mui/x-data-grid": "latest",
+		"@mui/x-data-grid-pro": "latest",
+		"@mui/x-date-pickers": "latest",
+		"@mui/x-date-pickers-pro": "latest",
+		"@mui/x-tree-view": "latest",
+		"@mui/utils": "latest",
+		"@react-spring/web": "latest",
+		"@types/react": "latest",
+		"@types/react-dom": "latest",
+		"clsx": "latest",
+		"dayjs": "latest",
+		"@emotion/react": "^11.14.0",
+		"@emotion/styled": "^11.14.0",
+		"@mui/icons-material": "^7.0.1",
+		"@mui/material": "^7.0.1",
+		"@xyflow/react": "12.5.1",
+		"json-edit-react": "1.25.0",
+		"axios": "^1.8.4",
+		"react": "^19.1.0",
+		"react-dom": "^19.1.0",
+		"react-router": "^7.4.1",
+		"web-vitals": "^4.2.4"
+	},
+	"devDependencies": {
+		"@testing-library/dom": "^10.4.0",
+		"@testing-library/jest-dom": "^6.6.3",
+		"@testing-library/react": "^16.2.0",
+		"@testing-library/user-event": "^14.6.1",
+		"@svgr/rollup": "8.1.0",
+		"@types/jest": "^29.5.14",
+		"@types/node": "^22.13.14",
+		"@types/react": "^19.0.12",
+		"@types/react-dom": "^19.0.4",
+		"globals": "^16.0.0",
+		"typescript": "^5.8.2",
+		"@vitejs/plugin-react": "4.3.2",
+		"vite": "^5.4.11",
+		"vite-plugin-checker": "0.8.0",
+		"vite-plugin-node-polyfills": "0.21.0",
+		"vite-plugin-static-copy": "1.0.2",
+		"vite-plugin-svgr": "4.2.0",
+		"vite-tsconfig-paths": "5.0.1"
+	},
+	"browserslist": {
+		"production": [">0.2%", "not dead", "not op_mini all"],
+		"development": [
+			"last 1 chrome version",
+			"last 1 firefox version",
+			"last 1 safari version"
+		]
+	}
+}
