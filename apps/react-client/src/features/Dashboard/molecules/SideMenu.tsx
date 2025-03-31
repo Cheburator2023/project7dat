@@ -27,6 +27,7 @@ export function SideMenu() {
 	return (
 		<Drawer
 			variant="permanent"
+			open={false}
 			sx={{
 				display: { xs: "none", md: "block" },
 				[`& .${drawerClasses.paper}`]: {

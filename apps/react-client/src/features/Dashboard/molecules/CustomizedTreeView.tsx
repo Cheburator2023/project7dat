@@ -110,8 +110,8 @@ function CustomLabel({
 }: CustomLabelProps) {
 	const theme = useTheme();
 	const colors = {
-		blue: theme.palette.primary.main,
-		green: theme.palette.success.main,
+		blue: (theme.vars || theme).palette.primary.main,
+		green: (theme.vars || theme).palette.success.main,
 	};
 
 	const iconColor = color ? colors[color] : null;

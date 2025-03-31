@@ -13,16 +13,20 @@
 		"npm": ">=10.0.0",
 		"node": ">=20.0.0"
 	},
-	"lint-staged": {
-		"*.{ts,tsx}": ["biome check --files-ignore-unknown=true --colors=force"]
-	},
+	"packageManager": "npm@10.0.0",
 	"scripts": {
 		"dev": "turbo run dev --parallel --no-cache",
+		"dev:ui:react": "turbo run dev --filter=react-client",
+		"dev:server:nest": "turbo run dev --filter=nestjs-server",
+		"turbo:ls": "turbo ls",
 		"build": "turbo run build",
 		"lint": "turbo run lint",
 		"biome": "npx @biomejs/biome check",
 		"biome:fix": "npx @biomejs/biome check --write .",
 		"prepare": "husky"
+	},
+	"lint-staged": {
+		"*.{ts,tsx}": ["biome check --files-ignore-unknown=true --colors=force"]
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^19.8.0",

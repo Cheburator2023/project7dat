@@ -5,7 +5,7 @@ import IconButton, { type IconButtonOwnProps } from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { useColorScheme } from "@mui/material/styles";
-import * as React from "react";
+import React from "react";
 
 export function ColorModeIconDropdown(props: IconButtonOwnProps) {
 	const { mode, systemMode, setMode } = useColorScheme();

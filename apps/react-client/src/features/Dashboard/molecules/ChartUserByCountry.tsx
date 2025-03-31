@@ -1,17 +1,43 @@
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import LinearProgress, {
+	linearProgressClasses,
+} from "@mui/material/LinearProgress";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { useDrawingArea } from "@mui/x-charts/hooks";
-import * as React from "react";
 
 const data = [
 	{ label: "India", value: 50000 },
 	{ label: "USA", value: 35000 },
 	{ label: "Brazil", value: 10000 },
 	{ label: "Other", value: 5000 },
+];
+
+const countries = [
+	{
+		name: "India",
+		value: 50,
+		color: "hsl(220, 25%, 65%)",
+	},
+	{
+		name: "USA",
+		value: 35,
+		color: "hsl(220, 25%, 45%)",
+	},
+	{
+		name: "Brazil",
+		value: 10,
+		color: "hsl(220, 25%, 30%)",
+	},
+	{
+		name: "Other",
+		value: 5,
+		color: "hsl(220, 25%, 20%)",
+	},
 ];
 
 interface StyledTextProps {
@@ -23,7 +49,7 @@ const StyledText = styled("text", {
 })<StyledTextProps>(({ theme }) => ({
 	textAnchor: "middle",
 	dominantBaseline: "central",
-	fill: theme.palette.text.secondary,
+	fill: (theme.vars || theme).palette.text.secondary,
 	variants: [
 		{
 			props: {
@@ -67,14 +93,14 @@ function PieCenterLabel({ primaryText, secondaryText }: PieCenterLabelProps) {
 	const secondaryY = primaryY + 24;
 
 	return (
-		<React.Fragment>
+		<>
 			<StyledText variant="primary" x={left + width / 2} y={primaryY}>
 				{primaryText}
 			</StyledText>
 			<StyledText variant="secondary" x={left + width / 2} y={secondaryY}>
 				{secondaryText}
 			</StyledText>
-		</React.Fragment>
+		</>
 	);
 }
 
@@ -122,6 +148,41 @@ export function ChartUserByCountry() {
 						<PieCenterLabel primaryText="98.5K" secondaryText="Total" />
 					</PieChart>
 				</Box>
+				{countries.map((country, index) => (
+					<Stack
+						key={index}
+						direction="row"
+						sx={{ alignItems: "center", gap: 2, pb: 2 }}
+					>
+						<Stack sx={{ gap: 1, flexGrow: 1 }}>
+							<Stack
+								direction="row"
+								sx={{
+									justifyContent: "space-between",
+									alignItems: "center",
+									gap: 2,
+								}}
+							>
+								<Typography variant="body2" sx={{ fontWeight: "500" }}>
+									{country.name}
+								</Typography>
+								<Typography variant="body2" sx={{ color: "text.secondary" }}>
+									{country.value}%
+								</Typography>
+							</Stack>
+							<LinearProgress
+								variant="determinate"
+								aria-label="Number of users by country"
+								value={country.value}
+								sx={{
+									[`& .${linearProgressClasses.bar}`]: {
+										backgroundColor: country.color,
+									},
+								}}
+							/>
+						</Stack>
+					</Stack>
+				))}
 			</CardContent>
 		</Card>
 	);
