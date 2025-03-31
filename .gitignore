@@ -3,6 +3,9 @@
 # folders
 node_modules
 **/node_modules
+cache
+.cache
+**/.cache
 logs
 .pnp
 .pnp.js

@@ -3,6 +3,7 @@ import { axisClasses, chartsGridClasses, legendClasses } from "@mui/x-charts";
 import type { ChartsComponents } from "@mui/x-charts/themeAugmentation";
 import { gray } from "../.././theme/themePrimitives";
 
+/* eslint-disable import/prefer-default-export */
 export const chartsCustomizations: ChartsComponents<Theme> = {
 	MuiChartsAxis: {
 		styleOverrides: {
@@ -33,10 +34,10 @@ export const chartsCustomizations: ChartsComponents<Theme> = {
 			mark: ({ theme }) => ({
 				ry: 6,
 				boxShadow: "none",
-				border: `1px solid ${(theme).palette.divider}`,
+				border: `1px solid ${(theme.vars || theme).palette.divider}`,
 			}),
 			table: ({ theme }) => ({
-				border: `1px solid ${(theme).palette.divider}`,
+				border: `1px solid ${(theme.vars || theme).palette.divider}`,
 				borderRadius: theme.shape.borderRadius,
 				background: "hsl(0, 0%, 100%)",
 				...theme.applyStyles("dark", {

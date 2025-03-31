@@ -9,9 +9,9 @@ import { BarChart } from "@mui/x-charts/BarChart";
 export function PageViewsBarChart() {
 	const theme = useTheme();
 	const colorPalette = [
-		theme.palette.primary.dark,
-		theme.palette.primary.main,
-		theme.palette.primary.light,
+		(theme.vars || theme).palette.primary.dark,
+		(theme.vars || theme).palette.primary.main,
+		(theme.vars || theme).palette.primary.light,
 	];
 	return (
 		<Card variant="outlined" sx={{ width: "100%" }}>

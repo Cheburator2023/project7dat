@@ -8,7 +8,7 @@ import Menu from "@mui/material/Menu";
 import MuiMenuItem from "@mui/material/MenuItem";
 import { paperClasses } from "@mui/material/Paper";
 import { styled } from "@mui/material/styles";
-import * as React from "react";
+import { useState } from "react";
 import { MenuButton } from "./MenuButton";
 
 const MenuItem = styled(MuiMenuItem)({
@@ -16,7 +16,7 @@ const MenuItem = styled(MuiMenuItem)({
 });
 
 export function OptionsMenu() {
-	const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
 	const handleClick = (event: React.MouseEvent<HTMLElement>) => {
 		setAnchorEl(event.currentTarget);
@@ -25,7 +25,7 @@ export function OptionsMenu() {
 		setAnchorEl(null);
 	};
 	return (
-		<React.Fragment>
+		<>
 			<MenuButton
 				aria-label="Open menu"
 				onClick={handleClick}
@@ -74,6 +74,6 @@ export function OptionsMenu() {
 					</ListItemIcon>
 				</MenuItem>
 			</Menu>
-		</React.Fragment>
+		</>
 	);
 }

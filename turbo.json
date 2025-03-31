@@ -9,6 +9,7 @@
 		},
 		"dev": {
 			"dependsOn": [],
+			"persistent": true,
 			"cache": false
 		},
 		"build": {

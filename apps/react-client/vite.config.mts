@@ -1,8 +1,8 @@
-import child_process from "child_process";
-/* eslint-disable @typescript-eslint/no-var-requires */
+import child_process from "node:child_process";
+import path from "node:path";
 import { URL, fileURLToPath } from "node:url";
-import path from "path";
 
+import { biomePlugin } from "@pbr1111/vite-plugin-biome";
 import svgr from "@svgr/rollup";
 import react from "@vitejs/plugin-react";
 import browserslistToEsbuild from "browserslist-to-esbuild";
@@ -12,7 +12,7 @@ import checker from "vite-plugin-checker";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import tsconfigPaths from "vite-tsconfig-paths";
 
-const publicEnvVars = [];
+const publicEnvVars: any[] = [];
 const { STAGE } = process.env;
 const IS_DEV = process.env.NODE_ENV === "development";
 const ROOT_DIR = path.resolve(__dirname, "./");
@@ -37,12 +37,12 @@ export const viteCommonConfig = ({
 		const envDir = fileURLToPath(new URL("..", import.meta.url));
 		const env = loadEnv(mode, envDir, "");
 
-		publicEnvVars.forEach((key) => {
+		for (const key of publicEnvVars) {
 			if (!env[key]) {
 				throw new Error(`Missing environment variable: ${key}`);
 			}
 			process.env[`${key}`] = env[key];
-		});
+		}
 
 		return {
 			cacheDir: fileURLToPath(new URL("./.cache/vite-app", import.meta.url)),
@@ -86,6 +86,7 @@ export const viteCommonConfig = ({
 					//   plugins: ['@emotion/babel-plugin'],
 					// },
 				}),
+				biomePlugin(),
 				svgr({
 					dimensions: false,
 					svgProps: {
@@ -95,21 +96,9 @@ export const viteCommonConfig = ({
 				// viteStaticCopy({
 				//   targets: [{}],
 				// }),
-				checker(
-					IS_DEV
-						? {
-								typescript: true,
-								eslint: {
-									lintCommand: 'eslint "./src/**/*.{ts,tsx}"',
-									dev: {
-										logLevel: ["error"],
-									},
-								},
-							}
-						: {
-								typescript: true,
-							},
-				),
+				checker({
+					typescript: true,
+				}),
 			],
 
 			define: {
@@ -134,7 +123,7 @@ export const viteCommonConfig = ({
 					strict: false,
 					cachedChecks: false,
 				},
-				port: 8001,
+				port: 8008,
 				proxy: {
 					"/api": {
 						target: currentTarget,
@@ -167,4 +156,5 @@ export const viteCommonConfig = ({
 		};
 	});
 
+// biome-ignore lint/style/noDefaultExport: <explanation>
 export default viteCommonConfig({});
