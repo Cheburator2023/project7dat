@@ -15,6 +15,8 @@ const StyledBreadcrumbs = styled(Breadcrumbs)(({ theme }) => ({
 }));
 
 export function NavbarBreadcrumbs() {
+	const { pathname } = window.location;
+
 	return (
 		<StyledBreadcrumbs
 			aria-label="breadcrumb"
@@ -25,7 +27,7 @@ export function NavbarBreadcrumbs() {
 				variant="body1"
 				sx={{ color: "text.primary", fontWeight: 600 }}
 			>
-				Просмотр
+				{pathname}
 			</Typography>
 		</StyledBreadcrumbs>
 	);

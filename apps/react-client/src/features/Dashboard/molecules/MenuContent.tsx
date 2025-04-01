@@ -8,10 +8,20 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
+import { useNavigate } from "react-router";
+import { routes } from "../../../routing/routes";
 
 const mainListItems = [
-	{ text: "Просмотр", icon: <HomeRoundedIcon /> },
-	{ text: "Редактирование", icon: <AnalyticsRoundedIcon /> },
+	{
+		text: "Просмотр",
+		icon: <HomeRoundedIcon />,
+		path: routes.dashboard.rootPath,
+	},
+	{
+		text: "Редактирование",
+		icon: <AnalyticsRoundedIcon />,
+		path: routes.standAloneEditor.rootPath,
+	},
 ];
 
 const secondaryListItems = [
@@ -21,11 +31,18 @@ const secondaryListItems = [
 ];
 
 export function MenuContent() {
+	const navigate = useNavigate();
+
 	return (
 		<Stack sx={{ flexGrow: 1, p: 1, justifyContent: "space-between" }}>
 			<List dense>
 				{mainListItems.map((item, index) => (
-					<ListItem key={index} disablePadding sx={{ display: "block" }}>
+					<ListItem
+						key={index}
+						disablePadding
+						sx={{ display: "block" }}
+						onClick={() => navigate(item.path)}
+					>
 						<ListItemButton selected={index === 0}>
 							<ListItemIcon>{item.icon}</ListItemIcon>
 							<ListItemText primary={item.text} />

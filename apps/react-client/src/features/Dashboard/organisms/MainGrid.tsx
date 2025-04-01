@@ -20,33 +20,34 @@ export function MainGrid({
 }: { jsonPreviewEditorOpen?: boolean }) {
 	return (
 		<Flex width="100%" height="100vh">
-			<StyledFlex
-				position="absolute"
-				zIndex={2}
-				top={0}
-				left={0}
-				width="100%"
-				height="100%"
-				pointerEvents="none"
-			>
-				<Rnd
-					default={defaultSize}
-					minWidth={cardwidth}
-					minHeight={190}
-					bounds="window"
+			{jsonPreviewEditorOpen && (
+				<StyledFlex
+					position="absolute"
+					zIndex={2}
+					top={0}
+					left={0}
+					width="100%"
+					height="100%"
+					pointerEvents="none"
 				>
-					{jsonPreviewEditorOpen && (
-						<Card
-							variant="outlined"
-							sx={{ width: "100%", height: "100%" }}
-							elevation={1}
-						>
-							<JsonEditor />
-						</Card>
-					)}
-				</Rnd>
-			</StyledFlex>
-
+					<Rnd
+						default={defaultSize}
+						minWidth={cardwidth}
+						minHeight={190}
+						bounds="window"
+					>
+						{
+							<Card
+								variant="outlined"
+								sx={{ width: "100%", height: "100%" }}
+								elevation={1}
+							>
+								<JsonEditor />
+							</Card>
+						}
+					</Rnd>
+				</StyledFlex>
+			)}
 			<Flex position="relative" zIndex={1} width="100%" height="100%">
 				<JsonDiagram />
 			</Flex>
