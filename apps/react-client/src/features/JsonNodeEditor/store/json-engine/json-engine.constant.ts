@@ -1,78 +1,140 @@
-export const DEFAULT_STRINGIFIED_JSON: string = `{
-  "app_name": "JSON Sea",
-  "lat": 37.566789,
-  "lng": 126.97842,
-  "location": "Seoul, South Korea",
-  "created_year": 2023,
-  "app_release_date": "${new Date(2023, 0, 16).toISOString()}",
-  "json_sea_access_date": "${new Date().toISOString()}",
-  "active": true,
-  "primary_color": "#0072F5",
-  "null_property": null,
-  "app_url": "https://jsonsea.com/",
-  "sea_img_url": "https://raw.githubusercontent.com/altenull/json-sea/main/public/sea-image.jpeg",
-  "sea_video_url": "https://raw.githubusercontent.com/altenull/json-sea/main/public/sea-video.mp4",
-  "sea_audio_url": "https://raw.githubusercontent.com/altenull/json-sea/main/public/sea-audio.mp3",
-  "thanks_to": [
-    {
-      "name": "NextUI",
-      "url": "https://nextui.org/"
-    },
-    {
-      "name": "React Flow",
-      "url": "https://reactflow.dev/"
-    }
-  ],
-  "complex_object": {
-    "long_number_1": 234828153200,
-    "long_number_2": 2123451234.2214,
-    "object": {
-      "boolean_1": true,
-      "boolean_2": false,
-      "array": [
-        "J",
-        "S",
-        "O",
-        "N",
-        "S",
-        "E",
-        "A",
-        [
-          2,
-          0,
-          2,
-          3
-        ]
-      ]
-    }
-  },
-  "random_virtual_members": [
-    {
-      "id": 1,
-      "first_name": "Torrin",
-      "last_name": "Chaimson",
-      "preferred_color": "#315e33",
-      "birth": "2022-10-23T00:30:51Z",
-      "random_url": "https://wikimedia.org/justo.aspx?nisi=vivamus&volutpat=in&eleifend=felis",
-      "random_img_url": "https://dummyimage.com/136x207.png"
-    },
-    {
-      "id": 2,
-      "first_name": "Iggy",
-      "last_name": "Dymick",
-      "preferred_color": "#aef195",
-      "birth": "2022-07-13T13:03:36Z",
-      "random_url": "https://etsy.com/cum/sociis/natoque/penatibus/et/magnis.html?dui=vel",
-      "random_img_url": "https://dummyimage.com/109x260.png"
-    },
-    {
-      "id": 3,
-      "first_name": "Lowell",
-      "last_name": "Orsman",
-      "preferred_color": "#f7a2e2",
-      "birth": "2022-12-13T18:06:06Z",
-      "random_url": "https://cbc.ca/nunc/commodo/placerat/praesent/blandit/nam.aspx?ipsum=felis&aliquam=ut",
-      "random_img_url": "https://dummyimage.com/127x233.png"
-    }
-  ]
-}`;
+export const DEFAULT_STRINGIFIED_JSON: string = JSON.stringify(
+	{
+		_id: "67ec5ff72fc962d03a0a6299",
+		index: 0,
+		guid: "6a578650-cdd4-4e99-a5bb-27c892d8c474",
+		isActive: true,
+		balance: "$3,864.93",
+		picture: "http://placehold.it/32x32",
+		age: 39,
+		eyeColor: "green",
+		name: "Kerri Delaney",
+		gender: "female",
+		company: "PLASMOSIS",
+		email: "kerridelaney@plasmosis.com",
+		phone: "+1 (834) 413-3068",
+		address: "310 Kings Hwy, Avoca, Virginia, 9799",
+		about:
+			"Dolore ullamco consequat magna ipsum laboris magna. Dolore adipisicing non consequat officia laboris excepteur elit. Lorem officia ea elit ea sunt ipsum elit. Do commodo ipsum consequat deserunt mollit enim excepteur magna nulla deserunt quis in qui.\r\n",
+		registered: "2020-05-05T06:09:18 -03:00",
+		latitude: 50.284115,
+		longitude: -113.427339,
+		tags: [
+			"dolor",
+			"fugiat",
+			"voluptate",
+			"ipsum",
+			"commodo",
+			"ullamco",
+			"excepteur",
+		],
+		friends: [
+			{
+				id: 0,
+				name: "Dawn Britt",
+			},
+			{
+				id: 1,
+				name: "Miles Gross",
+			},
+			{
+				id: 2,
+				name: {
+					_id: "67ec5ff72fc962d03a0a6299",
+					index: 0,
+					guid: "6a578650-cdd4-4e99-a5bb-27c892d8c474",
+					isActive: true,
+					balance: "$3,864.93",
+					picture: "http://placehold.it/32x32",
+					age: 39,
+					eyeColor: "green",
+					name: "Kerri Delaney",
+					gender: "female",
+					company: "PLASMOSIS",
+					email: "kerridelaney@plasmosis.com",
+					phone: "+1 (834) 413-3068",
+					address: "310 Kings Hwy, Avoca, Virginia, 9799",
+					about:
+						"Dolore ullamco consequat magna ipsum laboris magna. Dolore adipisicing non consequat officia laboris excepteur elit. Lorem officia ea elit ea sunt ipsum elit. Do commodo ipsum consequat deserunt mollit enim excepteur magna nulla deserunt quis in qui.\r\n",
+					registered: "2020-05-05T06:09:18 -03:00",
+					latitude: 50.284115,
+					longitude: -113.427339,
+					tags: [
+						"dolor",
+						"fugiat",
+						"voluptate",
+						"ipsum",
+						"commodo",
+						"ullamco",
+						"excepteur",
+					],
+					friends: [
+						{
+							id: 0,
+							name: "Dawn Britt",
+						},
+						{
+							id: 1,
+							name: "Miles Gross",
+						},
+						{
+							id: 2,
+							name: "Rachael Cantu",
+						},
+					],
+					greeting: "Hello, Kerri Delaney! You have 2 unread messages.",
+					favoriteFruit: {
+						_id: "67ec5ff72fc962d03a0a6299",
+						index: 0,
+						guid: "6a578650-cdd4-4e99-a5bb-27c892d8c474",
+						isActive: true,
+						balance: "$3,864.93",
+						picture: "http://placehold.it/32x32",
+						age: 39,
+						eyeColor: "green",
+						name: "Kerri Delaney",
+						gender: "female",
+						company: "PLASMOSIS",
+						email: "kerridelaney@plasmosis.com",
+						phone: "+1 (834) 413-3068",
+						address: "310 Kings Hwy, Avoca, Virginia, 9799",
+						about:
+							"Dolore ullamco consequat magna ipsum laboris magna. Dolore adipisicing non consequat officia laboris excepteur elit. Lorem officia ea elit ea sunt ipsum elit. Do commodo ipsum consequat deserunt mollit enim excepteur magna nulla deserunt quis in qui.\r\n",
+						registered: "2020-05-05T06:09:18 -03:00",
+						latitude: 50.284115,
+						longitude: -113.427339,
+						tags: [
+							"dolor",
+							"fugiat",
+							"voluptate",
+							"ipsum",
+							"commodo",
+							"ullamco",
+							"excepteur",
+						],
+						friends: [
+							{
+								id: 0,
+								name: "Dawn Britt",
+							},
+							{
+								id: 1,
+								name: "Miles Gross",
+							},
+							{
+								id: 2,
+								name: "Rachael Cantu",
+							},
+						],
+						greeting: "Hello, Kerri Delaney! You have 2 unread messages.",
+						favoriteFruit: "banana",
+					},
+				},
+			},
+		],
+		greeting: "Hello, Kerri Delaney! You have 2 unread messages.",
+		favoriteFruit: "banana",
+	},
+	null,
+	2,
+);

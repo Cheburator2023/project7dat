@@ -1,12 +1,19 @@
-"use client";
+import CloseIcon from "@mui/icons-material/Close";
+import { type ComponentProps, useCallback, useEffect } from "react";
 
-import { Button } from "@nextui-org/button";
-import { Input } from "@nextui-org/input";
-import { Modal, ModalBody, ModalContent, ModalHeader } from "@nextui-org/modal";
-import { type ComponentProps, memo, useCallback, useEffect } from "react";
+import {
+	Button,
+	Card,
+	IconButton,
+	type Input,
+	Modal,
+	TextField,
+	Typography,
+} from "@mui/material";
+import { Flex } from "../../../../common/primitives/Flex";
+import { Spacer } from "../../../../common/primitives/Spacer";
 import { useJsonDiagramViewStore } from "../../store/json-diagram-view/json-diagram-view.store";
 import { useJsonEngineStore } from "../../store/json-engine/json-engine.store";
-import { Text } from "../../ui/components/Text";
 import {
 	formatJsonLikeData,
 	isArray,
@@ -23,7 +30,7 @@ type Props = {
 	closeModal: () => void;
 };
 
-const _ImportJsonModal = ({ isModalOpen, closeModal }: Props) => {
+export const ImportJsonModal = ({ isModalOpen, closeModal }: Props) => {
 	const {
 		string: jsonUrlValue,
 		isEmpty: isJsonUrlValueEmpty,
@@ -54,15 +61,12 @@ const _ImportJsonModal = ({ isModalOpen, closeModal }: Props) => {
 			[setJsonUrlValue, resetGetJsonError],
 		);
 
-	const handleJsonUrlValueClear: ComponentProps<typeof Input>["onClear"] =
-		useCallback(() => {
-			clearJsonUrlValue();
-			resetGetJsonError();
-		}, [clearJsonUrlValue, resetGetJsonError]);
+	const handleJsonUrlValueClear = () => {
+		clearJsonUrlValue();
+		resetGetJsonError();
+	};
 
-	const handleJsonUrlInputKeyDown: ComponentProps<typeof Input>["onKeyDown"] = (
-		e,
-	) => {
+	const handleJsonUrlInputKeyDown: any = (e: any) => {
 		if (e.key === "Enter" && !isJsonUrlValueEmpty) {
 			fetchJsonUrl(jsonUrlValue);
 		}
@@ -90,55 +94,59 @@ const _ImportJsonModal = ({ isModalOpen, closeModal }: Props) => {
 	const isInvalid = !isNull(getJsonError);
 
 	return (
-		<Modal closeButton isOpen={isModalOpen} onClose={closeModal}>
-			<ModalContent>
-				{(onClose) => (
-					<>
-						<ModalHeader>Import JSON via URL or File</ModalHeader>
-						<ModalBody className="gap-3">
-							<div className="flex gap-x-2">
-								<Input
-									aria-label="JSON URL input"
-									classNames={{
-										inputWrapper: ["h-10"],
-									}}
-									size="sm"
-									variant="bordered"
-									isClearable
-									isDisabled={isGetJsonLoading}
-									isInvalid={isInvalid}
-									color={isInvalid ? "danger" : "primary"}
-									errorMessage={
+		<Modal open={isModalOpen} onClose={closeModal}>
+			<Flex
+				width="100%"
+				height="100%"
+				justifyContent="center"
+				alignItems="center"
+			>
+				<Flex width="600px">
+					<Card style={{ width: "100%", height: "100%" }} variant="outlined">
+						<Flex width="100%" justifyContent="space-between">
+							<Typography variant="h5">Импортировать JSON</Typography>
+							<IconButton aria-label="close" onClick={closeModal}>
+								<CloseIcon />
+							</IconButton>
+						</Flex>
+
+						<Spacer />
+
+						<div>
+							<Flex gap={20}>
+								<TextField
+									aria-label="Поле ввода URL для JSON"
+									size="medium"
+									disabled={isGetJsonLoading}
+									fullWidth
+									helperText={
 										isInvalid
-											? "Fetching JSON via URL failed for some reason"
+											? "Не удалось загрузить JSON по указанному URL"
 											: undefined
 									}
+									error={isInvalid}
 									value={jsonUrlValue}
-									placeholder="Enter a JSON URL to fetch"
+									placeholder="Введите URL JSON для загрузки"
 									onChange={handleJsonUrlValueChange}
-									onClear={handleJsonUrlValueClear}
 									onKeyDown={handleJsonUrlInputKeyDown}
 								/>
 								<Button
-									variant="flat"
+									variant="contained"
 									color="primary"
-									isLoading={isGetJsonLoading}
-									isDisabled={isJsonUrlValueEmpty}
-									onPress={() => fetchJsonUrl(jsonUrlValue)}
+									disabled={isJsonUrlValueEmpty || isGetJsonLoading}
+									onClick={() => fetchJsonUrl(jsonUrlValue)}
 								>
-									Fetch
+									Загрузить
 								</Button>
-							</div>
+							</Flex>
 
-							<Text className="text-center text-xs">or</Text>
+							<Spacer space={20} />
 
 							<DragDropJsonFile afterFileReadSuccess={closeModal} />
-						</ModalBody>
-					</>
-				)}
-			</ModalContent>
+						</div>
+					</Card>
+				</Flex>
+			</Flex>
 		</Modal>
 	);
 };
-
-export const ImportJsonModal = memo(_ImportJsonModal);

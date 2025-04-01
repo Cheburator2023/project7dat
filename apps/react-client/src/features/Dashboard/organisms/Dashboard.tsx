@@ -1,5 +1,4 @@
 import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
 import { alpha, styled } from "@mui/material/styles";
 import type {} from "@mui/material/themeCssVarsAugmentation";
 import type {} from "@mui/x-charts/themeAugmentation";
@@ -39,7 +38,8 @@ const MainWrapper = styled("div", {
 }));
 
 export function Dashboard(props: { disableCustomTheme?: boolean }) {
-	const [sideMenuOpen, setSideMenuOpen] = useState(false);
+	const [sideMenuOpen, setSideMenuOpen] = useState(true);
+	const [jsonPreviewEditorOpen, setJsonPreviewEditorOpen] = useState(true);
 
 	return (
 		<Flex>
@@ -55,18 +55,16 @@ export function Dashboard(props: { disableCustomTheme?: boolean }) {
 						overflow: "auto",
 					})}
 				>
-					<Stack
-						spacing={2}
-						sx={{
-							alignItems: "center",
-							mx: 0,
-							pb: 5,
-							mt: { xs: 8, md: 0 },
-						}}
-					>
-						<Header setSideMenuOpen={() => setSideMenuOpen(!sideMenuOpen)} />
-						<MainGrid />
-					</Stack>
+					<Flex flexDirection="column" gap={2}>
+						<Header
+							jsonPreviewEditorOpen={jsonPreviewEditorOpen}
+							setJsonPreviewEditorOpen={() =>
+								setJsonPreviewEditorOpen(!jsonPreviewEditorOpen)
+							}
+							setSideMenuOpen={() => setSideMenuOpen(!sideMenuOpen)}
+						/>
+						<MainGrid jsonPreviewEditorOpen={jsonPreviewEditorOpen} />
+					</Flex>
 				</Box>
 			</MainWrapper>
 		</Flex>

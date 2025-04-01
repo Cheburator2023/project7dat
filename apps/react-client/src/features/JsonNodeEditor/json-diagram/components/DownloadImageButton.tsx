@@ -7,7 +7,7 @@ import { downloadAsFile } from "../../utils/file-download.util";
 import { useBoolean } from "../../utils/react-hooks/useBoolean";
 import { useCustomTheme } from "../../utils/react-hooks/useCustomTheme";
 
-const _DownloadImageButton = () => {
+export const DownloadImageButton = () => {
 	const { theme } = useCustomTheme();
 	const {
 		bool: isDownloading,
@@ -73,8 +73,3 @@ const _DownloadImageButton = () => {
 		</CircleTransparentButton>
 	);
 };
-
-/**
- * @see https://reactflow.dev/docs/examples/misc/download-image/
- */
-export const DownloadImageButton = memo(_DownloadImageButton);

@@ -1,15 +1,24 @@
 import { styled } from "@mui/material/styles";
 export type TFlexboxProps = {
 	fillChild?: boolean;
-	height?: number | string;
-	width?: number | string;
-	maxHeight?: number | string;
-	maxWidth?: number | string;
-	minHeight?: number | string;
-	minWidth?: number | string;
+	height?: string;
+	width?: string;
+	maxHeight?: string;
+	maxWidth?: string;
+	minHeight?: string;
+	minWidth?: string;
 	padding?: string;
 	pad?: string;
+	margin?: string;
 	position?: "absolute" | "relative" | "fixed" | "sticky" | "static";
+	pointerEvents?:
+		| "none"
+		| "auto"
+		| "all"
+		| "visible"
+		| "visibleFill"
+		| "painted"
+		| "paintedFill";
 	top?: number | string;
 	left?: number | string;
 	right?: number | string;
@@ -156,14 +165,15 @@ export const Flex = styled("div")<TFlexboxProps>`
 				? `flex-grow: ${typeof props.flexGrow === "number" ? `${props.flexGrow}` : props.flexGrow};`
 				: ""
 		}
-    ${props.flexBasis ? `flex-basis: ${props.flexBasis};` : ""}
+    ${props.flexBasis || props.flexBasis === 0 ? `flex-basis: ${props.flexBasis};` : ""}
     ${props.position ? `position: ${props.position};` : ""}
-    ${props.top ? `top: ${props.top};` : ""}
-    ${props.left ? `left: ${props.left};` : ""}
-    ${props.right ? `right: ${props.right};` : ""}
-    ${props.bottom ? `bottom: ${props.bottom};` : ""}
-    ${props.zIndex ? `z-index: ${props.zIndex};` : ""}
-
+    ${props.top || props.top === 0 ? `top: ${props.top};` : ""}
+    ${props.left || props.left === 0 ? `left: ${props.left};` : ""}
+    ${props.right || props.right === 0 ? `right: ${props.right};` : ""}
+    ${props.bottom || props.bottom === 0 ? `bottom: ${props.bottom};` : ""}
+    ${props.zIndex || props.zIndex === 0 ? `z-index: ${props.zIndex};` : ""}
+	${props.pointerEvents ? `pointer-events: ${props.pointerEvents};` : ""}
+	${props.margin ? `margin: ${props.margin};` : ""}
 
     & > * {
     ${props.fillChild ? `width: 100%;` : ""}
