@@ -4,6 +4,9 @@
 		"module": "ESNext",
 		"moduleResolution": "Bundler",
 		"lib": ["dom", "dom.iterable", "esnext"],
+		"paths": {
+			"@joint/plus/*": ["../../packages/jointjs_plus/*"]
+		},
 		"allowJs": true,
 		"skipLibCheck": true,
 		"esModuleInterop": true,
@@ -15,6 +18,14 @@
 		"isolatedModules": true,
 		"noEmit": true,
 		"jsx": "react-jsx",
-		"baseUrl": "src"
-	}
+		"baseUrl": "src",
+		"alwaysStrict": true
+	},
+	"include": [
+		"../../apps/react-client/**/*.ts",
+		"../../apps/react-client/**/*.tsx",
+		"../../packages/jointjs_plus/**/*.ts",
+		"../../packages/jointjs_plus/**/*.tsx"
+	],
+	"exclude": ["../../apps/**/node_modules", "../../packages/**/node_modules"]
 }

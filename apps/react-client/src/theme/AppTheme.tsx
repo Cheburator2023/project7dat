@@ -47,7 +47,7 @@ export function AppTheme(props: AppThemeProps) {
 	}
 	return (
 		<ThemeProvider theme={theme} disableTransitionOnChange>
-			{children}s
+			{children}
 		</ThemeProvider>
 	);
 }
