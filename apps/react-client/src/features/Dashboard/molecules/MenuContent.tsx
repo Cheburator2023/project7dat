@@ -1,9 +1,6 @@
 import AnalyticsRoundedIcon from "@mui/icons-material/AnalyticsRounded";
-import AssignmentRoundedIcon from "@mui/icons-material/AssignmentRounded";
-import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
-import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -13,16 +10,14 @@ import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 
 const mainListItems = [
-	{ text: "Home", icon: <HomeRoundedIcon /> },
-	{ text: "Analytics", icon: <AnalyticsRoundedIcon /> },
-	{ text: "Clients", icon: <PeopleRoundedIcon /> },
-	{ text: "Tasks", icon: <AssignmentRoundedIcon /> },
+	{ text: "Просмотр", icon: <HomeRoundedIcon /> },
+	{ text: "Редактирование", icon: <AnalyticsRoundedIcon /> },
 ];
 
 const secondaryListItems = [
-	{ text: "Settings", icon: <SettingsRoundedIcon /> },
-	{ text: "About", icon: <InfoRoundedIcon /> },
-	{ text: "Feedback", icon: <HelpRoundedIcon /> },
+	{ text: "Система управления моделями (СУМ)", icon: <InfoRoundedIcon /> },
+	{ text: "Реестр моделей (СУМ РМ)", icon: <InfoRoundedIcon /> },
+	{ text: "Настройки", icon: <SettingsRoundedIcon /> },
 ];
 
 export function MenuContent() {

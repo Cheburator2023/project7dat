@@ -1,8 +1,8 @@
 import { BrowserRouter, Route, Routes } from "react-router";
 import { routes } from "./routes";
 
-import { HomePage } from "features/Home/HomePage";
 import { DashboardPage } from "../features/Dashboard/pages/DashboardPage";
+import { HomePage } from "../features/Home/HomePage";
 import { Page404 } from "./Page404";
 
 export const Routing = () => (

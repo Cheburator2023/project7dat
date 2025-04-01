@@ -35,11 +35,13 @@
 		"rules": {
 			"recommended": true,
 			"a11y": {
-				"noSvgWithoutTitle": "off"
+				"noSvgWithoutTitle": "off",
+				"useMediaCaption": "off"
 			},
 			"style": {
 				"noDefaultExport": "info",
-				"noUnusedTemplateLiteral": "off"
+				"noUnusedTemplateLiteral": "off",
+				"noUselessElse": "off"
 			},
 			"correctness": {
 				"useExhaustiveDependencies": "off",
@@ -52,6 +54,9 @@
 				"noExplicitAny": "off",
 				"noPrototypeBuiltins": "warn",
 				"noArrayIndexKey": "off"
+			},
+			"performance": {
+				"noAccumulatingSpread": "warn"
 			}
 		}
 	},

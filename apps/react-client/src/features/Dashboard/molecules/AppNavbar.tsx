@@ -7,8 +7,7 @@ import { tabsClasses } from "@mui/material/Tabs";
 import MuiToolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
-
-import { useState } from "react";
+import { useLocation } from "react-router";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { MenuButton } from "./MenuButton";
 
@@ -28,12 +27,14 @@ const Toolbar = styled(MuiToolbar)({
 	},
 });
 
-export function AppNavbar() {
-	const [open, setOpen] = useState(false);
-
-	const toggleDrawer = (newOpen: boolean) => () => {
-		setOpen(newOpen);
+export function AppNavbar({
+	setSideMenuOpen,
+}: { setSideMenuOpen: () => void }) {
+	const toggleDrawer = () => {
+		setSideMenuOpen();
 	};
+
+	const location = useLocation();
 
 	return (
 		<AppBar
@@ -69,11 +70,11 @@ export function AppNavbar() {
 							component="h1"
 							sx={{ color: "text.primary" }}
 						>
-							Dashboard
+							{location.pathname}
 						</Typography>
 					</Stack>
 					<ColorModeIconDropdown />
-					<MenuButton aria-label="menu" onClick={toggleDrawer(true)}>
+					<MenuButton aria-label="menu" onClick={() => toggleDrawer()}>
 						<MenuRoundedIcon />
 					</MenuButton>
 				</Stack>
