@@ -4,7 +4,7 @@ import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
+import { useColorScheme, useTheme } from "@mui/material/styles";
 import { areaElementClasses } from "@mui/x-charts/LineChart";
 import { SparkLineChart } from "@mui/x-charts/SparkLineChart";
 
@@ -50,21 +50,19 @@ export function StatCard({
 	data,
 }: StatCardProps) {
 	const theme = useTheme();
+	const { mode, systemMode, setMode } = useColorScheme();
+
 	const daysInWeek = getDaysInMonth(4, 2024);
 
 	const trendColors = {
 		up:
-			theme.palette.mode === "light"
+			mode === "light"
 				? theme.palette.success.main
 				: theme.palette.success.dark,
 		down:
-			theme.palette.mode === "light"
-				? theme.palette.error.main
-				: theme.palette.error.dark,
+			mode === "light" ? theme.palette.error.main : theme.palette.error.dark,
 		neutral:
-			theme.palette.mode === "light"
-				? theme.palette.grey[400]
-				: theme.palette.grey[700],
+			mode === "light" ? theme.palette.grey[400] : theme.palette.grey[700],
 	};
 
 	const labelColors = {

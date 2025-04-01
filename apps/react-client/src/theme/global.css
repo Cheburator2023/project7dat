@@ -77,6 +77,8 @@
  * To remove attribution('React Flow' title under controls), need some money.
  * @see https://reactflow.dev/docs/guides/remove-attribution/
  */
-.react-flow__attribution {
+div.react-flow__panel.react-flow__attribution {
 	background: transparent !important;
+	display: none !important;
 }
+/* react-flow__panel react-flow__attribution bottom right */

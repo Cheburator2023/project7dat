@@ -1,10 +1,11 @@
 import Editor from "@monaco-editor/react";
+import { useColorScheme } from "@mui/material";
 import { useCallback } from "react";
+
 import { useJsonDiagramViewStore } from "../../store/json-diagram-view/json-diagram-view.store";
 import { DEFAULT_STRINGIFIED_JSON } from "../../store/json-engine/json-engine.constant";
 import { useJsonEngineStore } from "../../store/json-engine/json-engine.store";
 import { isValidJson } from "../../utils/json.util";
-import { useCustomTheme } from "../../utils/react-hooks/useCustomTheme";
 import { JsonEditorConsole } from "./JsonEditorConsole";
 import { JsonValidityStatus } from "./JsonValidityStatus";
 
@@ -18,7 +19,7 @@ const _JsonEditor = () => {
 		(state) => state.resetSelectedNode,
 	);
 
-	const { isDarkMode } = useCustomTheme();
+	const { mode, systemMode, setMode } = useColorScheme();
 
 	const handleEditorChange = useCallback(
 		(value: string | undefined) => {
@@ -34,9 +35,9 @@ const _JsonEditor = () => {
 	);
 
 	return (
-		<div className="relative h-full w-full border-r-1 border-solid border-r-border">
+		<div className="relative h-full w-full">
 			<Editor
-				theme={isDarkMode ? "vs-dark" : "light"}
+				theme={mode === "dark" ? "vs-dark" : "light"}
 				defaultLanguage="json"
 				options={{
 					minimap: {
@@ -52,22 +53,9 @@ const _JsonEditor = () => {
 				onChange={handleEditorChange}
 			/>
 
-			<JsonValidityStatus
-				style={{
-					position: "absolute",
-					right: 0,
-					top: 0,
-				}}
-			/>
+			<JsonValidityStatus />
 
-			<JsonEditorConsole
-				style={{
-					position: "absolute",
-					left: 0,
-					right: 0,
-					bottom: 0,
-				}}
-			/>
+			<JsonEditorConsole />
 		</div>
 	);
 };

@@ -1,4 +1,4 @@
-import { CircularProgress } from "@mui/material";
+import { CircularProgress, StyledEngineProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense } from "react";
@@ -32,13 +32,15 @@ const queryClient = new QueryClient({
 
 export function App() {
 	return (
-		<QueryClientProvider client={queryClient}>
-			<AppTheme themeComponents={xThemeComponents}>
-				<CssBaseline enableColorScheme />
-				<Suspense fallback={<CircularProgress />}>
-					<Routing />
-				</Suspense>
-			</AppTheme>
-		</QueryClientProvider>
+		<StyledEngineProvider injectFirst>
+			<QueryClientProvider client={queryClient}>
+				<AppTheme themeComponents={xThemeComponents}>
+					<CssBaseline enableColorScheme />
+					<Suspense fallback={<CircularProgress />}>
+						<Routing />
+					</Suspense>
+				</AppTheme>
+			</QueryClientProvider>
+		</StyledEngineProvider>
 	);
 }

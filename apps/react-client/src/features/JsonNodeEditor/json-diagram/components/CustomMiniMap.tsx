@@ -1,3 +1,4 @@
+import { useColorScheme } from "@mui/material";
 import {
 	type CSSProperties,
 	type ComponentProps,
@@ -12,7 +13,6 @@ import type {
 	ObjectNodeData,
 	PrimitiveNodeData,
 } from "../../store/json-engine/types/sea-node.type";
-import { useCustomTheme } from "../../utils/react-hooks/useCustomTheme";
 
 type MinimapTheme = {
 	backgroundColor: CSSProperties["backgroundColor"];
@@ -20,7 +20,9 @@ type MinimapTheme = {
 };
 
 const _CustomMiniMap = () => {
-	const { isDarkMode } = useCustomTheme();
+	const { mode, systemMode, setMode } = useColorScheme();
+
+	const isDarkMode = mode === "dark";
 
 	const nodeClassName: GetMiniMapNodeAttribute<
 		ObjectNodeData | ArrayNodeData | PrimitiveNodeData

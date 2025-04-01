@@ -1,6 +1,7 @@
 import "./theme/global.css";
 import "@xyflow/react/dist/style.css";
-import "@joint/plus/joint-plus.css";
+import "reactflow/dist/style.css";
+// import "@joint/plus/joint-plus.css";
 
 import React from "react";
 import ReactDOM from "react-dom/client";

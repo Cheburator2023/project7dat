@@ -12,7 +12,6 @@ import ReactFlow, {
 	useEdgesState,
 	useNodesState,
 } from "reactflow";
-import "reactflow/dist/style.css";
 import { featureFlag } from "../../environment";
 import { useJsonDiagramViewStore } from "../../store/json-diagram-view/json-diagram-view.store";
 import { EdgeType } from "../../store/json-engine/enums/edge-type.enum";
@@ -25,7 +24,6 @@ import { ArrayNode } from "./ArrayNode";
 import { ChainEdge } from "./ChainEdge";
 import { CustomMiniMap } from "./CustomMiniMap";
 import { DefaultEdge } from "./DefaultEdge";
-import { DownloadImageButton } from "./DownloadImageButton";
 import { FitViewInvoker } from "./FitViewInvoker";
 import { ObjectNode } from "./ObjectNode";
 import { PrimitiveNode } from "./PrimitiveNode";
@@ -97,7 +95,6 @@ export const JsonDiagram = () => {
 						position="bottom-right"
 						showInteractive={false}
 					/>
-					<DownloadImageButton />
 					<Background variant={BackgroundVariant.Dots} />
 					<FitViewInvoker seaNodes={seaNodes} />
 				</ReactFlow>
