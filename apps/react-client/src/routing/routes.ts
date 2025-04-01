@@ -14,6 +14,10 @@ export const routes = {
 			settings: "settings",
 		},
 	},
+	standAloneEditor: {
+		rootPath: "/stand-alone-editor",
+		subRoutes: { editor: "editor" },
+	},
 	account: {
 		rootPath: "/account",
 		subRoutes: { manage: "manage" },
