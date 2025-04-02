@@ -8,8 +8,9 @@ import MuiToolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useLocation } from "react-router";
+
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
-import { MenuButton } from "./MenuButton";
+import { MenuButton } from "../../navigation/molecules/MenuButton";
 
 const Toolbar = styled(MuiToolbar)({
 	width: "100%",
@@ -20,7 +21,7 @@ const Toolbar = styled(MuiToolbar)({
 	justifyContent: "center",
 	gap: "12px",
 	flexShrink: 0,
-	[`& ${tabsClasses.flexContainer}`]: {
+	[`& ${tabsClasses.list}`]: {
 		gap: "8px",
 		p: "8px",
 		pb: 0,

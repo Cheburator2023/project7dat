@@ -7,8 +7,9 @@ import type {} from "@mui/x-date-pickers/themeAugmentation";
 import type {} from "@mui/x-tree-view/themeAugmentation";
 import { useState } from "react";
 import { Flex } from "../../../common/primitives/Flex";
-import { Header } from "../molecules/Header";
-import { SideMenu } from "../molecules/SideMenu";
+
+import { Header } from "../../navigation/organisms/Header";
+import { SideMenu } from "../../navigation/organisms/SideMenu";
 import { MainGrid } from "./MainGrid";
 
 const MainWrapper = styled("div", {

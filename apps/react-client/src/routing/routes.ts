@@ -1,25 +1,15 @@
-/**
- * Define all route path-names here, so that any
- * future change can be easily applied across throughout
- * your application.
- */
-
 export const routes = {
-	home: "/",
+	home: {
+		rootPath: "/",
+		name: "Главная",
+	},
 	dashboard: {
 		rootPath: "/dashboard",
-		subRoutes: {
-			overview: "overview",
-			analytics: "analytics",
-			settings: "settings",
-		},
+		name: "Дашборд",
 	},
 	standAloneEditor: {
+		name: "Редактор",
 		rootPath: "/stand-alone-editor",
 		subRoutes: { editor: "editor" },
-	},
-	account: {
-		rootPath: "/account",
-		subRoutes: { manage: "manage" },
 	},
 };

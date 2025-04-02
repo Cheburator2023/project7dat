@@ -41,11 +41,18 @@
 			"style": {
 				"noDefaultExport": "info",
 				"noUnusedTemplateLiteral": "off",
-				"noUselessElse": "off"
+				"noUselessElse": "off",
+				"useSelfClosingElements": {
+					"fix": "safe",
+					"level": "warn"
+				}
 			},
 			"correctness": {
 				"useExhaustiveDependencies": "off",
-				"noUnusedImports": "warn"
+				"noUnusedImports": {
+					"fix": "none",
+					"level": "warn"
+				}
 			},
 			"complexity": {
 				"noForEach": "warn"

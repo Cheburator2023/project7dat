@@ -2,8 +2,8 @@ import { Card } from "@mui/material";
 import { styled } from "@mui/system";
 import { Rnd } from "react-rnd";
 import { Flex } from "../../../common/primitives/Flex";
-import { JsonDiagram } from "../../JsonNodeEditor/json-diagram/components/JsonDiagram";
-import { JsonEditor } from "../../JsonNodeEditor/json-editor/components/JsonEditor";
+import { JsonDiagram } from "../../jsonNodeEditor/json-diagram/components/JsonDiagram";
+import { JsonEditor } from "../../jsonNodeEditor/json-editor/components/JsonEditor";
 
 const screenWidth = window.innerWidth;
 const cardwidth = 500;
