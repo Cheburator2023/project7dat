@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Header } from "../../features/navigation/organisms/Header";
 import { SideMenu } from "../../features/navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
+import { useGlobalSettingsStore } from "../store/globalSettingsStore";
 
 const MainWrapper = styled("div", {
 	shouldForwardProp: (prop) => prop !== "open",
@@ -38,13 +39,12 @@ const MainWrapper = styled("div", {
 }));
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
-	const [sideMenuOpen, setSideMenuOpen] = useState(true);
-	const [jsonPreviewEditorOpen, setJsonPreviewEditorOpen] = useState(true);
+	const store = useGlobalSettingsStore();
 
 	return (
 		<Flex>
-			<SideMenu open={sideMenuOpen} />
-			<MainWrapper open={sideMenuOpen}>
+			<SideMenu open={store.isSideMenuVisible} />
+			<MainWrapper open={store.isSideMenuVisible}>
 				<Box
 					component="main"
 					sx={(theme) => ({
@@ -56,13 +56,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 					})}
 				>
 					<Flex flexDirection="column" gap={2}>
-						<Header
-							jsonPreviewEditorOpen={jsonPreviewEditorOpen}
-							setJsonPreviewEditorOpen={() =>
-								setJsonPreviewEditorOpen(!jsonPreviewEditorOpen)
-							}
-							setSideMenuOpen={() => setSideMenuOpen(!sideMenuOpen)}
-						/>
+						<Header />
 						{children}
 					</Flex>
 				</Box>

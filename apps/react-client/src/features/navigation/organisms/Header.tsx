@@ -4,6 +4,7 @@ import { Button } from "@mui/material";
 import { styled } from "@mui/system";
 
 import { Flex } from "../../../common/primitives/Flex";
+import { useGlobalSettingsStore } from "../../../common/store/globalSettingsStore";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { CustomDatePicker } from "../molecules/CustomDatePicker";
 import { MenuButton } from "../molecules/MenuButton";
@@ -11,23 +12,15 @@ import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
 import { AppNavbar } from "./AppNavbar";
 import { Search } from "./Search";
 
-interface HeaderProps {
-	setSideMenuOpen: () => void;
-	setJsonPreviewEditorOpen: () => void;
-	jsonPreviewEditorOpen: boolean;
-}
+export function Header() {
+	const store = useGlobalSettingsStore();
 
-export function Header({
-	setSideMenuOpen,
-	setJsonPreviewEditorOpen,
-	jsonPreviewEditorOpen,
-}: HeaderProps) {
 	const toggleDrawer = () => {
-		setSideMenuOpen();
+		store.toggleSideMenu();
 	};
 
 	const toggleJsonPreviewEditor = () => {
-		setJsonPreviewEditorOpen();
+		store.toggleJsonPreview();
 	};
 
 	return (
@@ -51,16 +44,18 @@ export function Header({
 				<Flex flexDirection="row" gap={6} alignItems="center">
 					<Search />
 					<CustomDatePicker />
-					<MenuButton showBadge aria-label="Open notifications">
-						<NotificationsRoundedIcon />
-					</MenuButton>
 					<ColorModeIconDropdown />
+					<Button variant="outlined" size="small" onClick={store.toggleMinimap}>
+						{!store.isMinimapVisible
+							? "Показать мини-карту"
+							: "Скрыть мини-карту"}
+					</Button>
 					<Button
 						variant="outlined"
 						size="small"
 						onClick={toggleJsonPreviewEditor}
 					>
-						{!jsonPreviewEditorOpen ? "Показать json" : "Скрыть json"}
+						{!store.isJsonPreviewVisible ? "Показать json" : "Скрыть json"}
 					</Button>
 				</Flex>
 			</StyledFlex>

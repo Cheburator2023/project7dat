@@ -9,7 +9,7 @@ export const routes = {
 	},
 	standAloneEditor: {
 		name: "Редактор",
-		rootPath: "/stand-alone-editor",
+		rootPath: "/standAloneEditor",
 		subRoutes: { editor: "editor" },
 	},
 };
