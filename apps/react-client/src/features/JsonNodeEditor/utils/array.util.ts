@@ -6,10 +6,7 @@ export const arrayToEntities = <T>(array: T[], id: string): Entities<T> => {
 	return array.reduce((acc: Entities<T>, item: T) => {
 		return (item as any)[id] === undefined
 			? acc
-			: {
-					...acc,
-					[(item as any)[id]]: item,
-				};
+			: Object.assign(acc, { [(item as any)[id]]: item });
 	}, {});
 };
 

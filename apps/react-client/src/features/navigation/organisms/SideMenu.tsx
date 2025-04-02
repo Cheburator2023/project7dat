@@ -5,8 +5,8 @@ import MuiDrawer, { drawerClasses } from "@mui/material/Drawer";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
-import { MenuContent } from "./MenuContent";
-import { OptionsMenu } from "./OptionsMenu";
+import { MenuContent } from "../molecules/MenuContent";
+import { OptionsMenu } from "../molecules/OptionsMenu";
 
 const drawerWidth = 240;
 

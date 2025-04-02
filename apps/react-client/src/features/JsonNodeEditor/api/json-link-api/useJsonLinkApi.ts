@@ -1,4 +1,5 @@
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
+
 import { endPoint } from "../../environment";
 import type { HttpUri } from "../../node-detail/primitive/types/http-uri.type";
 import type { JsonLink } from "./json-link.types";

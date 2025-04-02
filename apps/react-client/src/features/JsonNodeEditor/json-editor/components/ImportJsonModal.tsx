@@ -133,7 +133,7 @@ export const ImportJsonModal = ({ isModalOpen, closeModal }: Props) => {
 								<Button
 									variant="contained"
 									color="primary"
-									disabled={isJsonUrlValueEmpty || isGetJsonLoading}
+									// disabled={isJsonUrlValueEmpty || isGetJsonLoading}
 									onClick={() => fetchJsonUrl(jsonUrlValue)}
 								>
 									Загрузить

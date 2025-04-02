@@ -1,5 +1,5 @@
 import { DataGrid } from "@mui/x-data-grid";
-import { columns, rows } from "../../../mocks/gridData";
+import { columns, rows } from "../../mocks/gridData";
 
 export function CustomizedDataGrid() {
 	return (
