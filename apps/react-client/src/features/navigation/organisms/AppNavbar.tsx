@@ -9,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useLocation } from "react-router";
 
+import { routes } from "../../../routing/routes";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { MenuButton } from "../../navigation/molecules/MenuButton";
 
@@ -36,6 +37,10 @@ export function AppNavbar({
 	};
 
 	const location = useLocation();
+
+	const crumb =
+		routes[location.pathname.replace("/", "") as keyof typeof routes]?.name ||
+		routes.home.name;
 
 	return (
 		<AppBar
@@ -71,7 +76,7 @@ export function AppNavbar({
 							component="h1"
 							sx={{ color: "text.primary" }}
 						>
-							{location.pathname}
+							{crumb}
 						</Typography>
 					</Stack>
 					<ColorModeIconDropdown />

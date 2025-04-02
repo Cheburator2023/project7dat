@@ -7,6 +7,7 @@ import {
 	useMemo,
 } from "react";
 import { type GetMiniMapNodeAttribute, MiniMap } from "reactflow";
+import { useGlobalSettingsStore } from "../../../../common/store/globalSettingsStore";
 import { NodeType } from "../../store/json-engine/enums/node-type.enum";
 import type {
 	ArrayNodeData,
@@ -49,18 +50,22 @@ const _CustomMiniMap = () => {
 		return isDarkMode ? darkMinimapTheme : lightMinimapTheme;
 	}, [isDarkMode]);
 
+	const store = useGlobalSettingsStore();
+
 	return (
-		<MiniMap
-			style={{
-				backgroundColor: minimapTheme.backgroundColor,
-				margin: "0 0 8px 8px",
-			}}
-			maskColor={minimapTheme.maskColor}
-			position="bottom-left"
-			pannable
-			zoomable
-			nodeClassName={nodeClassName}
-		/>
+		store.isMinimapVisible && (
+			<MiniMap
+				style={{
+					backgroundColor: minimapTheme.backgroundColor,
+					margin: "0 0 8px 8px",
+				}}
+				maskColor={minimapTheme.maskColor}
+				position="bottom-left"
+				pannable
+				zoomable
+				nodeClassName={nodeClassName}
+			/>
+		)
 	);
 };
 

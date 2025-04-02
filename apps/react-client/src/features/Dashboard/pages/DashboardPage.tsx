@@ -1,5 +1,10 @@
-import { Dashboard } from "../organisms/Dashboard";
+import { MainLayout } from "../../../common/layouts/MainLayout";
+import { JsonGrid } from "../organisms/JsonGrid";
 
 export const DashboardPage = () => {
-	return <Dashboard />;
+	return (
+		<MainLayout>
+			<JsonGrid />
+		</MainLayout>
+	);
 };

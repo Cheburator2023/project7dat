@@ -5,6 +5,7 @@ import MuiDrawer, { drawerClasses } from "@mui/material/Drawer";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
+import { LogoDataLineage } from "../../../common/primitives/LogoDataLineage";
 import { MenuContent } from "../molecules/MenuContent";
 import { OptionsMenu } from "../molecules/OptionsMenu";
 
@@ -42,6 +43,7 @@ export function SideMenu({ open = false }) {
 			>
 				<SelectContent />
 			</Box> */}
+			<LogoDataLineage />
 			<Divider />
 			<Box
 				sx={{
