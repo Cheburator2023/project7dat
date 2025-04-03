@@ -1,0 +1,146 @@
+{
+	"type": "object",
+	"properties": {
+		"desc": {
+			"type": "object",
+			"properties": {
+				"appId": {
+					"type": "string",
+					"description": "applicationId spark приложения"
+				},
+				"appName": {
+					"type": "string",
+					"description": "applicationName spark приложения"
+				}
+			},
+			"required": ["appId", "appName"],
+			"description": "данные spark приложения"
+		},
+		"entities": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"description": "наименование сущности в HADOOP"
+					},
+					"modified": {
+						"type": "boolean",
+						"description": "флаг изменяемой сущности (true - таргет, false - источник)"
+					},
+					"type": {
+						"type": "string",
+						"enum": ["table", "view"],
+						"description": "тип сущности в HADOOP"
+					},
+					"namespace": {
+						"type": "string",
+						"description": "наименование схемы в HADOOP"
+					},
+					"name": {
+						"type": "string",
+						"description": "наименование витрины в HADOOP"
+					},
+					"attrSeq": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string",
+									"description": "наименование атрибута в HADOOP"
+								},
+								"type": {
+									"type": "string",
+									"description": "тип данных атрибута в HADOOP"
+								},
+								"comment": {
+									"type": "string",
+									"description": "комментарий к атрибуту в метаданных HADOOP"
+								}
+							},
+							"required": ["name", "type"]
+						}
+					}
+				},
+				"required": ["id", "name", "modified"]
+			},
+			"description": "информация о сущностях (источники и таргет)"
+		},
+		"mappings": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "integer",
+						"description": "порядковый номер витрины таргет"
+					},
+					"entityId": {
+						"type": "string",
+						"description": "наименование сущности таргет в HADOOP"
+					},
+					"deps": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"entityId": {
+									"type": "string",
+									"description": "наименование витрины источник в HADOOP"
+								},
+								"attrMaps": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"src": {
+												"type": "string",
+												"description": "наименование атрибут источник"
+											},
+											"dst": {
+												"type": "string",
+												"description": "наименование атрибут таргет"
+											}
+										},
+										"required": ["src", "dst"]
+									}
+								},
+								"atrDeps": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"attr": {
+												"type": "string",
+												"description": "наименование атрибут источник"
+											},
+											"linktypes": {
+												"type": "array",
+												"items": {
+													"type": "string",
+													"enum": ["window", "join", "where", "groupby"]
+												},
+												"description": "для чего используется данный атрибут"
+											}
+										},
+										"required": ["attr"]
+									}
+								}
+							},
+							"required": ["entityId"]
+						}
+					},
+					"unmatched": {
+						"type": "array",
+						"description": "несопоставленные сущности внутри скрипта"
+					}
+				},
+				"required": ["id", "entityId"]
+			},
+			"description": "маппинг витрина источник -> витрина таргет"
+		}
+	},
+	"required": ["desc", "entities", "mappings"]
+}

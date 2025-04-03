@@ -1,11 +1,8 @@
 {
-	"name": "@data_lineage/monorepo",
+	"name": "data_lineage_monorepo",
 	"version": "1.0.0",
 	"private": true,
-	"workspaces": [
-		"apps/*",
-		"packages/*"
-	],
+	"workspaces": ["apps/*", "packages/*"],
 	"release_logs": {
 		"features": [],
 		"fixes": [],
@@ -29,9 +26,7 @@
 		"prepare": "husky"
 	},
 	"lint-staged": {
-		"*.{ts,tsx}": [
-			"biome check --files-ignore-unknown=true --colors=force"
-		]
+		"*.{ts,tsx}": ["biome check --files-ignore-unknown=true --colors=force"]
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
