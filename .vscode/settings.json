@@ -35,5 +35,6 @@
 	"npm-scripts.showStartNotification": false,
 	"[typescriptreact]": {
 		"editor.defaultFormatter": "biomejs.biome"
-	}
+	},
+	"typescript.preferences.importModuleSpecifier": "non-relative"
 }

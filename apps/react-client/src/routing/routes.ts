@@ -12,4 +12,10 @@ export const routes = {
 		rootPath: "/standAloneEditor",
 		subRoutes: { editor: "editor" },
 	},
+	playground: {
+		name: "Песочница",
+		rootPath: "/playground",
+		subRoutes: { editor: "editor" },
+		devOnly: true,
+	},
 };

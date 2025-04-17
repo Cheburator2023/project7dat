@@ -42,6 +42,7 @@
 				"noDefaultExport": "info",
 				"noUnusedTemplateLiteral": "off",
 				"noUselessElse": "off",
+				"noNonNullAssertion": "warn",
 				"useSelfClosingElements": {
 					"fix": "safe",
 					"level": "warn"

@@ -5,7 +5,8 @@
 		"moduleResolution": "Bundler",
 		"lib": ["dom", "dom.iterable", "esnext"],
 		"paths": {
-			"@joint/plus/*": ["../../packages/jointjs_plus/*"]
+			"@joint/plus/*": ["../../packages/jointjs_plus/*"],
+			"@react-client/*": ["./src/*"]
 		},
 		"allowJs": true,
 		"skipLibCheck": true,
@@ -18,10 +19,12 @@
 		"isolatedModules": true,
 		"noEmit": true,
 		"jsx": "react-jsx",
-		"baseUrl": "src",
+		"baseUrl": "./",
 		"alwaysStrict": true
 	},
 	"include": [
+		"./src/**/*.ts",
+		"./src/**/*.tsx",
 		"../../apps/react-client/**/*.ts",
 		"../../apps/react-client/**/*.tsx",
 		"../../packages/jointjs_plus/**/*.ts",
