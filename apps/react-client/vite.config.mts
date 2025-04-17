@@ -1,6 +1,7 @@
 import child_process from "node:child_process";
 import path from "node:path";
 import { URL, fileURLToPath } from "node:url";
+
 import { biomePlugin } from "@pbr1111/vite-plugin-biome";
 import svgr from "@svgr/rollup";
 import react from "@vitejs/plugin-react";

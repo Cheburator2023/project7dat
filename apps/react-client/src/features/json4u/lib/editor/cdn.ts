@@ -1,0 +1,6 @@
+import { isCN } from "@react-client/features/json4u/lib/env";
+
+const version = "0.52.0";
+const cndHost = isCN ? "o.json4u.cn" : "cdnjs.cloudflare.com";
+export const vsURL = `https://${cndHost}/ajax/libs/monaco-editor/${version}/min/vs`;
+export const loaderURL = `${vsURL}/loader.js`;
