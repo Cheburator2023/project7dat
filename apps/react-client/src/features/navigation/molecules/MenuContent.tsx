@@ -9,9 +9,9 @@ import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "../../../routing/routes";
 
-const mainListItems = Object.values(routes).map((route) => ({
+const mainListItems = Object.values(routes.home.subRoutes).map((route) => ({
 	text: route.name,
-	path: route.rootPath,
+	path: route.path,
 }));
 
 const secondaryListItems = [
@@ -34,7 +34,9 @@ export function MenuContent() {
 						sx={{ display: "block", mb: 0.2 }}
 						onClick={() => navigate(item.path)}
 					>
-						<ListItemButton selected={item.path === location.pathname}>
+						<ListItemButton
+							selected={item.path === location.pathname.replace("/", "")}
+						>
 							<ListItemText primary={item.text} />
 						</ListItemButton>
 					</ListItem>

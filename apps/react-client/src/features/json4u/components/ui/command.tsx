@@ -11,7 +11,7 @@ const Command = React.forwardRef<
 	<CommandPrimitive
 		ref={ref}
 		className={cn(
-			"group relative flex flex-col h-7 w-search box-border bg-popover text-popover-foreground",
+			"group relative flex flex-col h-9 box-border bg-popover text-popover-foreground w-full",
 			className,
 		)}
 		vimBindings={false}
@@ -25,14 +25,14 @@ const CommandInput = React.forwardRef<
 	React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, children, ...props }, ref) => (
 	<div
-		className="flex items-center border-solid border rounded px-3"
+		className="flex items-center border-solid border rounded-lg px-3"
 		cmdk-input-wrapper=""
 	>
 		<Search className="h-4 opacity-50 mr-2" />
 		<CommandPrimitive.Input
 			ref={ref}
 			className={cn(
-				"flex h-7 w-full bg-transparent py-3 text-sm outline-none placeholder:text-xs placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+				"flex h-9 w-full bg-transparent py-3 text-sm outline-none placeholder:text-xs placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
 				className,
 			)}
 			{...props}

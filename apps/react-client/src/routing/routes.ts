@@ -2,20 +2,23 @@ export const routes = {
 	home: {
 		rootPath: "/",
 		name: "Главная",
-	},
-	dashboard: {
-		rootPath: "/dashboard",
-		name: "Дашборд",
+		subRoutes: {
+			graph: { path: "graph", name: "Граф" },
+			table: { path: "table", name: "Таблица" },
+			standAloneEditor: { path: "standAloneEditor", name: "Редактор" },
+		},
 	},
 	standAloneEditor: {
-		name: "Редактор",
 		rootPath: "/standAloneEditor",
-		subRoutes: { editor: "editor" },
+		name: "Редактор",
+	},
+	table: {
+		rootPath: "/table",
+		name: "Таблица",
 	},
 	playground: {
 		name: "Песочница",
 		rootPath: "/playground",
-		subRoutes: { editor: "editor" },
 		devOnly: true,
 	},
 };

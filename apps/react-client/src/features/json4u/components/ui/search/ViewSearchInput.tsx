@@ -6,6 +6,7 @@ import { cn } from "@react-client/features/json4u/lib/utils";
 import type { SearchResult } from "@react-client/features/json4u/lib/worker/stores/types";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import { getTree } from "@react-client/features/json4u/stores/treeStore";
+
 import { SearchInput } from "./SearchInput";
 
 export function ViewSearchInput() {
@@ -25,7 +26,7 @@ export function ViewSearchInput() {
 			}
 			Item={Item}
 			itemHeight={48}
-			placeholder={"search_json"}
+			placeholder={"Поиск"}
 			bindShortcut="F"
 		/>
 	);

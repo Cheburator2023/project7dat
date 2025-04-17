@@ -1,10 +1,6 @@
-import { useTheme } from "next-themes";
+import { useColorScheme } from "@mui/material";
 
-/**
- * There is type `UseThemeProps` for return type of `useTheme()` in `next-themes` but not exported.
- * So I define `UseThemeReturn` type here.
- */
-type UseThemeReturn = ReturnType<typeof useTheme>;
+type UseThemeReturn = ReturnType<typeof useColorScheme>;
 
 type UseCustomThemeReturn = UseThemeReturn & {
 	theme: "light" | "dark";
@@ -12,9 +8,9 @@ type UseCustomThemeReturn = UseThemeReturn & {
 };
 
 export const useCustomTheme = (): UseCustomThemeReturn => {
-	const useThemeReturn = useTheme();
+	const useThemeReturn = useColorScheme();
 
-	const isDarkMode = useThemeReturn.theme === "dark";
+	const isDarkMode = useThemeReturn.mode === "dark";
 
 	return {
 		...useThemeReturn,

@@ -7,7 +7,6 @@ import {
 	useUserStore,
 } from "@react-client/features/json4u/stores/userStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
-import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 const i18nMap: Record<StatisticsKeys, any> = {

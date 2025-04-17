@@ -1,5 +1,4 @@
 import { memo, useEffect, useRef } from "react";
-import { Copyright } from "../../foundation/components/Copyright";
 import { useJsonDiagramViewStore } from "../../store/json-diagram-view/json-diagram-view.store";
 import {
 	isArraySeaNode,
@@ -85,8 +84,6 @@ const _NodeDetailPanel = () => {
 					</>
 				</>
 			)}
-
-			<Copyright />
 		</div>
 	);
 };
