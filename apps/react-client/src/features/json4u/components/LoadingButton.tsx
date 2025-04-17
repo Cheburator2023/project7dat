@@ -1,12 +1,12 @@
 import { forwardRef } from "react";
-import LoadingIcon from "./ui/LoadingIcon";
+import { LoadingIcon } from "./ui/LoadingIcon";
 import { Button, type ButtonProps } from "./ui/button";
 
 export interface LoadingButtonProps extends ButtonProps {
 	loading: boolean;
 }
 
-const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(
+export const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(
 	({ loading, children, ...props }, ref) => {
 		return (
 			<Button ref={ref} disabled={loading} {...props}>
@@ -16,6 +16,3 @@ const LoadingButton = forwardRef<HTMLButtonElement, LoadingButtonProps>(
 		);
 	},
 );
-LoadingButton.displayName = "LoadingButton";
-
-export default LoadingButton;

@@ -4,7 +4,7 @@ interface IconLabelProps extends LabelProps {
 	icon: React.ReactNode;
 }
 
-export default function IconLabel({ icon, ...props }: IconLabelProps) {
+export function IconLabel({ icon, ...props }: IconLabelProps) {
 	return (
 		<>
 			<span className="absolute left-0 top-0 flex rounded-sm h-6 w-6 items-center justify-center">

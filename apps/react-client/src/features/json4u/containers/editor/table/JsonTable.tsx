@@ -1,6 +1,4 @@
-"use client";
-
-import Background from "@react-client/features/json4u/components/Background";
+import { Background } from "@react-client/features/json4u/components/Background";
 import { px2num } from "@react-client/features/json4u/lib/utils";
 import { useEffect, useRef } from "react";
 import { type TimeoutIdMap, Tooltip, globalStyle, tableId } from "./Tooltip";

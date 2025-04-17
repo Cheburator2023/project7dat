@@ -11,7 +11,6 @@ import type React from "react";
 import { useCallback } from "react";
 import { MainLayout } from "../../../common/layouts/MainLayout";
 
-import { JSON4UPage } from "@react-client/features/json4u";
 import schema from "../../../../../../etc/json_schema.json";
 import { generateObjectFromSchema } from "../jsonGenerator";
 

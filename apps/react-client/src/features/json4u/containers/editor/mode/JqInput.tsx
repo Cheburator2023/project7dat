@@ -14,7 +14,7 @@ import {
 	forwardRef,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
-import InputBox from "./InputBox";
+import { InputBox } from "./InputBox";
 
 function useExecJq() {
 	const t = useTranslations();
@@ -39,23 +39,23 @@ function useExecJq() {
 			return;
 		}
 
-		if (viewMode != ViewMode.Text) {
+		if (viewMode !== ViewMode.Text) {
 			setViewMode(ViewMode.Text);
 		}
 
-		const { output, error } = await jq(main!.text(), filter);
+		const { output, error } = await jq(main?.text(), filter);
 
 		if (error) {
 			toastErr(t("cmd_exec_fail", { name: "jq" }) + ": " + filter);
 		} else {
-			await secondary!.parseAndSet(output, {}, false);
+			await secondary?.parseAndSet(output, {}, false);
 			toastSucc(t("cmd_exec_succ", { name: "jq" }));
 			count("jqExecutions");
 		}
 	};
 }
 
-const JqInput: FC = forwardRef<
+export const JqInput: FC = forwardRef<
 	ElementRef<typeof Input>,
 	ComponentPropsWithoutRef<typeof Input>
 >(({ className, ...props }, ref) => {
@@ -79,6 +79,3 @@ const JqInput: FC = forwardRef<
 		/>
 	);
 });
-
-JqInput.displayName = "JqInput";
-export default JqInput;

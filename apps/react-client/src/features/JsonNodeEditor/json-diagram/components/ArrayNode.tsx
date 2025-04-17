@@ -53,4 +53,4 @@ const _ArrayNode = ({ id, data }: NodeProps<ArrayNodeData>) => {
 	);
 };
 
-export const ArrayNode = memo(_ArrayNode);
+export const ArrayNode = _ArrayNode;

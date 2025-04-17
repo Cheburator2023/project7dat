@@ -6,9 +6,11 @@ export interface LoadingIconProps {
 	className?: string;
 }
 
-const LoadingIcon = ({ loading = true, className }: LoadingIconProps) => (
+export const LoadingIcon = ({
+	loading = true,
+	className,
+}: LoadingIconProps) => (
 	<LoaderCircle
 		className={cn("animate-spin mr-2", className, !loading && "hidden")}
 	/>
 );
-export default LoadingIcon;

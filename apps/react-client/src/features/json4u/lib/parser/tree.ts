@@ -96,10 +96,10 @@ export class Tree implements TreeObject {
 	}
 
 	getChild(node: Node, key: string): Node | undefined {
-		return this.nodeMap[getChildId(node, key)];
+		return this.nodeMap[getChildId(node, key) || ""];
 	}
 
-	childrenIds(node: Node): string[] {
+	childrenIds(node: Node): (string | undefined)[] {
 		return getChildrenKeys(node).map((key) => getChildId(node, key));
 	}
 

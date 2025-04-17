@@ -10,8 +10,8 @@ import { X } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import JqInput from "./JqInput";
-import JsonPathInput from "./JsonPathInput";
+import { JqInput } from "./JqInput";
+import { JsonPathInput } from "./JsonPathInput";
 
 type FC<T extends HTMLElement = HTMLElement> = React.FC<{
 	className?: string;
@@ -23,7 +23,7 @@ const mode2component: Record<CommandMode, FC> = {
 	json_path: JsonPathInput,
 };
 
-export default function ModePanel() {
+export function ModePanel() {
 	const ref = useRef<Partial<Record<CommandMode, any>>>({});
 	const [open, setOpen] = useState(false);
 	const { leftPanelWidth, commandMode } = useStatusStore(
@@ -37,7 +37,7 @@ export default function ModePanel() {
 	useEffect(() => {
 		setOpen(!!commandMode);
 		const el = ref.current[commandMode!];
-		el?.focus && el.focus();
+		el?.focus?.();
 	}, [commandMode]);
 
 	return (
@@ -57,7 +57,7 @@ export default function ModePanel() {
 						className="ml-2 my-1 grow"
 						ref={(el) => {
 							ref.current[commandMode] = el;
-							el?.focus && el.focus();
+							el?.focus?.();
 						}}
 					/>
 				)}
@@ -72,6 +72,7 @@ function CloseButton() {
 
 	return (
 		<button
+			type="button"
 			className="ml-1 px-1 hover:bg-accent hover:text-accent-foreground"
 			onClick={() => setCommandMode(undefined)}
 		>

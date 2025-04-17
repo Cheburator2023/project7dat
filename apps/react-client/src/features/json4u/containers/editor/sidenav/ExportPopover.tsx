@@ -1,4 +1,4 @@
-import { Button } from "@react-client/features/json4u/components/ui/button";
+import { Button } from "@mui/material";
 import type { EditorWrapper } from "@react-client/features/json4u/lib/editor/editor";
 import { Tree } from "@react-client/features/json4u/lib/parser";
 import {
@@ -10,12 +10,12 @@ import { useEditor } from "@react-client/features/json4u/stores/editorStore";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { useState } from "react";
-import BasePopover from "./BasePopover";
+import { BasePopover } from "./BasePopover";
 import { FileTypeSelect } from "./FileTypeSelect";
 
 type FileType = "JSON" | "CSV";
 
-export default function ExportPopover() {
+export function ExportPopover() {
 	const t = useTranslations();
 	const [fileType, setFileType] = useState<FileType>("JSON");
 	const { onClickPreview, onClickDownload } = useOnClickButton(fileType);
@@ -26,11 +26,11 @@ export default function ExportPopover() {
 			<FileTypeSelect fileType={fileType} setFileType={setFileType} />
 			<div className="flex ml-auto gap-2">
 				{fileType !== "JSON" && (
-					<Button variant="outline" onClick={onClickPreview}>
+					<Button variant="outlined" onClick={onClickPreview}>
 						{t("preview")}
 					</Button>
 				)}
-				<Button variant="outline" onClick={onClickDownload}>
+				<Button variant="outlined" onClick={onClickDownload}>
 					{t("download")}
 				</Button>
 			</div>

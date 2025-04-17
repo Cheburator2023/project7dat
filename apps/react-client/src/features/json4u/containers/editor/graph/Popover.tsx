@@ -8,12 +8,7 @@ interface PopoverProps extends React.PropsWithChildren {
 	hlClass: string;
 }
 
-export default function Popover({
-	width,
-	text,
-	hlClass,
-	children,
-}: PopoverProps) {
+export function Popover({ width, text, hlClass, children }: PopoverProps) {
 	return (
 		<Tooltip.Provider>
 			<Tooltip.Root>

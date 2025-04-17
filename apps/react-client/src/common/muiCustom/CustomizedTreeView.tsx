@@ -123,18 +123,14 @@ function CustomLabel({
 				variant="body2"
 				sx={{ color: "text.primary" }}
 			>
-				{children}
+				<>{children}</>
 			</Typography>
 		</TreeItem2Label>
 	);
 }
 
-interface CustomTreeItemProps
-	extends Omit<UseTreeItem2Parameters, "rootRef">,
-		Omit<React.HTMLAttributes<HTMLLIElement>, "onFocus"> {}
-
 const CustomTreeItem = React.forwardRef(function CustomTreeItem(
-	props: CustomTreeItemProps,
+	props: any,
 	ref: React.Ref<HTMLLIElement>,
 ) {
 	const { id, itemId, label, disabled, children, ...other } = props;
@@ -205,7 +201,7 @@ export function CustomizedTreeView() {
 						flexGrow: 1,
 						overflowY: "auto",
 					}}
-					slots={{ item: CustomTreeItem }}
+					slots={{ item: CustomTreeItem as any }}
 				/>
 			</CardContent>
 		</Card>

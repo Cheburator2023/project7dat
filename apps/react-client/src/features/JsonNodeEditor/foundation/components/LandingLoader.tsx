@@ -1,5 +1,3 @@
-"use client";
-
 import type { CSSProperties } from "react";
 import { useLandingStore } from "../../store/landing/landing.store";
 import { Text } from "../../ui/components/Text";

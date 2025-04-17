@@ -1,5 +1,3 @@
-"use client";
-
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -22,11 +20,10 @@ import { useEditor } from "@react-client/features/json4u/stores/editorStore";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import { useTree } from "@react-client/features/json4u/stores/treeStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
-import * as React from "react";
 import { Fragment } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-export default function StatusBar() {
+export function StatusBar() {
 	return (
 		<div
 			data-testid="statusbar"
@@ -98,10 +95,14 @@ function ParseErrorMsg({ kind }: ParseErrorMsgProps) {
 		return null;
 	}
 
-	const { offset, length, context } = tree.errors![0];
+	if (!tree.errors?.[0]) {
+		return null;
+	}
+
+	const { offset, length, context } = tree.errors[0];
 	const [left, middle, right] = context;
 	const { startLineNumber, startColumn } = editor?.range(offset, length)!;
-	const msg = t("parse error", { startLineNumber, startColumn });
+	const msg = t("parse error");
 
 	return (
 		<div
@@ -137,7 +138,7 @@ function CursorPosition({ className }: CursorPositionProps) {
 	}
 
 	const position = `${cursorPosition.line}:${cursorPosition.column}`;
-	const selection = t("selection", { selection: selectionLength });
+	const selection = t("selection");
 
 	return (
 		<div

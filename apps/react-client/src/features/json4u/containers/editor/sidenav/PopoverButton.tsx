@@ -1,5 +1,4 @@
-"use client";
-
+import { Button } from "@mui/material";
 import {
 	Popover,
 	PopoverContent,
@@ -7,7 +6,6 @@ import {
 } from "@react-client/features/json4u/components/ui/popover";
 import { cn } from "@react-client/features/json4u/lib/utils";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
-import Button from "./Button";
 
 export const popoverBtnClass = "popover-btn";
 
@@ -21,7 +19,7 @@ interface PopoverBtnProps {
 	notOnSideNav?: boolean;
 }
 
-export default function PopoverBtn({
+export function PopoverBtn({
 	icon,
 	title,
 	notOnSideNav,
@@ -43,7 +41,7 @@ export default function PopoverBtn({
 			<PopoverTrigger asChild>
 				<Button
 					className={cn(className, notOnSideNav && "w-10")}
-					icon={icon}
+					startIcon={icon}
 					title={title}
 				/>
 			</PopoverTrigger>

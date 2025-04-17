@@ -1,6 +1,6 @@
 import { cn } from "@react-client/features/json4u/lib/utils";
 
-export default function CircleX({ className }: { className?: string }) {
+export function CircleX({ className }: { className?: string }) {
 	return (
 		<span
 			className={cn(

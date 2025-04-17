@@ -7,9 +7,9 @@ import {
 } from "@react-client/features/json4u/components/ui/tooltip";
 import { cn } from "@react-client/features/json4u/lib/utils";
 import type { VariantProps } from "class-variance-authority";
-import { type ElementRef, forwardRef } from "react";
+import { type ComponentRef, forwardRef } from "react";
 import { btnVariants } from "./Button";
-import IconLabel from "./IconLabel";
+import { IconLabel } from "./IconLabel";
 
 interface ToggleProps extends VariantProps<typeof btnVariants> {
 	icon: React.ReactNode;
@@ -20,7 +20,7 @@ interface ToggleProps extends VariantProps<typeof btnVariants> {
 	className?: string;
 }
 
-const Toggle = forwardRef<ElementRef<typeof RToggle>, ToggleProps>(
+export const Toggle = forwardRef<ComponentRef<typeof RToggle>, ToggleProps>(
 	(
 		{
 			title,
@@ -61,6 +61,3 @@ const Toggle = forwardRef<ElementRef<typeof RToggle>, ToggleProps>(
 		</TooltipProvider>
 	),
 );
-Toggle.displayName = "Toggle";
-
-export default Toggle;

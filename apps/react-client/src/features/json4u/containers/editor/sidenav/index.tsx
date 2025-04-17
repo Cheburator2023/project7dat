@@ -1,6 +1,4 @@
-"use client";
-
-import Logo from "@react-client/features/json4u/components/icons/Logo";
+import { Button } from "@mui/material";
 import { Separator } from "@react-client/features/json4u/components/ui/separator";
 import { isCN } from "@react-client/features/json4u/lib/env";
 import { useConfigFromCookies } from "@react-client/features/json4u/stores/hook";
@@ -19,20 +17,17 @@ import {
 	Share2,
 	SquareStack,
 } from "lucide-react";
-import Link from "next/link";
 import { useShallow } from "zustand/react/shallow";
-import AccountButton from "./AccountButton";
-import Button from "./Button";
-import ExportPopover from "./ExportPopover";
-import { Label } from "./IconLabel";
-import ImportPopover from "./ImportPopover";
-import LinkButton from "./LinkButton";
-import PopoverBtn, { popoverBtnClass } from "./PopoverButton";
-import SharePopover from "./SharePopover";
-import StatisticsPopover from "./StatisticsPopover";
-import Toggle from "./Toggle";
+import { AccountButton } from "./AccountButton";
+import { ExportPopover } from "./ExportPopover";
+import { ImportPopover } from "./ImportPopover";
+import { LinkButton } from "./LinkButton";
+import { PopoverBtn, popoverBtnClass } from "./PopoverButton";
+import { SharePopover } from "./SharePopover";
+import { StatisticsPopover } from "./StatisticsPopover";
+import { Toggle } from "./Toggle";
 
-export default function SideNav() {
+export function SideNav() {
 	const cc = useConfigFromCookies();
 	const t = useTranslations();
 	const {
@@ -151,11 +146,10 @@ export default function SideNav() {
 						icon={<BarChartBig className="icon" />}
 						content={<StatisticsPopover />}
 					/>
-					{/* can't connect to supabase in China, so disable the function temporarily */}
-					{!isCN && <AccountButton avatarClassName="w-6 h-6" />}
+					<AccountButton avatarClassName="w-6 h-6" />
 					<Button
 						className="my-1.5"
-						icon={
+						startIcon={
 							fixSideNav ? (
 								<ArrowRightFromLine className="icon" />
 							) : (

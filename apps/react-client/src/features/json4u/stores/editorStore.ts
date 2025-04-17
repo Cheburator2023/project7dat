@@ -48,40 +48,38 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 			id: "format",
 			run: async () => {
 				const { main } = get();
-				const { set } = await main!.parseAndSet(main!.text(), { format: true });
-				return set;
+				const result = await main?.parseAndSet(main?.text(), { format: true });
+				return result?.set;
 			},
 		},
 		{
 			id: "minify",
 			run: async () => {
 				const { main } = get();
-				const { parse } = await main!.parseAndSet(main!.text(), {
+				const result = await main?.parseAndSet(main?.text(), {
 					format: "minify",
 				});
-				return parse;
+				return result?.parse;
 			},
 		},
 		{
 			id: "escape",
 			run: async () => {
 				const { main } = get();
-				const { set } = await main!.parseAndSet(
-					// @ts-ignore
-					await window.worker.escape(main!.text()),
+				const result = await main?.parseAndSet(
+					await window.worker.escapeStr(main?.text()),
 				);
-				return set;
+				return result?.set;
 			},
 		},
 		{
 			id: "unescape",
 			run: async () => {
 				const { main } = get();
-				const { set } = await main!.parseAndSet(
-					// @ts-ignore
-					await window.worker.unescape(main!.text()),
+				const result = await main?.parseAndSet(
+					await window.worker.unescapeStr(main?.text()),
 				);
-				return set;
+				return result?.set;
 			},
 		},
 		{
@@ -89,10 +87,10 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 			Icon: ArrowDownNarrowWide,
 			run: async () => {
 				const { main } = get();
-				const { parse } = await main!.parseAndSet(main!.text(), {
+				const result = await main?.parseAndSet(main?.text(), {
 					sort: "asc",
 				});
-				return parse;
+				return result?.parse;
 			},
 		},
 		{
@@ -100,32 +98,33 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 			Icon: ArrowDownWideNarrow,
 			run: async () => {
 				const { main } = get();
-				const { parse } = await main!.parseAndSet(main!.text(), {
+				const result = await main?.parseAndSet(main?.text(), {
 					sort: "desc",
 				});
-				return parse;
+				return result?.parse;
 			},
 		},
 		{
 			id: "pythonDictToJSON",
 			run: async () => {
 				const { main } = get();
-				const { parse } = await main!.parseAndSet(
-					// @ts-ignore
-					await window.worker.pythonDictToJSON(main!.text()),
+				const result = await main?.parseAndSet(
+					await window.worker.pythonDictToJSON(main?.text()),
 				);
-				return parse;
+				return result?.parse;
 			},
 		},
 		{
 			id: "urlToJson",
 			run: async () => {
 				const { main } = get();
-				// @ts-ignore
-				const { text, parse } = await window.worker.urlToJSON(main!.text());
+
+				const { text, parse } = await window.worker.urlToJSON(
+					main?.text() || "",
+				);
 				if (!parse) return parse;
-				const { set } = await main!.parseAndSet(text);
-				return set;
+				const result = await main?.parseAndSet(text);
+				return result?.set;
 			},
 		},
 		{
@@ -165,15 +164,13 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 			commands.find((item) => item.id === id)?.run(),
 		);
 		let isSucc = true;
-		const name = t!(id);
+		const name = t?.(id);
 
 		if (r !== undefined) {
 			if (r) {
-				// @ts-ignore
-				toastSucc(t!("cmd_exec_succ", { name }));
+				toastSucc(t?.("cmd_exec_succ", { name }));
 			} else {
-				// @ts-ignore
-				toastErr(t!(r ? r : "cmd_exec_fail", { name }));
+				toastErr(t?.(r ? r : "cmd_exec_fail", { name }));
 				isSucc = false;
 			}
 		}
@@ -211,23 +208,28 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 		const { translations: t, comparer } = get();
 		const { usable, count } = getUserState();
 		const { setShowPricingOverlay } = getStatusState();
-		const { diffPairs, isTextCompare } = await comparer!.compare();
-		const hasDiff = diffPairs.length > 0;
-		const showPricing = hasDiff && isTextCompare && !usable("textComparison");
+		const compareResult = await comparer?.compare();
+		const hasDiff = (compareResult?.diffPairs?.length || 0) > 0;
+		const showPricing =
+			hasDiff && compareResult?.isTextCompare && !usable("textComparison");
 
 		if (showPricing) {
 			setShowPricingOverlay(true);
 		} else {
-			comparer!.highlightDiff(diffPairs, isTextCompare);
+			comparer?.highlightDiff(
+				compareResult?.diffPairs || [],
+				!!compareResult?.isTextCompare,
+			);
 		}
 
 		if (hasDiff) {
-			isTextCompare && count("textComparison");
-			// @ts-ignore
-			toastWarn(t!(isTextCompare ? "with_text_diff" : "with_diff"), "compare");
+			compareResult?.isTextCompare && count("textComparison");
+			toastWarn(
+				t?.(compareResult?.isTextCompare ? "with_text_diff" : "with_diff"),
+				"compare",
+			);
 		} else {
-			// @ts-ignore
-			toastSucc(t!("no_diff"), "compare");
+			toastSucc(t?.("no_diff"), "compare");
 		}
 	},
 

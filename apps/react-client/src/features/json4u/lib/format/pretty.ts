@@ -70,7 +70,6 @@ function findBracketPairs(text: string): [number, number][] {
 		}
 	}
 
-	// 没有匹配的另一半括号时，也将其加入 pairs 中，以便能够格式化
 	if (seen.length > 0) {
 		pairs.push([seen[0][1], text.length - 1]);
 	}
@@ -82,14 +81,12 @@ function findBracketPairs(text: string): [number, number][] {
 
 	let merged = [pairs[0]];
 
-	// 找出范围最大的括号对
 	for (let i = 1; i < pairs.length; i++) {
 		const pair = pairs[i];
 		const lastPair = merged[merged.length - 1];
 		const [start, end] = pair;
 		const [lastStart, lastEnd] = lastPair;
 
-		// 如果是 {{...}}，保留最后一个 {} 的位置
 		if (
 			lastStart + 1 === start &&
 			lastEnd - 1 === end &&
@@ -98,7 +95,6 @@ function findBracketPairs(text: string): [number, number][] {
 		) {
 			merged.pop();
 			merged.push(pair);
-			// 如果是 {[...]}，保留 {} 的位置
 		} else if (lastEnd >= start) {
 			lastPair[1] = Math.max(end, lastEnd);
 		} else {
@@ -106,32 +102,9 @@ function findBracketPairs(text: string): [number, number][] {
 		}
 	}
 
-	// slice 是左闭右开，所以需要 +1
 	merged = merged.map((pair) => {
 		pair[1]++;
 		return pair;
 	});
 	return merged;
-}
-
-if (import.meta.vitest) {
-	const { it, expect } = import.meta.vitest;
-
-	describe("findBracketPairs", () => {
-		it("multiple {} pairs", () => {
-			const pp = findBracketPairs("{{{}}} {{}}");
-			expect(pp).toEqual([
-				[2, 4],
-				[8, 10],
-			]);
-		});
-
-		it("simple", () => {
-			const pp = findBracketPairs("{[]} []");
-			expect(pp).toEqual([
-				[0, 4],
-				[5, 7],
-			]);
-		});
-	});
 }

@@ -9,7 +9,6 @@ import {
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
-import BasePopover from "./BasePopover";
 
 const i18nMap: Record<StatisticsKeys, any> = {
 	graphModeView: "stats_graph",
@@ -18,7 +17,7 @@ const i18nMap: Record<StatisticsKeys, any> = {
 	jqExecutions: "stats_jq",
 };
 
-export default function StatisticsPopover() {
+export function StatisticsPopover() {
 	const t = useTranslations();
 	const { statistics, setStatistics, nextQuotaRefreshTime, isPremium } =
 		useUserStore(

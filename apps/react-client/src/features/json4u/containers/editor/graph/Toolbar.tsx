@@ -1,6 +1,4 @@
-"use client";
-
-import { Button } from "@react-client/features/json4u/components/ui/button";
+import { Button } from "@mui/material";
 import type {
 	EdgeWithData,
 	NodeWithData,
@@ -24,7 +22,7 @@ interface ToolbarProps {
 	id: string;
 }
 
-const Toolbar = memo(({ id }: ToolbarProps) => {
+export const Toolbar = memo(({ id }: ToolbarProps) => {
 	const t = useTranslations();
 	const { setNodes, setEdges } = useReactFlow<NodeWithData, EdgeWithData>();
 
@@ -134,7 +132,6 @@ const ToolbarButton = memo(
 	({ title, onClick, children }: ToolbarButtonProps) => {
 		return (
 			<Button
-				variant="icon"
 				className="h-6 w-6 p-1"
 				title={title}
 				onClick={(ev) => {
@@ -148,6 +145,3 @@ const ToolbarButton = memo(
 		);
 	},
 );
-ToolbarButton.displayName = "ToolbarButton";
-
-export default Toolbar;

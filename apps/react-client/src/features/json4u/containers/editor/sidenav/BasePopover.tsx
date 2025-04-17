@@ -9,7 +9,7 @@ export interface BasePopoverProps {
 	className?: string;
 }
 
-export default function BasePopover({
+export function BasePopover({
 	title,
 	className,
 	children,

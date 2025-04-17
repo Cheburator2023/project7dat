@@ -1,5 +1,3 @@
-"use client";
-
 import { cn } from "@react-client/features/json4u/lib/utils";
 import { useEditor } from "@react-client/features/json4u/stores/editorStore";
 import {

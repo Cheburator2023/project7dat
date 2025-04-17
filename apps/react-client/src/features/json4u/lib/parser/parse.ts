@@ -208,7 +208,7 @@ class Visitor {
 			computeAndSetBoundLength(child);
 		}
 
-		this.currentParent.childrenKeys!.push(key);
+		this.currentParent.childrenKeys?.push(key);
 		this.currentParent.childrenKey2Id![key] = child.id;
 	}
 

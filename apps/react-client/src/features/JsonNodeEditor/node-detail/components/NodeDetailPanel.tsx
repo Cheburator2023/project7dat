@@ -1,5 +1,3 @@
-"use client";
-
 import { memo, useEffect, useRef } from "react";
 import { Copyright } from "../../foundation/components/Copyright";
 import { useJsonDiagramViewStore } from "../../store/json-diagram-view/json-diagram-view.store";

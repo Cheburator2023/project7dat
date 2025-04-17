@@ -1,4 +1,4 @@
-import LoadingButton from "@react-client/features/json4u/components/LoadingButton";
+import { LoadingButton } from "@react-client/features/json4u/components/LoadingButton";
 import { Input } from "@react-client/features/json4u/components/ui/input";
 import { useDebounceFn } from "@react-client/features/json4u/lib/hooks";
 import { cn } from "@react-client/features/json4u/lib/utils";
@@ -19,7 +19,7 @@ interface InputBoxProps extends ComponentPropsWithoutRef<typeof Input> {
 	initial?: () => Promise<void>;
 }
 
-const InputBox = forwardRef<ElementRef<typeof Input>, InputBoxProps>(
+export const InputBox = forwardRef<ElementRef<typeof Input>, InputBoxProps>(
 	({ className, ...props }, ref) => {
 		const t = useTranslations();
 		const setCommandMode = useStatusStore((state) => state.setCommandMode);
@@ -82,6 +82,3 @@ const InputBox = forwardRef<ElementRef<typeof Input>, InputBoxProps>(
 		);
 	},
 );
-
-InputBox.displayName = "InputBox";
-export default InputBox;

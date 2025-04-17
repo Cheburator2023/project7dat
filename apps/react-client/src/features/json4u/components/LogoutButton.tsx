@@ -1,6 +1,4 @@
-"use client";
-
-import LoadingButton from "@react-client/features/json4u/components/LoadingButton";
+import { LoadingButton } from "@react-client/features/json4u/components/LoadingButton";
 import {
 	cn,
 	toastErr,
@@ -11,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { forwardRef, useState } from "react";
 import type { ButtonProps } from "./ui/button";
 
-const LogoutButton = forwardRef<HTMLButtonElement, ButtonProps>(
+export const LogoutButton = forwardRef<HTMLButtonElement, ButtonProps>(
 	({ className, ...props }, ref) => {
 		const t = useTranslations("Home");
 		const router = useRouter();
@@ -34,6 +32,3 @@ const LogoutButton = forwardRef<HTMLButtonElement, ButtonProps>(
 		);
 	},
 );
-LogoutButton.displayName = "LogoutButton";
-
-export default LogoutButton;

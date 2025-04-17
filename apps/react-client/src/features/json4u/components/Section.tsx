@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 
 export interface SectionProps extends React.HTMLAttributes<HTMLDivElement> {}
 
-const Section = forwardRef<HTMLDivElement, SectionProps>(
+export const Section = forwardRef<HTMLDivElement, SectionProps>(
 	({ className, children, ...props }, ref) => {
 		return (
 			<div
@@ -20,6 +20,3 @@ const Section = forwardRef<HTMLDivElement, SectionProps>(
 		);
 	},
 );
-Section.displayName = "Section";
-
-export default Section;

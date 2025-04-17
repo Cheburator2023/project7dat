@@ -1,5 +1,3 @@
-"use client";
-
 import { cn } from "@react-client/features/json4u/lib/utils";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { LoaderCircle } from "lucide-react";
@@ -7,7 +5,7 @@ import { LoaderCircle } from "lucide-react";
 interface LoadingProps {
 	className?: string;
 }
-export default function Loading({ className }: LoadingProps) {
+export function Loading({ className }: LoadingProps) {
 	const t = useTranslations();
 	return (
 		<div

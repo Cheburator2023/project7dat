@@ -3,14 +3,14 @@ import {
 	ContainerContent,
 	ContainerHeader,
 } from "@react-client/features/json4u/components/Container";
-import CommandSearchInput from "@react-client/features/json4u/components/ui/search/CommandSearchInput";
-import Editor from "@react-client/features/json4u/containers/editor/editor";
+import { CommandSearch } from "@react-client/features/json4u/components/ui/search/CommandSearchInput";
+import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
 
-export default function LeftPanel() {
+export function LeftPanel() {
 	return (
 		<Container>
 			<ContainerHeader>
-				<CommandSearchInput />
+				<CommandSearch />
 			</ContainerHeader>
 			<ContainerContent>
 				<Editor kind="main" />

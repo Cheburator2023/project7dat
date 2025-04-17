@@ -41,10 +41,8 @@ export function useViewportChange(
 			const {
 				renderable: { nodes, edges },
 				changed,
-				// @ts-ignore
 			} = await window.worker.setGraphSize(width, height);
 
-			// @ts-ignore
 			console.l(
 				"compute virtual graph since resize:",
 				changed,
@@ -75,11 +73,9 @@ export function useViewportChange(
 			const {
 				renderable: { nodes, edges },
 				changed,
-				// @ts-ignore
 			} = await window.worker.setGraphViewport(viewport);
 
 			if (changed) {
-				// @ts-ignore
 				console.l(
 					"compute virtual graph since the viewport has changed:",
 					viewport,
@@ -123,7 +119,6 @@ export function useRevealNode(
 		if (isNeedReveal && revealPosition.treeNodeId) {
 			(async () => {
 				const r =
-					// @ts-ignore
 					await window.worker.computeGraphRevealPosition(revealPosition);
 				if (!r) {
 					return;
@@ -135,9 +130,8 @@ export function useRevealNode(
 				const {
 					renderable: { nodes, edges },
 					changed,
-					// @ts-ignore
 				} = await window.worker.setGraphViewport({ ...viewport, zoom });
-				// @ts-ignore
+
 				console.l(
 					"reveal node in graph:",
 					changed,
@@ -145,7 +139,6 @@ export function useRevealNode(
 					viewport,
 					nodes.length,
 				);
-				// @ts-ignore
 
 				setWaitToMeasure(nodes.map((node) => node.id));
 				setCenter(center.x, center.y, { duration: 0, zoom });
@@ -188,8 +181,6 @@ export function useRevealNode(
 				if (el) {
 					const graphNodeId = getTree().getGraphNodeId(treeNodeId)!;
 					const { nodes, edges } =
-						// @ts-ignore
-
 						await window.worker.toggleGraphNodeSelected(graphNodeId);
 					setNodes(nodes);
 					setEdges(edges);

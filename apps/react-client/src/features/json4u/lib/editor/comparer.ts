@@ -157,10 +157,10 @@ export class Comparer {
 			}
 		});
 
-		delete this.leftDecorations;
-		delete this.rightDecorations;
-		delete this.leftBlankHunkIDs;
-		delete this.rightBlankHunkIDs;
+		this.leftDecorations = undefined;
+		this.rightDecorations = undefined;
+		this.leftBlankHunkIDs = undefined;
+		this.rightBlankHunkIDs = undefined;
 	}
 }
 

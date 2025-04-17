@@ -18,7 +18,7 @@ const maxVirtualEdgesForTwoNodes = 10;
 // the x,y values of the viewport here are coordinates of the left-top point,
 // it's different from what it means in xyflow which means transform.
 // https://github.com/xyflow/xyflow/discussions/4311#discussioncomment-9602692
-export default function computeVirtualGraph(
+export function computeVirtualGraph(
 	graph: Graph,
 	width: number,
 	height: number,
@@ -58,11 +58,14 @@ function computeRealSubgraph(viewportRect: Rect, graph: Graph): Graph {
 		});
 	const isEdgeInViewport = (edge: EdgeWithData) =>
 		isInViewport({
-			...edge.data!.start,
-			width: edge.data!.end.x - edge.data!.start.x,
+			...edge.data?.start,
+			width: (edge.data?.end.x || 0) - (edge?.data?.start?.x || 0),
 			// height will be 0 when the edge is horizontal, so we set it to 1 to ensure the rect area > 0.
-			height: Math.max(Math.abs(edge.data!.end.y - edge.data!.start.y), 1),
-		});
+			height: Math.max(
+				Math.abs((edge.data?.end.y || 0) - (edge.data?.start.y || 0)),
+				1,
+			),
+		} as any);
 
 	const realNodeIds: Record<string, boolean> = {};
 	const realEdgeIds: Record<string, boolean> = {};
@@ -81,12 +84,13 @@ function computeRealSubgraph(viewportRect: Rect, graph: Graph): Graph {
 		virtualSourceNodeIds: {},
 		virtualTargetNodeIds: {},
 	};
-	return { nodes, edges };
+	return { nodes, edges, nodeMap: {} };
 }
 
 function computeRealKV(viewportRect: Rect, nodes: NodeWithData[]) {
 	let changed = false;
 
+	// biome-ignore lint/complexity/noForEach: <explanation>
 	nodes.forEach((node) => {
 		const y = node.position.y;
 		const h = node.data.height;
@@ -124,11 +128,12 @@ function virtualize(graph: Graph) {
 	const nodeMap = graph.nodeMap!;
 	const edgeMap = graph.edgeMap!;
 
+	// biome-ignore lint/complexity/noForEach: <explanation>
 	Object.keys(realEdgeIds).forEach((edgeId) => {
 		const { source: sourceId, target: targetId, data } = edgeMap[edgeId];
 		const realSourceNode = realNodeIds[sourceId] ? nodeMap[sourceId] : null;
 		const realTargetNode = realNodeIds[targetId] ? nodeMap[targetId] : null;
-		const sourceHandleIndex = data!.sourceHandleIndex;
+		const sourceHandleIndex = data?.sourceHandleIndex || 0;
 
 		const { kvStart, kvEnd } = realSourceNode?.data?.render ?? {
 			kvStart: -1,
@@ -235,26 +240,30 @@ export function generateVirtualGraph(graph: Graph): Graph {
 		virtualSourceNodeIds,
 		virtualTargetNodeIds,
 	} = graph.virtual;
-	const nodes = Object.keys(realNodeIds)
-		.map((id) => graph.nodeMap![id])
-		.concat(
-			Object.keys(virtualSourceNodeIds ?? {}).map((id) =>
-				newVirtualSourceNode(graph.nodeMap![id]),
-			),
-		)
-		.concat(
-			Object.keys(virtualTargetNodeIds ?? {}).map((id) =>
-				newVirtualTargetNode(graph.nodeMap![id]),
-			),
-		);
+	const nodes =
+		graph.nodeMap !== undefined
+			? Object.keys(realNodeIds)
+					.map((id) => graph.nodeMap?.[id])
+					.concat(
+						Object.keys(virtualSourceNodeIds ?? {}).map((id) =>
+							newVirtualSourceNode(graph.nodeMap[id]),
+						),
+					)
+					.concat(
+						Object.keys(virtualTargetNodeIds ?? {}).map((id) =>
+							newVirtualTargetNode(graph.nodeMap?.[id]),
+						),
+					)
+			: [];
+
 	const edges =
 		(filter(
 			Object.keys(realEdgeIds).map(
-				(id) => !omitEdgeIds?.[id] && graph.edgeMap![id],
+				(id) => !omitEdgeIds?.[id] && graph.edgeMap?.[id],
 			),
 		) as EdgeWithData[]) ?? [];
 
-	return { nodes, edges };
+	return { nodes, edges, nodeMap: {} };
 }
 
 function newVirtualSourceNode(node: NodeWithData): NodeWithData {

@@ -1,4 +1,4 @@
-import SearchInput from "@react-client/features/json4u/components/ui/search/SearchInput";
+import { SearchInput } from "@react-client/features/json4u/components/ui/search/SearchInput";
 import {
 	type Command,
 	useEditorStore,
@@ -7,7 +7,7 @@ import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import fuzzysort from "fuzzysort";
 import { useShallow } from "zustand/react/shallow";
 
-export default function CommandSearch() {
+export function CommandSearch() {
 	const t = useTranslations();
 	const { commands, runCommand } = useEditorStore(
 		useShallow((state) => ({

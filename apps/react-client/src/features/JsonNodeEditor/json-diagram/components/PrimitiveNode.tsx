@@ -68,4 +68,4 @@ const _PrimitiveNode = ({ id, data }: NodeProps<PrimitiveNodeData>) => {
 	);
 };
 
-export const PrimitiveNode = memo(_PrimitiveNode);
+export const PrimitiveNode = _PrimitiveNode;

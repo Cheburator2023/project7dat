@@ -19,7 +19,7 @@ import { useShallow } from "zustand/react/shallow";
 
 const viewportSize: [number, number] = [0, 0];
 
-export default function useVirtualGraph() {
+export function useVirtualGraph() {
 	const treeVersion = useTreeVersion();
 	// nodes and edges are not all that are in the graph, but rather the ones that will be rendered.
 	const [nodes, setNodes, onNodesChange] = useNodesState<NodeWithData>([]);
@@ -47,15 +47,12 @@ export default function useVirtualGraph() {
 		);
 
 	useEffect(() => {
-		// @ts-ignore
 		if (!(window.worker && isGraphView)) {
-			// @ts-ignore
 			console.l("skip graph render:", isGraphView, treeVersion);
 			return;
 		}
 
 		if (!usable) {
-			// @ts-ignore
 			console.l("skip graph render because reach out of free quota.");
 			setShowPricingOverlay(true);
 			return;
@@ -65,7 +62,6 @@ export default function useVirtualGraph() {
 			const {
 				graph: { levelMeta },
 				renderable: { nodes, edges },
-				// @ts-ignore
 			} = await window.worker.createGraph();
 
 			setNodes(nodes);
@@ -84,7 +80,7 @@ export default function useVirtualGraph() {
 				[-px, -py],
 				[maxX + px, maxY + py],
 			];
-			// @ts-ignore
+
 			console.l(
 				"create a new graph:",
 				treeVersion,

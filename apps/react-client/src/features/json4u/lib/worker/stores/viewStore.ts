@@ -18,7 +18,7 @@ import type {
 	Graph,
 	RevealPosition,
 } from "@react-client/features/json4u/lib/graph/types";
-import computeVirtualGraph from "@react-client/features/json4u/lib/graph/virtual";
+import { computeVirtualGraph } from "@react-client/features/json4u/lib/graph/virtual";
 import { lastKey } from "@react-client/features/json4u/lib/idgen";
 import {
 	Tree,
@@ -112,11 +112,11 @@ const useViewStore = createStore<ViewState>((set, get) => ({
 				x: source.position.x + source.data.width,
 				y:
 					source.position.y +
-					computeSourceHandleOffset(ed.data!.sourceHandleIndex),
+					computeSourceHandleOffset(ed.data?.sourceHandleIndex || 0),
 			};
 			ed.data!.end = {
 				x: target.position.x,
-				y: target.position.y + ed.data!.targetHandleOffset,
+				y: target.position.y + (ed.data?.targetHandleOffset || 0),
 			};
 			edgeMap[ed.id] = ed;
 		});

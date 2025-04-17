@@ -16,8 +16,8 @@ import { Handle, type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { filter } from "lodash-es";
 import { memo } from "react";
 import { SourceHandle, TargetHandle } from "./Handle";
-import Popover from "./Popover";
-import Toolbar from "./Toolbar";
+import { Popover } from "./Popover";
+import { Toolbar } from "./Toolbar";
 
 export const ObjectNode = memo(({ id, data }: NodeProps<NodeWithData>) => {
 	const { getNode } = useReactFlow();

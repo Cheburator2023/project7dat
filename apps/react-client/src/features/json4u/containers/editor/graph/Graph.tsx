@@ -1,5 +1,3 @@
-"use client";
-
 import { config } from "@react-client/features/json4u/lib/graph/layout";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import {
@@ -10,19 +8,19 @@ import {
 	ReactFlowProvider,
 } from "@xyflow/react";
 import type { Node as FlowNode } from "@xyflow/react";
-import { useRef } from "react";
 import { debounce } from "lodash-es";
+import { useRef } from "react";
 
-import MouseButton from "./MouseButton";
+import { MouseButton } from "./MouseButton";
 import { ObjectNode, RootNode, VirtualTargetNode } from "./Node";
 import {
 	useClearSearchHl,
 	useRevealNode,
 	useViewportChange,
 } from "./useViewportChange";
-import useVirtualGraph from "./useVirtualGraph";
+import { useVirtualGraph } from "./useVirtualGraph";
 
-export default function Graph() {
+export function Graph() {
 	return (
 		<div id="main_graph_reactflow" className="relative w-full h-full">
 			<ReactFlowProvider>
@@ -64,11 +62,13 @@ function LayoutGraph() {
 			reconnectRadius={config.reconnectRadius}
 			colorMode={config.colorMode}
 			attributionPosition={config.attributionPosition}
-			nodeTypes={{
-				object: ObjectNode,
-				root: RootNode,
-				virtualTarget: VirtualTargetNode,
-			}}
+			nodeTypes={
+				{
+					object: ObjectNode,
+					root: RootNode,
+					virtualTarget: VirtualTargetNode,
+				} as any
+			}
 			defaultEdgeOptions={{
 				selectable: false,
 				focusable: false,
@@ -80,7 +80,6 @@ function LayoutGraph() {
 				clearSearchHl();
 
 				(async () => {
-					// @ts-ignore
 					const { nodes, edges } = await window.worker.clearGraphNodeSelected();
 					setNodes(nodes);
 					setEdges(edges);
@@ -95,7 +94,6 @@ function LayoutGraph() {
 				});
 
 				(async () => {
-					// @ts-ignore
 					const { nodes, edges } = await window.worker.toggleGraphNodeSelected(
 						node.id,
 					);
@@ -112,7 +110,6 @@ function LayoutGraph() {
 				}
 
 				(async () => {
-					// @ts-ignore
 					const { nodes, edges } = await window.worker.toggleGraphNodeHidden(
 						nodeId,
 						handleId,

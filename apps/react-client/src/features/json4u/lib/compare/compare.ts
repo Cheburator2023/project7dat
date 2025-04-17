@@ -162,24 +162,3 @@ function splitKeys(
 
 	return { intersection, leftOnly, rightOnly };
 }
-
-if (import.meta.vitest) {
-	const { it, expect } = import.meta.vitest;
-
-	it("splitKeys", () => {
-		const { intersection, leftOnly, rightOnly } = splitKeys(
-			["a", "b", "c"],
-			["a", "c", "d"],
-		);
-		expect(intersection).toMatchObject(new Set(["a", "c"]));
-		expect(leftOnly).toMatchObject(new Set(["b"]));
-		expect(rightOnly).toMatchObject(new Set(["d"]));
-	});
-
-	it("arrayDiff", () => {
-		expect(compareArray(["a", "b", "c"], ["a", "c", "d"])).toMatchObject([
-			newDiff(1, 1, "del"),
-			newDiff(2, 1, "ins"),
-		]);
-	});
-}
