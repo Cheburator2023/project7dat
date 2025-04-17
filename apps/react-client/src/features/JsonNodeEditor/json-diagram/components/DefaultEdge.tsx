@@ -1,5 +1,3 @@
-"use client";
-
 import { semanticColors } from "@nextui-org/react";
 import { memo } from "react";
 import { type EdgeProps, getBezierPath } from "reactflow";
@@ -58,4 +56,4 @@ const _DefaultEdge = ({
 /**
  * @reference https://reactflow.dev/docs/examples/edges/custom-edge/
  */
-export const DefaultEdge = memo(_DefaultEdge);
+export const DefaultEdge = _DefaultEdge;

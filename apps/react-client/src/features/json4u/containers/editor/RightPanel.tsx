@@ -1,12 +1,10 @@
-"use client";
-
+import { Button } from "@mui/material";
 import {
 	Container,
 	ContainerContent,
 	ContainerHeader,
 } from "@react-client/features/json4u/components/Container";
-import { Button } from "@react-client/features/json4u/components/ui/button";
-import ViewSearchInput from "@react-client/features/json4u/components/ui/search/ViewSearchInput";
+import { ViewSearchInput } from "@react-client/features/json4u/components/ui/search/ViewSearchInput";
 import { Switch } from "@react-client/features/json4u/components/ui/switch";
 import {
 	Tabs,
@@ -14,9 +12,9 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@react-client/features/json4u/components/ui/tabs";
-import Editor from "@react-client/features/json4u/containers/editor/editor";
-import Graph from "@react-client/features/json4u/containers/editor/graph/Graph";
-import SwapButton from "@react-client/features/json4u/containers/editor/mode/SwapButton";
+import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
+import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
+import { SwapButton } from "@react-client/features/json4u/containers/editor/mode/SwapButton";
 import { JsonTable } from "@react-client/features/json4u/containers/editor/table/JsonTable";
 import {
 	ViewMode,
@@ -31,7 +29,7 @@ import type * as React from "react";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-export default function RightPanel() {
+export function RightPanel() {
 	const cc = useConfigFromCookies();
 	const { viewMode, setViewMode } = useStatusStore(
 		useShallow((state) => ({
@@ -116,7 +114,7 @@ function FullScreenButton() {
 		<Button
 			title={t(fullscreen ? "shrink_screen" : "expand_screen")}
 			className="px-2"
-			variant="icon-outline"
+			variant="outlined"
 			onClick={() => {
 				if (fullscreen) {
 					setFullscreen(false);

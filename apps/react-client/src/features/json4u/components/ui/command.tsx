@@ -1,10 +1,8 @@
-"use client";
-
 import { cn } from "@react-client/features/json4u/lib/utils";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
 import * as React from "react";
-import LoadingIcon from "./LoadingIcon";
+import { LoadingIcon } from "./LoadingIcon";
 
 const Command = React.forwardRef<
 	React.ElementRef<typeof CommandPrimitive>,

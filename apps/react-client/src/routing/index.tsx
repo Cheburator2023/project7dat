@@ -1,13 +1,12 @@
 import { BrowserRouter, Route, Routes } from "react-router";
 import { routes } from "./routes";
 
+import { JSON4UPage } from "@react-client/features/json4u";
 import { StandAloneEditorPage } from "@react-client/features/standAloneEditor/pages/StandAloneEditorPage";
-import { JsonViewerPage } from "../features/JsonViewer/pages/JsonViewerPage";
 import { DashboardPage } from "../features/dashboard/pages/DashboardPage";
 import { HomePage } from "../features/home/pages/HomePage";
 // import { StandAloneEditorPage } from "../features/standAloneEditor/pages/StandAloneEditorPage";
 import { Page404 } from "./Page404";
-import { JSON4UPage } from "@react-client/features/json4u";
 
 export const Routing = () => (
 	<BrowserRouter>

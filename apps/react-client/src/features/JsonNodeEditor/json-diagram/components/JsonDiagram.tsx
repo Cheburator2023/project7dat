@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect } from "react";
 import ReactFlow, {
 	Background,
@@ -12,6 +10,7 @@ import ReactFlow, {
 	useEdgesState,
 	useNodesState,
 } from "reactflow";
+
 import { featureFlag } from "../../environment";
 import { useJsonDiagramViewStore } from "../../store/json-diagram-view/json-diagram-view.store";
 import { EdgeType } from "../../store/json-engine/enums/edge-type.enum";

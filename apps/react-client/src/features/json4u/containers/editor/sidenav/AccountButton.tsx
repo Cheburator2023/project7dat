@@ -1,17 +1,15 @@
-"use client";
-
 import { Typography } from "@mui/material";
-import AccountPanel from "@react-client/features/json4u/components/AccountPanel";
-import RLinkButton from "@react-client/features/json4u/components/LinkButton";
-import UserAvatar from "@react-client/features/json4u/components/UserAvatar";
+import { AccountPanel } from "@react-client/features/json4u/components/AccountPanel";
+import { LinkButton as RLinkButton } from "@react-client/features/json4u/components/LinkButton";
+import { UserAvatar } from "@react-client/features/json4u/components/UserAvatar";
 import { env } from "@react-client/features/json4u/lib/env";
 import { useUserStore } from "@react-client/features/json4u/stores/userStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { CircleUserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-import LinkButton from "./LinkButton";
-import PopoverBtn from "./PopoverButton";
+import { LinkButton } from "./LinkButton";
+import { PopoverBtn } from "./PopoverButton";
 
 interface AccountButtonProps {
 	avatarClassName: string;
@@ -19,7 +17,7 @@ interface AccountButtonProps {
 	notOnSideNav?: boolean;
 }
 
-export default function AccountButton({
+export function AccountButton({
 	notOnSideNav,
 	avatarClassName,
 	buttonClassName,

@@ -6,10 +6,10 @@ import { useEditor } from "@react-client/features/json4u/stores/editorStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
-import BasePopover from "./BasePopover";
+import { BasePopover } from "./BasePopover";
 import { type FileType, FileTypeSelect } from "./FileTypeSelect";
 
-export default function ImportPopover() {
+export function ImportPopover() {
 	const t = useTranslations();
 	const [fileType, setFileType] = useState<FileType>("JSON");
 	const [csvWithHeader, setCsvWithHeader] = useState<boolean>(true);

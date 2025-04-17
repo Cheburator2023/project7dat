@@ -1,10 +1,10 @@
-import { Button } from "@react-client/features/json4u/components/ui/button";
+import { Button } from "@mui/material";
 import { Input } from "@react-client/features/json4u/components/ui/input";
 import { Label } from "@react-client/features/json4u/components/ui/label";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { CopyIcon } from "lucide-react";
 
-export default function SharePopover() {
+export function SharePopover() {
 	const t = useTranslations();
 
 	return (
@@ -25,7 +25,7 @@ export default function SharePopover() {
 						className="h-9"
 					/>
 				</div>
-				<Button type="submit" size="sm" className="px-3">
+				<Button type="submit" size="small" className="px-3">
 					<span className="sr-only">{t("Copy")}</span>
 					<CopyIcon />
 				</Button>

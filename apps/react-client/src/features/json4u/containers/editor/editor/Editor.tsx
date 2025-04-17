@@ -1,7 +1,5 @@
-"use client";
-
 import { Editor as MonacoEditor, loader } from "@monaco-editor/react";
-import Loading from "@react-client/features/json4u/components/Loading";
+import { Loading } from "@react-client/features/json4u/components/Loading";
 import { vsURL } from "@react-client/features/json4u/lib/editor/cdn";
 import {
 	EditorWrapper,
@@ -23,7 +21,7 @@ interface EditorProps extends ComponentPropsWithoutRef<typeof MonacoEditor> {
 	kind: Kind;
 }
 
-export default function Editor({ kind, ...props }: EditorProps) {
+export function Editor({ kind, ...props }: EditorProps) {
 	const translations = useTranslations();
 	const setEditor = useEditorStore((state) => state.setEditor);
 	const setTranslations = useEditorStore((state) => state.setTranslations);

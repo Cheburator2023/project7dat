@@ -52,8 +52,8 @@ export function getChildrenKeys(node: Node): string[] {
 	return node?.childrenKeys ?? [];
 }
 
-export function getChildId(node: Node, key: string): string {
-	return (node.childrenKey2Id ?? {})[key];
+export function getChildId(node: Node, key: string): string | undefined {
+	return node.childrenKey2Id?.[key];
 }
 
 export function getRawValue(node: Node): string | undefined {

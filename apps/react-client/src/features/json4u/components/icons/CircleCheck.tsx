@@ -1,6 +1,6 @@
 import { cn } from "@react-client/features/json4u/lib/utils";
 
-export default function CircleCheck({ className }: { className?: string }) {
+export function CircleCheck({ className }: { className?: string }) {
 	return (
 		<span
 			className={cn(

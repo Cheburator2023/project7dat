@@ -1,12 +1,10 @@
-"use client";
-
 import {
 	ResizableHandle,
 	ResizablePanel,
 	ResizablePanelGroup,
 } from "@react-client/features/json4u/components/ui/resizable";
 import { Separator } from "@react-client/features/json4u/components/ui/separator";
-import ModePanel from "@react-client/features/json4u/containers/editor/mode/ModePanel";
+import { ModePanel } from "@react-client/features/json4u/containers/editor/mode/ModePanel";
 import { setupGlobalGraphStyle } from "@react-client/features/json4u/lib/graph/layout";
 import { cn } from "@react-client/features/json4u/lib/utils";
 import { px2num } from "@react-client/features/json4u/lib/utils";
@@ -19,15 +17,15 @@ import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { MyWorker } from "../../../../features/json4u/lib/worker/worker";
 
-import LeftPanel from "./LeftPanel";
-import RightPanel from "./RightPanel";
-import StatusBar from "./StatusBar";
+import { LeftPanel } from "./LeftPanel";
+import { RightPanel } from "./RightPanel";
+import { StatusBar } from "./StatusBar";
 
 const leftPanelId = "left-panel";
 const rightPanelId = "right-panel";
 initLogger();
 
-export default function MainPanel() {
+export function MainPanel() {
 	const cc = useConfigFromCookies();
 	const {
 		rightPanelSize,
@@ -60,7 +58,6 @@ export default function MainPanel() {
 				<ResizablePanel
 					id={leftPanelId}
 					ref={(ref: any) => {
-						// @ts-ignore
 						window.leftPanelHandle = ref;
 					}}
 					collapsible
@@ -141,19 +138,17 @@ function WidthMeasure() {
 
 function useInitial() {
 	const cc = useConfigFromCookies();
-	const { user, updateActiveOrder } = useUserStore(
+	const { user } = useUserStore(
 		useShallow((state) => ({
 			user: state.user,
-			updateActiveOrder: state.updateActiveOrder,
 		})),
 	);
 
 	useEffect(() => {
-		updateActiveOrder(user);
 		useStatusStore.setState({ _hasHydrated: true, ...cc });
 
 		// initial worker
-		// @ts-ignore
+
 		window.rawWorker = new Worker(
 			new URL(
 				"../../../../features/json4u/lib/worker/worker.ts",
@@ -163,10 +158,9 @@ function useInitial() {
 				type: "module",
 			},
 		);
-		// @ts-ignore
+
 		window.worker = wrap<MyWorker>(window.rawWorker);
 		window.addEventListener("beforeunload", () => {
-			// @ts-ignore
 			window.rawWorker?.terminate();
 		});
 
@@ -185,7 +179,7 @@ function useInitial() {
 			el.querySelector(".graph-v")!,
 		);
 		const measured = {
-			fontWidth: span.offsetWidth / span.textContent!.length,
+			fontWidth: span.offsetWidth / (span.textContent?.length || 1),
 			kvHeight: px2num(lineHeight),
 			padding: px2num(paddingLeft) + px2num(paddingRight),
 			borderWidth: px2num(borderWidth),
@@ -195,9 +189,9 @@ function useInitial() {
 		};
 
 		setupGlobalGraphStyle(measured);
-		// @ts-ignore
+
 		window.worker.setupGlobalGraphStyle(measured);
-		// @ts-ignore
+
 		console.l("finished measuring graph base style:", measured);
 	}, []);
 }

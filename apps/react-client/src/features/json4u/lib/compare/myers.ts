@@ -170,7 +170,7 @@ function diff(
 
 	// Seed editLength = 0, i.e. the content starts with the same values
 	const oldPos = extractCommon(bestPath[0]!, newArray, oldArray, 0);
-	if (bestPath[0]!.newPos + 1 >= newLen && oldPos + 1 >= oldLen) {
+	if (bestPath[0] && bestPath[0].newPos + 1 >= newLen && oldPos + 1 >= oldLen) {
 		// Identity per the equality and tokenizer
 		return [{ value: newArray.join(""), count: newArray.length }];
 	}
@@ -304,13 +304,13 @@ function tokenize(value: string): string[] {
 	// Based on https://en.wikipedia.org/wiki/Latin_script_in_Unicode
 	//
 	// Ranges and exceptions:
-	// Latin-1 Supplement, 0080–00FF
+	// Latin-1 Supplement, 0080-00FF
 	//  - U+00D7  × Multiplication sign
 	//  - U+00F7  ÷ Division sign
-	// Latin Extended-A, 0100–017F
-	// Latin Extended-B, 0180–024F
-	// IPA Extensions, 0250–02AF
-	// Spacing Modifier Letters, 02B0–02FF
+	// Latin Extended-A, 0100-017F
+	// Latin Extended-B, 0180-024F
+	// IPA Extensions, 0250-02AF
+	// Spacing Modifier Letters, 02B0-02FF
 	//  - U+02C7  ˇ &#711;  Caron
 	//  - U+02D8  ˘ &#728;  Breve
 	//  - U+02D9  ˙ &#729;  Dot Above
@@ -318,7 +318,7 @@ function tokenize(value: string): string[] {
 	//  - U+02DB  ˛ &#731;  Ogonek
 	//  - U+02DC  ˜ &#732;  Small Tilde
 	//  - U+02DD  ˝ &#733;  Double Acute Accent
-	// Latin Extended Additional, 1E00–1EFF
+	// Latin Extended Additional, 1E00-1EFF
 	const extendedWordChars =
 		/^[a-zA-Z\u{C0}-\u{FF}\u{D8}-\u{F6}\u{F8}-\u{2C6}\u{2C8}-\u{2D7}\u{2DE}-\u{2FF}\u{1E00}-\u{1EFF}]+$/u;
 

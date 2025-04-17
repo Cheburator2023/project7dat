@@ -7,7 +7,7 @@ import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { ArrowRightLeft } from "lucide-react";
 import { forwardRef, useEffect } from "react";
 
-const SwapButton = forwardRef<HTMLButtonElement, ButtonProps>(
+export const SwapButton = forwardRef<HTMLButtonElement, ButtonProps>(
 	({ className, variant, size, asChild = false, ...props }, ref) => {
 		const t = useTranslations();
 		const runCommand = useEditorStore((state) => state.runCommand);
@@ -40,6 +40,3 @@ const SwapButton = forwardRef<HTMLButtonElement, ButtonProps>(
 		);
 	},
 );
-
-SwapButton.displayName = "SwapButton";
-export default SwapButton;

@@ -5,7 +5,7 @@ import { Mouse, Touchpad } from "lucide-react";
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-export default function MouseButton() {
+export function MouseButton() {
 	const { isTouchpad, setIsTouchpad } = useStatusStore(
 		useShallow((state) => ({
 			isTouchpad: state.isTouchpad,

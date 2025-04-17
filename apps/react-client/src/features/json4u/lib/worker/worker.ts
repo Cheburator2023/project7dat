@@ -1,10 +1,10 @@
 import { init as dbInit } from "@react-client/features/json4u/lib/db/config";
 import { setupGlobalGraphStyle } from "@react-client/features/json4u/lib/graph/layout";
+
 import * as Comlink from "comlink";
 import { compareText, compareTree } from "./command/compare";
 import { csv2json, json2csv } from "./command/csv";
-// biome-ignore lint/suspicious/noShadowRestrictedNames: <explanation>
-import { escape, unescape } from "./command/escape";
+import { escapeStr, unescapeStr } from "./command/escape";
 import { jsonPath } from "./command/jsonPath";
 import { parseAndFormat } from "./command/parse";
 import { pythonDictToJSON } from "./command/pythonDictToJSON";
@@ -26,8 +26,8 @@ const worker = {
 	parseAndFormat,
 	compareText,
 	compareTree,
-	escape,
-	unescape,
+	escapeStr,
+	unescapeStr,
 	pythonDictToJSON,
 	urlToJSON,
 	csv2json,

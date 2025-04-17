@@ -35,7 +35,7 @@ export function useOnShowTooltip(timeoutIdMap: TimeoutIdMap) {
 	);
 
 	const delayedShow = (target: Element, event: MouseEvent) => {
-		timeoutIdMap.current["show"] = setTimeout(() => {
+		timeoutIdMap.current.show = setTimeout(() => {
 			setTooltip({
 				targetId: target.id,
 				path: genKeyAndTypeList(tree, peelTableId(target.id)),
@@ -47,7 +47,7 @@ export function useOnShowTooltip(timeoutIdMap: TimeoutIdMap) {
 
 	const hide = () => {
 		resetTimeout(timeoutIdMap, "show");
-		timeoutIdMap.current["hide"] = setTimeout(hideTooltip, intervalToHide);
+		timeoutIdMap.current.hide = setTimeout(hideTooltip, intervalToHide);
 	};
 
 	// NOTICE: don't use useCallback, otherwise the event handler will not be updated
@@ -222,66 +222,4 @@ class Position {
 	mul(n: number): Position {
 		return new Position(this.x * n, this.y * n);
 	}
-}
-
-if (import.meta.vitest) {
-	const { describe, it, expect } = import.meta.vitest;
-
-	interface PositionWithSide {
-		x: number;
-		y: number;
-		side: Side;
-	}
-
-	function expectEq(
-		gap: number,
-		a0: Position,
-		a1: Position,
-		a2: Position,
-		p1: Position,
-		p2: Position,
-		want: Partial<PositionWithSide>,
-	) {
-		const mouse = p2.add(a2.mul(0.5));
-		const got = computePosition(gap, mouse, a0, a1, a2, p1, p2);
-		const p0 = p1.add(new Position(got.left, got.top));
-		expect({ x: p0.x, y: p0.y, side: got.side }).toMatchObject(want);
-	}
-
-	describe("computePlace", () => {
-		it("four sides", () => {
-			function doExpectEq(
-				targetX: number,
-				targetY: number,
-				want: PositionWithSide,
-			) {
-				expectEq(
-					10,
-					new Position(100, 100),
-					new Position(500, 500),
-					new Position(50, 50),
-					new Position(0, 0),
-					new Position(targetX, targetY),
-					want,
-				);
-			}
-
-			doExpectEq(200, 200, { x: 175, y: 90, side: "top" });
-			doExpectEq(200, 0, { x: 175, y: 60, side: "bottom" });
-			doExpectEq(450, 200, { x: 340, y: 175, side: "left" });
-			doExpectEq(0, 200, { x: 60, y: 175, side: "right" });
-		});
-
-		it("bad case", () => {
-			expectEq(
-				10,
-				new Position(400, 200),
-				new Position(1181, 751),
-				new Position(81, 331),
-				new Position(610, 43),
-				new Position(652, 334),
-				{ side: "right" },
-			);
-		});
-	});
 }

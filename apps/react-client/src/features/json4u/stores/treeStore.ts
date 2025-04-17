@@ -59,7 +59,7 @@ export function getTreeState() {
 }
 
 export function getTree() {
-	return getTreeState()["main"];
+	return getTreeState().main;
 }
 
 export function useTree(kind: Kind = "main") {

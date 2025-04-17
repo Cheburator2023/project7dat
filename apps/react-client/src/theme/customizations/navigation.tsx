@@ -62,7 +62,7 @@ export const navigationCustomizations: Components<Theme> = {
 				(props, ref) => (
 					<UnfoldMoreRoundedIcon fontSize="small" {...props} ref={ref} />
 				),
-			),
+			) as any,
 		},
 		styleOverrides: {
 			root: ({ theme }) => ({

@@ -5,7 +5,7 @@ interface LogoProps {
 	className?: string;
 }
 
-export default function Logo({ size, className }: LogoProps) {
+export function Logo({ size, className }: LogoProps) {
 	return (
 		<img
 			src="/icon.svg"

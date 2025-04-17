@@ -11,7 +11,7 @@ import {
 	forwardRef,
 } from "react";
 import { useShallow } from "zustand/react/shallow";
-import InputBox from "./InputBox";
+import { InputBox } from "./InputBox";
 
 function useFilter() {
 	const t = useTranslations();
@@ -28,31 +28,29 @@ function useFilter() {
 		filter = filter.trim();
 
 		if (!filter) {
-			toastSucc(t("cmd_exec_succ", { name: t("json_path_filter") }));
+			toastSucc(t("cmd_exec_succ"));
 			return;
 		} else if (!window.worker) {
-			toastErr(t("cmd_exec_fail", { name: t("json_path_filter") }));
+			toastErr(t("cmd_exec_fail"));
 			return;
 		}
 
-		if (viewMode != ViewMode.Text) {
+		if (viewMode !== ViewMode.Text) {
 			setViewMode(ViewMode.Text);
 		}
 
 		const { output, error } = await window.worker.jsonPath(filter);
 
 		if (error) {
-			toastErr(
-				t("cmd_exec_fail", { name: t("json_path_filter") }) + ": " + filter,
-			);
+			toastErr(t("cmd_exec_fail") + ": " + filter);
 		} else {
-			await secondary!.parseAndSet(output ?? "", {}, false);
-			toastSucc(t("cmd_exec_succ", { name: t("json_path_filter") }));
+			await secondary?.parseAndSet(output ?? "", {}, false);
+			toastSucc(t("cmd_exec_succ"));
 		}
 	};
 }
 
-const JsonPathInput: FC = forwardRef<
+export const JsonPathInput: FC = forwardRef<
 	ElementRef<typeof Input>,
 	ComponentPropsWithoutRef<typeof Input>
 >(({ className, ...props }, ref) => {
@@ -68,6 +66,3 @@ const JsonPathInput: FC = forwardRef<
 		/>
 	);
 });
-
-JsonPathInput.displayName = "JsonPathInput";
-export default JsonPathInput;

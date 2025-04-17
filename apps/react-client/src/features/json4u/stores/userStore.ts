@@ -2,17 +2,8 @@ import {
 	type Statistics,
 	type StatisticsKeys,
 	env,
-	isCN,
-	isDev,
 } from "@react-client/features/json4u/lib/env";
 import type { SubscriptionType } from "@react-client/features/json4u/lib/shop/types";
-import { supabase } from "@react-client/features/json4u/lib/supabase/client";
-import {
-	type Order,
-	OrderSchema,
-} from "@react-client/features/json4u/lib/supabase/table.types";
-import type { FunctionKeys } from "@react-client/features/json4u/lib/utils";
-import { last, sortBy } from "lodash-es";
 import { create } from "zustand";
 
 type User = any;
@@ -28,7 +19,7 @@ export const freeQuota: any = env.NEXT_PUBLIC_FREE_QUOTA;
 
 export interface UserState {
 	user: any | null;
-	activeOrder: Order | null;
+	activeOrder: any;
 	statistics: Statistics;
 	nextQuotaRefreshTime?: Date;
 	fallbackKey: string;
@@ -57,7 +48,6 @@ export const useUserStore = create<UserState>()((set, get) => ({
 	...initialStates,
 	nextQuotaRefreshTime: undefined,
 	user: initialStates.user,
-	activeOrder: initialStates.activeOrder,
 	statistics: initialStates.statistics,
 	fallbackKey: initialStates.fallbackKey,
 

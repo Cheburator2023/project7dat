@@ -1,8 +1,8 @@
 import { Button as RButton } from "@react-client/features/json4u/components/ui/button";
 import { cn } from "@react-client/features/json4u/lib/utils";
 import { type VariantProps, cva } from "class-variance-authority";
-import { type ElementRef, forwardRef } from "react";
-import IconLabel from "./IconLabel";
+import { type ComponentRef, forwardRef } from "react";
+import { IconLabel } from "./IconLabel";
 
 export const btnVariants = cva(
 	"w-6 h-6 relative group-data-[expanded=true]:w-full transition-all duration-200 flex items-center rounded-sm group-data-[expanded=false]:justify-center group-data-[expanded=true]:-space-x-2 hover:bg-surface-200",
@@ -15,7 +15,7 @@ interface ButtonProps extends VariantProps<typeof btnVariants> {
 	className?: string;
 }
 
-const Button = forwardRef<ElementRef<typeof RButton>, ButtonProps>(
+export const Button = forwardRef<ComponentRef<typeof RButton>, ButtonProps>(
 	({ icon, title, onClick, className }, ref) => (
 		<RButton
 			ref={ref}
@@ -27,6 +27,3 @@ const Button = forwardRef<ElementRef<typeof RButton>, ButtonProps>(
 		</RButton>
 	),
 );
-Button.displayName = "Button";
-
-export default Button;

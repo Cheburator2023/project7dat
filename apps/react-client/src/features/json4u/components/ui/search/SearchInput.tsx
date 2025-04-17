@@ -1,5 +1,3 @@
-"use client";
-
 import {
 	Command as Cmd,
 	CommandEmpty,
@@ -31,7 +29,7 @@ export interface SearchInputProps<T extends { id: string }> {
 	id?: string;
 }
 
-export default function SearchInput<T extends { id: string }>({
+export function SearchInput<T extends { id: string }>({
 	search,
 	onSelect,
 	itemHeight,
@@ -97,12 +95,9 @@ export default function SearchInput<T extends { id: string }>({
 	// register inputRef to window.searchComponents
 	useEffect(() => {
 		if (id) {
-			// @ts-ignore
 			if (!window.searchComponents) {
-				// @ts-ignore
 				window.searchComponents = {};
 			}
-			// @ts-ignore
 			window.searchComponents[`${id}-input`] = inputRef.current;
 		}
 	}, [id]);

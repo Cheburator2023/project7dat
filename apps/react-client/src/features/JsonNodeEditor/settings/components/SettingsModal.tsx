@@ -1,5 +1,3 @@
-"use client";
-
 import { Modal, ModalBody, ModalContent, ModalHeader } from "@nextui-org/modal";
 import { Switch } from "@nextui-org/switch";
 import { memo } from "react";

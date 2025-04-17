@@ -1,5 +1,3 @@
-"use client";
-
 import { CardBody, CardHeader } from "@nextui-org/card";
 import {
 	type ReactElement,

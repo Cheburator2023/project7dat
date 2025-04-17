@@ -42,4 +42,4 @@ const _ChainEdge = ({
 /**
  * @reference https://reactflow.dev/docs/examples/edges/custom-edge/
  */
-export const ChainEdge = memo(_ChainEdge);
+export const ChainEdge = _ChainEdge;

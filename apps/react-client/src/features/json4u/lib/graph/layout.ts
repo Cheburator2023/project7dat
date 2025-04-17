@@ -61,7 +61,7 @@ export const nodeHighlightStyle: CSSProperties = {
 export const edgeHighlightStyle: CSSProperties = { stroke: highlightColor };
 
 export function newGraph(): Graph {
-	return { nodes: [], edges: [] };
+	return { nodes: [], edges: [], nodeMap: {} };
 }
 
 // nodes are in DFS order and edges are in BFS order
@@ -73,7 +73,7 @@ export function genFlowNodes(tree: Tree): Graph {
 		doGenFlowNodes(nodes, edges, tree, tree.root(), "", 0);
 	}
 
-	return { nodes, edges };
+	return { nodes, edges, nodeMap: {} };
 }
 
 function doGenFlowNodes(

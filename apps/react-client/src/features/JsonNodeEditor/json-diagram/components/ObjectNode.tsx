@@ -69,4 +69,4 @@ const _ObjectNode = ({ id, data }: NodeProps<ObjectNodeData>) => {
 	);
 };
 
-export const ObjectNode = memo(_ObjectNode);
+export const ObjectNode = _ObjectNode;

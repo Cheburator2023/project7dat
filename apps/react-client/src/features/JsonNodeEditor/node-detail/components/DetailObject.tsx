@@ -1,4 +1,4 @@
-import { Button } from "@nextui-org/button";
+import { Button } from "@mui/material";
 import { CardBody, CardHeader } from "@nextui-org/card";
 import { type ReactElement, isValidElement, memo, useMemo } from "react";
 import { useJsonDiagramViewStore } from "../../store/json-diagram-view/json-diagram-view.store";
@@ -38,10 +38,9 @@ const _DetailObject = ({ chip, obj, childObjectNodeId }: Props) => {
 
 			<CardBody className="px-3 pb-unit-sm pt-0">
 				<Button
-					variant="flat"
-					size="sm"
+					size="small"
 					color="primary"
-					onPress={() => selectNode(childObjectNodeId)}
+					onClick={() => selectNode(childObjectNodeId)}
 				>
 					View object
 				</Button>

@@ -10,7 +10,7 @@ interface UserAvatarProps {
 	className?: string;
 }
 
-export default function UserAvatar({ name, url, className }: UserAvatarProps) {
+export function UserAvatar({ name, url, className }: UserAvatarProps) {
 	return (
 		<Avatar className={className}>
 			<AvatarImage src={url} alt={name} />
