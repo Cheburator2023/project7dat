@@ -10,10 +10,7 @@ import {
 	useTree,
 	useTreeStore,
 } from "@react-client/features/json4u/stores/treeStore";
-import {
-	type Side,
-	sides,
-} from "@react-client/features/json4u/stores/treeStore";
+import { sides } from "@react-client/features/json4u/stores/treeStore";
 import type { MouseEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {

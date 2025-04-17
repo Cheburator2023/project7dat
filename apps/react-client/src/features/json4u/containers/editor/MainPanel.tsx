@@ -1,24 +1,16 @@
-import { Button } from "@mui/material";
-import {
-	Container,
-	ContainerContent,
-	ContainerHeader,
-} from "@react-client/features/json4u/components/Container";
 import {
 	ResizableHandle,
 	ResizablePanel,
 	ResizablePanelGroup,
 } from "@react-client/features/json4u/components/ui/resizable";
-import { ViewSearchInput } from "@react-client/features/json4u/components/ui/search/ViewSearchInput";
 import { Separator } from "@react-client/features/json4u/components/ui/separator";
-import { Switch } from "@react-client/features/json4u/components/ui/switch";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@react-client/features/json4u/components/ui/tabs";
+import { TabsContent } from "@react-client/features/json4u/components/ui/tabs";
+import { Tabs } from "@react-client/features/json4u/components/ui/tabs";
+import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
+import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
 import { ModePanel } from "@react-client/features/json4u/containers/editor/mode/ModePanel";
+import { JsonTable } from "@react-client/features/json4u/containers/editor/table/JsonTable";
+import { ViewMode } from "@react-client/features/json4u/lib/db/config";
 import { setupGlobalGraphStyle } from "@react-client/features/json4u/lib/graph/layout";
 import { cn } from "@react-client/features/json4u/lib/utils";
 import { px2num } from "@react-client/features/json4u/lib/utils";
@@ -28,22 +20,10 @@ import { useStatusStore } from "@react-client/features/json4u/stores/statusStore
 import { useUserStore } from "@react-client/features/json4u/stores/userStore";
 import { wrap } from "comlink";
 import { useEffect } from "react";
-import { Outlet } from "react-router";
+import { useLocation } from "react-router";
 import { useShallow } from "zustand/react/shallow";
 import type { MyWorker } from "../../../../features/json4u/lib/worker/worker";
-
-import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
-import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
-import { SwapButton } from "@react-client/features/json4u/containers/editor/mode/SwapButton";
-import { JsonTable } from "@react-client/features/json4u/containers/editor/table/JsonTable";
-import {
-	ViewMode,
-	type ViewModeValue,
-} from "@react-client/features/json4u/lib/db/config";
-import { useEditorStore } from "@react-client/features/json4u/stores/editorStore";
-import { Table2, Text, Waypoints } from "lucide-react";
 import { LeftPanel } from "./LeftPanel";
-import { RightPanel } from "./RightPanel";
 import { StatusBar } from "./StatusBar";
 
 const leftPanelId = "left-panel";
@@ -61,6 +41,14 @@ export function MainPanel() {
 	} = useStatusStore();
 
 	useObserveResize();
+
+	const location = useLocation();
+
+	useEffect(() => {
+		if (location.pathname.includes(viewMode)) {
+			setViewMode(viewMode);
+		}
+	}, [location.pathname]);
 
 	// see https://github.com/bvaughn/react-resizable-panels/issues/128#issuecomment-1523343548
 	return (
@@ -96,13 +84,7 @@ export function MainPanel() {
 						rightPanelCollapsed && "transition-all duration-300 ease-in-out",
 					)}
 				>
-					<Outlet />
-					{/* <Tabs
-						asChild
-						defaultValue={viewMode}
-						value={viewMode}
-						onValueChange={(mode) => setViewMode(mode as ViewModeValue)}
-					>
+					<Tabs asChild defaultValue={viewMode} value={viewMode}>
 						<>
 							<TabView viewMode={ViewMode.Text}>
 								<Editor kind="secondary" />
@@ -114,7 +96,7 @@ export function MainPanel() {
 								<JsonTable />
 							</TabView>
 						</>
-					</Tabs> */}
+					</Tabs>
 				</ResizablePanel>
 			</ResizablePanelGroup>
 			<ModePanel />
@@ -242,36 +224,5 @@ function TabView({
 		>
 			{children}
 		</TabsContent>
-	);
-}
-
-function Buttons({ viewMode }: { viewMode: ViewMode }) {
-	const runCommand = useEditorStore((state) => state.runCommand);
-	const { enableTextCompare, setEnableTextCompare } = useStatusStore(
-		useShallow((state) => ({
-			enableTextCompare: state.enableTextCompare,
-			setEnableTextCompare: state.setEnableTextCompare,
-		})),
-	);
-
-	return (
-		<div className="flex items-center ml-auto space-x-2">
-			{viewMode === ViewMode.Text && (
-				<>
-					<div className="flex items-center rounded-md pl-1 bg-muted text-zinc-600">
-						<Switch
-							checked={enableTextCompare}
-							onCheckedChange={setEnableTextCompare}
-						/>
-						<Button className="px-2" onClick={() => runCommand("compare")}>
-							{enableTextCompare ? "TextCompare" : "compare"}
-						</Button>
-					</div>
-					<SwapButton variant="icon-outline" className="px-2" />
-				</>
-			)}
-			{/* {viewMode === ViewMode.Graph && <ViewSearchInput />} */}
-			{/* <FullScreenButton /> */}
-		</div>
 	);
 }

@@ -8,6 +8,8 @@ import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "../../../routing/routes";
+import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
+import { ViewMode } from "@react-client/features/json4u/lib/db/config";
 
 const mainListItems = Object.values(routes.home.subRoutes).map((route) => ({
 	text: route.name,
@@ -23,6 +25,19 @@ const secondaryListItems = [
 export function MenuContent() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const {
+		rightPanelSize,
+		rightPanelCollapsed,
+		viewMode,
+		setViewMode,
+		setRightPanelSize,
+		setRightPanelCollapsed,
+	} = useStatusStore();
+
+	const handler = (path: "graph" | "table" | "text") => {
+		setViewMode(path);
+		navigate(path);
+	};
 
 	return (
 		<Stack sx={{ flexGrow: 1, p: 1, justifyContent: "space-between" }}>
@@ -32,7 +47,7 @@ export function MenuContent() {
 						key={index}
 						disablePadding
 						sx={{ display: "block", mb: 0.2 }}
-						onClick={() => navigate(item.path)}
+						onClick={() => handler(item.path as any)}
 					>
 						<ListItemButton
 							selected={item.path === location.pathname.replace("/", "")}

@@ -1,28 +1,12 @@
 import { type ClassValue, clsx } from "clsx";
 import { toast } from "sonner";
 import { twMerge } from "tailwind-merge";
-import { isDev } from "./env";
 
 export function tryCatch<T>(fn: () => T, fallback: T): T {
 	try {
 		return fn();
 	} catch {
 		return fallback;
-	}
-}
-
-export function dateToYYYYMMDD(date: Date) {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	const day = String(date.getDate()).padStart(2, "0");
-	return `${year}-${month}-${day}`;
-}
-
-export function clone(o: any) {
-	if (typeof structuredClone !== "undefined") {
-		return structuredClone(o);
-	} else {
-		return JSON.parse(JSON.stringify(o));
 	}
 }
 

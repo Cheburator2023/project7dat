@@ -1,37 +1,30 @@
-import {
-	type Statistics,
-	type StatisticsKeys,
-	env,
-} from "@react-client/features/json4u/lib/env";
 import type { SubscriptionType } from "@react-client/features/json4u/lib/shop/types";
 import { create } from "zustand";
 
 type User = any;
 
-export const initialStatistics: Statistics = {
+export const initialStatistics: any = {
 	graphModeView: 0,
 	tableModeView: 0,
 	textComparison: 0,
 	jqExecutions: 0,
 };
 
-export const freeQuota: any = env.NEXT_PUBLIC_FREE_QUOTA;
-
 export interface UserState {
 	user: any | null;
 	activeOrder: any;
-	statistics: Statistics;
+	statistics: any;
 	nextQuotaRefreshTime?: Date;
 	fallbackKey: string;
 
-	usable: (key: StatisticsKeys) => boolean;
-	count: (key: StatisticsKeys) => void;
+	usable: (key: any) => boolean;
+	count: (key: any) => void;
 	isPremium: () => boolean;
 	getPlan: () => SubscriptionType;
 	setUser: (user: User | null) => Promise<void>;
 	updateActiveOrder: (user: User | null) => Promise<void>;
 	setStatistics: (
-		statistics: Statistics,
+		statistics: any,
 		nextQuotaRefreshTime: Date,
 		fallbackKey: string,
 	) => void;
@@ -51,17 +44,11 @@ export const useUserStore = create<UserState>()((set, get) => ({
 	statistics: initialStates.statistics,
 	fallbackKey: initialStates.fallbackKey,
 
-	usable(key: StatisticsKeys) {
-		const { statistics: usage, isPremium } = get();
-
-		if (isPremium()) {
-			return true;
-		}
-
-		return usage[key] < freeQuota[key];
+	usable(key: any) {
+		return true;
 	},
 
-	count(key: StatisticsKeys) {
+	count(key: any) {
 		const { fallbackKey, statistics, isPremium } = get();
 		statistics[key] += 1;
 
@@ -91,7 +78,7 @@ export const useUserStore = create<UserState>()((set, get) => ({
 	},
 
 	setStatistics(
-		statistics: Statistics,
+		statistics: any,
 		nextQuotaRefreshTime: Date,
 		fallbackKey: string,
 	) {

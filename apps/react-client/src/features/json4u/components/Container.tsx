@@ -1,4 +1,3 @@
-import { Separator } from "@react-client/features/json4u/components/ui/separator";
 import type { CommandMode } from "@react-client/features/json4u/stores/statusStore";
 import type { HTMLAttributes, ReactNode } from "react";
 
