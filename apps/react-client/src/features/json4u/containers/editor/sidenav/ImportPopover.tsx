@@ -6,6 +6,7 @@ import { useEditor } from "@react-client/features/json4u/stores/editorStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
+
 import { BasePopover } from "./BasePopover";
 import { type FileType, FileTypeSelect } from "./FileTypeSelect";
 
@@ -80,6 +81,7 @@ function useOnFile(fileType: FileType, options: { csvWithHeader?: boolean }) {
 
 		reader.onload = async (event) => {
 			const fileContent = event.target?.result;
+
 			if (typeof fileContent !== "string") {
 				return;
 			}
@@ -87,7 +89,7 @@ function useOnFile(fileType: FileType, options: { csvWithHeader?: boolean }) {
 			let r: CsvResult = { text: fileContent };
 
 			if (fileType !== "JSON") {
-				secondary.setTree({ treeObject: new Tree(fileContent).toObject() });
+				secondary?.setTree({ treeObject: new Tree(fileContent).toObject() });
 
 				if (fileType === "CSV") {
 					r = await main

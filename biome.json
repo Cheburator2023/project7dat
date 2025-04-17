@@ -58,8 +58,8 @@
 				"noUnsafeOptionalChaining": "warn",
 				"useExhaustiveDependencies": "off",
 				"noUnusedImports": {
-					"fix": "none",
-					"level": "off"
+					"fix": "safe",
+					"level": "warn"
 				}
 			},
 			"complexity": {

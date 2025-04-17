@@ -19,7 +19,7 @@ export const Routing = () => (
 					element={<Graph />}
 				/>
 				<Route
-					path={routes.home.subRoutes.standAloneEditor.path}
+					path={routes.home.subRoutes.text.path}
 					element={<Editor kind="secondary" />}
 				/>
 				<Route

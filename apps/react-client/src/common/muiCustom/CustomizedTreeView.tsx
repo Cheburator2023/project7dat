@@ -15,10 +15,7 @@ import {
 import { TreeItem2Icon } from "@mui/x-tree-view/TreeItem2Icon";
 import { TreeItem2Provider } from "@mui/x-tree-view/TreeItem2Provider";
 import type { TreeViewBaseItem } from "@mui/x-tree-view/models";
-import {
-	type UseTreeItem2Parameters,
-	unstable_useTreeItem2 as useTreeItem2,
-} from "@mui/x-tree-view/useTreeItem2";
+import { unstable_useTreeItem2 as useTreeItem2 } from "@mui/x-tree-view/useTreeItem2";
 import { animated, useSpring } from "@react-spring/web";
 import clsx from "clsx";
 import * as React from "react";

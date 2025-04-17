@@ -1,6 +1,5 @@
-import { Editor as MonacoEditor, loader } from "@monaco-editor/react";
+import { Editor as MonacoEditor } from "@monaco-editor/react";
 import { Loading } from "@react-client/features/json4u/components/Loading";
-import { vsURL } from "@react-client/features/json4u/lib/editor/cdn";
 import {
 	EditorWrapper,
 	type Kind,
@@ -14,8 +13,6 @@ import { getTree } from "@react-client/features/json4u/stores/treeStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { type ComponentPropsWithoutRef, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
-
-loader.config({ paths: { vs: vsURL } });
 
 interface EditorProps extends ComponentPropsWithoutRef<typeof MonacoEditor> {
 	kind: Kind;

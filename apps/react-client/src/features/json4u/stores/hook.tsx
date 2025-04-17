@@ -1,7 +1,4 @@
-import {
-	type Config,
-	defaultConfig,
-} from "@react-client/features/json4u/lib/db/config";
+import { defaultConfig } from "@react-client/features/json4u/lib/db/config";
 import { tryCatch } from "@react-client/features/json4u/lib/utils";
 
 export function useConfigFromCookies() {

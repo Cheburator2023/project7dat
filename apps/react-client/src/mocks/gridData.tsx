@@ -1,4 +1,3 @@
-import Avatar from "@mui/material/Avatar";
 import Chip from "@mui/material/Chip";
 import { SparkLineChart } from "@mui/x-charts/SparkLineChart";
 import type {
@@ -58,27 +57,6 @@ function renderStatus(status: "Online" | "Offline") {
 	};
 
 	return <Chip label={status} color={colors[status]} size="small" />;
-}
-
-export function renderAvatar(
-	params: GridCellParams<{ name: string; color: string }, any, any>,
-) {
-	if (params.value == null) {
-		return "";
-	}
-
-	return (
-		<Avatar
-			sx={{
-				backgroundColor: params.value.color,
-				width: "24px",
-				height: "24px",
-				fontSize: "0.85rem",
-			}}
-		>
-			{params.value.name.toUpperCase().substring(0, 1)}
-		</Avatar>
-	);
 }
 
 export const columns: GridColDef[] = [

@@ -1,32 +1,20 @@
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
-import { Button } from "@mui/material";
 import { styled } from "@mui/system";
-import { useConfigFromCookies } from "@react-client/features/json4u/stores/hook";
-import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
-import { useTranslations } from "@react-client/features/json4u/useTranslations";
-import {
-	AlignHorizontalJustifyCenter,
-	ArrowDownNarrowWide,
-	ArrowLeftToLine,
-	ArrowRightFromLine,
-	BarChartBig,
-	Braces,
-	MessageCircleQuestion,
-	Share2,
-	SquareStack,
-} from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
-
-import { Spacer } from "@react-client/common/primitives/Spacer";
 import { ViewSearchInput } from "@react-client/features/json4u/components/ui/search/ViewSearchInput";
-import { RightPanel } from "@react-client/features/json4u/containers/editor/RightPanel";
 import { ExportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ExportPopover";
 import { ImportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ImportPopover";
 import { PopoverBtn } from "@react-client/features/json4u/containers/editor/sidenav/PopoverButton";
 import { Toggle } from "@react-client/features/json4u/containers/editor/sidenav/Toggle";
 import { ViewMode } from "@react-client/features/json4u/lib/db/config";
+import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
+import {
+	AlignHorizontalJustifyCenter,
+	ArrowDownNarrowWide,
+	Braces,
+	SquareStack,
+} from "lucide-react";
 import { Download, FileUp } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { Flex } from "../../../common/primitives/Flex";
 import { useGlobalSettingsStore } from "../../../common/store/globalSettingsStore";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
@@ -34,17 +22,12 @@ import { CustomDatePicker } from "../molecules/CustomDatePicker";
 import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
 import { AppNavbar } from "./AppNavbar";
-import { Search } from "./Search";
 
 export function Header() {
 	const store = useGlobalSettingsStore();
 
 	const toggleDrawer = () => {
 		store.toggleSideMenu();
-	};
-
-	const toggleJsonPreviewEditor = () => {
-		store.toggleJsonPreview();
 	};
 
 	const {

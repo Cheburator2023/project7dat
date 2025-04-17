@@ -1,31 +1,23 @@
 import { Button } from "@mui/material";
 import {
 	Container,
-	ContainerContent,
 	ContainerHeader,
 } from "@react-client/features/json4u/components/Container";
-import { ViewSearchInput } from "@react-client/features/json4u/components/ui/search/ViewSearchInput";
 import { Switch } from "@react-client/features/json4u/components/ui/switch";
 import {
 	Tabs,
-	TabsContent,
 	TabsList,
 	TabsTrigger,
 } from "@react-client/features/json4u/components/ui/tabs";
-import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
-import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
 import { SwapButton } from "@react-client/features/json4u/containers/editor/mode/SwapButton";
-import { JsonTable } from "@react-client/features/json4u/containers/editor/table/JsonTable";
 import {
 	ViewMode,
 	type ViewModeValue,
 } from "@react-client/features/json4u/lib/db/config";
 import { useEditorStore } from "@react-client/features/json4u/stores/editorStore";
-import { useConfigFromCookies } from "@react-client/features/json4u/stores/hook";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
-import { Expand, Shrink, Table2, Text, Waypoints } from "lucide-react";
-import { useState } from "react";
+import { Table2, Text, Waypoints } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 export function RightPanel() {
