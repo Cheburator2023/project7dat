@@ -1,9 +1,23 @@
+import { Button } from "@mui/material";
+import {
+	Container,
+	ContainerContent,
+	ContainerHeader,
+} from "@react-client/features/json4u/components/Container";
 import {
 	ResizableHandle,
 	ResizablePanel,
 	ResizablePanelGroup,
 } from "@react-client/features/json4u/components/ui/resizable";
+import { ViewSearchInput } from "@react-client/features/json4u/components/ui/search/ViewSearchInput";
 import { Separator } from "@react-client/features/json4u/components/ui/separator";
+import { Switch } from "@react-client/features/json4u/components/ui/switch";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@react-client/features/json4u/components/ui/tabs";
 import { ModePanel } from "@react-client/features/json4u/containers/editor/mode/ModePanel";
 import { setupGlobalGraphStyle } from "@react-client/features/json4u/lib/graph/layout";
 import { cn } from "@react-client/features/json4u/lib/utils";
@@ -14,9 +28,20 @@ import { useStatusStore } from "@react-client/features/json4u/stores/statusStore
 import { useUserStore } from "@react-client/features/json4u/stores/userStore";
 import { wrap } from "comlink";
 import { useEffect } from "react";
+import { Outlet } from "react-router";
 import { useShallow } from "zustand/react/shallow";
 import type { MyWorker } from "../../../../features/json4u/lib/worker/worker";
 
+import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
+import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
+import { SwapButton } from "@react-client/features/json4u/containers/editor/mode/SwapButton";
+import { JsonTable } from "@react-client/features/json4u/containers/editor/table/JsonTable";
+import {
+	ViewMode,
+	type ViewModeValue,
+} from "@react-client/features/json4u/lib/db/config";
+import { useEditorStore } from "@react-client/features/json4u/stores/editorStore";
+import { Table2, Text, Waypoints } from "lucide-react";
 import { LeftPanel } from "./LeftPanel";
 import { RightPanel } from "./RightPanel";
 import { StatusBar } from "./StatusBar";
@@ -26,24 +51,14 @@ const rightPanelId = "right-panel";
 initLogger();
 
 export function MainPanel() {
-	const cc = useConfigFromCookies();
 	const {
 		rightPanelSize,
 		rightPanelCollapsed,
+		viewMode,
+		setViewMode,
 		setRightPanelSize,
 		setRightPanelCollapsed,
-	} = useStatusStore(
-		useShallow((state) => ({
-			rightPanelSize: state._hasHydrated
-				? state.rightPanelSize
-				: cc.rightPanelSize,
-			rightPanelCollapsed: state._hasHydrated
-				? state.rightPanelCollapsed
-				: cc.rightPanelCollapsed,
-			setRightPanelSize: state.setRightPanelSize,
-			setRightPanelCollapsed: state.setRightPanelCollapsed,
-		})),
-	);
+	} = useStatusStore();
 
 	useObserveResize();
 
@@ -81,7 +96,25 @@ export function MainPanel() {
 						rightPanelCollapsed && "transition-all duration-300 ease-in-out",
 					)}
 				>
-					<RightPanel />
+					<Outlet />
+					{/* <Tabs
+						asChild
+						defaultValue={viewMode}
+						value={viewMode}
+						onValueChange={(mode) => setViewMode(mode as ViewModeValue)}
+					>
+						<>
+							<TabView viewMode={ViewMode.Text}>
+								<Editor kind="secondary" />
+							</TabView>
+							<TabView viewMode={ViewMode.Graph}>
+								<Graph />
+							</TabView>
+							<TabView viewMode={ViewMode.Table}>
+								<JsonTable />
+							</TabView>
+						</>
+					</Tabs> */}
 				</ResizablePanel>
 			</ResizablePanelGroup>
 			<ModePanel />
@@ -194,4 +227,51 @@ function useInitial() {
 
 		console.l("finished measuring graph base style:", measured);
 	}, []);
+}
+
+function TabView({
+	viewMode,
+	children,
+}: { viewMode: ViewMode; children: React.ReactNode }) {
+	// `data-[state=inactive]` used for fix https://github.com/radix-ui/primitives/issues/1155#issuecomment-2041571341
+	return (
+		<TabsContent
+			value={viewMode}
+			className="relative w-full h-full m-0 data-[state=inactive]:hidden"
+			forceMount
+		>
+			{children}
+		</TabsContent>
+	);
+}
+
+function Buttons({ viewMode }: { viewMode: ViewMode }) {
+	const runCommand = useEditorStore((state) => state.runCommand);
+	const { enableTextCompare, setEnableTextCompare } = useStatusStore(
+		useShallow((state) => ({
+			enableTextCompare: state.enableTextCompare,
+			setEnableTextCompare: state.setEnableTextCompare,
+		})),
+	);
+
+	return (
+		<div className="flex items-center ml-auto space-x-2">
+			{viewMode === ViewMode.Text && (
+				<>
+					<div className="flex items-center rounded-md pl-1 bg-muted text-zinc-600">
+						<Switch
+							checked={enableTextCompare}
+							onCheckedChange={setEnableTextCompare}
+						/>
+						<Button className="px-2" onClick={() => runCommand("compare")}>
+							{enableTextCompare ? "TextCompare" : "compare"}
+						</Button>
+					</div>
+					<SwapButton variant="icon-outline" className="px-2" />
+				</>
+			)}
+			{/* {viewMode === ViewMode.Graph && <ViewSearchInput />} */}
+			{/* <FullScreenButton /> */}
+		</div>
+	);
 }

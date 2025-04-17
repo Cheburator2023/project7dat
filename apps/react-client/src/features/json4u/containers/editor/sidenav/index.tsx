@@ -18,10 +18,9 @@ import {
 	SquareStack,
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import { AccountButton } from "./AccountButton";
 import { ExportPopover } from "./ExportPopover";
 import { ImportPopover } from "./ImportPopover";
-import { LinkButton } from "./LinkButton";
+
 import { PopoverBtn, popoverBtnClass } from "./PopoverButton";
 import { SharePopover } from "./SharePopover";
 import { StatisticsPopover } from "./StatisticsPopover";
@@ -92,12 +91,7 @@ export function SideNav() {
 						icon={<Download className="icon" />}
 						content={<ExportPopover />}
 					/>
-					<PopoverBtn
-						className="hidden"
-						title={t("Share")}
-						icon={<Share2 className="icon" />}
-						content={<SharePopover />}
-					/>
+
 					<Separator className="my-1" />
 					<Toggle
 						icon={<Braces className="icon" />}
@@ -128,39 +122,6 @@ export function SideNav() {
 						description={t("sync_reveal_desc")}
 						isPressed={enableSyncScroll}
 						onPressedChange={(pressed) => setEnableSyncScroll(pressed)}
-					/>
-				</ul>
-				<ul className="flex flex-col px-1 gap-y-2">
-					<LinkButton
-						icon={<MessageCircleQuestion className="icon" />}
-						title={t("Feedback")}
-						href={
-							isCN
-								? "https://support.qq.com/product/670462"
-								: "https://github.com/loggerhead/json4u/issues/new"
-						}
-						newWindow
-					/>
-					<PopoverBtn
-						title={t("statistics")}
-						icon={<BarChartBig className="icon" />}
-						content={<StatisticsPopover />}
-					/>
-					<AccountButton avatarClassName="w-6 h-6" />
-					<Button
-						className="my-1.5"
-						startIcon={
-							fixSideNav ? (
-								<ArrowRightFromLine className="icon" />
-							) : (
-								<ArrowLeftToLine className="icon" />
-							)
-						}
-						title={t(fixSideNav ? "Expand" : "Collapse")}
-						onClick={() => {
-							setFixSideNav(!fixSideNav);
-							setSideNavExpanded(fixSideNav);
-						}}
 					/>
 				</ul>
 			</nav>

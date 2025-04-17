@@ -1,4 +1,3 @@
-import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 const StatisticsSchema = z.object({
@@ -28,7 +27,6 @@ const stringToJSONSchema = z.string().transform((str, ctx) => {
 	}
 });
 
-// https://env.t3.gg/docs/nextjs
 export const env = {
 	LEMONSQUEEZY_SUBSCRIPTION_VARIANT_MAP: stringToJSONSchema.pipe(
 		SubscriptionVariantMapSchema,

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { memo } from "react";
 import { NodeType } from "../../store/json-engine/enums/node-type.enum";
 import { Text } from "../../ui/components/Text";
@@ -16,7 +15,6 @@ const nodeTypeToSyntaxMap: Record<NodeType.Object | NodeType.Array, string> = {
 const _EmptyNodeMessage = ({ nodeType }: Props) => {
 	return (
 		<div className="m-auto flex flex-col items-center">
-			<Image src="/oceania.png" alt="oceania" width="200" height="200" />
 			<Text className="text-lg font-medium text-gray-600">
 				{nodeTypeToSyntaxMap[nodeType]}
 			</Text>

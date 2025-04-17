@@ -44,7 +44,6 @@ export function SideMenu({ open = false }) {
 				<SelectContent />
 			</Box> */}
 			<LogoDataLineage />
-			<Divider />
 			<Box
 				sx={{
 					overflow: "auto",

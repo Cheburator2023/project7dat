@@ -40,10 +40,13 @@ export function PopoverBtn({
 		>
 			<PopoverTrigger asChild>
 				<Button
+					size="small"
+					variant="outlined"
 					className={cn(className, notOnSideNav && "w-10")}
-					startIcon={icon}
 					title={title}
-				/>
+				>
+					{icon}
+				</Button>
 			</PopoverTrigger>
 			<PopoverContent
 				asChild={asChild}

@@ -1,13 +1,12 @@
 import { Typography } from "@mui/material";
-import { LogoutButton } from "@react-client/features/json4u/components/LogoutButton";
+import { useShallow } from "zustand/react/shallow";
+
 import { useUserStore } from "@react-client/features/json4u/stores/userStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
-import { useShallow } from "zustand/react/shallow";
 
 import { UserAvatar } from "./UserAvatar";
 
 export function AccountPanel() {
-	const t = useTranslations("Pricing");
 	const { user } = useUserStore(
 		useShallow((state) => ({
 			user: state.user,
@@ -34,7 +33,6 @@ export function AccountPanel() {
 					<Typography>{email}</Typography>
 				)}
 			</div>
-			<LogoutButton />
 		</div>
 	);
 }

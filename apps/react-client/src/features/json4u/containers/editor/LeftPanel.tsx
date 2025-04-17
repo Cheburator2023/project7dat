@@ -1,3 +1,4 @@
+import { Spacer } from "@react-client/common/primitives/Spacer";
 import {
 	Container,
 	ContainerContent,
@@ -12,6 +13,7 @@ export function LeftPanel() {
 			<ContainerHeader>
 				<CommandSearch />
 			</ContainerHeader>
+			<Spacer space={10} />
 			<ContainerContent>
 				<Editor kind="main" />
 			</ContainerContent>

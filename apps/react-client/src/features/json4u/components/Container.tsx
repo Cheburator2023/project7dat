@@ -29,7 +29,6 @@ export function ContainerHeader({
 			<div className="flex items-center w-full min-h-header px-4" {...props}>
 				{children}
 			</div>
-			<Separator />
 		</>
 	);
 }
