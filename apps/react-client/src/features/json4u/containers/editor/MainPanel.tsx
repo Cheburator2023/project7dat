@@ -3,7 +3,6 @@ import {
 	ResizablePanel,
 	ResizablePanelGroup,
 } from "@react-client/features/json4u/components/ui/resizable";
-import { Separator } from "@react-client/features/json4u/components/ui/separator";
 import { TabsContent } from "@react-client/features/json4u/components/ui/tabs";
 import { Tabs } from "@react-client/features/json4u/components/ui/tabs";
 import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
@@ -99,8 +98,8 @@ export function MainPanel() {
 					</Tabs>
 				</ResizablePanel>
 			</ResizablePanelGroup>
+
 			<ModePanel />
-			<Separator />
 			<StatusBar />
 			<WidthMeasure />
 		</div>

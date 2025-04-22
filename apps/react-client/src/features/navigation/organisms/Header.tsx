@@ -1,12 +1,12 @@
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import { styled } from "@mui/system";
-import { ViewSearchInput } from "@react-client/features/json4u/components/ui/search/ViewSearchInput";
 import { ExportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ExportPopover";
 import { ImportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ImportPopover";
 import { PopoverBtn } from "@react-client/features/json4u/containers/editor/sidenav/PopoverButton";
 import { Toggle } from "@react-client/features/json4u/containers/editor/sidenav/Toggle";
 import { ViewMode } from "@react-client/features/json4u/lib/db/config";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
+import { Search } from "@react-client/features/navigation/organisms/Search";
 import {
 	AlignHorizontalJustifyCenter,
 	ArrowDownNarrowWide,
@@ -115,7 +115,7 @@ export function Header() {
 					{/* <RightPanel /> */}
 				</Flex>
 				<Flex flexDirection="row" gap={6} alignItems="center">
-					{viewMode === ViewMode.Graph && <ViewSearchInput />}
+					{viewMode === ViewMode.Graph && <Search />}
 
 					<Flex alignItems="center" gap={6}>
 						<PopoverBtn
@@ -154,5 +154,5 @@ const StyledFlex = styled(Flex)`
 	width: -moz-available;
 	width: -webkit-fill-available;
 	width: fill-available;
-	border-bottom: 1px solid #e7e7e7;
+	border-bottom: 1px solid #4242421c;
 `;
