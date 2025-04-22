@@ -7,7 +7,7 @@ import { MainPanel } from "@react-client/features/json4u/containers/editor/MainP
 export function JSON4UDashboard() {
 	return (
 		<TooltipProvider delayDuration={0}>
-			<Flex height="calc(100vh - 60px)">
+			<Flex height="calc(100vh - 55px)">
 				<MainPanel />
 			</Flex>
 		</TooltipProvider>

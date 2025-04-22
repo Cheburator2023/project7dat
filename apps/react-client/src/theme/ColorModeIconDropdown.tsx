@@ -1,13 +1,13 @@
 import DarkModeIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeIcon from "@mui/icons-material/LightModeRounded";
+import { Button } from "@mui/material";
 import Box from "@mui/material/Box";
-import IconButton, { type IconButtonOwnProps } from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { useColorScheme } from "@mui/material/styles";
 import React from "react";
 
-export function ColorModeIconDropdown(props: IconButtonOwnProps) {
+export function ColorModeIconDropdown() {
 	const { mode, systemMode, setMode } = useColorScheme();
 	const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 	const open = Boolean(anchorEl);
@@ -44,18 +44,9 @@ export function ColorModeIconDropdown(props: IconButtonOwnProps) {
 	}[resolvedMode];
 	return (
 		<React.Fragment>
-			<IconButton
-				data-screenshot="toggle-mode"
-				onClick={handleClick}
-				disableRipple
-				size="small"
-				aria-controls={open ? "color-scheme-menu" : undefined}
-				aria-haspopup="true"
-				aria-expanded={open ? "true" : undefined}
-				{...props}
-			>
+			<Button onClick={handleClick} size="small" variant="outlined">
 				{icon}
-			</IconButton>
+			</Button>
 			<Menu
 				anchorEl={anchorEl}
 				id="account-menu"

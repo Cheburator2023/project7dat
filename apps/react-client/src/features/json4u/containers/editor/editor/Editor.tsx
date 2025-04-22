@@ -1,4 +1,5 @@
 import { Editor as MonacoEditor } from "@monaco-editor/react";
+import { useColorScheme } from "@mui/material";
 import { Loading } from "@react-client/features/json4u/components/Loading";
 import {
 	EditorWrapper,
@@ -22,6 +23,7 @@ export function Editor({ kind, ...props }: EditorProps) {
 	const translations = useTranslations();
 	const setEditor = useEditorStore((state) => state.setEditor);
 	const setTranslations = useEditorStore((state) => state.setTranslations);
+	const { mode } = useColorScheme();
 
 	useDisplayExample();
 	useRevealNode();
@@ -30,6 +32,7 @@ export function Editor({ kind, ...props }: EditorProps) {
 		<MonacoEditor
 			language="json"
 			loading={<Loading />}
+			theme={mode === "dark" ? "vs-dark" : "light"}
 			options={{
 				fontSize: 13, // 设置初始字体大小
 				scrollBeyondLastLine: false, // 行数超过一屏时才展示滚动条

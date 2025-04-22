@@ -16,6 +16,7 @@
 	"packageManager": "npm@10.0.0",
 	"scripts": {
 		"dev": "turbo run dev --parallel --no-cache",
+		"dev:ui": "turbo run dev --filter=react-client",
 		"dev:ui:react": "turbo run dev --filter=react-client",
 		"dev:server:nest": "turbo run dev --filter=nestjs-server",
 		"turbo:ls": "turbo ls",
