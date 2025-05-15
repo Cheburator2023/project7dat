@@ -9,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useLocation } from "react-router";
 
+import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
 import { routes } from "../../../routing/routes";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { MenuButton } from "../../navigation/molecules/MenuButton";
@@ -29,12 +30,8 @@ const Toolbar = styled(MuiToolbar)({
 	},
 });
 
-export function AppNavbar({
-	setSideMenuOpen,
-}: { setSideMenuOpen: () => void }) {
-	const toggleDrawer = () => {
-		setSideMenuOpen();
-	};
+export function AppNavbar() {
+	const { toggleSideMenu } = useGlobalSettingsStore();
 
 	const location = useLocation();
 
@@ -80,7 +77,7 @@ export function AppNavbar({
 						</Typography>
 					</Stack>
 					<ColorModeIconDropdown />
-					<MenuButton aria-label="menu" onClick={() => toggleDrawer()}>
+					<MenuButton aria-label="menu" onClick={() => toggleSideMenu()}>
 						<MenuRoundedIcon />
 					</MenuButton>
 				</Stack>

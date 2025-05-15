@@ -1,4 +1,5 @@
 import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
+import PlayCircleFilled from "@mui/icons-material/PlayCircleFilled";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -6,10 +7,11 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
-import { useLocation, useNavigate } from "react-router";
-import { routes } from "../../../routing/routes";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
-import { ViewMode } from "@react-client/features/json4u/lib/db/config";
+
+import { useLocation, useNavigate } from "react-router";
+
+import { routes } from "../../../routing/routes";
 
 const mainListItems = Object.values(routes.home.subRoutes).map((route) => ({
 	text: route.name,
@@ -19,6 +21,11 @@ const mainListItems = Object.values(routes.home.subRoutes).map((route) => ({
 const secondaryListItems = [
 	{ text: "Система управления моделями (СУМ)", icon: <InfoRoundedIcon /> },
 	{ text: "Реестр моделей (СУМ РМ)", icon: <InfoRoundedIcon /> },
+	{
+		text: "Плейграунд",
+		icon: <PlayCircleFilled />,
+		href: routes.playground.rootPath,
+	},
 	{ text: "Настройки", icon: <SettingsRoundedIcon /> },
 ];
 
@@ -36,7 +43,7 @@ export function MenuContent() {
 
 	const handler = (path: "graph" | "table" | "text") => {
 		setViewMode(path);
-		navigate(path);
+		navigate("/" + path);
 	};
 
 	return (
@@ -60,7 +67,7 @@ export function MenuContent() {
 			<List dense>
 				{secondaryListItems.map((item, index) => (
 					<ListItem key={index} disablePadding sx={{ display: "block" }}>
-						<ListItemButton>
+						<ListItemButton href={item?.href || "/"}>
 							<ListItemIcon>{item.icon}</ListItemIcon>
 							<ListItemText primary={item.text} />
 						</ListItemButton>

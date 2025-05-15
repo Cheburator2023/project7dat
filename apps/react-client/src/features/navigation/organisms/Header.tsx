@@ -3,16 +3,9 @@ import { styled } from "@mui/system";
 import { ExportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ExportPopover";
 import { ImportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ImportPopover";
 import { PopoverBtn } from "@react-client/features/json4u/containers/editor/sidenav/PopoverButton";
-import { Toggle } from "@react-client/features/json4u/containers/editor/sidenav/Toggle";
 import { ViewMode } from "@react-client/features/json4u/lib/db/config";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import { Search } from "@react-client/features/navigation/organisms/Search";
-import {
-	AlignHorizontalJustifyCenter,
-	ArrowDownNarrowWide,
-	Braces,
-	SquareStack,
-} from "lucide-react";
 import { Download, FileUp } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { Flex } from "../../../common/primitives/Flex";
@@ -23,12 +16,8 @@ import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
 import { AppNavbar } from "./AppNavbar";
 
-export function Header() {
-	const store = useGlobalSettingsStore();
-
-	const toggleDrawer = () => {
-		store.toggleSideMenu();
-	};
+export function Header({ navbarVisible = true }) {
+	const { toggleSideMenu } = useGlobalSettingsStore();
 
 	const {
 		sideNavExpanded,
@@ -63,7 +52,7 @@ export function Header() {
 
 	return (
 		<>
-			<AppNavbar setSideMenuOpen={() => toggleDrawer()} />
+			<AppNavbar />
 			<StyledFlex
 				width="100%"
 				pad="6px 10px"
@@ -74,11 +63,11 @@ export function Header() {
 				zIndex={1000}
 			>
 				<Flex flexDirection="row" gap={10} alignItems="center">
-					<MenuButton aria-label="menu" onClick={toggleDrawer}>
+					<MenuButton aria-label="menu" onClick={() => toggleSideMenu()}>
 						<MenuRoundedIcon />
 					</MenuButton>
 					<NavbarBreadcrumbs />
-					<Flex alignItems="center" gap={6}>
+					{/* <Flex alignItems="center" gap={6}>
 						<Toggle
 							icon={<Braces className="icon" />}
 							title={"Auto Format"}
@@ -111,40 +100,44 @@ export function Header() {
 							isPressed={enableSyncScroll}
 							onPressedChange={(pressed) => setEnableSyncScroll(pressed)}
 						/>
-					</Flex>
+					</Flex> */}
 					{/* <RightPanel /> */}
 				</Flex>
-				<Flex flexDirection="row" gap={6} alignItems="center">
-					{viewMode === ViewMode.Graph && <Search />}
+				{navbarVisible ? (
+					<Flex flexDirection="row" gap={6} alignItems="center">
+						{viewMode === ViewMode.Graph && <Search />}
 
-					<Flex alignItems="center" gap={6}>
-						<PopoverBtn
-							title={"Импорт"}
-							icon={<FileUp className="icon" />}
-							content={<ImportPopover />}
-						/>
-						<PopoverBtn
-							title={"Экспорт"}
-							icon={<Download className="icon" />}
-							content={<ExportPopover />}
-						/>
-					</Flex>
+						<Flex alignItems="center" gap={6}>
+							<PopoverBtn
+								title={"Импорт"}
+								icon={<FileUp className="icon" />}
+								content={<ImportPopover />}
+							/>
+							<PopoverBtn
+								title={"Экспорт"}
+								icon={<Download className="icon" />}
+								content={<ExportPopover />}
+							/>
+						</Flex>
 
-					<CustomDatePicker />
-					<ColorModeIconDropdown />
-					{/* <Button variant="outlined" size="small" onClick={store.toggleMinimap}>
+						<CustomDatePicker />
+						<ColorModeIconDropdown />
+						{/* <Button variant="outlined" size="small" onClick={store.toggleMinimap}>
 						{!store.isMinimapVisible
 							? "Показать мини-карту"
 							: "Скрыть мини-карту"}
 					</Button> */}
-					{/* <Button
+						{/* <Button
 						variant="outlined"
 						size="small"
 						onClick={toggleJsonPreviewEditor}
 					>
 						{!store.isJsonPreviewVisible ? "Показать json" : "Скрыть json"}
 					</Button> */}
-				</Flex>
+					</Flex>
+				) : (
+					<ColorModeIconDropdown />
+				)}
 			</StyledFlex>
 		</>
 	);

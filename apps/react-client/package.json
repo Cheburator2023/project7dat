@@ -12,6 +12,9 @@
 	},
 	"dependencies": {
 		"@monaco-editor/react": "4.7.0",
+		"react-diff-viewer-continued": "3.4.0",
+		"vanilla-jsoneditor": "3.3.1",
+		"react-diff-view": "3.3.1",
 		"dagre": "0.8.5",
 		"zustand": "5.0.3",
 		"@tanstack/react-query": "^5.0.0",
@@ -58,7 +61,7 @@
 		"@mui/material": "^7.0.1",
 		"@xyflow/react": "^12.1.1",
 		"@xyflow/system": "^0.0.43",
-		"json-edit-react": "1.25.0",
+		"json-edit-react": "1.26.2",
 		"axios": "^1.8.4",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",

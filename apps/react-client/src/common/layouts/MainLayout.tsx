@@ -1,5 +1,4 @@
-import Box from "@mui/material/Box";
-import { alpha, styled } from "@mui/material/styles";
+import { styled } from "@mui/material/styles";
 import type {} from "@mui/material/themeCssVarsAugmentation";
 import type {} from "@mui/x-charts/themeAugmentation";
 import type {} from "@mui/x-data-grid-pro/themeAugmentation";
@@ -37,28 +36,20 @@ const MainWrapper = styled("div", {
 	],
 }));
 
-export function MainLayout({ children }: { children: React.ReactNode }) {
+export function MainLayout({
+	children,
+	navbarVisible = true,
+}: { children: React.ReactNode; navbarVisible?: boolean }) {
 	const store = useGlobalSettingsStore();
 
 	return (
 		<Flex>
 			<SideMenu open={store.isSideMenuVisible} />
 			<MainWrapper open={store.isSideMenuVisible}>
-				<Box
-					component="main"
-					sx={(theme) => ({
-						flexGrow: 1,
-						backgroundColor: theme.vars
-							? `rgba(${theme.vars.palette.background.defaultChannel} / 1)`
-							: alpha(theme.palette.background.default, 1),
-						overflow: "auto",
-					})}
-				>
-					<Flex flexDirection="column" gap={2}>
-						<Header />
-						{children}
-					</Flex>
-				</Box>
+				<Flex flexDirection="column" gap={2}>
+					<Header navbarVisible={navbarVisible} />
+					{children}
+				</Flex>
 			</MainWrapper>
 		</Flex>
 	);

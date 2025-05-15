@@ -18,6 +18,18 @@ export function ColorModeIconDropdown() {
 		setAnchorEl(null);
 	};
 	const handleMode = (targetMode: "system" | "light" | "dark") => () => {
+		// remove scrollbars
+		document.documentElement.style.overflow = "hidden";
+		// trigger reflow so that overflow style is applied
+		document.body.clientWidth;
+		// change scheme
+		document.documentElement.setAttribute(
+			"data-color-scheme",
+			targetMode !== "dark" ? "light" : "dark",
+		);
+		// remove overflow style, which will bring back the scrollbar with the correct scheme
+		document.documentElement.style.overflow = "";
+
 		setMode(targetMode);
 		handleClose();
 	};

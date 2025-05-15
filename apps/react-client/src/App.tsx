@@ -2,8 +2,8 @@ import { CircularProgress, StyledEngineProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense } from "react";
+
 import { Routing } from "./routing";
-// import {Routing} from "routing";
 import { AppTheme } from "./theme/AppTheme";
 import {
 	chartsCustomizations,
