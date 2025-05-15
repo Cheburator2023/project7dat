@@ -12,7 +12,7 @@ import { useCallback } from "react";
 import { MainLayout } from "../../../common/layouts/MainLayout";
 
 import schema from "../../../../../../etc/json_schema.json";
-import { generateObjectFromSchema } from "../jsonGenerator";
+import { generateObjectFromSchema } from "../../../utils/jsonGenerator";
 
 const numEntities = 1000;
 const generatedObjects = generateObjectFromSchema(schema, numEntities);

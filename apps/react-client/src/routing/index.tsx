@@ -6,6 +6,7 @@ import { Graph } from "@react-client/features/json4u/containers/editor/graph/Gra
 import { JsonTable } from "@react-client/features/json4u/containers/editor/table/JsonTable";
 import { JSON4UPage } from "@react-client/features/json4u/pages/JsonViewerPage";
 
+import { PlaygroundPage } from "@react-client/features/playground/PlaygroundPage";
 import { Page404 } from "./Page404";
 
 export const Routing = () => (
@@ -28,7 +29,7 @@ export const Routing = () => (
 				/>
 			</Route>
 
-			<Route path={routes.playground.rootPath} element={<JSON4UPage />} />
+			<Route path={routes.playground.rootPath} element={<PlaygroundPage />} />
 			<Route path="*" element={<Page404 />} />
 		</Routes>
 	</BrowserRouter>
