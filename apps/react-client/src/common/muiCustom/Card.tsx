@@ -1,12 +1,14 @@
 import { Paper as MUIPaper, type PaperProps } from "@mui/material";
 
-export const Card = (props: PaperProps & { maxHeight?: string }) => {
+export const Card = (
+	props: PaperProps & { maxHeight?: string; height?: string; padding?: string },
+) => {
 	return (
 		<MUIPaper
 			sx={{
-				padding: "20px",
+				padding: props.padding || "20px",
 				maxHeight: props.maxHeight || "500px",
-				height: "auto",
+				height: props.height || "auto",
 				overflow: "auto",
 				...props.sx,
 			}}

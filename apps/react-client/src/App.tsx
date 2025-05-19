@@ -2,7 +2,9 @@ import { CircularProgress, StyledEngineProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense } from "react";
+import { BrowserRouter } from "react-router";
 
+import { MainLayout } from "@react-client/common/layouts/MainLayout";
 import { Routing } from "./routing";
 import { AppTheme } from "./theme/AppTheme";
 import {
@@ -34,12 +36,16 @@ export function App() {
 	return (
 		<StyledEngineProvider injectFirst>
 			<QueryClientProvider client={queryClient}>
-				<AppTheme themeComponents={xThemeComponents}>
-					<CssBaseline enableColorScheme />
-					<Suspense fallback={<CircularProgress />}>
-						<Routing />
-					</Suspense>
-				</AppTheme>
+				<BrowserRouter>
+					<AppTheme themeComponents={xThemeComponents}>
+						<CssBaseline enableColorScheme />
+						<Suspense fallback={<CircularProgress />}>
+							<MainLayout>
+								<Routing />
+							</MainLayout>
+						</Suspense>
+					</AppTheme>
+				</BrowserRouter>
 			</QueryClientProvider>
 		</StyledEngineProvider>
 	);

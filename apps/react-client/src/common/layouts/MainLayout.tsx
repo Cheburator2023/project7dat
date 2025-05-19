@@ -5,6 +5,7 @@ import type {} from "@mui/x-data-grid-pro/themeAugmentation";
 import type {} from "@mui/x-date-pickers/themeAugmentation";
 import type {} from "@mui/x-tree-view/themeAugmentation";
 
+import { Spacer } from "@react-client/common/primitives/Spacer";
 import { Header } from "../../features/navigation/organisms/Header";
 import { SideMenu } from "../../features/navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
@@ -16,7 +17,7 @@ const MainWrapper = styled("div", {
 	open?: boolean;
 }>(({ theme }) => ({
 	flexGrow: 1,
-	padding: 0,
+	padding: 6,
 	transition: theme.transitions.create("margin", {
 		easing: theme.transitions.easing.sharp,
 		duration: theme.transitions.duration.leavingScreen,
@@ -43,13 +44,15 @@ export function MainLayout({
 	const store = useGlobalSettingsStore();
 
 	return (
-		<Flex>
+		<Flex id="main_layout_container">
 			<SideMenu open={store.isSideMenuVisible} />
-			<MainWrapper open={store.isSideMenuVisible}>
-				<Flex flexDirection="column" gap={2}>
-					<Header navbarVisible={navbarVisible} />
-					{children}
-				</Flex>
+
+			<MainWrapper id="main_layout_content" open={store.isSideMenuVisible}>
+				<Spacer height={6} />
+				<Header navbarVisible={navbarVisible} />
+				<Spacer height={6} />
+				{children}
+				<Spacer height={6} />
 			</MainWrapper>
 		</Flex>
 	);
