@@ -1,5 +1,6 @@
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import { styled } from "@mui/system";
+import { Card } from "@react-client/common/muiCustom/Card";
 import { ExportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ExportPopover";
 import { ImportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ImportPopover";
 import { PopoverBtn } from "@react-client/features/json4u/containers/editor/sidenav/PopoverButton";
@@ -53,21 +54,22 @@ export function Header({ navbarVisible = true }) {
 	return (
 		<>
 			<AppNavbar />
-			<StyledFlex
-				width="100%"
-				pad="6px 10px"
-				gap={2}
-				alignItems="center"
-				justifyContent="space-between"
-				position="relative"
-				zIndex={1000}
-			>
-				<Flex flexDirection="row" gap={10} alignItems="center">
-					<MenuButton aria-label="menu" onClick={() => toggleSideMenu()}>
-						<MenuRoundedIcon />
-					</MenuButton>
-					<NavbarBreadcrumbs />
-					{/* <Flex alignItems="center" gap={6}>
+			<Card padding="2px 3px">
+				<StyledFlex
+					width="100%"
+					pad="2px 3px"
+					gap={2}
+					alignItems="center"
+					justifyContent="space-between"
+					position="relative"
+					zIndex={1000}
+				>
+					<Flex flexDirection="row" gap={10} alignItems="center">
+						<MenuButton aria-label="menu" onClick={() => toggleSideMenu()}>
+							<MenuRoundedIcon />
+						</MenuButton>
+						<NavbarBreadcrumbs />
+						{/* <Flex alignItems="center" gap={6}>
 						<Toggle
 							icon={<Braces className="icon" />}
 							title={"Auto Format"}
@@ -101,44 +103,45 @@ export function Header({ navbarVisible = true }) {
 							onPressedChange={(pressed) => setEnableSyncScroll(pressed)}
 						/>
 					</Flex> */}
-					{/* <RightPanel /> */}
-				</Flex>
-				{navbarVisible ? (
-					<Flex flexDirection="row" gap={6} alignItems="center">
-						{viewMode === ViewMode.Graph && <Search />}
+						{/* <RightPanel /> */}
+					</Flex>
+					{navbarVisible ? (
+						<Flex flexDirection="row" gap={6} alignItems="center">
+							{viewMode === ViewMode.Graph && <Search />}
 
-						<Flex alignItems="center" gap={6}>
-							<PopoverBtn
-								title={"Импорт"}
-								icon={<FileUp className="icon" />}
-								content={<ImportPopover />}
-							/>
-							<PopoverBtn
-								title={"Экспорт"}
-								icon={<Download className="icon" />}
-								content={<ExportPopover />}
-							/>
-						</Flex>
+							<Flex alignItems="center" gap={6}>
+								<PopoverBtn
+									title={"Импорт"}
+									icon={<FileUp className="icon" />}
+									content={<ImportPopover />}
+								/>
+								<PopoverBtn
+									title={"Экспорт"}
+									icon={<Download className="icon" />}
+									content={<ExportPopover />}
+								/>
+							</Flex>
 
-						<CustomDatePicker />
-						<ColorModeIconDropdown />
-						{/* <Button variant="outlined" size="small" onClick={store.toggleMinimap}>
+							<CustomDatePicker />
+							<ColorModeIconDropdown />
+							{/* <Button variant="outlined" size="small" onClick={store.toggleMinimap}>
 						{!store.isMinimapVisible
 							? "Показать мини-карту"
 							: "Скрыть мини-карту"}
 					</Button> */}
-						{/* <Button
+							{/* <Button
 						variant="outlined"
 						size="small"
 						onClick={toggleJsonPreviewEditor}
 					>
 						{!store.isJsonPreviewVisible ? "Показать json" : "Скрыть json"}
 					</Button> */}
-					</Flex>
-				) : (
-					<ColorModeIconDropdown />
-				)}
-			</StyledFlex>
+						</Flex>
+					) : (
+						<ColorModeIconDropdown />
+					)}
+				</StyledFlex>
+			</Card>
 		</>
 	);
 }
@@ -147,5 +150,4 @@ const StyledFlex = styled(Flex)`
 	width: -moz-available;
 	width: -webkit-fill-available;
 	width: fill-available;
-	border-bottom: 1px solid #4242421c;
 `;
