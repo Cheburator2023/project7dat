@@ -1,8 +1,3 @@
-import {
-	ResizableHandle,
-	ResizablePanel,
-	ResizablePanelGroup,
-} from "@react-client/features/json4u/components/ui/resizable";
 import { TabsContent } from "@react-client/features/json4u/components/ui/tabs";
 import { Tabs } from "@react-client/features/json4u/components/ui/tabs";
 import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
@@ -11,7 +6,6 @@ import { ModePanel } from "@react-client/features/json4u/containers/editor/mode/
 import { JsonTable } from "@react-client/features/json4u/containers/editor/table/JsonTable";
 import { ViewMode } from "@react-client/features/json4u/lib/db/config";
 import { setupGlobalGraphStyle } from "@react-client/features/json4u/lib/graph/layout";
-import { cn } from "@react-client/features/json4u/lib/utils";
 import { px2num } from "@react-client/features/json4u/lib/utils";
 import { initLogger } from "@react-client/features/json4u/lib/utils";
 import { useConfigFromCookies } from "@react-client/features/json4u/stores/hook";
@@ -52,53 +46,20 @@ export function MainPanel() {
 	// see https://github.com/bvaughn/react-resizable-panels/issues/128#issuecomment-1523343548
 	return (
 		<div className="relative w-full h-full flex flex-col overflow-hidden">
-			<ResizablePanelGroup
-				className="flex-grow"
-				direction="horizontal"
-				onLayout={(layout: any[]) => setRightPanelSize(layout[1])}
-			>
-				<ResizablePanel
-					id={leftPanelId}
-					ref={(ref: any) => {
-						window.leftPanelHandle = ref;
-					}}
-					collapsible
-					defaultSize={100 - rightPanelSize}
-					minSize={0}
-				>
-					<LeftPanel />
-				</ResizablePanel>
-				<ResizableHandle
-					withHandle
-					className={cn("hover:bg-blue-600", rightPanelCollapsed && "w-3")}
-				/>
-				<ResizablePanel
-					id={rightPanelId}
-					defaultSize={rightPanelSize}
-					minSize={10}
-					collapsible={true}
-					onCollapse={() => setRightPanelCollapsed(true)}
-					onExpand={() => setRightPanelCollapsed(false)}
-					className={cn(
-						rightPanelCollapsed && "transition-all duration-300 ease-in-out",
-					)}
-				>
-					<Tabs asChild defaultValue={viewMode} value={viewMode}>
-						<>
-							<TabView viewMode={ViewMode.Text}>
-								<Editor kind="secondary" />
-							</TabView>
-							<TabView viewMode={ViewMode.Graph}>
-								<Graph />
-							</TabView>
-							<TabView viewMode={ViewMode.Table}>
-								<JsonTable />
-							</TabView>
-						</>
-					</Tabs>
-				</ResizablePanel>
-			</ResizablePanelGroup>
-
+			<LeftPanel />
+			<Tabs asChild defaultValue={viewMode} value={viewMode}>
+				<>
+					<TabView viewMode={ViewMode.Text}>
+						<Editor kind="secondary" />
+					</TabView>
+					<TabView viewMode={ViewMode.Graph}>
+						<Graph />
+					</TabView>
+					<TabView viewMode={ViewMode.Table}>
+						<JsonTable />
+					</TabView>
+				</>
+			</Tabs>
 			<ModePanel />
 			<StatusBar />
 			<WidthMeasure />
