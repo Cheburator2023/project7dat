@@ -6,10 +6,11 @@ import type {} from "@mui/x-date-pickers/themeAugmentation";
 import type {} from "@mui/x-tree-view/themeAugmentation";
 
 import { Spacer } from "@react-client/common/primitives/Spacer";
+import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
+import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar";
 import { Header } from "../../features/navigation/organisms/Header";
 import { SideMenu } from "../../features/navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
-import { useGlobalSettingsStore } from "../store/globalSettingsStore";
 
 const MainWrapper = styled("div", {
 	shouldForwardProp: (prop) => prop !== "open",
@@ -53,6 +54,8 @@ export function MainLayout({
 				<Spacer height={12} />
 				{children}
 			</MainWrapper>
+
+			<BottomBar />
 		</Flex>
 	);
 }

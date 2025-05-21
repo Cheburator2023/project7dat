@@ -2,10 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface GlobalSettingsState {
-	isMinimapVisible: boolean;
+	isCommitHistoryVisible: boolean;
 	isJsonPreviewVisible: boolean;
+	isDataMartVisible: boolean;
 	isSideMenuVisible: boolean;
-	toggleMinimap: () => void;
+	toggleDataMart: () => void;
+	toggleCommitHistory: () => void;
 	toggleJsonPreview: () => void;
 	toggleSideMenu: () => void;
 }
@@ -13,11 +15,18 @@ interface GlobalSettingsState {
 export const useGlobalSettingsStore = create<GlobalSettingsState>()(
 	persist(
 		(set) => ({
-			isMinimapVisible: true,
+			isCommitHistoryVisible: true,
 			isJsonPreviewVisible: true,
 			isSideMenuVisible: true,
-			toggleMinimap: () =>
-				set((state) => ({ isMinimapVisible: !state.isMinimapVisible })),
+			isDataMartVisible: true,
+			toggleDataMart: () =>
+				set((state) => ({
+					isDataMartVisible: !state.isDataMartVisible,
+				})),
+			toggleCommitHistory: () =>
+				set((state) => ({
+					isCommitHistoryVisible: !state.isCommitHistoryVisible,
+				})),
 			toggleJsonPreview: () =>
 				set((state) => ({
 					isJsonPreviewVisible: !state.isJsonPreviewVisible,

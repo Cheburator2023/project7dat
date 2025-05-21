@@ -118,7 +118,7 @@ export function JsonEditorWithDiff() {
 }
 
 const Wrapper = styled(Flex)`
-	height: inherit;
+	height: 100%;
 
 	#wrapper {
 	counter-reset: line-number;
