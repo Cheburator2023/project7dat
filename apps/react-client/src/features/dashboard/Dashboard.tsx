@@ -1,23 +1,23 @@
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { styled } from "@mui/material";
+import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
+import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
+import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
+import { DataMart } from "@react-client/features/dataMart/DataMart";
+import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
+import { JsonEditorWithDiff } from "@react-client/features/jsonEditor/organisms/JsonEditorWithDiff";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
 
-interface DashboardProps {
-	leftPanel: React.ReactNode;
-	rightPanel: React.ReactNode;
-	bottomPanel: React.ReactNode;
-	backgroundPanel?: React.ReactNode;
-}
-
-export const Dashboard: React.FC<DashboardProps> = ({
-	leftPanel,
-	rightPanel,
-	bottomPanel,
-	backgroundPanel,
-}) => {
-	const navigate = useNavigate();
+export const Dashboard: React.FC = () => {
+	const {
+		isCommitHistoryVisible,
+		isDataMartVisible,
+		isJsonPreviewVisible,
+		toggleDataMart,
+		toggleCommitHistory,
+		toggleJsonPreview,
+	} = useGlobalSettingsStore();
 
 	return (
 		<Wrapper id="dashboard_page_container">
@@ -31,24 +31,61 @@ export const Dashboard: React.FC<DashboardProps> = ({
 							direction="horizontal"
 							autoSaveId="dashboard_page_container_hor"
 						>
-							<Panel defaultSize={30} minSize={20}>
-								{leftPanel}
-							</Panel>
-							<PanelResizeHandleStyled>
-								<DragIndicatorIcon />
-							</PanelResizeHandleStyled>
-							<Panel defaultSize={30} minSize={20}>
-								{rightPanel}
-							</Panel>
+							{isJsonPreviewVisible && (
+								<>
+									<Panel defaultSize={30} minSize={20}>
+										<Card
+											header="Редактор"
+											maxHeight="100%"
+											height="100%"
+											onClose={toggleJsonPreview}
+										>
+											<JsonEditorWithDiff />
+										</Card>
+									</Panel>
+								</>
+							)}
+							{isCommitHistoryVisible && (
+								<>
+									<PanelResizeHandleStyled>
+										<DragIndicatorIcon />
+									</PanelResizeHandleStyled>
+									<Panel defaultSize={30} minSize={20}>
+										<Card
+											header="История коммитов"
+											maxHeight="100%"
+											height="100%"
+											onClose={toggleCommitHistory}
+										>
+											<CommitHistory />
+										</Card>
+									</Panel>
+								</>
+							)}
 						</PanelGroup>
 					</Panel>
-					<PanelResizeHandleStyled vertical>
-						<DragIndicatorIcon />
-					</PanelResizeHandleStyled>
-					<Panel maxSize={75}>{bottomPanel}</Panel>
+					{isDataMartVisible && (
+						<>
+							<PanelResizeHandleStyled vertical>
+								<DragIndicatorIcon />
+							</PanelResizeHandleStyled>
+							<Panel maxSize={75}>
+								<Card
+									header="Витрина"
+									maxHeight="100%"
+									height="100%"
+									onClose={toggleDataMart}
+								>
+									<DataMart />
+								</Card>
+							</Panel>
+						</>
+					)}
 				</PanelGroup>
 			</Flex>
-			<BG>{backgroundPanel}</BG>
+			<BG>
+				<Graph />
+			</BG>
 		</Wrapper>
 	);
 };
