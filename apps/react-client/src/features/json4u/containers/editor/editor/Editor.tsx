@@ -61,7 +61,7 @@ export function Editor({ kind, ...props }: EditorProps) {
 				wrapper.init();
 				setEditor(wrapper);
 				setTranslations(translations);
-				console.l(`finished initial editor ${kind}:`, wrapper);
+				console.log(`finished initial editor ${kind}:`, wrapper);
 			}}
 			{...props}
 		/>

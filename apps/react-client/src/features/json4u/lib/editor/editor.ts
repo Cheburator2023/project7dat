@@ -124,7 +124,7 @@ export class EditorWrapper {
 		this.editor.pushUndoStop();
 
 		resetCursor && this.revealPosition(1, 1);
-		console.l("set tree:", tree);
+		console.log("set tree:", tree);
 		return tree;
 	}
 
@@ -151,11 +151,11 @@ export class EditorWrapper {
 			const text = this.text();
 
 			if (text !== prevText) {
-				console.l("onChange:", ev.versionId);
+				console.log("onChange:", ev.versionId);
 				this.delayParseAndSet.cancel();
 				await this.delayParseAndSet(text, { format: false }, false);
 			} else {
-				console.l("skip onChange:", ev.versionId);
+				console.log("skip onChange:", ev.versionId);
 			}
 		});
 	}
@@ -172,14 +172,14 @@ export class EditorWrapper {
 				text.length > 0 &&
 				ev.range.equalsRange(model.getFullModelRange())
 			) {
-				console.l("onDidPaste:", versionId, text.length, text.slice(0, 20));
+				console.log("onDidPaste:", versionId, text.length, text.slice(0, 20));
 				// for avoid triggering onChange
 				this.tree.text = text;
 				// sometimes onChange will triggered before onDidPaste, so we need to cancel it
 				this.delayParseAndSet.cancel();
 				await this.parseAndSet(text);
 			} else {
-				console.l(
+				console.log(
 					"skip onDidPaste:",
 					versionId,
 					text.length,

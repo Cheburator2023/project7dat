@@ -1,65 +1,29 @@
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import { styled } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
-import { Flex } from "@react-client/common/primitives/Flex";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
+import { Dashboard } from "@react-client/features/dashboard/Dashboard";
+import { DataMart } from "@react-client/features/dataMart/DataMart";
+import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
+import { JsonEditorWithDiff } from "@react-client/features/jsonEditor/organisms/JsonEditorWithDiff";
 
 export const DashboardPage = () => {
 	return (
-		<Wrapper id="dashboard_page_container">
-			<Flex position="absolute" width="100%" height="100%">
-				<PanelGroup direction="vertical">
-					<Panel maxSize={75}>
-						<PanelGroup direction="horizontal">
-							<Panel defaultSize={30} minSize={20}>
-								<Card maxHeight="100%" height="100%">
-									left
-								</Card>
-							</Panel>
-							<PanelResizeHandleStyled>
-								<DragIndicatorIcon />
-							</PanelResizeHandleStyled>
-							<Panel defaultSize={30} minSize={20}>
-								<Card maxHeight="100%" height="100%">
-									right
-								</Card>
-							</Panel>
-						</PanelGroup>
-					</Panel>
-					<PanelResizeHandleStyled vertical>
-						<DragIndicatorIcon />
-					</PanelResizeHandleStyled>
-					<Panel maxSize={75}>
-						<Card maxHeight="100%" height="100%">
-							bottom
-						</Card>
-					</Panel>
-				</PanelGroup>
-			</Flex>
-			<BG>bg</BG>
-		</Wrapper>
+		<Dashboard
+			leftPanel={
+				<Card header="Редактор" maxHeight="100%" height="100%">
+					<JsonEditorWithDiff />
+				</Card>
+			}
+			rightPanel={
+				<Card header="История коммитов" maxHeight="100%" height="100%">
+					<CommitHistory />
+				</Card>
+			}
+			bottomPanel={
+				<Card header="Витрина" maxHeight="100%" height="100%">
+					<DataMart />
+				</Card>
+			}
+			backgroundPanel={<Graph />}
+		/>
 	);
 };
-
-const PanelResizeHandleStyled = styled(PanelResizeHandle)<{
-	vertical?: boolean;
-}>`
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	width: 14px;
-
-	svg {
-		${(props) => (props.vertical ? "height: 100%;" : "width: 100%;")}
-	}
-
-	${(props) => props.vertical && "transform: rotate(90deg); width: 100%; height: 14px;"}
-`;
-
-const Wrapper = styled("div")`
-	height: 100vh;
-`;
-
-const BG = styled("div")`
-	background-color: #f5f5f5;
-`;

@@ -43,7 +43,7 @@ export function useViewportChange(
 				changed,
 			} = await window.worker.setGraphSize(width, height);
 
-			console.l(
+			console.log(
 				"compute virtual graph since resize:",
 				changed,
 				width,
@@ -76,7 +76,7 @@ export function useViewportChange(
 			} = await window.worker.setGraphViewport(viewport);
 
 			if (changed) {
-				console.l(
+				console.log(
 					"compute virtual graph since the viewport has changed:",
 					viewport,
 					nodes.length,
@@ -132,7 +132,7 @@ export function useRevealNode(
 					changed,
 				} = await window.worker.setGraphViewport({ ...viewport, zoom });
 
-				console.l(
+				console.log(
 					"reveal node in graph:",
 					changed,
 					revealPosition,

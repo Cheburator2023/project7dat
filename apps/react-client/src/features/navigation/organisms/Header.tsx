@@ -124,18 +124,6 @@ export function Header({ navbarVisible = true }) {
 
 							<CustomDatePicker />
 							<ColorModeIconDropdown />
-							{/* <Button variant="outlined" size="small" onClick={store.toggleMinimap}>
-						{!store.isMinimapVisible
-							? "Показать мини-карту"
-							: "Скрыть мини-карту"}
-					</Button> */}
-							{/* <Button
-						variant="outlined"
-						size="small"
-						onClick={toggleJsonPreviewEditor}
-					>
-						{!store.isJsonPreviewVisible ? "Показать json" : "Скрыть json"}
-					</Button> */}
 						</Flex>
 					) : (
 						<ColorModeIconDropdown />

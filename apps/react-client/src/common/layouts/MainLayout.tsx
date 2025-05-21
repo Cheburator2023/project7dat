@@ -50,9 +50,8 @@ export function MainLayout({
 			<MainWrapper id="main_layout_content" open={store.isSideMenuVisible}>
 				<Spacer height={6} />
 				<Header navbarVisible={navbarVisible} />
-				<Spacer height={6} />
+				<Spacer height={12} />
 				{children}
-				<Spacer height={6} />
 			</MainWrapper>
 		</Flex>
 	);

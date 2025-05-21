@@ -2,11 +2,12 @@ export const routes = {
 	home: {
 		rootPath: "/",
 		name: "Главная",
-		subRoutes: {
-			graph: { path: "graph", name: "Граф" },
-			table: { path: "table", name: "Таблица" },
-			text: { path: "text", name: "Редактор" },
-		},
+		subRoutes: {},
+	},
+	graph: {
+		name: "Граф",
+		rootPath: "/graph",
+		devOnly: true,
 	},
 	playground: {
 		name: "Песочница",

@@ -1,6 +1,7 @@
 import "./theme/global.css";
 import "@xyflow/react/dist/style.css";
 import "react-diff-view/style/index.css";
+import "@fontsource/inter";
 // import "@joint/plus/joint-plus.css";
 
 import React from "react";

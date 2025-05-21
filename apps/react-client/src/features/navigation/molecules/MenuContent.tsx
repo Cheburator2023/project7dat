@@ -1,5 +1,4 @@
 import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
-import PlayCircleFilled from "@mui/icons-material/PlayCircleFilled";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -13,19 +12,11 @@ import { useLocation, useNavigate } from "react-router";
 
 import { routes } from "../../../routing/routes";
 
-const mainListItems = Object.values(routes.home.subRoutes).map((route) => ({
-	text: route.name,
-	path: route.path,
-}));
+const mainListItems = Object.values(routes).map((route) => route);
 
 const secondaryListItems = [
 	{ text: "Система управления моделями (СУМ)", icon: <InfoRoundedIcon /> },
 	{ text: "Реестр моделей (СУМ РМ)", icon: <InfoRoundedIcon /> },
-	{
-		text: "Плейграунд",
-		icon: <PlayCircleFilled />,
-		href: routes.playground.rootPath,
-	},
 	{ text: "Настройки", icon: <SettingsRoundedIcon /> },
 ];
 
@@ -41,9 +32,8 @@ export function MenuContent() {
 		setRightPanelCollapsed,
 	} = useStatusStore();
 
-	const handler = (path: "graph" | "table" | "text") => {
-		setViewMode(path);
-		navigate("/" + path);
+	const handler = (path: string) => {
+		navigate(path);
 	};
 
 	return (
@@ -54,12 +44,12 @@ export function MenuContent() {
 						key={index}
 						disablePadding
 						sx={{ display: "block", mb: 0.2 }}
-						onClick={() => handler(item.path as any)}
+						onClick={() => handler(item.rootPath.replace("/", ""))}
 					>
 						<ListItemButton
-							selected={item.path === location.pathname.replace("/", "")}
+							selected={item.rootPath === location.pathname.replace("/", "")}
 						>
-							<ListItemText primary={item.text} />
+							<ListItemText primary={item.name} />
 						</ListItemButton>
 					</ListItem>
 				))}
@@ -67,7 +57,7 @@ export function MenuContent() {
 			<List dense>
 				{secondaryListItems.map((item, index) => (
 					<ListItem key={index} disablePadding sx={{ display: "block" }}>
-						<ListItemButton href={item?.href || "/"}>
+						<ListItemButton>
 							<ListItemIcon>{item.icon}</ListItemIcon>
 							<ListItemText primary={item.text} />
 						</ListItemButton>
