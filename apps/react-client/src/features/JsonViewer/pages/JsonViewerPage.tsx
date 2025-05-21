@@ -9,7 +9,6 @@ import {
 } from "@xyflow/react";
 import type React from "react";
 import { useCallback } from "react";
-import { MainLayout } from "../../../common/layouts/MainLayout";
 
 import schema from "../../../../../../etc/json_schema.json";
 import { generateObjectFromSchema } from "../../../utils/jsonGenerator";
@@ -100,10 +99,8 @@ const LayoutFlow: React.FC = () => {
 
 export const JsonViewerPage: React.FC = () => {
 	return (
-		<MainLayout>
-			<ReactFlowProvider>
-				<LayoutFlow />
-			</ReactFlowProvider>
-		</MainLayout>
+		<ReactFlowProvider>
+			<LayoutFlow />
+		</ReactFlowProvider>
 	);
 };

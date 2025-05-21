@@ -167,7 +167,7 @@ function useInitial() {
 
 		window.worker.setupGlobalGraphStyle(measured);
 
-		console.l("finished measuring graph base style:", measured);
+		console.log("finished measuring graph base style:", measured);
 	}, []);
 }
 

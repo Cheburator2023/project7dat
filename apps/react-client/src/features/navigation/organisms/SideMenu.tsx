@@ -14,34 +14,17 @@ const Drawer = styled(MuiDrawer)({
 	width: drawerWidth,
 	flexShrink: 0,
 	boxSizing: "border-box",
-	mt: 10,
 	[`& .${drawerClasses.paper}`]: {
 		width: drawerWidth,
+		backgroundColor: "#F5F6FA",
+
 		boxSizing: "border-box",
 	},
 });
 
 export function SideMenu({ open = false }) {
 	return (
-		<Drawer
-			variant="persistent"
-			open={open}
-			sx={{
-				display: { md: "block" },
-				[`& .${drawerClasses.paper}`]: {
-					backgroundColor: "background.paper",
-				},
-			}}
-		>
-			{/* <Box
-				sx={{
-					display: "flex",
-					mt: "calc(var(--template-frame-height, 0px) + 4px)",
-					p: 1.5,
-				}}
-			>
-				<SelectContent />
-			</Box> */}
+		<Drawer variant="persistent" open={open}>
 			<LogoDataLineage />
 			<Box
 				sx={{
