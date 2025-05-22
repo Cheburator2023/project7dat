@@ -294,7 +294,6 @@ export const inputsCustomizations: Components<Theme> = {
 	MuiToggleButton: {
 		styleOverrides: {
 			root: ({ theme }) => ({
-				padding: "12px 16px",
 				textTransform: "none",
 				borderRadius: "10px",
 				fontWeight: 500,

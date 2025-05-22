@@ -1,6 +1,5 @@
 import { Button } from "@mui/material";
 import type { EditorWrapper } from "@react-client/features/json4u/lib/editor/editor";
-import { Tree } from "@react-client/features/json4u/lib/parser";
 import {
 	downloadFile,
 	toastErr,
@@ -41,23 +40,20 @@ export function ExportPopover() {
 function useOnClickButton(fileType: FileType) {
 	const t = useTranslations();
 	const main = useEditor("main");
-	const secondary = useEditor("secondary");
 	const setViewMode = useStatusStore((state) => state.setViewMode);
 
 	const onClickPreview = async () => {
-		if (!(main && secondary)) {
+		if (!main) {
 			return;
 		}
 
 		convert(t, main, fileType, (text) => {
-			secondary.setTree({ treeObject: new Tree(text).toObject() }, false);
-			secondary.revealPosition(1, 1, false);
 			setViewMode("text");
 		});
 	};
 
 	const onClickDownload = () => {
-		if (!(main && secondary)) {
+		if (!main) {
 			return;
 		}
 

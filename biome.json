@@ -63,6 +63,8 @@
 				}
 			},
 			"complexity": {
+				"useOptionalChain": "off",
+				"useArrowFunction": "off",
 				"noBannedTypes": "off",
 				"noUselessFragments": "off",
 				"noForEach": "off"
@@ -74,7 +76,8 @@
 				"noAssignInExpressions": "off"
 			},
 			"performance": {
-				"noAccumulatingSpread": "warn"
+				"noAccumulatingSpread": "warn",
+				"noDelete": "off"
 			}
 		}
 	},
