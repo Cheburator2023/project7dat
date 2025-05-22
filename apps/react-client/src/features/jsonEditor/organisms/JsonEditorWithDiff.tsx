@@ -1,24 +1,20 @@
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { Typography, styled, useColorScheme } from "@mui/material";
-import { generateObjectFromSchema } from "@react-client/utils/jsonGenerator";
 import { JsonEditor, githubDarkTheme, githubLightTheme } from "json-edit-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 
 import { Flex } from "@react-client/common/primitives/Flex";
+import { useEditor } from "@react-client/features/json4u/stores/editorStore";
 import { BooleanToggleDefinition } from "@react-client/features/jsonEditor/molecules/BooleanToggleComponent";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
-import schema from "../../../../../../etc/json_schema.json";
+// import schema from "../../../../../../etc/json_schema.json";
 
 const EMPTY_HUNKS: any[] = [];
 
-const numEntities = 8;
-const generatedObjects = generateObjectFromSchema(schema, numEntities);
-
-const dummyData = generatedObjects;
-
 export function JsonEditorWithDiff() {
+	const main = useEditor("main");
+
 	const [newDataSet, setNewData] = useState();
 	const { mode } = useColorScheme();
 
@@ -29,10 +25,12 @@ export function JsonEditorWithDiff() {
 		newData,
 		path,
 	}: any) => {
+		console.log("🚀 ~ JsonEditorWithDiff ~ path:", path);
 		setNewData(newData);
 	};
 
-	const oldText = JSON.stringify(dummyData, null, 2);
+	const data = JSON.parse(main?.tree.text || "{}");
+	const oldText = main?.tree.text || "";
 	const newText = JSON.stringify(newDataSet, null, 2);
 
 	const handleEdit = ({
@@ -55,7 +53,9 @@ export function JsonEditorWithDiff() {
 		console.log("clickedArrgs", clickArrgs);
 	};
 
-	const navigate = useNavigate();
+	useEffect(() => {
+		console.log("🚀 ~ JsonEditorWithDiff ~ main:", main);
+	}, [main?.tree.text]);
 
 	return (
 		<Wrapper id="json_editor_wrapper">
@@ -67,7 +67,7 @@ export function JsonEditorWithDiff() {
 				<Panel id="json_editor_panel" style={{ height: "inherit" }}>
 					<JsonEditor
 						id="json_editor_main_component"
-						data={dummyData}
+						data={data}
 						onUpdate={handleUpdate}
 						// onEdit={handleEdit}
 						theme={mode === "dark" ? githubDarkTheme : githubLightTheme}
@@ -75,6 +75,7 @@ export function JsonEditorWithDiff() {
 						rootFontSize={12}
 						restrictAdd={true}
 						collapseAnimationTime={100}
+						maxWidth="100%"
 						rootName=""
 						restrictEdit={(props) => {
 							const onlyPrimitiveVals =
@@ -106,10 +107,17 @@ export function JsonEditorWithDiff() {
 							useDarkTheme={mode === "dark"}
 							showDiffOnly
 							leftTitle="old"
-							rightTitle={"new"}
+							rightTitle="new"
 						/>
 					) : (
-						<Typography>Введите изменения</Typography>
+						<Flex
+							width="100%"
+							height="100%"
+							alignItems="center"
+							justifyContent="center"
+						>
+							<Typography>Введите изменения</Typography>
+						</Flex>
 					)}
 				</Panel>
 			</PanelGroup>

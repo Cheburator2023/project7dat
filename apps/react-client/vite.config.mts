@@ -16,6 +16,10 @@ const { STAGE } = process.env;
 const IS_DEV = process.env.NODE_ENV === "development";
 const ROOT_DIR = path.resolve(__dirname, "./");
 const DIST_DIR = path.resolve(ROOT_DIR, "./dist");
+const EDITOR_WORKER_PATH = path.resolve(
+	ROOT_DIR,
+	"./src/features/json4u/lib/worker/worker.ts",
+);
 
 const proxyList = {
 	dev: "https://example.com",
@@ -79,11 +83,9 @@ export const viteCommonConfig = ({
 					include: ["net"],
 				}),
 				react({
-					// jsxImportSource: '@emotion/react',
-					// extra babel plugins
-					// babel: {
-					//   plugins: ['@emotion/babel-plugin'],
-					// },
+					babel: {
+						plugins: ["../../etc/babel/babel-plugin-react-add-test-id.js"],
+					},
 				}),
 				svgr({
 					dimensions: false,
@@ -112,6 +114,7 @@ export const viteCommonConfig = ({
 					process.env.MOCKED_REQUESTS,
 				),
 				"process.env.GIT_REVISION": JSON.stringify(git_revision),
+				"process.env.EDITOR_WORKER_PATH": JSON.stringify(EDITOR_WORKER_PATH),
 			},
 
 			// resolve: {

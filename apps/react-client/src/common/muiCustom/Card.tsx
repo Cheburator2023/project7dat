@@ -9,7 +9,8 @@ import {
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useState } from "react";
-const headerH = 40;
+
+const headerH = 30;
 
 export const Card = (
 	props: PaperProps & {
@@ -65,7 +66,7 @@ export const Card = (
 			)}
 			<div
 				style={{
-					height: props.header ? `calc(100% - ${headerH}px)` : "inherit",
+					height: props.header ? `calc(100% - ${headerH + 15}px)` : "inherit",
 					width: "inherit",
 				}}
 			>

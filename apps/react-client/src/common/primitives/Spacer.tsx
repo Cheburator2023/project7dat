@@ -21,7 +21,6 @@ export const Spacer: React.FC<IProps> = ({
 	...rest
 }) => (
 	<InnerSpacer
-		data-test-id="spacer"
 		space={space || height}
 		width={width}
 		mobSpace={isMobile ? mobSpace : space}

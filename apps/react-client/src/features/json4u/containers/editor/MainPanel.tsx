@@ -1,26 +1,11 @@
-import { TabsContent } from "@react-client/features/json4u/components/ui/tabs";
-import { Tabs } from "@react-client/features/json4u/components/ui/tabs";
-import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
 import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
-import { ModePanel } from "@react-client/features/json4u/containers/editor/mode/ModePanel";
-import { JsonTable } from "@react-client/features/json4u/containers/editor/table/JsonTable";
-import { ViewMode } from "@react-client/features/json4u/lib/db/config";
-import { setupGlobalGraphStyle } from "@react-client/features/json4u/lib/graph/layout";
-import { px2num } from "@react-client/features/json4u/lib/utils";
 import { initLogger } from "@react-client/features/json4u/lib/utils";
-import { useConfigFromCookies } from "@react-client/features/json4u/stores/hook";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
-import { useUserStore } from "@react-client/features/json4u/stores/userStore";
-import { wrap } from "comlink";
 import { useEffect } from "react";
 import { useLocation } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import type { MyWorker } from "../../../../features/json4u/lib/worker/worker";
 import { LeftPanel } from "./LeftPanel";
-import { StatusBar } from "./StatusBar";
 
-const leftPanelId = "left-panel";
-const rightPanelId = "right-panel";
 initLogger();
 
 export function MainPanel() {
@@ -33,8 +18,6 @@ export function MainPanel() {
 		setRightPanelCollapsed,
 	} = useStatusStore();
 
-	useObserveResize();
-
 	const location = useLocation();
 
 	useEffect(() => {
@@ -45,25 +28,13 @@ export function MainPanel() {
 
 	// see https://github.com/bvaughn/react-resizable-panels/issues/128#issuecomment-1523343548
 	return (
-		<div className="relative w-full h-full flex flex-col overflow-hidden">
+		<>
 			<LeftPanel />
-			<Tabs asChild defaultValue={viewMode} value={viewMode}>
-				<>
-					<TabView viewMode={ViewMode.Text}>
-						<Editor kind="secondary" />
-					</TabView>
-					<TabView viewMode={ViewMode.Graph}>
-						<Graph />
-					</TabView>
-					<TabView viewMode={ViewMode.Table}>
-						<JsonTable />
-					</TabView>
-				</>
-			</Tabs>
-			<ModePanel />
-			<StatusBar />
-			<WidthMeasure />
-		</div>
+			<Graph />
+
+			{/* <ModePanel /> */}
+			{/* <StatusBar /> */}
+		</>
 	);
 }
 
@@ -73,116 +44,5 @@ function useObserveResize() {
 			setLeftPanelWidth: state.setLeftPanelWidth,
 			setRightPanelWidth: state.setRightPanelWidth,
 		})),
-	);
-
-	useEffect(() => {
-		const leftPanel = document.getElementById(leftPanelId)!;
-		const rightPanel = document.getElementById(rightPanelId)!;
-		setLeftPanelWidth(leftPanel.offsetWidth);
-		setRightPanelWidth(rightPanel.offsetWidth);
-
-		const resizeObserver = new ResizeObserver((entries) => {
-			for (const entry of entries) {
-				if (entry.target.id === leftPanelId) {
-					setLeftPanelWidth(entry.contentRect.width);
-				} else {
-					setRightPanelWidth(entry.contentRect.width);
-				}
-			}
-		});
-
-		resizeObserver.observe(leftPanel);
-		resizeObserver.observe(rightPanel);
-	}, []);
-}
-
-function WidthMeasure() {
-	useInitial();
-
-	return (
-		<div id="width-measure" className="absolute invisible graph-node">
-			<div className="graph-kv">
-				<div className="graph-k">
-					<span>{"measure"}</span>
-				</div>
-				<div className="graph-v" />
-			</div>
-		</div>
-	);
-}
-
-function useInitial() {
-	const cc = useConfigFromCookies();
-	const { user } = useUserStore(
-		useShallow((state) => ({
-			user: state.user,
-		})),
-	);
-
-	useEffect(() => {
-		useStatusStore.setState({ _hasHydrated: true, ...cc });
-
-		// initial worker
-
-		window.rawWorker = new Worker(
-			new URL(
-				"../../../../features/json4u/lib/worker/worker.ts",
-				import.meta.url,
-			),
-			{
-				type: "module",
-			},
-		);
-
-		window.worker = wrap<MyWorker>(window.rawWorker);
-		window.addEventListener("beforeunload", () => {
-			window.rawWorker?.terminate();
-		});
-
-		// measure graph style
-		const el = document.getElementById("width-measure")!;
-		const span = el.querySelector("span")!;
-		const { lineHeight } = getComputedStyle(span);
-		const { borderWidth } = getComputedStyle(el);
-		const { paddingLeft, paddingRight } = getComputedStyle(
-			el.querySelector(".graph-kv")!,
-		);
-		const { marginRight, maxWidth: maxKeyWidth } = getComputedStyle(
-			el.querySelector(".graph-k")!,
-		);
-		const { maxWidth: maxValueWidth } = getComputedStyle(
-			el.querySelector(".graph-v")!,
-		);
-		const measured = {
-			fontWidth: span.offsetWidth / (span.textContent?.length || 1),
-			kvHeight: px2num(lineHeight),
-			padding: px2num(paddingLeft) + px2num(paddingRight),
-			borderWidth: px2num(borderWidth),
-			kvGap: px2num(marginRight),
-			maxKeyWidth: px2num(maxKeyWidth),
-			maxValueWidth: px2num(maxValueWidth),
-		};
-
-		setupGlobalGraphStyle(measured);
-
-		window.worker.setupGlobalGraphStyle(measured);
-
-		console.log("finished measuring graph base style:", measured);
-	}, []);
-}
-
-function TabView({
-	viewMode,
-	children,
-}: { viewMode: ViewMode; children: React.ReactNode }) {
-	// `data-[state=inactive]` used for fix https://github.com/radix-ui/primitives/issues/1155#issuecomment-2041571341
-	return (
-		<TabsContent
-			value={viewMode}
-			className="relative w-full h-full m-0 data-[state=inactive]:hidden"
-			forceMount
-		>
-			{children}
-		</TabsContent>
 	);
 }

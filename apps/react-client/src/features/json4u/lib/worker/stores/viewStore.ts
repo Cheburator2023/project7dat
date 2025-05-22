@@ -29,11 +29,11 @@ import {
 } from "@react-client/features/json4u/lib/parser";
 import { genDomString } from "@react-client/features/json4u/lib/table";
 import type { FunctionKeys } from "@react-client/features/json4u/lib/utils";
+import type { SearchResult } from "@react-client/features/json4u/lib/worker/stores/types";
 import type { Viewport } from "@xyflow/react";
 import fuzzysort from "fuzzysort";
 import { keyBy } from "lodash-es";
 import { createStore } from "zustand/vanilla";
-import type { SearchResult } from "./types";
 
 export interface ViewState {
 	tree: Tree;

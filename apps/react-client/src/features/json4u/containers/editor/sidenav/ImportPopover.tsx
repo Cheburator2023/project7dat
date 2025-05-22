@@ -1,5 +1,4 @@
 import { Checkbox } from "@react-client/features/json4u/components/ui/checkbox";
-import { Tree } from "@react-client/features/json4u/lib/parser";
 import { toastErr } from "@react-client/features/json4u/lib/utils";
 import type { CsvResult } from "@react-client/features/json4u/lib/worker/command/csv";
 import { useEditor } from "@react-client/features/json4u/stores/editorStore";
@@ -70,10 +69,9 @@ function CsvOptions({ checked, setChecked }: CsvOptionsProps) {
 function useOnFile(fileType: FileType, options: { csvWithHeader?: boolean }) {
 	const t = useTranslations();
 	const main = useEditor("main");
-	const secondary = useEditor("secondary");
 
 	return (file: File) => {
-		if (!(main && secondary)) {
+		if (!main) {
 			return;
 		}
 
@@ -89,8 +87,6 @@ function useOnFile(fileType: FileType, options: { csvWithHeader?: boolean }) {
 			let r: CsvResult = { text: fileContent };
 
 			if (fileType !== "JSON") {
-				secondary?.setTree({ treeObject: new Tree(fileContent).toObject() });
-
 				if (fileType === "CSV") {
 					r = await main
 						.worker()

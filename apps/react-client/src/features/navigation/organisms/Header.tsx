@@ -69,41 +69,6 @@ export function Header({ navbarVisible = true }) {
 							<MenuRoundedIcon />
 						</MenuButton>
 						<NavbarBreadcrumbs />
-						{/* <Flex alignItems="center" gap={6}>
-						<Toggle
-							icon={<Braces className="icon" />}
-							title={"Auto Format"}
-							description={"auto_format_desc"}
-							isPressed={enableAutoFormat}
-							onPressedChange={(pressed) =>
-								setParseOptions({ format: pressed })
-							}
-						/>
-						<Toggle
-							icon={<SquareStack className="icon" />}
-							title={"Nested Parse"}
-							description={"nested_parse_desc"}
-							isPressed={enableNestParse}
-							onPressedChange={(pressed) => setParseOptions({ nest: pressed })}
-						/>
-						<Toggle
-							icon={<ArrowDownNarrowWide className="icon" />}
-							title={"Auto Sort"}
-							description={"auto_sort_desc"}
-							isPressed={enableAutoSort}
-							onPressedChange={(pressed) =>
-								setParseOptions({ sort: pressed ? "asc" : undefined })
-							}
-						/>
-						<Toggle
-							icon={<AlignHorizontalJustifyCenter className="icon" />}
-							title={"sync_reveal"}
-							description={"sync_reveal_desc"}
-							isPressed={enableSyncScroll}
-							onPressedChange={(pressed) => setEnableSyncScroll(pressed)}
-						/>
-					</Flex> */}
-						{/* <RightPanel /> */}
 					</Flex>
 					{navbarVisible ? (
 						<Flex flexDirection="row" gap={6} alignItems="center">

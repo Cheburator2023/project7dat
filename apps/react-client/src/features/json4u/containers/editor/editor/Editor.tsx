@@ -1,10 +1,10 @@
 import { Editor as MonacoEditor } from "@monaco-editor/react";
-import { useColorScheme } from "@mui/material";
-import { Loading } from "@react-client/features/json4u/components/Loading";
+import { CircularProgress, useColorScheme } from "@mui/material";
 import {
 	EditorWrapper,
 	type Kind,
 } from "@react-client/features/json4u/lib/editor/editor";
+import type { editor } from "@react-client/features/json4u/lib/editor/types";
 import {
 	useEditor,
 	useEditorStore,
@@ -12,31 +12,36 @@ import {
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import { getTree } from "@react-client/features/json4u/stores/treeStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
-import { type ComponentPropsWithoutRef, useEffect } from "react";
+
+import { type ComponentPropsWithoutRef, useEffect, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 interface EditorProps extends ComponentPropsWithoutRef<typeof MonacoEditor> {
 	kind: Kind;
 }
 
+const defaultValue = ["{", "", "}"].join("\n");
+
 export function Editor({ kind, ...props }: EditorProps) {
 	const translations = useTranslations();
 	const setEditor = useEditorStore((state) => state.setEditor);
 	const setTranslations = useEditorStore((state) => state.setTranslations);
 	const { mode } = useColorScheme();
+	const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
+	const restrictions = [];
 
-	useDisplayExample();
 	useRevealNode();
 
 	return (
 		<MonacoEditor
 			language="json"
-			loading={<Loading />}
+			loading={<CircularProgress />}
 			theme={mode === "dark" ? "vs-dark" : "light"}
+			defaultValue={defaultValue}
 			options={{
-				fontSize: 13, // 设置初始字体大小
-				scrollBeyondLastLine: false, // 行数超过一屏时才展示滚动条
-				automaticLayout: true, // 当编辑器所在的父容器的大小改变时，编辑器会自动重新计算并调整大小
+				fontSize: 12,
+				scrollBeyondLastLine: false,
+				automaticLayout: true,
 				wordWrap: "on",
 				minimap: { enabled: false },
 				stickyScroll: {
@@ -45,6 +50,44 @@ export function Editor({ kind, ...props }: EditorProps) {
 				},
 			}}
 			onMount={(editor, monaco) => {
+				monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+					validate: true,
+					schemas: [
+						{
+							uri: "http://myserver/foo-schema.json", // id of the first schema
+							fileMatch: ["*"], // associate with our model
+							schema: {
+								type: "object",
+								properties: {
+									summer: { type: "integer" },
+									winter: { type: "integer" },
+									xmas: { type: "integer" },
+								},
+								required: ["summer", "winter", "xmas"],
+								// properties: {
+								//   p1: {
+								//     enum: ["v1", "v2"],
+								//   },
+								//   p2: {
+								//     $ref: "http://myserver/bar-schema.json", // reference the second schema
+								//   },
+								// },
+							},
+						},
+						{
+							uri: "http://myserver/bar-schema.json", // id of the first schema
+							schema: {
+								type: "object",
+								properties: {
+									q1: {
+										enum: ["x1", "x2"],
+									},
+								},
+							},
+						},
+					],
+				});
+
 				if (!window.monacoApi) {
 					window.monacoApi = {
 						KeyCode: monaco.KeyCode,
@@ -90,65 +133,4 @@ export function useRevealNode() {
 			}
 		}
 	}, [editor, revealPosition, isNeedReveal]);
-}
-
-const exampleData = `{
-  "Aidan Gillen": {
-      "array": [
-          "Game of Thron\\"es",
-          "The Wire"
-      ],
-      "string": "some string",
-      "int": 2,
-      "aboolean": true,
-      "boolean": true,
-      "null": null,
-      "a_null": null,
-      "another_null": "null check",
-      "object": {
-          "foo": "bar",
-          "object1": {
-              "new prop1": "new prop value"
-          },
-          "object2": {
-              "new prop1": "new prop value"
-          },
-          "object3": {
-              "new prop1": "new prop value"
-          },
-          "object4": {
-              "new prop1": "new prop value"
-          }
-      }
-  },
-  "Amy Ryan": {
-      "one": "In Treatment",
-      "two": "The Wire"
-  },
-  "Annie Fitzgerald": [
-      "Big Love",
-      "True Blood"
-  ],
-  "Anwan Glover": [
-      "Treme",
-      "The Wire"
-  ],
-  "Alexander Skarsgard": [
-      "Generation Kill",
-      "True Blood"
-  ],
-  "Clarke Peters": null
-}`;
-
-function useDisplayExample() {
-	const editor = useEditor("main");
-	const incrEditorInitCount = useStatusStore(
-		(state) => state.incrEditorInitCount,
-	);
-
-	useEffect(() => {
-		if (editor && incrEditorInitCount() <= 1) {
-			editor.parseAndSet(exampleData);
-		}
-	}, [editor]);
 }

@@ -226,14 +226,12 @@ export class EditorWrapper {
 		this.editor.onDidChangeCursorPosition(onDidChangeCursorPosition);
 	}
 
-	// 注册拖拽事件处理器，支持拖拽文件到编辑器上
 	listenOnDropFile() {
 		this.editor.getDomNode()?.addEventListener("drop", (e: DragEvent) => {
 			e.preventDefault();
 			const file = e.dataTransfer?.files[0];
 
 			if (file) {
-				// 读取拖拽的文件内容，并设置为编辑器的内容
 				const reader = new FileReader();
 				reader.onload = (event) => {
 					const text = event.target?.result;

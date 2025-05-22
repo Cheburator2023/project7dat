@@ -5,12 +5,10 @@ import type React from "react";
 
 export const BooleanToggleComponent: React.FC<CustomNodeProps> = (props) => {
 	const { nodeData, value, handleEdit, canEdit } = props;
-	console.log("🐸 Pepe said >> props:", props);
 
 	const { path } = nodeData;
 	return (
 		<div>
-			ass
 			<input
 				className="jer-input-boolean"
 				type="checkbox"

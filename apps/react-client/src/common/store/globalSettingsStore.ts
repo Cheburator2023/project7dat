@@ -7,6 +7,7 @@ interface GlobalSettingsState {
 	isDataMartVisible: boolean;
 	isSideMenuVisible: boolean;
 	toggleDataMart: () => void;
+	toggleHideAllDashboardPanels: () => void;
 	toggleCommitHistory: () => void;
 	toggleJsonPreview: () => void;
 	toggleSideMenu: () => void;
@@ -19,6 +20,12 @@ export const useGlobalSettingsStore = create<GlobalSettingsState>()(
 			isJsonPreviewVisible: true,
 			isSideMenuVisible: true,
 			isDataMartVisible: true,
+			toggleHideAllDashboardPanels: () =>
+				set((state) => ({
+					isDataMartVisible: false,
+					isCommitHistoryVisible: false,
+					isJsonPreviewVisible: false,
+				})),
 			toggleDataMart: () =>
 				set((state) => ({
 					isDataMartVisible: !state.isDataMartVisible,
