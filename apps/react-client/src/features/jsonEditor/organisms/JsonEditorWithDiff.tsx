@@ -1,12 +1,11 @@
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { Typography, styled, useColorScheme } from "@mui/material";
-import { JsonEditor, githubDarkTheme, githubLightTheme } from "json-edit-react";
 import { useEffect, useState } from "react";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 
 import { Flex } from "@react-client/common/primitives/Flex";
+import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
 import { useEditor } from "@react-client/features/json4u/stores/editorStore";
-import { BooleanToggleDefinition } from "@react-client/features/jsonEditor/molecules/BooleanToggleComponent";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 // import schema from "../../../../../../etc/json_schema.json";
 
@@ -65,34 +64,7 @@ export function JsonEditorWithDiff() {
 				style={{ height: "inherit" }}
 			>
 				<Panel id="json_editor_panel" style={{ height: "inherit" }}>
-					<JsonEditor
-						id="json_editor_main_component"
-						data={data}
-						onUpdate={handleUpdate}
-						// onEdit={handleEdit}
-						theme={mode === "dark" ? githubDarkTheme : githubLightTheme}
-						restrictDelete={true}
-						rootFontSize={12}
-						restrictAdd={true}
-						collapseAnimationTime={100}
-						maxWidth="100%"
-						rootName=""
-						restrictEdit={(props) => {
-							const onlyPrimitiveVals =
-								typeof props.value === "object" ||
-								typeof props.value === "function";
-
-							return onlyPrimitiveVals;
-						}}
-						enableClipboard={false}
-						restrictTypeSelection={(inputProps) => {
-							if (typeof inputProps.value === "boolean") return ["boolean"];
-							if (typeof inputProps.value === "string") return ["string"];
-							if (typeof inputProps.value === "number") return ["number"];
-							return ["string", "number", "boolean"]; // no "null"
-						}}
-						customNodeDefinitions={[BooleanToggleDefinition]}
-					/>
+					<Editor kind="main" />
 				</Panel>
 				<PanelResizeHandleStyled>
 					<DragIndicatorIcon />

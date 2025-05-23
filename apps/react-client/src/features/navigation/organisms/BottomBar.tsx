@@ -63,4 +63,5 @@ const Wrapper = styled(Flex)`
   bottom: 0;
   padding-bottom: 10px;
   z-index: 999;
+  pointer-events: none;
 `;
