@@ -40,16 +40,17 @@ export function Editor({ kind, ...props }: EditorProps) {
 			defaultValue={defaultValue}
 			options={{
 				fontSize: 12,
-				scrollBeyondLastLine: false,
+				scrollBeyondLastLine: true,
 				automaticLayout: true,
 				wordWrap: "on",
-				minimap: { enabled: false },
+				minimap: { enabled: true },
 				stickyScroll: {
 					enabled: true,
 					defaultModel: "foldingProviderModel",
 				},
 			}}
 			onMount={(editor, monaco) => {
+				editor.trigger("actions.find", "handlerIdss", "sss");
 				monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
 					validate: true,
 					schemas: [
@@ -72,17 +73,6 @@ export function Editor({ kind, ...props }: EditorProps) {
 								//     $ref: "http://myserver/bar-schema.json", // reference the second schema
 								//   },
 								// },
-							},
-						},
-						{
-							uri: "http://myserver/bar-schema.json", // id of the first schema
-							schema: {
-								type: "object",
-								properties: {
-									q1: {
-										enum: ["x1", "x2"],
-									},
-								},
 							},
 						},
 					],

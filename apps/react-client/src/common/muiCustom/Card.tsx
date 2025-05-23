@@ -7,7 +7,6 @@ import {
 	styled,
 } from "@mui/material";
 import { Flex } from "@react-client/common/primitives/Flex";
-import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useState } from "react";
 
 const headerH = 30;
@@ -51,9 +50,7 @@ export const Card = (
 						style={{ height: `${headerH}px` }}
 					>
 						{props.header && (
-							<>
-								<Typography variant="h6">{props.header}</Typography>
-							</>
+							<Typography variant="h6">{props.header}</Typography>
 						)}
 						{props.onClose && (
 							<IconButton onClick={handler}>
@@ -61,7 +58,6 @@ export const Card = (
 							</IconButton>
 						)}
 					</Flex>
-					<Spacer space={16} />
 				</>
 			)}
 			<div
@@ -77,6 +73,7 @@ export const Card = (
 };
 
 const MUIPaperStyled = styled(Paper)`
+	pointer-events: all;
  & > div {
 	overflow: auto;
  }

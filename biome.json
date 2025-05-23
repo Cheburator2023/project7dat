@@ -35,6 +35,7 @@
 		"rules": {
 			"recommended": true,
 			"a11y": {
+				"useButtonType": "off",
 				"noSvgWithoutTitle": "off",
 				"useMediaCaption": "off",
 				"useKeyWithClickEvents": "off"
