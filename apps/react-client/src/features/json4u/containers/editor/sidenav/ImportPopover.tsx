@@ -1,4 +1,3 @@
-import { Checkbox } from "@react-client/features/json4u/components/ui/checkbox";
 import { toastErr } from "@react-client/features/json4u/lib/utils";
 import type { CsvResult } from "@react-client/features/json4u/lib/worker/command/csv";
 import { useEditor } from "@react-client/features/json4u/stores/editorStore";
@@ -6,8 +5,10 @@ import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
 
-import { BasePopover } from "./BasePopover";
-import { type FileType, FileTypeSelect } from "./FileTypeSelect";
+import { Button, ButtonGroup, Checkbox } from "@mui/material";
+import { Spacer } from "@react-client/common/primitives/Spacer";
+
+type FileType = "JSON" | "CSV";
 
 export function ImportPopover() {
 	const t = useTranslations();
@@ -16,32 +17,29 @@ export function ImportPopover() {
 	const onFile = useOnFile(fileType, { csvWithHeader });
 
 	return (
-		<BasePopover
-			title="Import"
-			className="w-96"
-			optionsNode={
-				fileType === "CSV" && (
-					<CsvOptions checked={csvWithHeader} setChecked={setCsvWithHeader} />
-				)
-			}
-			extraNode={
-				<FileUploader
-					handleChange={onFile}
-					types={["txt", "json", "csv"]}
-					dropMessageStyle={{ color: "transparent" }}
-				>
-					<div className="flex items-center justify-center border border-dashed hover:cursor-pointer hover:border-rose-400 w-full h-64 mt-2 text-zinc-500">
-						<p>{t("drop file")}</p>
-					</div>
-				</FileUploader>
-			}
-		>
+		<div>
+			{fileType === "CSV" && (
+				<CsvOptions checked={csvWithHeader} setChecked={setCsvWithHeader} />
+			)}
+			<FileUploader
+				handleChange={onFile}
+				types={["txt", "json", "csv"]}
+				dropMessageStyle={{ color: "transparent" }}
+			>
+				<div className="flex items-center justify-center border border-dashed hover:cursor-pointer hover:border-rose-400 w-full h-64 mt-2 text-zinc-500">
+					<p>{t("drop file")}</p>
+				</div>
+			</FileUploader>
+			<Spacer />
 			<span className="mr-1">{t("file type")}</span>
-			<FileTypeSelect fileType={fileType} setFileType={setFileType} />
+			<ButtonGroup variant="outlined">
+				<Button onClick={() => setFileType("JSON")}>JSON</Button>
+				<Button onClick={() => setFileType("CSV")}>CSV</Button>
+			</ButtonGroup>
 			{fileType !== "JSON" && (
 				<span className="ml-auto text-zinc-500">{t("convert to JSON")}</span>
 			)}
-		</BasePopover>
+		</div>
 	);
 }
 
@@ -59,7 +57,7 @@ function CsvOptions({ checked, setChecked }: CsvOptionsProps) {
 				id="csv-options"
 				defaultChecked={checked}
 				checked={checked}
-				onCheckedChange={setChecked}
+				onChange={(e) => setChecked(e.target.checked)}
 			/>
 			<label htmlFor="csv-options">{t("csv_with_header")}</label>
 		</div>

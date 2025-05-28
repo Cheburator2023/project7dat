@@ -1,10 +1,13 @@
 import { CircularProgress, StyledEngineProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { BrowserRouter } from "react-router";
 
 import { MainLayout } from "@react-client/common/layouts/MainLayout";
+
 import { Routing } from "./routing";
 import { AppTheme } from "./theme/AppTheme";
 import {
@@ -40,9 +43,11 @@ export function App() {
 					<AppTheme themeComponents={xThemeComponents}>
 						<CssBaseline enableColorScheme />
 						<Suspense fallback={<CircularProgress />}>
-							<MainLayout>
-								<Routing />
-							</MainLayout>
+							<LocalizationProvider dateAdapter={AdapterDateFns}>
+								<MainLayout>
+									<Routing />
+								</MainLayout>
+							</LocalizationProvider>
 						</Suspense>
 					</AppTheme>
 				</BrowserRouter>

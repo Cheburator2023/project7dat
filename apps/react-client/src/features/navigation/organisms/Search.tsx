@@ -1,6 +1,5 @@
 import SearchIcon from "@mui/icons-material/Search";
 import { Autocomplete, InputAdornment, TextField } from "@mui/material";
-import { LeftTruncate } from "@react-client/features/json4u/components/ui/truncate";
 import { genValueAttrs } from "@react-client/features/json4u/lib/graph/layout";
 import { toPath } from "@react-client/features/json4u/lib/idgen";
 import { hasChildren } from "@react-client/features/json4u/lib/parser";
@@ -14,7 +13,6 @@ export function Search() {
 	const [open, setOpen] = useState(false);
 	const [inputValue, setInputValue] = useState("");
 	const [items, setItems] = useState<any[]>([]);
-	console.log("🐸 Pepe said >> Search >> items:", items);
 
 	const setRevealPosition = useStatusStore((state) => state.setRevealPosition);
 
@@ -104,7 +102,6 @@ function Item(props: any) {
 			onClick={props.onClick}
 		>
 			<div className={cn("text-sm truncate", className)}>{label}</div>
-			<LeftTruncate className="text-xs text-muted-foreground" text={pathStr} />
 		</div>
 	);
 }

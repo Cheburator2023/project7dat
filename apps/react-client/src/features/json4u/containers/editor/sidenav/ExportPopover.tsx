@@ -1,4 +1,6 @@
-import { Button } from "@mui/material";
+import { Button, ButtonGroup } from "@mui/material";
+import { Flex } from "@react-client/common/primitives/Flex";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 import type { EditorWrapper } from "@react-client/features/json4u/lib/editor/editor";
 import {
 	downloadFile,
@@ -9,8 +11,6 @@ import { useEditor } from "@react-client/features/json4u/stores/editorStore";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { useState } from "react";
-import { BasePopover } from "./BasePopover";
-import { FileTypeSelect } from "./FileTypeSelect";
 
 type FileType = "JSON" | "CSV";
 
@@ -20,10 +20,19 @@ export function ExportPopover() {
 	const { onClickPreview, onClickDownload } = useOnClickButton(fileType);
 
 	return (
-		<BasePopover title="Export" className="w-96">
-			<span>{t("export to")}</span>
-			<FileTypeSelect fileType={fileType} setFileType={setFileType} />
-			<div className="flex ml-auto gap-2">
+		<div>
+			<Flex alignItems="center">
+				<span>{t("export to")}</span>
+				<Spacer />
+				<ButtonGroup variant="outlined">
+					<Button onClick={() => setFileType("JSON")}>JSON</Button>
+					<Button onClick={() => setFileType("CSV")}>CSV</Button>
+				</ButtonGroup>
+			</Flex>
+
+			<Spacer />
+
+			<Flex gap={10}>
 				{fileType !== "JSON" && (
 					<Button variant="outlined" onClick={onClickPreview}>
 						{t("preview")}
@@ -32,8 +41,8 @@ export function ExportPopover() {
 				<Button variant="outlined" onClick={onClickDownload}>
 					{t("download")}
 				</Button>
-			</div>
-		</BasePopover>
+			</Flex>
+		</div>
 	);
 }
 
