@@ -1,3 +1,4 @@
+import { Tooltip } from "@mui/material";
 import {
 	computeSourceHandleOffset,
 	genKeyText,
@@ -16,7 +17,6 @@ import { Handle, type NodeProps, Position, useReactFlow } from "@xyflow/react";
 import { filter } from "lodash-es";
 import { memo } from "react";
 import { SourceHandle, TargetHandle } from "./Handle";
-import { Popover } from "./Popover";
 import { Toolbar } from "./Toolbar";
 
 export const ObjectNode = memo(({ id, data }: NodeProps<NodeWithData>) => {
@@ -126,12 +126,12 @@ const KV = memo(
 
 		return (
 			<div className="graph-kv" style={{ width }} data-tree-id={id}>
-				<Popover width={width} hlClass={keyClass} text={keyText}>
+				<Tooltip title={keyText}>
 					<div className={cn("graph-k", keyClass)}>{keyText}</div>
-				</Popover>
-				<Popover width={width} hlClass={valueClassName} text={valueText}>
+				</Tooltip>
+				<Tooltip title={valueText}>
 					<div className={cn("graph-v", valueClassName)}>{valueText}</div>
-				</Popover>
+				</Tooltip>
 				{hasChildren && (
 					<SourceHandle
 						id={keyText}

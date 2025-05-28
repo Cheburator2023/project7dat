@@ -50,7 +50,6 @@ export function Editor({ kind, ...props }: EditorProps) {
 				},
 			}}
 			onMount={(editor, monaco) => {
-				editor.trigger("actions.find", "handlerIdss", "sss");
 				monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
 					validate: true,
 					schemas: [

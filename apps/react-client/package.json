@@ -28,6 +28,7 @@
 		"@mui/x-tree-view": "7.29.1",
 		"@types/react": "19.1.5",
 		"@types/react-dom": "19.1.5",
+		"@nextui-org/theme": "2.4.5",
 		"clsx": "2.1.1",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.0",
