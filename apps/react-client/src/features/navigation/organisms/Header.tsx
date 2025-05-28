@@ -76,12 +76,12 @@ export function Header({ navbarVisible = true }) {
 
 							<Flex alignItems="center" gap={6}>
 								<PopoverButton
-									title={"Импорт"}
+									// title={"Импорт"}
 									icon={<FileUp className="icon" />}
 									content={<ImportPopover />}
 								/>
 								<PopoverButton
-									title={"Экспорт"}
+									// title={"Экспорт"}
 									icon={<Download className="icon" />}
 									content={<ExportPopover />}
 								/>

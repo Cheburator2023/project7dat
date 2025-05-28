@@ -7,7 +7,7 @@ import { useState } from "react";
 export const popoverBtnClass = "popover-btn";
 
 interface PopoverBtnProps {
-	title: string;
+	title?: string;
 	icon: React.ReactNode;
 	content: React.ReactNode;
 	className?: string;
@@ -46,9 +46,18 @@ export function PopoverButton({
 		<>
 			<Button aria-describedby={id} variant="outlined" onClick={handleClick}>
 				<Flex justifyContent="center" alignItems="center">
-					<div>{icon}</div>
-					<Spacer />
-					<div>{title}</div>
+					{!!icon && (
+						<>
+							<div>{icon}</div>
+						</>
+					)}
+
+					{!!title && (
+						<>
+							<Spacer />
+							<div>{title}</div>
+						</>
+					)}
 				</Flex>
 			</Button>
 			<Popover
