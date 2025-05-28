@@ -1,11 +1,8 @@
-import { Button } from "@mui/material";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@react-client/features/json4u/components/ui/popover";
-import { cn } from "@react-client/features/json4u/lib/utils";
+import { Button, Popover } from "@mui/material";
+import { Flex } from "@react-client/common/primitives/Flex";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
+import { useState } from "react";
 
 export const popoverBtnClass = "popover-btn";
 
@@ -19,7 +16,7 @@ interface PopoverBtnProps {
 	notOnSideNav?: boolean;
 }
 
-export function PopoverBtn({
+export function PopoverButton({
 	icon,
 	title,
 	notOnSideNav,
@@ -32,30 +29,40 @@ export function PopoverBtn({
 		(state) => state.setSideNavExpanded,
 	);
 
+	const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+
+	const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		setAnchorEl(event.currentTarget);
+	};
+
+	const handleClose = () => {
+		setAnchorEl(null);
+	};
+
+	const open = Boolean(anchorEl);
+	const id = open ? "simple-popover" : undefined;
+
 	return (
-		<Popover
-			onOpenChange={
-				notOnSideNav ? undefined : (open) => open && setSideNavExpanded(false)
-			}
-		>
-			<PopoverTrigger asChild>
-				<Button
-					size="small"
-					variant="outlined"
-					className={cn(className, notOnSideNav && "w-10")}
-					title={title}
-				>
-					{icon}
-				</Button>
-			</PopoverTrigger>
-			<PopoverContent
-				asChild={asChild}
-				side={notOnSideNav ? "bottom" : "right"}
-				sideOffset={notOnSideNav ? 10 : 5}
-				className={cn("w-fit", popoverBtnClass, contentClassName)}
+		<>
+			<Button aria-describedby={id} variant="outlined" onClick={handleClick}>
+				<Flex justifyContent="center" alignItems="center">
+					<div>{icon}</div>
+					<Spacer />
+					<div>{title}</div>
+				</Flex>
+			</Button>
+			<Popover
+				id={id}
+				open={open}
+				anchorEl={anchorEl}
+				onClose={handleClose}
+				anchorOrigin={{
+					vertical: "bottom",
+					horizontal: "left",
+				}}
 			>
-				{content}
-			</PopoverContent>
-		</Popover>
+				<Flex pad="20px">{content}</Flex>
+			</Popover>
+		</>
 	);
 }

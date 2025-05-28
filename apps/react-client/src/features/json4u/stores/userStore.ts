@@ -1,4 +1,3 @@
-import type { SubscriptionType } from "@react-client/features/json4u/lib/shop/types";
 import { create } from "zustand";
 
 type User = any;
@@ -19,8 +18,6 @@ export interface UserState {
 
 	usable: (key: any) => boolean;
 	count: (key: any) => void;
-	isPremium: () => boolean;
-	getPlan: () => SubscriptionType;
 	setUser: (user: User | null) => Promise<void>;
 	updateActiveOrder: (user: User | null) => Promise<void>;
 	setStatistics: (
@@ -49,19 +46,10 @@ export const useUserStore = create<UserState>()((set, get) => ({
 	},
 
 	count(key: any) {
-		const { fallbackKey, statistics, isPremium } = get();
+		const { fallbackKey, statistics } = get();
 		statistics[key] += 1;
 
 		set({ statistics });
-	},
-
-	isPremium() {
-		return true;
-	},
-
-	getPlan(): SubscriptionType {
-		const { activeOrder } = get();
-		return activeOrder?.plan ?? "free";
 	},
 
 	async setUser(user: User | null) {
