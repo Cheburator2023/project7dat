@@ -149,11 +149,6 @@ module.exports = {
 	darkMode: "class",
 	plugins: [
 		require("tailwindcss-animate"),
-		require("tailwind-scrollbar")({
-			nocompatible: true,
-			preferredStrategy: "pseudoelements",
-		}),
-
 		nextui({
 			addCommonColors: true, // override common colors (e.g. "blue", "green", "pink").
 			defaultTheme: "light", // default theme from the themes object
