@@ -25,7 +25,7 @@ export function PopoverButton({
 	asChild,
 	content,
 }: PopoverBtnProps) {
-	const setSideNavExpanded = useStatusStore(
+	const _setSideNavExpanded = useStatusStore(
 		(state) => state.setSideNavExpanded,
 	);
 

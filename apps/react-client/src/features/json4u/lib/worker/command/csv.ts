@@ -58,7 +58,7 @@ function toCsvJSON(tree: Tree): { json?: any; errorKey?: string } {
 	let hasHeader: boolean;
 	let errorKey: string | undefined;
 
-	const json = tree.mapChildren(root, (node, key) => {
+	const json = tree.mapChildren(root, (node, _key) => {
 		if (errorKey) {
 			return;
 		}

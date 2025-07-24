@@ -38,7 +38,7 @@ const initialStates: Omit<TreeState, FunctionKeys<TreeState>> = {
 	secondary: new Tree(),
 };
 
-export const useTreeStore = create<TreeState>()((set, get) => ({
+export const useTreeStore = create<TreeState>()((set, _get) => ({
 	...initialStates,
 
 	setTree(tree: Tree, kind: Kind) {

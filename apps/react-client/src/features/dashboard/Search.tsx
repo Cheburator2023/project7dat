@@ -9,8 +9,8 @@ import { getTree } from "@react-client/features/json4u/stores/treeStore";
 import { useState } from "react";
 
 export function Search() {
-	const [initialed, setInitialed] = useState(false);
-	const [open, setOpen] = useState(false);
+	const [_initialed, _setInitialed] = useState(false);
+	const [_open, setOpen] = useState(false);
 	const [inputValue, setInputValue] = useState("");
 	const [items, setItems] = useState<any[]>([]);
 
@@ -33,17 +33,17 @@ export function Search() {
 	return (
 		<Autocomplete
 			value={value}
-			onChange={(event: any, newValue: string | null) => {
+			onChange={(_event: any, newValue: string | null) => {
 				setValue(newValue);
 			}}
 			inputValue={inputValue}
-			onInputChange={(event, newInputValue) => {
+			onInputChange={(_event, newInputValue) => {
 				onSearch(newInputValue);
 				setInputValue(newInputValue);
 			}}
 			fullWidth
 			options={items}
-			renderOption={(props, option) => {
+			renderOption={(_props, option) => {
 				return (
 					<Item
 						key={option.id}
@@ -86,7 +86,7 @@ function Item(props: any) {
 		return null;
 	}
 
-	const pathStr = ["$", ...toPath(id)].join(" > ");
+	const _pathStr = ["$", ...toPath(id)].join(" > ");
 	let className = "";
 
 	if (revealType === "value") {

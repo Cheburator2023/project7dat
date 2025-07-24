@@ -184,7 +184,7 @@ export class Layouter {
 	tree: Tree;
 	id2NodeMap: Record<string, NodeWithData>;
 
-	constructor(tree: Tree, allNodes: NodeWithData[], allEdges: EdgeWithData[]) {
+	constructor(tree: Tree, allNodes: NodeWithData[], _allEdges: EdgeWithData[]) {
 		this.tree = tree;
 		this.id2NodeMap = {};
 		for (const node of allNodes) {

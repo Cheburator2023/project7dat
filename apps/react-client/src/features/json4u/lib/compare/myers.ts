@@ -23,7 +23,7 @@ export function arrayDiff<T extends number | string | boolean | null>(
 		let chars = "";
 
 		for (const line of lines) {
-			if (lineHash.hasOwnProperty(line)) {
+			if (Object.hasOwn(lineHash, line)) {
 				chars += String.fromCharCode(baseChar + lineHash[line]);
 			} else {
 				chars += String.fromCharCode(baseChar + n);

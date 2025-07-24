@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
@@ -30,11 +30,12 @@
 			"!**/*.md",
 			"!**/*.lockb",
 			"!**/LICENSE",
-			"!**/.cache/**/*",
 			"!**/src/common/api/core",
 			"!**/src/common/api/services",
-			"!apps/react-client/.cache",
-			"!apps/react-client/.cache/**/*",
+			"!**/.cache",
+			"!**/.cache/vite-app",
+			"!**/.cache/vite-app/**/*",
+			"!**/.cache/**/*",
 			"!apps/react-client/dist",
 			"!apps/react-client/dist/**/*"
 		]
@@ -53,7 +54,6 @@
 				"noDangerouslySetInnerHtml": "off"
 			},
 			"style": {
-				
 				"useNodejsImportProtocol": "off",
 				"useConst": "warn",
 				"noDefaultExport": "off",
@@ -84,6 +84,7 @@
 				}
 			},
 			"complexity": {
+				"noUselessEscapeInRegex": "off",
 				"useLiteralKeys": "off",
 				"useOptionalChain": "off",
 				"useArrowFunction": "off",

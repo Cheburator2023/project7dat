@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/correctness/noUnusedImports: <explanation> */
 import type { MonacoApi } from "@react-client/features/json4u/lib/editor/types";
 import "@hcaptcha/types";
 import type { MyWorker } from "@react-client/features/json4u/lib/worker/worker";

@@ -9,7 +9,7 @@ import { useEditor } from "@react-client/features/json4u/stores/editorStore";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 // import schema from "../../../../../../etc/json_schema.json";
 
-const EMPTY_HUNKS: any[] = [];
+const _EMPTY_HUNKS: any[] = [];
 
 export function JsonEditorWithDiff() {
 	const main = useEditor("main");
@@ -17,7 +17,7 @@ export function JsonEditorWithDiff() {
 	const [newDataSet, setNewData] = useState();
 	const { mode } = useColorScheme();
 
-	const handleUpdate = ({
+	const _handleUpdate = ({
 		currentData,
 		currentValue,
 		newValue,
@@ -28,11 +28,11 @@ export function JsonEditorWithDiff() {
 		setNewData(newData);
 	};
 
-	const data = JSON.parse(main?.tree.text || "{}");
+	const _data = JSON.parse(main?.tree.text || "{}");
 	const oldText = main?.tree.text || "";
 	const newText = JSON.stringify(newDataSet, null, 2);
 
-	const handleEdit = ({
+	const _handleEdit = ({
 		currentData,
 		currentValue,
 		newValue,
@@ -48,7 +48,7 @@ export function JsonEditorWithDiff() {
 		});
 	};
 
-	const handleClick = (clickArrgs: any) => {
+	const _handleClick = (clickArrgs: any) => {
 		console.log("clickedArrgs", clickArrgs);
 	};
 
