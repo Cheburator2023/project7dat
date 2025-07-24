@@ -1,202 +1,164 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Custom CSS Variables */
+:root {
+	--background: 0 0% 100%;
+	--foreground: 222.2 84% 4.9%;
 
-@layer components {
-	/* json-diagram */
-	.node-shell-base {
-		@apply relative flex max-w-nodeMaxWidth flex-col border-2 border-solid border-default-200 bg-background py-3 pl-3 hover:border-default-300;
-	}
-	.node-shell-object {
-		@apply min-w-nodeMinWidth rounded-bl-3xl rounded-tl-3xl py-3 pl-3;
-	}
-	.node-shell-array {
-		@apply max-h-arrayNodeSize min-h-arrayNodeSize min-w-arrayNodeSize max-w-arrayNodeSize rounded-full p-0;
-	}
-	.node-shell-primitive {
-		@apply min-w-nodeMinWidth rounded-bl-full rounded-tl-full py-nodePadding pl-nodePadding;
-	}
-	/**
-	 * Set `rx` and `ry` instead of `border-radius`.
-	 * The `border-radius` is not supported in `<rect>` tag.
-	 */
-	.minimap-node-object {
-		rx: 8;
-		ry: 8;
-	}
-	.minimap-node-array {
-		/* arrayNodeSize(64) / 2 is 32 */
-		rx: 32;
-		ry: 32;
-	}
-	.minimap-node-primitive {
-		rx: 8;
-		ry: 8;
-	}
-	.react-flow-controls-button {
-		@apply border-x-1 border-y-0 border-solid border-border bg-background first:rounded-tl-md first:rounded-tr-md first:border-y-1 last:rounded-bl-md last:rounded-br-md last:border-y-1 hover:bg-default-100;
-	}
-	.react-flow-controls-button-icon {
-		@apply fill-default-700 stroke-default-700;
-	}
+	--card: 0 0% 100%;
+	--card-foreground: 222.2 84% 4.9%;
 
-	/* json-editor */
-	.json-dropzone-base {
-		@apply flex h-full w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border hover:bg-default-100;
-	}
+	--popover: 0 0% 100%;
+	--popover-foreground: 222.2 84% 4.9%;
 
-	/* node-detail-panel */
-	.node-detail-panel {
-		@apply flex min-h-full min-w-nodeDetailPanelWidth max-w-nodeDetailPanelWidth flex-col overflow-auto border-l-1 border-solid border-l-border bg-cyan-50 p-4 dark:bg-cyan-900;
-	}
-	.leaflet-zoom-button-group {
-		@apply !border-1 border-solid !border-border shadow-none;
-	}
-	.leaflet-zoom-button {
-		@apply !h-6 !w-6 bg-background !leading-5 text-default-700 first:border-b-1 first:border-solid first:border-b-border hover:bg-default-100;
-	}
-	.leaflet-dark-tile {
-		/* [Leaflet Darkmode] https://blog.jamie.holdings/2022/05/15/dark-mode-for/ */
-		filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg)
-			saturate(0.3) brightness(0.7);
-	}
-	.calendar-day {
-		@apply inline-flex h-7 w-7 items-center justify-center text-center text-xs text-default-600;
-	}
+	--primary: 222.2 47.4% 11.2%;
+	--primary-foreground: 210 40% 98%;
 
-	/* shared */
-	.blue-dot-for-node {
-		@apply absolute right-0 top-1/2  min-h-[10px] min-w-[10px] -translate-y-1/2 translate-x-[70%] rounded-full bg-blue-600;
-	}
-	.blue-dot-for-card {
-		@apply absolute right-0 top-[24px] min-h-[40px] min-w-[40px] translate-x-1/2 rounded-full bg-blue-600/40;
-	}
+	--secondary: 210 40% 96.1%;
+	--secondary-foreground: 222.2 47.4% 11.2%;
+
+	--muted: 210 40% 96.1%;
+	--muted-foreground: 215.4 16.3% 46.9%;
+
+	--accent: 210 40% 96.1%;
+	--accent-foreground: 222.2 47.4% 11.2%;
+
+	--destructive: 0 84.2% 60.2%;
+	--destructive-foreground: 210 40% 98%;
+
+	--border: 214.3 31.8% 91.4%;
+	--input: 214.3 31.8% 91.4%;
+	--ring: 222.2 84% 4.9%;
+
+	--radius: 0.5rem;
+
+	--btn-bg-active: #f2f2f2;
+	--btn-text-color: #666666;
+	--btn-input: #666;
+	--kbd-color: #171717;
+	--kbd-bg-color: #fafafa;
+	--search-hl-color: #f9c9b2;
+	--search-width: 300px;
+	--search-height: 300px;
+
+	--max-header-width: 1280px;
+	--container-height: 40px;
+	--statusbar-height: 24px;
+
+	--graph-font-size: 12px;
+	--graph-font-family:
+		"SF Mono", Monaco, Menlo, Consolas, "Ubuntu Mono", "Liberation Mono",
+		"DejaVu Sans Mono", "Courier New", monospace;
+	--max-key-length: 300px;
+	--max-value-length: 500px;
+	--tbl-key-bg-color: rgb(242, 242, 242);
+	--tbl-border: 1px solid #e0e0e080;
+
+	--bg-key: #e0e0e04d;
+	--hl-key: #a31515;
+	--hl-string: #0451a5;
+	--hl-number: #098658;
+	--hl-null: #d1004d;
+	--hl-empty: #0000004d;
+	--hl-index: #0000004d;
+
+	--parse-error: #cb2a2f;
+	--parse-error-foreground: #ff9b9533;
+	--diff-blank-hunk: #cdd7e033;
+	--diff-margin-red: #ffd7d5;
+	--diff-margin-green: #ccffd8;
+	--diff-fg-red: #ff818266;
+	--diff-bg-red: #ff9b9533;
+	--diff-fg-green: #2ddf5966;
+	--diff-bg-green: #82ffa433;
 }
 
-/**
- * To remove attribution('React Flow' title under controls), need some money.
- * @see https://reactflow.dev/docs/guides/remove-attribution/
- */
+[data-theme="dark"] {
+	--background: 222.2 84% 4.9%;
+	--foreground: 210 40% 98%;
+
+	--card: 222.2 84% 4.9%;
+	--card-foreground: 210 40% 98%;
+
+	--popover: 222.2 84% 4.9%;
+	--popover-foreground: 210 40% 98%;
+
+	--primary: 210 40% 98%;
+	--primary-foreground: 222.2 47.4% 11.2%;
+
+	--secondary: 217.2 32.6% 17.5%;
+	--secondary-foreground: 210 40% 98%;
+
+	--muted: 217.2 32.6% 17.5%;
+	--muted-foreground: 215 20.2% 65.1%;
+
+	--accent: 217.2 32.6% 17.5%;
+	--accent-foreground: 210 40% 98%;
+
+	--destructive: 0 62.8% 30.6%;
+	--destructive-foreground: 210 40% 98%;
+
+	--border: 217.2 32.6% 17.5%;
+	--input: 217.2 32.6% 17.5%;
+	--ring: 212.7 26.8% 83.9%;
+}
+
+/* React Flow Attribution Removal */
 div.react-flow__panel.react-flow__attribution {
 	background: transparent !important;
 	display: none !important;
 }
-/* react-flow__panel react-flow__attribution bottom right */
 
-@layer base {
-	:root {
-		--background: 0 0% 100%;
-		--foreground: 222.2 84% 4.9%;
-
-		--card: 0 0% 100%;
-		--card-foreground: 222.2 84% 4.9%;
-
-		--popover: 0 0% 100%;
-		--popover-foreground: 222.2 84% 4.9%;
-
-		--primary: 222.2 47.4% 11.2%;
-		--primary-foreground: 210 40% 98%;
-
-		--secondary: 210 40% 96.1%;
-		--secondary-foreground: 222.2 47.4% 11.2%;
-
-		--muted: 210 40% 96.1%;
-		--muted-foreground: 215.4 16.3% 46.9%;
-
-		--accent: 210 40% 96.1%;
-		--accent-foreground: 222.2 47.4% 11.2%;
-
-		--destructive: 0 84.2% 60.2%;
-		--destructive-foreground: 210 40% 98%;
-
-		--border: 214.3 31.8% 91.4%;
-		--input: 214.3 31.8% 91.4%;
-		--ring: 222.2 84% 4.9%;
-
-		--radius: 0.5rem;
-
-		--btn-bg-active: #f2f2f2;
-		--btn-text-color: #666666;
-		--btn-input: #666;
-		--kbd-color: #171717;
-		--kbd-bg-color: #fafafa;
-		--search-hl-color: #f9c9b2;
-		--search-width: 300px;
-		--search-height: 300px;
-
-		--max-header-width: 1280px;
-		/* height of <Container/> */
-		--container-height: 40px;
-		--statusbar-height: 24px;
-
-		--graph-font-size: 12px;
-		/* same value as --monaco-monospace-font */
-		--graph-font-family:
-			"SF Mono", Monaco, Menlo, Consolas, "Ubuntu Mono", "Liberation Mono",
-			"DejaVu Sans Mono", "Courier New", monospace;
-		--max-key-length: 300px;
-		--max-value-length: 500px;
-		--tbl-key-bg-color: rgb(242, 242, 242);
-		--tbl-border: 1px solid #e0e0e080;
-
-		--bg-key: #e0e0e04d;
-		--hl-key: #a31515;
-		--hl-string: #0451a5;
-		--hl-number: #098658;
-		--hl-null: #d1004d;
-		--hl-empty: #0000004d;
-		--hl-index: #0000004d;
-
-		--parse-error: #cb2a2f;
-		--parse-error-foreground: #ff9b9533;
-		--diff-blank-hunk: #cdd7e033;
-		--diff-margin-red: #ffd7d5;
-		--diff-margin-green: #ccffd8;
-		--diff-fg-red: #ff818266;
-		--diff-bg-red: #ff9b9533;
-		--diff-fg-green: #2ddf5966;
-		--diff-bg-green: #82ffa433;
-	}
-
-	[data-theme="dark"] {
-		--background: 222.2 84% 4.9%;
-		--foreground: 210 40% 98%;
-
-		--card: 222.2 84% 4.9%;
-		--card-foreground: 210 40% 98%;
-
-		--popover: 222.2 84% 4.9%;
-		--popover-foreground: 210 40% 98%;
-
-		--primary: 210 40% 98%;
-		--primary-foreground: 222.2 47.4% 11.2%;
-
-		--secondary: 217.2 32.6% 17.5%;
-		--secondary-foreground: 210 40% 98%;
-
-		--muted: 217.2 32.6% 17.5%;
-		--muted-foreground: 215 20.2% 65.1%;
-
-		--accent: 217.2 32.6% 17.5%;
-		--accent-foreground: 210 40% 98%;
-
-		--destructive: 0 62.8% 30.6%;
-		--destructive-foreground: 210 40% 98%;
-
-		--border: 217.2 32.6% 17.5%;
-		--input: 217.2 32.6% 17.5%;
-		--ring: 212.7 26.8% 83.9%;
-	}
+/* Minimap Node Styles */
+.minimap-node-object {
+	rx: 8;
+	ry: 8;
 }
 
-@layer base {
-	* {
-		@apply border-border;
-	}
+.minimap-node-array {
+	rx: 32;
+	ry: 32;
+}
 
-	body {
-		@apply bg-background text-foreground;
-	}
+.minimap-node-primitive {
+	rx: 8;
+	ry: 8;
+}
+
+/* Leaflet Styles */
+.leaflet-zoom-button-group {
+	border: 1px solid var(--border) !important;
+	box-shadow: none;
+}
+
+.leaflet-zoom-button {
+	height: 24px !important;
+	width: 24px !important;
+	background: hsl(var(--background)) !important;
+	line-height: 20px !important;
+	color: hsl(var(--foreground));
+}
+
+.leaflet-zoom-button:first-child {
+	border-bottom: 1px solid var(--border);
+}
+
+.leaflet-zoom-button:hover {
+	background: hsl(var(--muted)) !important;
+}
+
+.leaflet-dark-tile {
+	filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3)
+		brightness(0.7);
+}
+
+.calendar-day {
+	display: inline-flex;
+	height: 28px;
+	width: 28px;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	font-size: 12px;
+	color: hsl(var(--muted-foreground));
 }
 
 html,

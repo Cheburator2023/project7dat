@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
 import { toast } from "sonner";
-import { twMerge } from "tailwind-merge";
 
 export function tryCatch<T>(fn: () => T, fallback: T): T {
 	try {
@@ -16,7 +15,7 @@ export type FunctionKeys<T extends object> = {
 }[keyof T];
 
 export function cn(...inputs: ClassValue[]) {
-	return twMerge(clsx(inputs));
+	return clsx(inputs);
 }
 
 export function isApproximatelyEqual(a: number, b: number, tolerance: number) {
