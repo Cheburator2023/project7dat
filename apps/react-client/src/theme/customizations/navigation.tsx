@@ -16,6 +16,7 @@ export const navigationCustomizations: Components<Theme> = {
 			root: ({ theme }) => ({
 				borderRadius: (theme.vars || theme).shape.borderRadius,
 				padding: "6px 8px",
+				textWrap: "wrap",
 				[`&.${menuItemClasses.focusVisible}`]: {
 					backgroundColor: "transparent",
 				},
@@ -30,7 +31,6 @@ export const navigationCustomizations: Components<Theme> = {
 	MuiMenu: {
 		styleOverrides: {
 			list: {
-				gap: "0px",
 				[`&.${dividerClasses.root}`]: {
 					margin: "0 -8px",
 				},
@@ -60,7 +60,12 @@ export const navigationCustomizations: Components<Theme> = {
 		defaultProps: {
 			IconComponent: React.forwardRef<SVGSVGElement, SvgIconProps>(
 				(props, ref) => (
-					<UnfoldMoreRoundedIcon fontSize="small" {...props} ref={ref} />
+					<UnfoldMoreRoundedIcon
+						fontSize="small"
+						{...props}
+						ref={ref}
+						data-test-id="navigation--UnfoldMoreRoundedIcon-0"
+					/>
 				),
 			) as any,
 		},
@@ -70,7 +75,8 @@ export const navigationCustomizations: Components<Theme> = {
 				border: "1px solid",
 				borderColor: gray[200],
 				backgroundColor: (theme.vars || theme).palette.background.paper,
-				boxShadow: `inset 0 1px 0 1px hsla(220, 0%, 100%, 0.6), inset 0 -1px 0 1px hsla(220, 35%, 90%, 0.5)`,
+				boxShadow:
+					"inset 0 1px 0 1px hsla(220, 0%, 100%, 0.6), inset 0 -1px 0 1px hsla(220, 35%, 90%, 0.5)",
 				"&:hover": {
 					borderColor: gray[300],
 					backgroundColor: (theme.vars || theme).palette.background.paper,

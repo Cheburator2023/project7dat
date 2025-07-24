@@ -5,10 +5,55 @@ import { outlinedInputClasses } from "@mui/material/OutlinedInput";
 import { toggleButtonClasses } from "@mui/material/ToggleButton";
 import { toggleButtonGroupClasses } from "@mui/material/ToggleButtonGroup";
 import { type Components, type Theme, alpha } from "@mui/material/styles";
-import { brand, gray } from "../themePrimitives";
+
+import { brand, gray, red } from "../themePrimitives";
 
 /* eslint-disable import/prefer-default-export */
 export const inputsCustomizations: Components<Theme> = {
+	MuiPopper: {
+		defaultProps: {
+			popperOptions: {
+				strategy: "fixed",
+			},
+		},
+		styleOverrides: {
+			root: ({ theme }): any => ({
+				position: "fixed !important",
+				top: "50% !important",
+				left: "50% !important",
+				transform: "translate(-50%, -50%) !important",
+				maxHeight: "80vh",
+				maxWidth: "90vw",
+				zIndex: 1300,
+				"&::before": {
+					content: '""',
+					position: "fixed",
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					backgroundColor: "rgba(0, 0, 0, 0.5)",
+					zIndex: -1,
+				},
+			}),
+		},
+	},
+	MuiInputLabel: {
+		styleOverrides: {
+			root: {
+				pointerEvents: "none",
+			},
+		},
+	},
+	MuiButtonGroup: {
+		styleOverrides: {
+			root: {
+				"& .MuiButtonGroup-firstButton": {
+					borderRight: "none!important",
+				},
+			},
+		},
+	},
 	MuiButtonBase: {
 		defaultProps: {
 			disableTouchRipple: true,
@@ -19,15 +64,71 @@ export const inputsCustomizations: Components<Theme> = {
 				boxSizing: "border-box",
 				transition: "all 100ms ease-in",
 				"&:focus-visible": {
-					outline: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
+					outline: `3px auto ${alpha(theme.palette.primary.main, 0.5)}`,
 					outlineOffset: "2px",
 				},
 			}),
 		},
 	},
+	MuiPopover: {
+		defaultProps: {
+			anchorOrigin: {
+				vertical: "center",
+				horizontal: "center",
+			},
+			transformOrigin: {
+				vertical: "center",
+				horizontal: "center",
+			},
+			anchorReference: "none",
+			BackdropProps: {
+				sx: {
+					backgroundColor: "rgba(0, 0, 0, 0.5)",
+				},
+			},
+		},
+		styleOverrides: {
+			root: {
+				"& .MuiBackdrop-root": {
+					backgroundColor: "rgba(0, 0, 0, 0.5)",
+				},
+			},
+			paper: ({ theme }) => ({
+				position: "fixed",
+				top: "50% !important",
+				left: "50% !important",
+				transform: "translate(-50%, -50%) !important",
+				maxHeight: "80vh",
+				maxWidth: "90vw",
+				borderRadius: (theme.vars || theme).shape.borderRadius,
+				boxShadow: theme.shadows[8],
+			}),
+		},
+	},
+	MuiAutocomplete: {
+		defaultProps: {
+			disablePortal: false,
+		},
+		styleOverrides: {
+			root: ({ theme }) => ({
+				[`& .${outlinedInputClasses.root}`]: {
+					padding: "inherit",
+					paddingLeft: "10px",
+					paddingRight: "10px",
+				},
+			}),
+			popper: {
+				zIndex: 1300,
+			},
+		},
+	},
 	MuiButton: {
 		styleOverrides: {
 			root: ({ theme }) => ({
+				"&.Mui-disabled": {
+					backgroundImage: "none",
+					border: "none",
+				},
 				boxShadow: "none",
 				borderRadius: (theme.vars || theme).shape.borderRadius,
 				textTransform: "none",
@@ -38,7 +139,7 @@ export const inputsCustomizations: Components<Theme> = {
 						},
 						style: {
 							height: "2.25rem",
-							padding: "8px 12px",
+							// padding: "16px 12px",
 						},
 					},
 					{
@@ -46,7 +147,7 @@ export const inputsCustomizations: Components<Theme> = {
 							size: "medium",
 						},
 						style: {
-							height: "2.5rem", // 40px
+							//   height: "2.5rem", // 40px
 						},
 					},
 					{
@@ -93,8 +194,14 @@ export const inputsCustomizations: Components<Theme> = {
 						style: {
 							color: "white",
 							backgroundColor: brand[300],
-							backgroundImage: `linear-gradient(to bottom, ${alpha(brand[400], 0.8)}, ${brand[500]})`,
-							boxShadow: `inset 0 2px 0 ${alpha(brand[200], 0.2)}, inset 0 -2px 0 ${alpha(brand[700], 0.4)}`,
+							backgroundImage: `linear-gradient(to bottom, ${alpha(
+								brand[400],
+								0.8,
+							)}, ${brand[500]})`,
+							boxShadow: `inset 0 2px 0 ${alpha(
+								brand[200],
+								0.2,
+							)}, inset 0 -2px 0 ${alpha(brand[700], 0.4)}`,
 							border: `1px solid ${brand[500]}`,
 							"&:hover": {
 								backgroundColor: brand[700],
@@ -313,14 +420,25 @@ export const inputsCustomizations: Components<Theme> = {
 			icon: (
 				<CheckBoxOutlineBlankRoundedIcon
 					sx={{ color: "hsla(210, 0%, 0%, 0.0)" }}
+					data-test-id="inputs--CheckBoxOutlineBlankRoundedIcon-0"
 				/>
 			),
-			checkedIcon: <CheckRoundedIcon sx={{ height: 14, width: 14 }} />,
-			indeterminateIcon: <RemoveRoundedIcon sx={{ height: 14, width: 14 }} />,
+			checkedIcon: (
+				<CheckRoundedIcon
+					sx={{ height: 14, width: 14 }}
+					data-test-id="inputs--CheckRoundedIcon-0"
+				/>
+			),
+			indeterminateIcon: (
+				<RemoveRoundedIcon
+					sx={{ height: 14, width: 14 }}
+					data-test-id="inputs--RemoveRoundedIcon-0"
+				/>
+			),
 		},
 		styleOverrides: {
 			root: ({ theme }) => ({
-				margin: 10,
+				margin: 12,
 				height: 16,
 				width: 16,
 				borderRadius: 5,
@@ -339,11 +457,11 @@ export const inputsCustomizations: Components<Theme> = {
 				},
 				"&.Mui-checked": {
 					color: "white",
-					backgroundColor: brand[500],
-					borderColor: brand[500],
-					boxShadow: `none`,
+					backgroundColor: gray[700],
+					borderColor: gray[700],
+					boxShadow: "none",
 					"&:hover": {
-						backgroundColor: brand[600],
+						backgroundColor: gray[600],
 					},
 				},
 				...theme.applyStyles("dark", {
@@ -351,11 +469,11 @@ export const inputsCustomizations: Components<Theme> = {
 					boxShadow: "0 0 0 1.5px hsl(210, 0%, 0%) inset",
 					backgroundColor: alpha(gray[900], 0.8),
 					"&:hover": {
-						borderColor: brand[300],
+						borderColor: gray[600],
 					},
 					"&.Mui-focusVisible": {
-						borderColor: brand[400],
-						outline: `3px solid ${alpha(brand[500], 0.5)}`,
+						borderColor: gray[600],
+						outline: `3px solid ${alpha(gray[500], 0.5)}`,
 						outlineOffset: "2px",
 					},
 				}),
@@ -368,6 +486,7 @@ export const inputsCustomizations: Components<Theme> = {
 				border: "none",
 			},
 			input: {
+				padding: "10px !important",
 				"&::placeholder": {
 					opacity: 0.7,
 					color: gray[500],
@@ -378,20 +497,24 @@ export const inputsCustomizations: Components<Theme> = {
 	MuiOutlinedInput: {
 		styleOverrides: {
 			input: {
-				padding: 0,
+				// padding: 0,
 			},
 			root: ({ theme }) => ({
-				padding: "8px 12px",
+				"&.Mui-error": {
+					borderColor: theme.palette.error.main,
+				},
+				// padding: "14px 12px 14px",
 				color: (theme.vars || theme).palette.text.primary,
 				borderRadius: (theme.vars || theme).shape.borderRadius,
 				border: `1px solid ${(theme.vars || theme).palette.divider}`,
 				backgroundColor: (theme.vars || theme).palette.background.default,
+				padding: "inherit",
 				transition: "border 120ms ease-in",
 				"&:hover": {
 					borderColor: gray[400],
 				},
 				[`&.${outlinedInputClasses.focused}`]: {
-					outline: `3px solid ${alpha(brand[500], 0.5)}`,
+					outline: `2px auto ${alpha(brand[500], 0.5)}`,
 					borderColor: brand[400],
 				},
 				...theme.applyStyles("dark", {
@@ -405,7 +528,7 @@ export const inputsCustomizations: Components<Theme> = {
 							size: "small",
 						},
 						style: {
-							height: "2.25rem",
+							// height: "2.25rem",
 						},
 					},
 					{
@@ -413,13 +536,23 @@ export const inputsCustomizations: Components<Theme> = {
 							size: "medium",
 						},
 						style: {
-							height: "2.5rem",
+							//   height: "2.5rem",
 						},
 					},
 				],
 			}),
 			notchedOutline: {
+				"& legend": {
+					display: "none",
+				},
 				border: "none",
+			},
+		},
+	},
+	MuiFormHelperText: {
+		styleOverrides: {
+			root: {
+				marginLeft: 0,
 			},
 		},
 	},
@@ -430,15 +563,93 @@ export const inputsCustomizations: Components<Theme> = {
 				...theme.applyStyles("dark", {
 					color: (theme.vars || theme).palette.grey[400],
 				}),
+				maxHeight: "1em",
+				margin: "0",
+				padding: "0 4px 0 8px",
 			}),
+		},
+	},
+	MuiRadio: {
+		styleOverrides: {
+			root: {
+				"&.Mui-checked": {
+					color: gray[700],
+				},
+			},
+		},
+	},
+	MuiTextField: {
+		styleOverrides: {
+			root: {
+				"& .MuiFormLabel-root": {
+					position: "relative !important",
+					transform: "none",
+					display: "block",
+					paddingBottom: "4px",
+					fontSize: "12px",
+					"&.MuiInputLabel": {
+						transform: "none",
+						position: "relative !important",
+						display: "block",
+					},
+					"&.MuiInputLabel-shrink": {
+						transform: "none",
+					},
+					"& .Mui-focused": {
+						color: "black",
+					},
+				},
+			},
+		},
+	},
+	MuiFormControl: {
+		styleOverrides: {
+			root: {
+				"&.MuiTextField-root": {
+					marginBottom: "0",
+					marginTop: "0",
+				},
+				"& .MuiList-root": {
+					padding: "0",
+					"& .MuiFormHelperText-root": {
+						fontSize: "12px",
+					},
+					"& .MuiFormHelperText-root:first-letter": {
+						textTransform: "uppercase",
+					},
+				},
+			},
 		},
 	},
 	MuiFormLabel: {
 		styleOverrides: {
-			root: ({ theme }) => ({
-				typography: theme.typography.caption,
-				marginBottom: 8,
-			}),
+			root: {
+				position: "relative",
+				transform: "none",
+				display: "block",
+				fontSize: "12px",
+				paddingBottom: "4px",
+
+				"&.MuiInputLabel-root": {
+					transform: "none",
+					position: "relative !important",
+					display: "block",
+					fontSize: "12px",
+					fontWeight: "normal",
+				},
+				"&.MuiInputLabel-shrink": {
+					transform: "none",
+				},
+				"& .MuiFormLabel-asterisk": {
+					fontSize: "20px",
+					color: red[300],
+					// position: "absolute",
+					// fontWeight: "bold",
+				},
+				"& .Mui-focused": {
+					color: "black",
+				},
+			},
 		},
 	},
 };

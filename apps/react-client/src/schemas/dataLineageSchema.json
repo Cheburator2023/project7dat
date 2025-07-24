@@ -1,0 +1,338 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Data Lineage Graph Schema",
+	"type": "object",
+	"required": [
+		"id",
+		"name",
+		"version",
+		"created",
+		"updated",
+		"nodes",
+		"edges",
+		"metadata"
+	],
+	"properties": {
+		"id": {
+			"type": "string",
+			"description": "Unique identifier for the data lineage graph"
+		},
+		"name": {
+			"type": "string",
+			"description": "Human-readable name for the data lineage graph"
+		},
+		"description": {
+			"type": "string",
+			"description": "Optional description of the data lineage graph"
+		},
+		"version": {
+			"type": "string",
+			"pattern": "^\\d+\\.\\d+\\.\\d+$",
+			"description": "Semantic version of the data lineage graph"
+		},
+		"created": {
+			"type": "string",
+			"format": "date-time",
+			"description": "ISO 8601 timestamp when the graph was created"
+		},
+		"updated": {
+			"type": "string",
+			"format": "date-time",
+			"description": "ISO 8601 timestamp when the graph was last updated"
+		},
+		"nodes": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/DataLineageNode"
+			},
+			"description": "Array of data lineage nodes"
+		},
+		"edges": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/DataLineageEdge"
+			},
+			"description": "Array of data lineage edges"
+		},
+		"metadata": {
+			"type": "object",
+			"required": ["author", "environment", "tags"],
+			"properties": {
+				"author": {
+					"type": "string",
+					"description": "Author of the data lineage graph"
+				},
+				"environment": {
+					"type": "string",
+					"enum": ["development", "staging", "production"],
+					"description": "Environment where this lineage applies"
+				},
+				"tags": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Tags associated with the graph"
+				}
+			}
+		}
+	},
+	"definitions": {
+		"DataLineageNode": {
+			"type": "object",
+			"required": ["id", "name", "type", "metadata", "position", "status"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "Unique identifier for the node"
+				},
+				"name": {
+					"type": "string",
+					"description": "Human-readable name for the node"
+				},
+				"type": {
+					"type": "string",
+					"enum": [
+						"source",
+						"transformation",
+						"destination",
+						"dataset",
+						"model",
+						"view"
+					],
+					"description": "Type of the data lineage node"
+				},
+				"description": {
+					"type": "string",
+					"description": "Optional description of the node"
+				},
+				"metadata": {
+					"type": "object",
+					"required": ["created", "updated", "tags"],
+					"properties": {
+						"owner": {
+							"type": "string",
+							"description": "Owner of the data asset"
+						},
+						"created": {
+							"type": "string",
+							"format": "date-time",
+							"description": "ISO 8601 timestamp when the node was created"
+						},
+						"updated": {
+							"type": "string",
+							"format": "date-time",
+							"description": "ISO 8601 timestamp when the node was last updated"
+						},
+						"tags": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Tags associated with the node"
+						},
+						"schema": {
+							"$ref": "#/definitions/DataSchema"
+						},
+						"location": {
+							"type": "string",
+							"description": "Physical or logical location of the data"
+						},
+						"size": {
+							"type": "number",
+							"description": "Size of the data in bytes"
+						},
+						"rowCount": {
+							"type": "number",
+							"description": "Number of rows in the dataset"
+						}
+					}
+				},
+				"position": {
+					"type": "object",
+					"required": ["x", "y"],
+					"properties": {
+						"x": {
+							"type": "number",
+							"description": "X coordinate for node positioning"
+						},
+						"y": {
+							"type": "number",
+							"description": "Y coordinate for node positioning"
+						}
+					}
+				},
+				"status": {
+					"type": "string",
+					"enum": ["active", "inactive", "deprecated", "error"],
+					"description": "Current status of the node"
+				}
+			}
+		},
+		"DataLineageEdge": {
+			"type": "object",
+			"required": ["id", "sourceId", "targetId", "type", "metadata"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "Unique identifier for the edge"
+				},
+				"sourceId": {
+					"type": "string",
+					"description": "ID of the source node"
+				},
+				"targetId": {
+					"type": "string",
+					"description": "ID of the target node"
+				},
+				"type": {
+					"type": "string",
+					"enum": ["data_flow", "dependency", "transformation", "reference"],
+					"description": "Type of the relationship"
+				},
+				"metadata": {
+					"type": "object",
+					"required": ["created", "status"],
+					"properties": {
+						"created": {
+							"type": "string",
+							"format": "date-time",
+							"description": "ISO 8601 timestamp when the edge was created"
+						},
+						"transformationLogic": {
+							"type": "string",
+							"description": "SQL or other transformation logic"
+						},
+						"frequency": {
+							"type": "string",
+							"enum": ["real-time", "batch", "on-demand"],
+							"description": "Frequency of data processing"
+						},
+						"lastRun": {
+							"type": "string",
+							"format": "date-time",
+							"description": "ISO 8601 timestamp of last execution"
+						},
+						"status": {
+							"type": "string",
+							"enum": ["active", "inactive", "failed"],
+							"description": "Current status of the edge"
+						}
+					}
+				}
+			}
+		},
+		"DataSchema": {
+			"type": "object",
+			"required": ["fields"],
+			"properties": {
+				"fields": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/DataField"
+					},
+					"description": "Array of data fields"
+				},
+				"primaryKey": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Primary key field names"
+				},
+				"foreignKeys": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/ForeignKey"
+					},
+					"description": "Foreign key definitions"
+				}
+			}
+		},
+		"DataField": {
+			"type": "object",
+			"required": ["name", "type", "nullable"],
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Field name"
+				},
+				"type": {
+					"type": "string",
+					"enum": [
+						"string",
+						"number",
+						"boolean",
+						"date",
+						"timestamp",
+						"json",
+						"array"
+					],
+					"description": "Data type of the field"
+				},
+				"nullable": {
+					"type": "boolean",
+					"description": "Whether the field can be null"
+				},
+				"description": {
+					"type": "string",
+					"description": "Optional description of the field"
+				},
+				"constraints": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/FieldConstraint"
+					},
+					"description": "Field constraints"
+				}
+			}
+		},
+		"FieldConstraint": {
+			"type": "object",
+			"required": ["type"],
+			"properties": {
+				"type": {
+					"type": "string",
+					"enum": ["unique", "not_null", "check", "default"],
+					"description": "Type of constraint"
+				},
+				"value": {
+					"oneOf": [
+						{ "type": "string" },
+						{ "type": "number" },
+						{ "type": "boolean" }
+					],
+					"description": "Constraint value"
+				},
+				"expression": {
+					"type": "string",
+					"description": "Constraint expression for check constraints"
+				}
+			}
+		},
+		"ForeignKey": {
+			"type": "object",
+			"required": ["fields", "referencedTable", "referencedFields"],
+			"properties": {
+				"fields": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Local field names"
+				},
+				"referencedTable": {
+					"type": "string",
+					"description": "Referenced table name"
+				},
+				"referencedFields": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "Referenced field names"
+				}
+			}
+		}
+	}
+}

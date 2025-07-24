@@ -54,7 +54,6 @@
 		"@monaco-editor/react": "^4.7.0",
 		"@sentry/react": "^8.26.0",
 		"@sentry/utils": "^8.27.0",
-		"@tanstack/react-virtual": "^3.10.8",
 		"@xyflow/react": "^12.1.1",
 		"@xyflow/system": "^0.0.43",
 		"ag-charts-community": "11.3.0",
