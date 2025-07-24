@@ -4,6 +4,8 @@ import type { MyWorker } from "@react-client/features/json4u/lib/worker/worker";
 import type { Remote } from "comlink";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 
+import type {} from "@mui/material/themeCssVarsAugmentation";
+
 type Messages = any;
 export type MessageKey = any;
 
