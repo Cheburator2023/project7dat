@@ -1,13 +1,19 @@
+import DownloadIcon from "@mui/icons-material/Download";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { styled } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
+import { Search } from "@react-client/features/dashboard/Search";
 import { DataMart } from "@react-client/features/dataMart/DataMart";
 import { EditorDiff } from "@react-client/features/diff/EditorDiff";
 import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
 import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
+import { ExportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ExportPopover";
+import { ImportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ImportPopover";
+import { PopoverButton } from "@react-client/features/json4u/containers/editor/sidenav/PopoverButton";
 import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -25,7 +31,17 @@ export const Dashboard = () => {
 	return (
 		<div>
 			<Header>
-				<div />
+				<Search />
+				<PopoverButton
+					// title={"Импорт"}
+					icon={<UploadFileIcon className="icon" />}
+					content={<ImportPopover />}
+				/>
+				<PopoverButton
+					// title={"Экспорт"}
+					icon={<DownloadIcon />}
+					content={<ExportPopover />}
+				/>
 			</Header>
 			<Wrapper id="dashboard_page_container">
 				<Flex

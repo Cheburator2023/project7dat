@@ -140,7 +140,14 @@ export class EditorWrapper {
 		};
 
 		reportTextSize(text.length);
-		const parsedTree = await this.worker().parseAndFormat(text, options);
+		console.log("🐸 Pepe said >> EditorWrapper >> parseAndSet >> text:", text);
+
+		const parsedTree = await this?.worker()?.parseAndFormat(text, options);
+		console.log(
+			"🐸 Pepe said >> EditorWrapper >> parseAndSet >> parsedTree:",
+			parsedTree,
+		);
+
 		const tree = this.setTree(parsedTree, resetCursor);
 		return { set: true, parse: tree.valid() };
 	}

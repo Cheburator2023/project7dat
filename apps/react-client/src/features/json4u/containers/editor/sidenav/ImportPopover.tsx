@@ -67,6 +67,7 @@ function CsvOptions({ checked, setChecked }: CsvOptionsProps) {
 function useOnFile(fileType: FileType, options: { csvWithHeader?: boolean }) {
 	const t = useTranslations();
 	const main = useEditor("main");
+	console.log("🐸 Pepe said >> useOnFile >> main:", main);
 
 	return (file: File) => {
 		if (!main) {
