@@ -54,6 +54,11 @@ export const surfacesCustomizations: Components<Theme> = {
 		defaultProps: {
 			elevation: 0,
 		},
+		styleOverrides: {
+			outlined: {
+				border: "1px solid #7a7f894d",
+			},
+		},
 	},
 	MuiCard: {
 		styleOverrides: {

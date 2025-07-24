@@ -1,106 +1,102 @@
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import { styled } from "@mui/system";
-import { DatePicker } from "@mui/x-date-pickers";
+import { IconButton, Typography } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
-import { ExportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ExportPopover";
-import { ImportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ImportPopover";
-import { PopoverButton } from "@react-client/features/json4u/containers/editor/sidenav/PopoverButton";
-import { ViewMode } from "@react-client/features/json4u/lib/db/config";
-import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
-import { Search } from "@react-client/features/navigation/organisms/Search";
-import { Download, FileUp } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
+import { Spacer } from "@react-client/common/primitives/Spacer";
+import { useNavigate } from "react-router";
 import { Flex } from "../../../common/primitives/Flex";
 import { useGlobalSettingsStore } from "../../../common/store/globalSettingsStore";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
-import { AppNavbar } from "./AppNavbar";
 
-export function Header({ navbarVisible = true }) {
-	const { toggleSideMenu } = useGlobalSettingsStore();
+export function Header({
+	children,
+	title,
+	calcId,
+}: {
+	children?: React.ReactNode;
+	calcId?: string;
+	title?: string;
+}) {
+	const { toggleSideMenu, isSideMenuVisible } = useGlobalSettingsStore();
+	const navigate = useNavigate();
 
-	const {
-		sideNavExpanded,
-		setSideNavExpanded,
-		fixSideNav,
-		setFixSideNav,
-		viewMode,
-		enableAutoFormat,
-		enableAutoSort,
-		enableNestParse,
-		setParseOptions,
-		enableSyncScroll,
-		setEnableSyncScroll,
-	} = useStatusStore(
-		useShallow((state) => {
-			const parseOptions = state.parseOptions;
-			return {
-				viewMode: state.viewMode,
-				sideNavExpanded: !!state.sideNavExpanded,
-				setSideNavExpanded: state.setSideNavExpanded,
-				fixSideNav: state.fixSideNav,
-				setFixSideNav: state.setFixSideNav,
-				enableAutoFormat: !!parseOptions.format,
-				enableAutoSort: !!parseOptions.sort,
-				enableNestParse: !!parseOptions.nest,
-				setParseOptions: state.setParseOptions,
-				enableSyncScroll: state.enableSyncScroll,
-				setEnableSyncScroll: state.setEnableSyncScroll,
-			};
-		}),
-	);
+	const id1 = new URLSearchParams(window.location.search).get("id1");
+	const id2 = new URLSearchParams(window.location.search).get("id2");
 
 	return (
 		<>
-			<AppNavbar />
-			<Card padding="2px 3px">
-				<StyledFlex
-					width="100%"
-					pad="2px 3px"
-					gap={2}
+			<Card
+				data-test-id="header--Card-0"
+				zoom={0.8}
+				uuid="header_uuid"
+				style={{ overflow: "visible", padding: "4px" }}
+			>
+				<Flex
+					width="fill-available"
+					gap={16}
 					alignItems="center"
 					justifyContent="space-between"
 					position="relative"
 					zIndex={1000}
+					data-test-id="header--Flex-0"
 				>
-					<Flex flexDirection="row" gap={10} alignItems="center">
-						<MenuButton aria-label="menu" onClick={() => toggleSideMenu()}>
-							<MenuRoundedIcon />
+					<Flex
+						flexDirection="row"
+						gap={8}
+						alignItems="center"
+						flexShrink={0}
+						data-test-id="header--Flex-1"
+					>
+						<MenuButton
+							aria-label="menu"
+							onClick={() => toggleSideMenu()}
+							title={isSideMenuVisible ? "Закртыть меню" : "Открыть меню"}
+							data-test-id="header--MenuButton-0"
+						>
+							{!isSideMenuVisible ? (
+								<MenuRoundedIcon data-test-id="header--MenuRoundedIcon-0" />
+							) : (
+								<CloseRoundedIcon data-test-id="header--CloseRoundedIcon-0" />
+							)}
 						</MenuButton>
-						<NavbarBreadcrumbs />
+						{!!history.state.idx && (
+							<IconButton
+								size="small"
+								onClick={() => navigate(-1)}
+								title="Вернуться назад"
+							>
+								<ArrowBackIcon />
+							</IconButton>
+						)}
+						{title ? (
+							<b>{title}</b>
+						) : (
+							<NavbarBreadcrumbs data-test-id="header--NavbarBreadcrumbs-0" />
+						)}
+						{calcId ||
+							((id1 || id2) && (
+								<Typography data-test-id="header--Typography-0">
+									- {calcId || `${id1} / ${id2}`}
+								</Typography>
+							))}
 					</Flex>
-					{navbarVisible ? (
-						<Flex flexDirection="row" gap={6} alignItems="center">
-							{viewMode === ViewMode.Graph && <Search />}
-
-							<Flex alignItems="center" gap={6}>
-								<PopoverButton
-									// title={"Импорт"}
-									icon={<FileUp className="icon" />}
-									content={<ImportPopover />}
-								/>
-								<PopoverButton
-									// title={"Экспорт"}
-									icon={<Download className="icon" />}
-									content={<ExportPopover />}
-								/>
-							</Flex>
-
-							<DatePicker />
-							<ColorModeIconDropdown />
-						</Flex>
-					) : (
-						<ColorModeIconDropdown />
-					)}
-				</StyledFlex>
+					<Flex
+						flexDirection="row"
+						gap={6}
+						alignItems="center"
+						justifyContent="flex-end"
+						width="fill-available"
+						data-test-id="header--Flex-2"
+					>
+						{children}
+						<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
+					</Flex>
+				</Flex>
 			</Card>
+			<Spacer height={6} data-test-id="anketa-create-page--Spacer-1" />
 		</>
 	);
 }
-
-const StyledFlex = styled(Flex)`
-	width: -moz-available;
-	width: -webkit-fill-available;
-	width: fill-available;
-`;

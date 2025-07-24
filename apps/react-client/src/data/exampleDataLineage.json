@@ -1,0 +1,422 @@
+{
+	"id": "ecommerce-data-pipeline",
+	"name": "E-commerce Data Pipeline",
+	"description": "Complete data lineage for e-commerce analytics platform",
+	"version": "1.0.0",
+	"created": "2024-01-15T10:00:00Z",
+	"updated": "2024-01-20T14:30:00Z",
+	"nodes": [
+		{
+			"id": "raw-orders-db",
+			"name": "Orders Database",
+			"type": "source",
+			"description": "Production PostgreSQL database containing raw order data",
+			"metadata": {
+				"owner": "data-engineering@company.com",
+				"created": "2024-01-15T10:00:00Z",
+				"updated": "2024-01-20T14:30:00Z",
+				"tags": ["production", "postgresql", "orders", "transactional"],
+				"schema": {
+					"fields": [
+						{
+							"name": "order_id",
+							"type": "string",
+							"nullable": false,
+							"description": "Unique order identifier",
+							"constraints": [
+								{
+									"type": "unique"
+								}
+							]
+						},
+						{
+							"name": "customer_id",
+							"type": "string",
+							"nullable": false,
+							"description": "Customer identifier"
+						},
+						{
+							"name": "order_date",
+							"type": "timestamp",
+							"nullable": false,
+							"description": "When the order was placed"
+						},
+						{
+							"name": "total_amount",
+							"type": "number",
+							"nullable": false,
+							"description": "Total order amount in USD"
+						},
+						{
+							"name": "status",
+							"type": "string",
+							"nullable": false,
+							"description": "Order status"
+						}
+					],
+					"primaryKey": ["order_id"]
+				},
+				"location": "postgresql://prod-db:5432/ecommerce",
+				"size": 2147483648,
+				"rowCount": 1500000
+			},
+			"position": {
+				"x": 100,
+				"y": 100
+			},
+			"status": "active"
+		},
+		{
+			"id": "raw-customers-db",
+			"name": "Customers Database",
+			"type": "source",
+			"description": "Customer information and profiles",
+			"metadata": {
+				"owner": "data-engineering@company.com",
+				"created": "2024-01-15T10:00:00Z",
+				"updated": "2024-01-20T14:30:00Z",
+				"tags": ["production", "postgresql", "customers", "pii"],
+				"schema": {
+					"fields": [
+						{
+							"name": "customer_id",
+							"type": "string",
+							"nullable": false,
+							"description": "Unique customer identifier"
+						},
+						{
+							"name": "email",
+							"type": "string",
+							"nullable": false,
+							"description": "Customer email address"
+						},
+						{
+							"name": "first_name",
+							"type": "string",
+							"nullable": false,
+							"description": "Customer first name"
+						},
+						{
+							"name": "last_name",
+							"type": "string",
+							"nullable": false,
+							"description": "Customer last name"
+						},
+						{
+							"name": "registration_date",
+							"type": "timestamp",
+							"nullable": false,
+							"description": "When customer registered"
+						}
+					],
+					"primaryKey": ["customer_id"]
+				},
+				"location": "postgresql://prod-db:5432/ecommerce",
+				"size": 524288000,
+				"rowCount": 250000
+			},
+			"position": {
+				"x": 100,
+				"y": 300
+			},
+			"status": "active"
+		},
+		{
+			"id": "etl-orders-transform",
+			"name": "Orders ETL Transform",
+			"type": "transformation",
+			"description": "Cleans and enriches order data",
+			"metadata": {
+				"owner": "data-engineering@company.com",
+				"created": "2024-01-15T10:00:00Z",
+				"updated": "2024-01-20T14:30:00Z",
+				"tags": ["etl", "airflow", "transformation", "orders"],
+				"location": "airflow://etl-cluster/orders_transform_dag"
+			},
+			"position": {
+				"x": 400,
+				"y": 200
+			},
+			"status": "active"
+		},
+		{
+			"id": "staging-orders",
+			"name": "Staging Orders",
+			"type": "dataset",
+			"description": "Cleaned and validated order data in staging",
+			"metadata": {
+				"owner": "data-engineering@company.com",
+				"created": "2024-01-15T10:00:00Z",
+				"updated": "2024-01-20T14:30:00Z",
+				"tags": ["staging", "snowflake", "orders", "cleaned"],
+				"schema": {
+					"fields": [
+						{
+							"name": "order_id",
+							"type": "string",
+							"nullable": false,
+							"description": "Unique order identifier"
+						},
+						{
+							"name": "customer_id",
+							"type": "string",
+							"nullable": false,
+							"description": "Customer identifier"
+						},
+						{
+							"name": "order_date",
+							"type": "date",
+							"nullable": false,
+							"description": "Order date (date only)"
+						},
+						{
+							"name": "total_amount_usd",
+							"type": "number",
+							"nullable": false,
+							"description": "Total amount normalized to USD"
+						},
+						{
+							"name": "order_status",
+							"type": "string",
+							"nullable": false,
+							"description": "Standardized order status"
+						},
+						{
+							"name": "is_valid",
+							"type": "boolean",
+							"nullable": false,
+							"description": "Data quality validation flag"
+						}
+					],
+					"primaryKey": ["order_id"]
+				},
+				"location": "snowflake://warehouse/staging.orders",
+				"size": 1073741824,
+				"rowCount": 1450000
+			},
+			"position": {
+				"x": 700,
+				"y": 200
+			},
+			"status": "active"
+		},
+		{
+			"id": "analytics-orders-model",
+			"name": "Orders Analytics Model",
+			"type": "model",
+			"description": "dbt model for order analytics with business logic",
+			"metadata": {
+				"owner": "analytics@company.com",
+				"created": "2024-01-15T10:00:00Z",
+				"updated": "2024-01-20T14:30:00Z",
+				"tags": ["dbt", "analytics", "orders", "business-logic"],
+				"location": "dbt://analytics/models/marts/orders_fact.sql"
+			},
+			"position": {
+				"x": 1000,
+				"y": 200
+			},
+			"status": "active"
+		},
+		{
+			"id": "orders-fact-table",
+			"name": "Orders Fact Table",
+			"type": "destination",
+			"description": "Final orders fact table for analytics",
+			"metadata": {
+				"owner": "analytics@company.com",
+				"created": "2024-01-15T10:00:00Z",
+				"updated": "2024-01-20T14:30:00Z",
+				"tags": ["warehouse", "fact-table", "orders", "analytics"],
+				"schema": {
+					"fields": [
+						{
+							"name": "order_key",
+							"type": "string",
+							"nullable": false,
+							"description": "Surrogate key for orders"
+						},
+						{
+							"name": "order_id",
+							"type": "string",
+							"nullable": false,
+							"description": "Business key - order identifier"
+						},
+						{
+							"name": "customer_key",
+							"type": "string",
+							"nullable": false,
+							"description": "Foreign key to customer dimension"
+						},
+						{
+							"name": "order_date_key",
+							"type": "string",
+							"nullable": false,
+							"description": "Foreign key to date dimension"
+						},
+						{
+							"name": "total_amount",
+							"type": "number",
+							"nullable": false,
+							"description": "Order total amount"
+						},
+						{
+							"name": "order_count",
+							"type": "number",
+							"nullable": false,
+							"description": "Always 1 for additive measures"
+						}
+					],
+					"primaryKey": ["order_key"],
+					"foreignKeys": [
+						{
+							"fields": ["customer_key"],
+							"referencedTable": "dim_customer",
+							"referencedFields": ["customer_key"]
+						}
+					]
+				},
+				"location": "snowflake://warehouse/analytics.fact_orders",
+				"size": 2147483648,
+				"rowCount": 1450000
+			},
+			"position": {
+				"x": 1300,
+				"y": 200
+			},
+			"status": "active"
+		},
+		{
+			"id": "revenue-dashboard",
+			"name": "Revenue Dashboard",
+			"type": "view",
+			"description": "Executive revenue dashboard in Tableau",
+			"metadata": {
+				"owner": "business-intelligence@company.com",
+				"created": "2024-01-15T10:00:00Z",
+				"updated": "2024-01-20T14:30:00Z",
+				"tags": ["tableau", "dashboard", "revenue", "executive"],
+				"location": "tableau://server/revenue_dashboard"
+			},
+			"position": {
+				"x": 1600,
+				"y": 100
+			},
+			"status": "active"
+		},
+		{
+			"id": "customer-analytics-view",
+			"name": "Customer Analytics View",
+			"type": "view",
+			"description": "Customer behavior analysis dashboard",
+			"metadata": {
+				"owner": "analytics@company.com",
+				"created": "2024-01-15T10:00:00Z",
+				"updated": "2024-01-20T14:30:00Z",
+				"tags": ["tableau", "customer", "analytics", "behavior"],
+				"location": "tableau://server/customer_analytics"
+			},
+			"position": {
+				"x": 1600,
+				"y": 300
+			},
+			"status": "active"
+		}
+	],
+	"edges": [
+		{
+			"id": "orders-db-to-etl",
+			"sourceId": "raw-orders-db",
+			"targetId": "etl-orders-transform",
+			"type": "data_flow",
+			"metadata": {
+				"created": "2024-01-15T10:00:00Z",
+				"transformationLogic": "SELECT * FROM orders WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'",
+				"frequency": "batch",
+				"lastRun": "2024-01-20T14:00:00Z",
+				"status": "active"
+			}
+		},
+		{
+			"id": "customers-db-to-etl",
+			"sourceId": "raw-customers-db",
+			"targetId": "etl-orders-transform",
+			"type": "reference",
+			"metadata": {
+				"created": "2024-01-15T10:00:00Z",
+				"transformationLogic": "LEFT JOIN customers c ON o.customer_id = c.customer_id",
+				"frequency": "batch",
+				"lastRun": "2024-01-20T14:00:00Z",
+				"status": "active"
+			}
+		},
+		{
+			"id": "etl-to-staging",
+			"sourceId": "etl-orders-transform",
+			"targetId": "staging-orders",
+			"type": "transformation",
+			"metadata": {
+				"created": "2024-01-15T10:00:00Z",
+				"transformationLogic": "Data validation, currency conversion, status standardization",
+				"frequency": "batch",
+				"lastRun": "2024-01-20T14:00:00Z",
+				"status": "active"
+			}
+		},
+		{
+			"id": "staging-to-model",
+			"sourceId": "staging-orders",
+			"targetId": "analytics-orders-model",
+			"type": "dependency",
+			"metadata": {
+				"created": "2024-01-15T10:00:00Z",
+				"transformationLogic": "dbt model with business logic and aggregations",
+				"frequency": "batch",
+				"lastRun": "2024-01-20T14:00:00Z",
+				"status": "active"
+			}
+		},
+		{
+			"id": "model-to-fact",
+			"sourceId": "analytics-orders-model",
+			"targetId": "orders-fact-table",
+			"type": "transformation",
+			"metadata": {
+				"created": "2024-01-15T10:00:00Z",
+				"transformationLogic": "CREATE TABLE analytics.fact_orders AS SELECT * FROM {{ ref('orders_fact') }}",
+				"frequency": "batch",
+				"lastRun": "2024-01-20T14:00:00Z",
+				"status": "active"
+			}
+		},
+		{
+			"id": "fact-to-revenue-dashboard",
+			"sourceId": "orders-fact-table",
+			"targetId": "revenue-dashboard",
+			"type": "data_flow",
+			"metadata": {
+				"created": "2024-01-15T10:00:00Z",
+				"frequency": "real-time",
+				"lastRun": "2024-01-20T14:30:00Z",
+				"status": "active"
+			}
+		},
+		{
+			"id": "fact-to-customer-analytics",
+			"sourceId": "orders-fact-table",
+			"targetId": "customer-analytics-view",
+			"type": "data_flow",
+			"metadata": {
+				"created": "2024-01-15T10:00:00Z",
+				"frequency": "real-time",
+				"lastRun": "2024-01-20T14:30:00Z",
+				"status": "active"
+			}
+		}
+	],
+	"metadata": {
+		"author": "Data Engineering Team",
+		"environment": "production",
+		"tags": ["ecommerce", "analytics", "orders", "customers"]
+	}
+}

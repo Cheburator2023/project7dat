@@ -8,7 +8,7 @@
 		"start": "serve -s build",
 		"prod": "npm build && npm start",
 		"biome": "npx @biomejs/biome check",
-		"biome:fix": "npx @biomejs/biome check --log-level=error --diagnostic-level=error --fix --unsafe ./src"
+		"biome:fix": "npx @biomejs/biome check --log-level=error --diagnostic-level=error --fix --unsafe $(pwd)/src"
 	},
 	"dependencies": {
 		"@monaco-editor/react": "4.7.0",

@@ -2,6 +2,7 @@ export const routes = {
 	home: {
 		rootPath: "/",
 		name: "Главная",
+		disabled: false,
 		subRoutes: {},
 	},
 	// graph: {
@@ -13,5 +14,6 @@ export const routes = {
 		name: "Песочница",
 		rootPath: "/playground",
 		devOnly: true,
+		disabled: false,
 	},
 };
