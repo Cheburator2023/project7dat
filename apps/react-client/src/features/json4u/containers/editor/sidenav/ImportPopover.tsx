@@ -5,10 +5,41 @@ import { useTranslations } from "@react-client/features/json4u/useTranslations";
 import { useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
 
-import { Button, ButtonGroup, Checkbox } from "@mui/material";
+import { Button, ButtonGroup, Checkbox, Box, styled } from "@mui/material";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 
 type FileType = "JSON" | "CSV";
+
+const DropZone = styled(Box)(({ theme }) => ({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "center",
+	border: "1px dashed",
+	borderColor: theme.palette.divider,
+	width: "100%",
+	height: "256px",
+	marginTop: theme.spacing(1),
+	color: theme.palette.text.secondary,
+	cursor: "pointer",
+	"&:hover": {
+		borderColor: theme.palette.error.main,
+	},
+}));
+
+const FileTypeContainer = styled(Box)({
+	marginRight: "8px",
+});
+
+const ConvertText = styled("span")(({ theme }) => ({
+	marginLeft: "auto",
+	color: theme.palette.text.secondary,
+}));
+
+const CsvOptionsContainer = styled(Box)({
+	display: "flex",
+	alignItems: "center",
+	gap: "16px",
+});
 
 export function ImportPopover() {
 	const t = useTranslations();
@@ -26,19 +57,17 @@ export function ImportPopover() {
 				types={["txt", "json", "csv"]}
 				dropMessageStyle={{ color: "transparent" }}
 			>
-				<div className="flex items-center justify-center border border-dashed hover:cursor-pointer hover:border-rose-400 w-full h-64 mt-2 text-zinc-500">
+				<DropZone>
 					<p>{t("drop file")}</p>
-				</div>
+				</DropZone>
 			</FileUploader>
 			<Spacer />
-			<span className="mr-1">{t("file type")}</span>
+			<FileTypeContainer>{t("file type")}</FileTypeContainer>
 			<ButtonGroup variant="outlined">
 				<Button onClick={() => setFileType("JSON")}>JSON</Button>
 				<Button onClick={() => setFileType("CSV")}>CSV</Button>
 			</ButtonGroup>
-			{fileType !== "JSON" && (
-				<span className="ml-auto text-zinc-500">{t("convert to JSON")}</span>
-			)}
+			{fileType !== "JSON" && <ConvertText>{t("convert to JSON")}</ConvertText>}
 		</div>
 	);
 }
@@ -52,7 +81,7 @@ function CsvOptions({ checked, setChecked }: CsvOptionsProps) {
 	const t = useTranslations();
 
 	return (
-		<div className="flex items-center space-x-2">
+		<CsvOptionsContainer>
 			<Checkbox
 				id="csv-options"
 				defaultChecked={checked}
@@ -60,7 +89,7 @@ function CsvOptions({ checked, setChecked }: CsvOptionsProps) {
 				onChange={(e) => setChecked(e.target.checked)}
 			/>
 			<label htmlFor="csv-options">{t("csv_with_header")}</label>
-		</div>
+		</CsvOptionsContainer>
 	);
 }
 

@@ -1,10 +1,27 @@
 import { Button } from "@mui/material";
+import { styled } from "@mui/material/styles";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import type { DataLineageNode } from "@react-client/types/dataLineage";
 import { NodeToolbar, Position } from "@xyflow/react";
 import { Eye, EyeOff, Trash2 } from "lucide-react";
 import { type ReactNode, memo } from "react";
 import { useShallow } from "zustand/react/shallow";
+
+const StyledNodeToolbar = styled(NodeToolbar)(({ theme }) => ({
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "center",
+	width: "fit-content",
+	height: "fit-content",
+	backgroundColor: theme.palette.action.hover,
+}));
+
+const StyledToolbarButton = styled(Button)({
+	height: 24,
+	width: 24,
+	padding: 4,
+	minWidth: 24,
+});
 
 interface ToolbarProps {
 	id: string;
@@ -25,9 +42,8 @@ export const Toolbar = memo(({ id }: ToolbarProps) => {
 	const isHidden = node.status === "inactive";
 
 	return (
-		<NodeToolbar
+		<StyledNodeToolbar
 			isVisible={true}
-			className="flex items-center justify-center w-fit h-fit bg-input"
 			position={Position.Top}
 			align="start"
 			offset={0}
@@ -51,7 +67,7 @@ export const Toolbar = memo(({ id }: ToolbarProps) => {
 			>
 				<Trash2 className="icon" />
 			</ToolbarButton>
-		</NodeToolbar>
+		</StyledNodeToolbar>
 	);
 });
 Toolbar.displayName = "Toolbar";
@@ -65,8 +81,7 @@ interface ToolbarButtonProps {
 const ToolbarButton = memo(
 	({ title, onClick, children }: ToolbarButtonProps) => {
 		return (
-			<Button
-				className="h-6 w-6 p-1"
+			<StyledToolbarButton
 				title={title}
 				onClick={(ev) => {
 					ev.preventDefault();
@@ -75,7 +90,7 @@ const ToolbarButton = memo(
 				}}
 			>
 				{children}
-			</Button>
+			</StyledToolbarButton>
 		);
 	},
 );

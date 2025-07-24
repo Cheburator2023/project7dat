@@ -1,4 +1,5 @@
 import { styled, useColorScheme } from "@mui/material/styles";
+import { Box } from "@mui/material";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
 
 import { setupGlobalGraphStyle } from "@react-client/features/json4u/lib/graph/layout";
@@ -70,18 +71,23 @@ function useInitial() {
 	}, []);
 }
 
+const MeasureContainer = styled(Box)({
+	position: "absolute",
+	visibility: "hidden",
+});
+
 function WidthMeasure() {
 	useInitial();
 
 	return (
-		<div id="width-measure" className="absolute invisible graph-node">
+		<MeasureContainer id="width-measure" className="graph-node">
 			<div className="graph-kv">
 				<div className="graph-k">
 					<span>{"measure"}</span>
 				</div>
 				<div className="graph-v" />
 			</div>
-		</div>
+		</MeasureContainer>
 	);
 }
 

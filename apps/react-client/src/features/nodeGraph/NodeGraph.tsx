@@ -10,6 +10,7 @@ import type { Node as FlowNode } from "@xyflow/react";
 import { debounce } from "lodash-es";
 import { useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { Box, styled } from "@mui/material";
 
 import { DataLineageNodeComponent } from "./DataLineageNode";
 import { MouseButton } from "./MouseButton";
@@ -20,13 +21,19 @@ import {
 } from "./useViewportChange";
 import { useVirtualGraph } from "./useVirtualGraph";
 
+const GraphContainer = styled(Box)({
+	position: "relative",
+	width: "100%",
+	height: "100%",
+});
+
 export function NodeGraph() {
 	return (
-		<div id="main_graph_reactflow" className="relative w-full h-full">
+		<GraphContainer id="main_graph_reactflow">
 			<ReactFlowProvider>
 				<LayoutGraph />
 			</ReactFlowProvider>
-		</div>
+		</GraphContainer>
 	);
 }
 

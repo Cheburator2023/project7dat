@@ -1,5 +1,12 @@
 import SearchIcon from "@mui/icons-material/Search";
-import { Autocomplete, InputAdornment, TextField } from "@mui/material";
+import {
+	Autocomplete,
+	InputAdornment,
+	TextField,
+	Box,
+	Typography,
+} from "@mui/material";
+import { styled } from "@mui/material/styles";
 import { genValueAttrs } from "@react-client/features/json4u/lib/graph/layout";
 import { toPath } from "@react-client/features/json4u/lib/idgen";
 import { hasChildren } from "@react-client/features/json4u/lib/parser";
@@ -7,6 +14,22 @@ import { cn } from "@react-client/features/json4u/lib/utils";
 import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
 import { getTree } from "@react-client/features/json4u/stores/treeStore";
 import { useState } from "react";
+
+const ItemContainer = styled(Box)({
+	width: "100%",
+	height: 48,
+	display: "flex",
+	flexDirection: "column",
+	justifyContent: "center",
+	cursor: "pointer",
+});
+
+const ItemLabel = styled(Typography)(({ theme }) => ({
+	fontSize: theme.typography.body2.fontSize,
+	overflow: "hidden",
+	textOverflow: "ellipsis",
+	whiteSpace: "nowrap",
+}));
 
 export function Search() {
 	const [_initialed, _setInitialed] = useState(false);
@@ -97,11 +120,8 @@ function Item(props: any) {
 	}
 
 	return (
-		<div
-			className="w-full h-12 flex flex-col justify-center"
-			onClick={props.onClick}
-		>
-			<div className={cn("text-sm truncate", className)}>{label}</div>
-		</div>
+		<ItemContainer onClick={props.onClick}>
+			<ItemLabel className={cn(className)}>{label}</ItemLabel>
+		</ItemContainer>
 	);
 }

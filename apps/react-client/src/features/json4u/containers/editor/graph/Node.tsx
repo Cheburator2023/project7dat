@@ -1,4 +1,5 @@
-import { Tooltip } from "@mui/material";
+import { Tooltip, Box } from "@mui/material";
+import { styled } from "@mui/material/styles";
 import {
 	computeSourceHandleOffset,
 	genKeyText,
@@ -18,6 +19,11 @@ import { filter } from "lodash-es";
 import { memo } from "react";
 import { SourceHandle, TargetHandle } from "./Handle";
 import { Toolbar } from "./Toolbar";
+
+const VirtualContainer = styled(Box)({
+	width: 1,
+	height: 1,
+});
 
 export const ObjectNode = memo(({ id, data }: NodeProps<NodeWithData>) => {
 	const { getNode } = useReactFlow();
@@ -174,9 +180,9 @@ RootNode.displayName = "RootNode";
 // if the target of the edge is not in the viewport, then use a VirtualTargetNode to represent it
 export const VirtualTargetNode = memo(() => {
 	return (
-		<div className="w-[1px] h-[1px]">
+		<VirtualContainer>
 			<Handle type={"target"} isConnectable position={Position.Left} />
-		</div>
+		</VirtualContainer>
 	);
 });
 
