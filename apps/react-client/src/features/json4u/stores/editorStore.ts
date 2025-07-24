@@ -163,7 +163,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 		const r = await Promise.resolve(
 			commands.find((item) => item.id === id)?.run(),
 		);
-		let isSucc = true;
+		let _isSucc = true;
 		const name = t?.(id);
 
 		if (r !== undefined) {
@@ -171,7 +171,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 				toastSucc(t?.("cmd_exec_succ", { name }));
 			} else {
 				toastErr(t?.(r ? r : "cmd_exec_fail", { name }));
-				isSucc = false;
+				_isSucc = false;
 			}
 		}
 	},

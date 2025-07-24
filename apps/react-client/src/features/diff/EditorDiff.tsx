@@ -7,7 +7,7 @@ import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 
 export const EditorDiff = () => {
 	const main = useEditor("main");
-	const treeVersion = useTreeVersion();
+	const _treeVersion = useTreeVersion();
 	const { mode } = useColorScheme();
 	const [newDataSet, setNewData] = useState<string>();
 	const [originalData, setOriginalData] = useState<string>();

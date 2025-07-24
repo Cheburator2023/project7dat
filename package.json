@@ -29,7 +29,7 @@
 		"*.{ts,tsx}": ["biome check --files-ignore-unknown=true --colors=force"]
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.0.6",
+		"@biomejs/biome": "2.1.2",
 		"@commitlint/cli": "^19.8.0",
 		"@commitlint/config-conventional": "^19.8.0",
 		"@types/dagre": "^0.7.51",

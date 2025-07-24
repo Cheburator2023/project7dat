@@ -10,6 +10,12 @@ import type {
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+interface RevealPosition {
+	version: number;
+	nodeId: string;
+	from: "editor" | "graph" | "search";
+}
+
 interface DataLineageState {
 	currentGraph: DataLineageGraph | null;
 	graphs: DataLineageGraph[];
@@ -23,6 +29,8 @@ interface DataLineageState {
 	viewMode: "graph" | "table" | "json";
 	zoomLevel: number;
 	panPosition: { x: number; y: number };
+	revealPosition: RevealPosition;
+	enableSyncScroll: boolean;
 }
 
 interface DataLineageActions {
@@ -51,6 +59,9 @@ interface DataLineageActions {
 	resetView: () => void;
 	exportGraph: (format: "json" | "csv") => string;
 	importGraph: (data: string, format: "json") => Promise<void>;
+	setRevealPosition: (pos: Partial<RevealPosition>) => void;
+	isNeedReveal: (scene: "editor" | "graph") => boolean;
+	setEnableSyncScroll: (enable: boolean) => void;
 }
 
 type DataLineageStore = DataLineageState & DataLineageActions;
@@ -73,6 +84,8 @@ const initialState: DataLineageState = {
 	viewMode: "graph",
 	zoomLevel: 1,
 	panPosition: { x: 0, y: 0 },
+	revealPosition: { version: 0, nodeId: "", from: "editor" },
+	enableSyncScroll: true,
 };
 
 const generateId = (): string => {
@@ -307,7 +320,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 			},
 
 			selectNode: (nodeId: string, multiSelect = false) => {
-				const { selectedNodes } = get();
+				const { selectedNodes, setRevealPosition } = get();
 
 				if (multiSelect) {
 					const isSelected = selectedNodes.includes(nodeId);
@@ -317,6 +330,10 @@ export const useDataLineageStore = create<DataLineageStore>()(
 					set({ selectedNodes: newSelection });
 				} else {
 					set({ selectedNodes: [nodeId] });
+				}
+
+				if (nodeId) {
+					setRevealPosition({ nodeId, from: "graph" });
 				}
 			},
 
@@ -433,6 +450,42 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				} catch (error) {
 					set({ error: `Failed to import graph: ${error}`, isLoading: false });
 				}
+			},
+
+			setRevealPosition: (pos: Partial<RevealPosition>) => {
+				const oldPos = get().revealPosition;
+				const needUpdate = !(
+					oldPos.nodeId === pos.nodeId && oldPos.from === pos.from
+				);
+
+				if (needUpdate) {
+					set({
+						revealPosition: {
+							...oldPos,
+							...pos,
+							version: oldPos.version + 1,
+						},
+					});
+				}
+			},
+
+			isNeedReveal: (scene: "editor" | "graph") => {
+				const {
+					enableSyncScroll,
+					revealPosition: { from },
+				} = get();
+
+				if (scene === "editor") {
+					return enableSyncScroll ? from !== "editor" : from === "search";
+				} else if (scene === "graph") {
+					return enableSyncScroll ? from !== "graph" : from === "search";
+				}
+
+				return false;
+			},
+
+			setEnableSyncScroll: (enable: boolean) => {
+				set({ enableSyncScroll: enable });
 			},
 		}),
 		{

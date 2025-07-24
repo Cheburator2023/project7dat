@@ -336,7 +336,7 @@ export class Tree implements TreeObject {
 
 		if (node.type === "object") {
 			const obj: Record<string, unknown> = {};
-			this.mapChildren(node, (node, key, i) => {
+			this.mapChildren(node, (node, key, _i) => {
 				obj[key] = this.toJSON(node);
 			});
 			return obj;

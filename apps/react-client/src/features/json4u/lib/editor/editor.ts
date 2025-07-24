@@ -298,15 +298,15 @@ export class EditorWrapper {
 }
 
 function reportTextSize(size: number) {
-	let kind = "";
+	let _kind = "";
 
 	if (size <= 10 * 1024) {
-		kind = "(0, 10kb]";
+		_kind = "(0, 10kb]";
 	} else if (size <= 100 * 1024) {
-		kind = "(10kb, 100kb]";
+		_kind = "(10kb, 100kb]";
 	} else if (size <= 500 * 1024) {
-		kind = "(100kb, 500kb]";
+		_kind = "(100kb, 500kb]";
 	} else {
-		kind = "(500kb, +∞)";
+		_kind = "(500kb, +∞)";
 	}
 }

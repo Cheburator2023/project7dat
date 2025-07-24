@@ -112,7 +112,7 @@ export function initLogger() {
 					? " ".repeat(fixWidth - fileName.length)
 					: "";
 			rawLog(t(), `[${fileName}]${spaces}\t`, ...args);
-		} catch (e) {
+		} catch (_e) {
 			rawLog(t(), ...args);
 		}
 	};

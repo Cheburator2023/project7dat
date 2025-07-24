@@ -13,7 +13,7 @@ export async function urlToJSON(
 	try {
 		const tree = parseJSON(mapStringify(urlToMap(text)), options);
 		return { text: tree.text, parse: tree.valid() };
-	} catch (e) {
+	} catch (_e) {
 		return { text, parse: false };
 	}
 }
@@ -42,7 +42,7 @@ function urlToMap(s: string) {
 			try {
 				const v = urlToMap(value);
 				q.set(name, v);
-			} catch (e) {
+			} catch (_e) {
 				q.set(name, value);
 			}
 		} else {

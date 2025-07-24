@@ -9,7 +9,7 @@ const fakeData = Array(9)
 export const CommitHistory = () => {
 	return (
 		<Flex gap={10} flexDirection="column">
-			{fakeData.map((card, idx) => {
+			{fakeData.map((_card, idx) => {
 				return (
 					<Card key={idx}>
 						<Flex gap={8}>

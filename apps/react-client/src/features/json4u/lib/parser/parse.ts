@@ -52,9 +52,9 @@ function doParseJSON(
 		{
 			onObjectBegin(
 				offset: number,
-				length: number,
-				startLine: number,
-				startCharacter: number,
+				_length: number,
+				_startLine: number,
+				_startCharacter: number,
 				pathSupplier: () => jsonc.JSONPath,
 			) {
 				return visitor.onObjectBegin(offset, "object", pathSupplier);
@@ -64,9 +64,9 @@ function doParseJSON(
 			},
 			onArrayBegin(
 				offset: number,
-				length: number,
-				startLine: number,
-				startCharacter: number,
+				_length: number,
+				_startLine: number,
+				_startCharacter: number,
 				pathSupplier: () => jsonc.JSONPath,
 			) {
 				return visitor.onObjectBegin(offset, "array", pathSupplier);
@@ -77,10 +77,10 @@ function doParseJSON(
 			onObjectProperty(
 				property: string,
 				offset: number,
-				length: number,
-				startLine: number,
-				startCharacter: number,
-				pathSupplier: () => jsonc.JSONPath,
+				_length: number,
+				_startLine: number,
+				_startCharacter: number,
+				_pathSupplier: () => jsonc.JSONPath,
 			) {
 				return visitor.onObjectProperty(property, offset);
 			},
@@ -88,8 +88,8 @@ function doParseJSON(
 				value: any,
 				offset: number,
 				length: number,
-				startLine: number,
-				startCharacter: number,
+				_startLine: number,
+				_startCharacter: number,
 				pathSupplier: () => jsonc.JSONPath,
 			) {
 				return visitor.onLiteralValue(value, offset, length, pathSupplier);

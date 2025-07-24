@@ -10,11 +10,10 @@ import type {
 import { Typography } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { generateObjectFromSchema } from "@react-client/utils/jsonGenerator";
-import schema from "../../../../../../etc/json_schema.json";
 import { VanillaJSONEditor } from "./VanillaJSONEditor";
 
 const numEntities = 30;
-const generatedObjects = generateObjectFromSchema(schema, numEntities);
+const generatedObjects = generateObjectFromSchema({}, numEntities);
 
 export const JsonEditorSvelte = () => {
 	const [showEditor, setShowEditor] = useState(true);
@@ -40,11 +39,11 @@ export const JsonEditorSvelte = () => {
 
 	const onRenderContextMenu = (
 		items: ContextMenuItem[],
-		context: RenderContextMenuContext,
+		_context: RenderContextMenuContext,
 	): ContextMenuItem[] | false | undefined => {
 		console.log("🐸 Pepe said >> JsonEditorSvelte >> items:", items);
 
-		const menu = items;
+		const _menu = items;
 
 		return items;
 	};

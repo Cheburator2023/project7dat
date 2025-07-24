@@ -111,7 +111,10 @@ export class Comparer {
 	applyDecorations({
 		left,
 		right,
-	}: { left: Decoration[]; right: Decoration[] }) {
+	}: {
+		left: Decoration[];
+		right: Decoration[];
+	}) {
 		this.leftDecorations =
 			this.monacoEditor("main").createDecorationsCollection(left);
 		this.rightDecorations =

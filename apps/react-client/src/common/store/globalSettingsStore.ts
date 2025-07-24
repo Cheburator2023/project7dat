@@ -33,7 +33,7 @@ export const useGlobalSettingsStore = create<GlobalSettingsState>()(
 			setGridApi: (api: GridApi | null) => set({ gridApi: api }),
 			setUser: (user?: T_KEYCLOAK_USER) => set({ user }),
 			toggleHideAllDashboardPanels: () =>
-				set((state) => ({
+				set((_state) => ({
 					isDataMartVisible: false,
 					isCommitHistoryVisible: false,
 					isJsonPreviewVisible: false,

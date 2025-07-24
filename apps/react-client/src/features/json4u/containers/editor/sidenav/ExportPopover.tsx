@@ -56,7 +56,7 @@ function useOnClickButton(fileType: FileType) {
 			return;
 		}
 
-		convert(t, main, fileType, (text) => {
+		convert(t, main, fileType, (_text) => {
 			setViewMode("text");
 		});
 	};

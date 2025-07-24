@@ -1,5 +1,4 @@
-import { config } from "@react-client/features/json4u/lib/graph/layout";
-import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import {
 	Background,
 	Controls,
@@ -10,9 +9,10 @@ import {
 import type { Node as FlowNode } from "@xyflow/react";
 import { debounce } from "lodash-es";
 import { useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 
+import { DataLineageNodeComponent } from "./DataLineageNode";
 import { MouseButton } from "./MouseButton";
-import { ObjectNode, RootNode, VirtualTargetNode } from "./Node";
 import {
 	useClearSearchHl,
 	useRevealNode,
@@ -20,7 +20,7 @@ import {
 } from "./useViewportChange";
 import { useVirtualGraph } from "./useVirtualGraph";
 
-export function Graph() {
+export function NodeGraph() {
 	return (
 		<div id="main_graph_reactflow" className="relative w-full h-full">
 			<ReactFlowProvider>
@@ -32,13 +32,13 @@ export function Graph() {
 
 function LayoutGraph() {
 	const ref = useRef<any>(null);
-	const setRevealPosition = useStatusStore((state) => state.setRevealPosition);
-	const isTouchpad = useStatusStore((state) => state.isTouchpad);
+	const { selectNode, clearSelection } = useDataLineageStore(
+		useShallow((state) => ({
+			selectNode: state.selectNode,
+			clearSelection: state.clearSelection,
+		})),
+	);
 
-	// The graph will render three times because:
-	// 1. Modify text in the editor will cause `treeVersion` to change.
-	// 2. A change in `treeVersion` will trigger the creation of a new graph, which will cause `nodes` to change.
-	// 3. xyflow will measure the new `nodes`, which will trigger a render.
 	const {
 		nodes,
 		edges,
@@ -52,54 +52,41 @@ function LayoutGraph() {
 	useRevealNode(nodes, setNodes, setEdges);
 	const clearSearchHl = useClearSearchHl();
 
+	const config = {
+		panOnScrollSpeed: 0.5,
+		minZoom: 0.1,
+		maxZoom: 4,
+		reconnectRadius: 20,
+		colorMode: "light" as const,
+		attributionPosition: "bottom-left" as const,
+	};
+
 	return (
 		<ReactFlow
 			ref={ref}
-			panOnScroll={isTouchpad}
+			panOnScroll={true}
 			panOnScrollSpeed={config.panOnScrollSpeed}
 			minZoom={config.minZoom}
 			maxZoom={config.maxZoom}
 			reconnectRadius={config.reconnectRadius}
 			colorMode={config.colorMode}
 			attributionPosition={config.attributionPosition}
-			nodeTypes={
-				{
-					object: ObjectNode,
-					root: RootNode,
-					virtualTarget: VirtualTargetNode,
-				} as any
-			}
+			nodeTypes={{
+				dataLineageNode: DataLineageNodeComponent,
+			}}
 			defaultEdgeOptions={{
 				selectable: false,
 				focusable: false,
 				deletable: false,
 			}}
 			translateExtent={translateExtent}
-			// clear all animated for edges
 			onPaneClick={(_: React.MouseEvent) => {
 				clearSearchHl();
-
-				(async () => {
-					const { nodes, edges } = await window.worker.clearGraphNodeSelected();
-					setNodes(nodes);
-					setEdges(edges);
-				})();
+				clearSelection();
 			}}
 			onNodeClick={(_: React.MouseEvent, node: FlowNode) => {
 				clearSearchHl(node.id);
-				setRevealPosition({
-					treeNodeId: node.id,
-					type: "node",
-					from: "graphOthers",
-				});
-
-				(async () => {
-					const { nodes, edges } = await window.worker.toggleGraphNodeSelected(
-						node.id,
-					);
-					setNodes(nodes);
-					setEdges(edges);
-				})();
+				selectNode(node.id);
 			}}
 			onConnectStart={(
 				_: any,
@@ -108,23 +95,15 @@ function LayoutGraph() {
 				if (handleType === "target" || !(nodeId && handleId)) {
 					return;
 				}
-
-				(async () => {
-					const { nodes, edges } = await window.worker.toggleGraphNodeHidden(
-						nodeId,
-						handleId,
-					);
-					setNodes(nodes);
-					setEdges(edges);
-				})();
+				console.log("Connect start:", nodeId, handleId);
 			}}
 			onError={onError}
 			nodes={nodes}
 			edges={edges}
 			onNodesChange={onNodesChange}
 			onEdgesChange={onEdgesChange}
-			nodesDraggable={false}
-			nodesConnectable={false}
+			nodesDraggable={true}
+			nodesConnectable={true}
 			connectOnClick={false}
 			deleteKeyCode={null}
 			selectionKeyCode={null}

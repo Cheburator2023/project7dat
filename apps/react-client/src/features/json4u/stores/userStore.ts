@@ -41,7 +41,7 @@ export const useUserStore = create<UserState>()((set, get) => ({
 	statistics: initialStates.statistics,
 	fallbackKey: initialStates.fallbackKey,
 
-	usable(key: any) {
+	usable(_key: any) {
 		return true;
 	},
 

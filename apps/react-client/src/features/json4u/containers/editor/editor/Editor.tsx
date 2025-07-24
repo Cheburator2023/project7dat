@@ -27,8 +27,8 @@ export function Editor({ kind, ...props }: EditorProps) {
 	const setEditor = useEditorStore((state) => state.setEditor);
 	const setTranslations = useEditorStore((state) => state.setTranslations);
 	const { mode } = useColorScheme();
-	const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
-	const restrictions = [];
+	const _editorRef = useRef<editor.IStandaloneCodeEditor>(null);
+	const _restrictions = [];
 
 	useRevealNode();
 

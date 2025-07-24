@@ -125,7 +125,7 @@ async function getConfig() {
 	const stateStr = await safeGet(keyName);
 	try {
 		return JSON.parse(stateStr).state as Config;
-	} catch (e) {
+	} catch (_e) {
 		console.log("fallback to use default config.");
 		return defaultConfig;
 	}

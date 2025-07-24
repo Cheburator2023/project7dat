@@ -90,7 +90,7 @@ export const getConnectedNodes = (
 };
 
 export const calculateNodeDepth = (
-	nodes: DataLineageNode[],
+	_nodes: DataLineageNode[],
 	edges: DataLineageEdge[],
 	startNodeId: string,
 ): Map<string, number> => {
