@@ -394,18 +394,13 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		}, [isFocused]);
 
 		useEffect(() => {
-			console.log("isEditing changed", { isEditing, path: node.path });
 			if (isEditing && inputRef.current) {
-				console.log("Setting focus and focusing input", { path: node.path });
 				const input = inputRef.current.querySelector("input");
 				if (input) {
-					console.log("Input found, focusing");
 					setTimeout(() => {
 						input.focus();
 						input.select();
 					}, 0);
-				} else {
-					console.log("Input not found");
 				}
 			}
 		}, [isEditing, node.path]);
@@ -429,7 +424,6 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 
 		const handleEdit = useCallback(
 			(value: any) => {
-				console.log("handleEdit called", { value, path: node.path });
 				startEditing(node.path, String(value));
 			},
 			[node.path, startEditing],
@@ -696,6 +690,10 @@ export const CodeJsonEditor = forwardRef<
 
 		const updateValue = useCallback(
 			(path: string, value: any) => {
+				// Сохраняем текущую позицию скролла
+				const currentScrollOffset =
+					(listRef.current as any)?._outerRef?.scrollTop || 0;
+
 				const pathParts = path.split(".").filter(Boolean);
 
 				const newData = produce(jsonData, (draft: any) => {
@@ -710,6 +708,16 @@ export const CodeJsonEditor = forwardRef<
 
 				setJsonData(newData);
 				onChange?.(newData);
+
+				// Восстанавливаем позицию скролла после обновления
+				setTimeout(() => {
+					if (listRef.current && typeof currentScrollOffset === "number") {
+						(listRef.current as any)?._outerRef?.scrollTo(
+							0,
+							currentScrollOffset,
+						);
+					}
+				}, 0);
 			},
 			[jsonData, onChange],
 		);
