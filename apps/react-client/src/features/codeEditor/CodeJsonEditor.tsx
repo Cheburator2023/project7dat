@@ -3,6 +3,7 @@ import React, {
 	useCallback,
 	useRef,
 	useEffect,
+	useLayoutEffect,
 	forwardRef,
 	useImperativeHandle,
 	memo,
@@ -34,6 +35,7 @@ interface JsonEditorState {
 	toggleExpanded: (path: string) => void;
 	setExpanded: (path: string, expanded: boolean) => void;
 	isExpanded: (path: string) => boolean;
+	expandAll: (data: any) => void;
 }
 
 const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
@@ -67,7 +69,49 @@ const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 			}),
 		),
 	isExpanded: (path) => Boolean(get().expandedPaths[path]),
+	expandAll: (data) => {
+		const allPaths = getAllExpandablePaths(data);
+		const expandedPaths: Record<string, boolean> = {};
+		allPaths.forEach((path) => {
+			expandedPaths[path] = true;
+		});
+		set({ expandedPaths });
+	},
 }));
+
+const getAllExpandablePaths = (data: any, path = ""): string[] => {
+	const paths: string[] = [];
+
+	if (isPrimitive(data)) {
+		return paths;
+	}
+
+	const isArray = Array.isArray(data);
+	const entries = isArray
+		? data.map((item, index) => [index, item])
+		: Object.entries(data);
+
+	if (path === "") {
+		paths.push("");
+		entries.forEach(([key, value]) => {
+			const currentPath = String(key);
+			if (!isPrimitive(value)) {
+				paths.push(currentPath);
+				paths.push(...getAllExpandablePaths(value, currentPath));
+			}
+		});
+	} else {
+		entries.forEach(([key, value]) => {
+			const currentPath = `${path}.${key}`;
+			if (!isPrimitive(value)) {
+				paths.push(currentPath);
+				paths.push(...getAllExpandablePaths(value, currentPath));
+			}
+		});
+	}
+
+	return paths;
+};
 
 const isPrimitive = (value: any): boolean => {
 	return value === null || typeof value !== "object";
@@ -201,7 +245,9 @@ const Container = styled(Box)(({ theme }) => ({
 	overflow: "auto",
 }));
 
-const JsonLine = styled(Box)<{
+const JsonLine = styled(Box, {
+	shouldForwardProp: (prop) => !prop.toString().startsWith("$"),
+})<{
 	$isHighlighted?: boolean;
 	$isFocused?: boolean;
 	$depth: number;
@@ -245,7 +291,9 @@ const KeyText = styled(Typography)(({ theme }) => ({
 	marginRight: theme.spacing(1),
 }));
 
-const ValueText = styled(Typography)<{ $type: string }>(({ theme, $type }) => ({
+const ValueText = styled(Typography, {
+	shouldForwardProp: (prop) => !prop.toString().startsWith("$"),
+})<{ $type: string }>(({ theme, $type }) => ({
 	color:
 		$type === "string"
 			? theme.palette.success.main
@@ -329,7 +377,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		}, [isFocused]);
 
 		useEffect(() => {
-			if (isNeedReveal("editor") && revealPosition.nodeId && nodeRef.current) {
+			if (revealPosition.nodeId && nodeRef.current) {
 				const nodeIndex = currentGraph?.nodes.findIndex(
 					(n) => n.id === revealPosition.nodeId,
 				);
@@ -566,6 +614,8 @@ export const CodeJsonEditor = forwardRef<
 			removeHighlight,
 			clearHighlights,
 			toggleExpanded,
+			setExpanded,
+			expandAll,
 		} = useJsonEditorStore();
 
 		const {
@@ -593,8 +643,9 @@ export const CodeJsonEditor = forwardRef<
 		useEffect(() => {
 			if (initialData) {
 				setJsonData(initialData);
+				expandAll(initialData);
 			}
-		}, [initialData]);
+		}, [initialData, expandAll]);
 
 		useEffect(() => {
 			if (selectedNodes.length > 0 && currentGraph) {
@@ -652,13 +703,68 @@ export const CodeJsonEditor = forwardRef<
 			(path: string) => {
 				setFocus(path);
 
-				const nodeIndex = flatNodes.findIndex((node) => node.path === path);
+				// Убираем ведущую точку для поиска в flatNodes
+				const searchPath = path.startsWith(".") ? path.slice(1) : path;
+				const nodeIndex = flatNodes.findIndex(
+					(node) => node.path === searchPath,
+				);
+
+				if (nodeIndex < 0) {
+					// Если точный путь не найден, попробуем найти первый дочерний элемент
+					const childPath = `${searchPath}.`;
+					const childIndex = flatNodes.findIndex((node) =>
+						node.path.startsWith(childPath),
+					);
+
+					if (childIndex >= 0) {
+						listRef.current?.scrollToItem(childIndex, "center");
+						return;
+					}
+				}
+
 				if (nodeIndex >= 0 && listRef.current) {
 					listRef.current.scrollToItem(nodeIndex, "center");
 				}
 			},
 			[setFocus, flatNodes],
 		);
+
+		useLayoutEffect(() => {
+			if (revealPosition?.nodeId && currentGraph) {
+				const nodeIndex = currentGraph.nodes.findIndex(
+					(n) => n.id === revealPosition.nodeId,
+				);
+
+				if (nodeIndex >= 0) {
+					const nodePath = `.nodes.${nodeIndex}`;
+
+					// Раскрываем родительские пути
+					const pathParts = nodePath.split(".").filter(Boolean);
+					let currentPath = "";
+					for (const part of pathParts) {
+						currentPath = currentPath ? `${currentPath}.${part}` : part;
+						setExpanded(currentPath, true);
+					}
+				}
+			}
+		}, [isNeedReveal, revealPosition, currentGraph, setExpanded]);
+
+		useLayoutEffect(() => {
+			if (isNeedReveal("editor") && revealPosition?.nodeId && currentGraph) {
+				const nodeIndex = currentGraph.nodes.findIndex(
+					(n) => n.id === revealPosition.nodeId,
+				);
+
+				if (nodeIndex >= 0) {
+					const nodePath = `.nodes.${nodeIndex}`;
+
+					// Добавляем небольшую задержку, чтобы узел успел развернуться
+					setTimeout(() => {
+						focusPath(nodePath);
+					}, 100);
+				}
+			}
+		}, [isNeedReveal, revealPosition, currentGraph, focusPath]);
 
 		const highlightPath = useCallback(
 			(path: string) => {

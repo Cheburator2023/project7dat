@@ -18,7 +18,20 @@ import { useState } from "react";
 const headerH = 20;
 
 const CardWithZoom = (props: CardWithZoomProps) => {
-	const { maxHeight, overflow = "auto", loading = false } = props;
+	const {
+		maxHeight,
+		overflow = "auto",
+		loading = false,
+		header,
+		onClose,
+		padding,
+		height,
+		width,
+		nonClickable,
+		zoom,
+		uuid,
+		...paperProps
+	} = props;
 	const [visible, _setVisible] = useState(true);
 	const {
 		data: __zoom,
@@ -32,7 +45,7 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 	const _zoom = Number.parseFloat(__zoom || "1");
 
 	const handler = () => {
-		props.onClose();
+		onClose();
 	};
 
 	const zoomHandler = (fract: number) => {
@@ -43,22 +56,22 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 		<MUIPaperStyled
 			overflow={overflow}
 			sx={{
-				padding: props.padding || "10px",
+				padding: padding || "10px",
 				maxHeight: maxHeight || "100%",
-				height: props.height || "auto",
-				width: props.width,
+				height: height || "auto",
+				width: width,
 				display: visible ? "block" : "none",
 				...props.sx,
 			}}
 			variant="outlined"
-			{...props}
+			{...paperProps}
 		>
 			{loading && (
 				<LoadingOverlay>
 					<CircularProgress size={40} />
 				</LoadingOverlay>
 			)}
-			{(props.header || props.onClose) && (
+			{(header || onClose) && (
 				<Flex
 					justifyContent="space-between"
 					alignItems="center"
@@ -66,9 +79,9 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 					as="header"
 					style={{ height: `${headerH}px` }}
 				>
-					{props.header && (
+					{header && (
 						<Typography variant="body1">
-							<b>{props.header}</b>
+							<b>{header}</b>
 						</Typography>
 					)}
 					<ButtonGroup variant="text" size="small">
@@ -91,18 +104,18 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 							<b>+</b>
 						</Button>
 					</ButtonGroup>
-					{props.onClose && (
+					{onClose && (
 						<IconButton onClick={handler}>
 							<CloseIcon />
 						</IconButton>
 					)}
 				</Flex>
 			)}
-			{!!(props.header || props.onClose) && <Spacer space={6} />}
+			{!!(header || onClose) && <Spacer space={6} />}
 			<Wrapper
-				nonClickable={!!props.nonClickable}
+				nonClickable={!!nonClickable}
 				style={{
-					height: props.header
+					height: header
 						? overflow
 							? `calc(100% - ${headerH + 45}px)`
 							: "inherit"
@@ -117,7 +130,9 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 	);
 };
 
-const Wrapper = styled("div")<{ nonClickable: boolean }>`
+const Wrapper = styled("div", {
+	shouldForwardProp: (prop) => prop !== "nonClickable",
+})<{ nonClickable: boolean }>`
 
 	& > * {
 		pointer-events: ${({ nonClickable }) => nonClickable && "none"};
@@ -126,28 +141,38 @@ const Wrapper = styled("div")<{ nonClickable: boolean }>`
 					`;
 
 const CardWithoutZoom = (props: BaseCardProps) => {
-	const { maxHeight, overflow = "auto" } = props;
+	const {
+		maxHeight,
+		overflow = "auto",
+		header,
+		onClose,
+		padding,
+		height,
+		width,
+		nonClickable,
+		...paperProps
+	} = props;
 	const [visible, _setVisible] = useState(true);
 
 	const handler = () => {
-		props.onClose();
+		onClose();
 	};
 
 	return (
 		<MUIPaperStyled
 			overflow={overflow}
 			sx={{
-				padding: props.padding || "10px 7px 10px 11px",
+				padding: padding || "10px 7px 10px 11px",
 				maxHeight: maxHeight || "100%",
-				height: props.height || "auto",
-				width: props.width,
+				height: height || "auto",
+				width: width,
 				display: visible ? "block" : "none",
 				...props.sx,
 			}}
 			variant="outlined"
-			{...props}
+			{...paperProps}
 		>
-			{(props.header || props.onClose) && (
+			{(header || onClose) && (
 				<Flex
 					justifyContent="space-between"
 					alignItems="center"
@@ -155,19 +180,19 @@ const CardWithoutZoom = (props: BaseCardProps) => {
 					as="header"
 					style={{ height: `${headerH}px` }}
 				>
-					{props.header && <Typography variant="h6">{props.header}</Typography>}
-					{props.onClose && (
+					{header && <Typography variant="h6">{header}</Typography>}
+					{onClose && (
 						<IconButton onClick={handler}>
 							<CloseIcon />
 						</IconButton>
 					)}
 				</Flex>
 			)}
-			{!!(props.header || props.onClose) && <Spacer space={6} />}
+			{!!(header || onClose) && <Spacer space={6} />}
 			<Wrapper
-				nonClickable={!!props.nonClickable}
+				nonClickable={!!nonClickable}
 				style={{
-					height: props.header
+					height: header
 						? overflow
 							? `calc(100% - ${headerH + 45}px)`
 							: "inherit"
@@ -212,7 +237,9 @@ export const Card = (props: CardProps) => {
 	return <CardWithoutZoom {...props} variant="outlined" />;
 };
 
-const MUIPaperStyled = styled(Paper)<{ overflow: string }>`
+const MUIPaperStyled = styled(Paper, {
+	shouldForwardProp: (prop) => prop !== "overflow",
+})<{ overflow: string }>`
 	pointer-events: all;
 	position: relative;
 	overflow: hidden;

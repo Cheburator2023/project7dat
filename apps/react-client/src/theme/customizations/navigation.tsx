@@ -62,7 +62,7 @@ export const navigationCustomizations: Components<Theme> = {
 				(props, ref) => (
 					<UnfoldMoreRoundedIcon
 						fontSize="small"
-						{...props}
+						{...(props as any)}
 						ref={ref}
 						data-test-id="navigation--UnfoldMoreRoundedIcon-0"
 					/>

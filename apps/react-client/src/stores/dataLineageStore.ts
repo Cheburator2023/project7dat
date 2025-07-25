@@ -459,12 +459,13 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				);
 
 				if (needUpdate) {
+					const newPos = {
+						...oldPos,
+						...pos,
+						version: oldPos.version + 1,
+					};
 					set({
-						revealPosition: {
-							...oldPos,
-							...pos,
-							version: oldPos.version + 1,
-						},
+						revealPosition: newPos,
 					});
 				}
 			},
