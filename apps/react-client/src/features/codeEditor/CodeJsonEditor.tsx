@@ -10,7 +10,11 @@ import React, {
 	useMemo,
 } from "react";
 import { styled } from "@mui/material/styles";
-import { Box, TextField, Typography, IconButton } from "@mui/material";
+import { TextField, IconButton, Box, Typography } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import {
 	ExpandMore,
 	ExpandLess,
@@ -30,6 +34,9 @@ interface JsonEditorState {
 	expandedPaths: Record<string, boolean>;
 	editingPath: string | null;
 	editValue: string;
+	searchQuery: string;
+	searchResults: string[];
+	currentSearchIndex: number;
 	setFocus: (path: string | null) => void;
 	addHighlight: (path: string) => void;
 	removeHighlight: (path: string) => void;
@@ -41,6 +48,11 @@ interface JsonEditorState {
 	startEditing: (path: string, value: string) => void;
 	stopEditing: () => void;
 	setEditValue: (value: string) => void;
+	setSearchQuery: (query: string) => void;
+	searchInData: (data: any, query: string) => void;
+	clearSearch: () => void;
+	goToNextResult: () => void;
+	goToPrevResult: () => void;
 }
 
 const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
@@ -49,6 +61,9 @@ const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 	expandedPaths: { "": true, address: true, hobbies: true },
 	editingPath: null,
 	editValue: "",
+	searchQuery: "",
+	searchResults: [],
+	currentSearchIndex: -1,
 	setFocus: (path) => set({ focusedPath: path }),
 	addHighlight: (path) =>
 		set(
@@ -89,7 +104,83 @@ const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 	stopEditing: () =>
 		set({ editingPath: null, editValue: "", focusedPath: null }),
 	setEditValue: (value) => set({ editValue: value }),
+	setSearchQuery: (query) => set({ searchQuery: query }),
+	searchInData: (data, query) => {
+		if (!query.trim()) {
+			set({ searchResults: [], currentSearchIndex: -1 });
+			return;
+		}
+
+		const results = searchInJsonData(data, query.toLowerCase());
+		set({
+			searchResults: results,
+			currentSearchIndex: results.length > 0 ? 0 : -1,
+		});
+	},
+	clearSearch: () =>
+		set({
+			searchQuery: "",
+			searchResults: [],
+			currentSearchIndex: -1,
+		}),
+	goToNextResult: () => {
+		const { searchResults, currentSearchIndex } = get();
+		if (searchResults.length > 0) {
+			const nextIndex = (currentSearchIndex + 1) % searchResults.length;
+			set({ currentSearchIndex: nextIndex });
+		}
+	},
+	goToPrevResult: () => {
+		const { searchResults, currentSearchIndex } = get();
+		if (searchResults.length > 0) {
+			const prevIndex =
+				currentSearchIndex <= 0
+					? searchResults.length - 1
+					: currentSearchIndex - 1;
+			set({ currentSearchIndex: prevIndex });
+		}
+	},
 }));
+
+const searchInJsonData = (data: any, query: string, path = ""): string[] => {
+	const results: string[] = [];
+
+	if (isPrimitive(data)) {
+		const stringValue = String(data).toLowerCase();
+		if (stringValue.includes(query)) {
+			results.push(path);
+		}
+		return results;
+	}
+
+	const isArray = Array.isArray(data);
+	const entries = isArray
+		? data.map((item, index) => [index, item])
+		: Object.entries(data);
+
+	entries.forEach(([key, value]) => {
+		const keyString = String(key).toLowerCase();
+		const currentPath = path === "" ? String(key) : `${path}.${key}`;
+
+		// Поиск в ключах
+		if (keyString.includes(query)) {
+			results.push(currentPath);
+		}
+
+		// Поиск в значениях
+		if (isPrimitive(value)) {
+			const stringValue = String(value).toLowerCase();
+			if (stringValue.includes(query)) {
+				results.push(currentPath);
+			}
+		} else {
+			// Рекурсивный поиск в объектах/массивах
+			results.push(...searchInJsonData(value, query, currentPath));
+		}
+	});
+
+	return results;
+};
 
 const getAllExpandablePaths = (data: any, path = ""): string[] => {
 	const paths: string[] = [];
@@ -245,6 +336,30 @@ const flattenJsonData = (
 	return result;
 };
 
+const SearchContainer = styled(Box)(({ theme }) => ({
+	display: "flex",
+	alignItems: "center",
+	gap: theme.spacing(1),
+	padding: theme.spacing(1),
+	borderBottom: `1px solid ${theme.palette.divider}`,
+	backgroundColor: theme.palette.background.paper,
+}));
+
+const SearchField = styled(TextField)(({ theme }) => ({
+	flex: 1,
+	"& .MuiOutlinedInput-root": {
+		height: "32px",
+		fontSize: "14px",
+	},
+}));
+
+const SearchResults = styled(Typography)(({ theme }) => ({
+	fontSize: "12px",
+	color: theme.palette.text.secondary,
+	minWidth: "80px",
+	textAlign: "center",
+}));
+
 const Container = styled(Box)(({ theme }) => ({
 	fontFamily: 'Monaco, "Lucida Console", monospace',
 	fontSize: "14px",
@@ -263,26 +378,41 @@ const JsonLine = styled(Box, {
 	$isHighlighted?: boolean;
 	$isFocused?: boolean;
 	$depth: number;
+	$isSearchMatch?: boolean;
+	$isCurrentSearchResult?: boolean;
 	"data-path"?: string;
-}>(({ theme, $isHighlighted, $isFocused, $depth }) => ({
-	display: "flex",
-	alignItems: "center",
-	paddingLeft: $depth * 20,
-	paddingRight: theme.spacing(1),
-	minHeight: "32px",
-	height: "32px",
-	gap: theme.spacing(0.5),
-	backgroundColor: $isFocused
-		? theme.palette.primary.light
-		: $isHighlighted
-			? theme.palette.warning.light
-			: "transparent",
-	"&:hover": {
-		backgroundColor: theme.palette.action.hover,
-	},
-	transition: "background-color 0.2s ease",
-	cursor: "pointer",
-}));
+}>(
+	({
+		theme,
+		$isHighlighted,
+		$isFocused,
+		$depth,
+		$isSearchMatch,
+		$isCurrentSearchResult,
+	}) => ({
+		display: "flex",
+		alignItems: "center",
+		paddingLeft: $depth * 20,
+		paddingRight: theme.spacing(1),
+		minHeight: "32px",
+		height: "32px",
+		gap: theme.spacing(0.5),
+		backgroundColor: $isCurrentSearchResult
+			? theme.palette.secondary.light
+			: $isSearchMatch
+				? theme.palette.secondary.main + "20"
+				: $isFocused
+					? theme.palette.primary.light
+					: $isHighlighted
+						? theme.palette.warning.light
+						: "transparent",
+		"&:hover": {
+			backgroundColor: theme.palette.action.hover,
+		},
+		transition: "background-color 0.2s ease",
+		cursor: "pointer",
+	}),
+);
 
 const EditableValue = styled(TextField)(({ theme }) => ({
 	"& .MuiInputBase-input": {
@@ -341,6 +471,92 @@ const ValueContainer = styled(Box)(({ theme }) => ({
 	gap: theme.spacing(0.5),
 }));
 
+interface JsonSearchBarProps {
+	data: any;
+}
+
+const JsonSearchBar: React.FC<JsonSearchBarProps> = ({ data }) => {
+	const {
+		searchQuery,
+		searchResults,
+		currentSearchIndex,
+		setSearchQuery,
+		searchInData,
+		clearSearch,
+		goToNextResult,
+		goToPrevResult,
+		setFocus,
+	} = useJsonEditorStore();
+
+	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const query = event.target.value;
+		setSearchQuery(query);
+		searchInData(data, query);
+	};
+
+	const handleClear = () => {
+		clearSearch();
+	};
+
+	const handleNext = () => {
+		goToNextResult();
+		if (searchResults.length > 0) {
+			const nextIndex = (currentSearchIndex + 1) % searchResults.length;
+			setFocus(searchResults[nextIndex]);
+		}
+	};
+
+	const handlePrev = () => {
+		goToPrevResult();
+		if (searchResults.length > 0) {
+			const prevIndex =
+				currentSearchIndex <= 0
+					? searchResults.length - 1
+					: currentSearchIndex - 1;
+			setFocus(searchResults[prevIndex]);
+		}
+	};
+
+	return (
+		<SearchContainer>
+			<SearchIcon fontSize="small" />
+			<SearchField
+				placeholder="Поиск в JSON..."
+				value={searchQuery}
+				onChange={handleSearchChange}
+				variant="outlined"
+				size="small"
+			/>
+			{searchQuery && (
+				<>
+					<SearchResults>
+						{searchResults.length > 0
+							? `${currentSearchIndex + 1} из ${searchResults.length}`
+							: "0 из 0"}
+					</SearchResults>
+					<IconButton
+						size="small"
+						onClick={handlePrev}
+						disabled={searchResults.length === 0}
+					>
+						<KeyboardArrowUpIcon fontSize="small" />
+					</IconButton>
+					<IconButton
+						size="small"
+						onClick={handleNext}
+						disabled={searchResults.length === 0}
+					>
+						<KeyboardArrowDownIcon fontSize="small" />
+					</IconButton>
+					<IconButton size="small" onClick={handleClear}>
+						<ClearIcon fontSize="small" />
+					</IconButton>
+				</>
+			)}
+		</SearchContainer>
+	);
+};
+
 interface JsonNodeProps {
 	node: FlatJsonNode;
 	onUpdate: (path: string, value: any) => void;
@@ -362,16 +578,25 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		const inputRef = useRef<HTMLDivElement>(null);
 		const nodeRef = useRef<HTMLDivElement>(null);
 
-		const { editingPath, editValue, startEditing, stopEditing, setEditValue } =
-			useJsonEditorStore(
-				useShallow((state) => ({
-					editingPath: state.editingPath,
-					editValue: state.editValue,
-					startEditing: state.startEditing,
-					stopEditing: state.stopEditing,
-					setEditValue: state.setEditValue,
-				})),
-			);
+		const {
+			editingPath,
+			editValue,
+			startEditing,
+			stopEditing,
+			setEditValue,
+			searchResults,
+			currentSearchIndex,
+		} = useJsonEditorStore(
+			useShallow((state) => ({
+				editingPath: state.editingPath,
+				editValue: state.editValue,
+				startEditing: state.startEditing,
+				stopEditing: state.stopEditing,
+				setEditValue: state.setEditValue,
+				searchResults: state.searchResults,
+				currentSearchIndex: state.currentSearchIndex,
+			})),
+		);
 
 		const { revealPosition, isNeedReveal, currentGraph } = useDataLineageStore(
 			useShallow((state) => ({
@@ -382,6 +607,9 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		);
 
 		const isEditing = editingPath === node.path;
+		const isSearchMatch = searchResults.includes(node.path);
+		const isCurrentSearchResult =
+			searchResults[currentSearchIndex] === node.path;
 
 		useEffect(() => {
 			if (isFocused && inputRef.current) {
@@ -467,6 +695,8 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 					$isHighlighted={isHighlighted}
 					$isFocused={isFocused}
 					$depth={node.depth}
+					$isSearchMatch={isSearchMatch}
+					$isCurrentSearchResult={isCurrentSearchResult}
 				>
 					{node.key !== "" && (
 						<KeyText data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}>
@@ -557,6 +787,8 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				$isHighlighted={isHighlighted}
 				$isFocused={isFocused}
 				$depth={node.depth}
+				$isSearchMatch={isSearchMatch}
+				$isCurrentSearchResult={isCurrentSearchResult}
 				onClick={handleNodeClickInternal}
 			>
 				<IconButton
@@ -640,6 +872,8 @@ export const CodeJsonEditor = forwardRef<
 			toggleExpanded,
 			setExpanded,
 			expandAll,
+			searchResults,
+			currentSearchIndex,
 		} = useJsonEditorStore();
 
 		const {
@@ -663,6 +897,19 @@ export const CodeJsonEditor = forwardRef<
 		const flatNodes = useMemo(() => {
 			return flattenJsonData(jsonData, expandedPaths);
 		}, [jsonData, expandedPaths]);
+
+		// Автоматическая прокрутка к текущему результату поиска
+		useEffect(() => {
+			if (searchResults.length > 0 && currentSearchIndex >= 0) {
+				const currentPath = searchResults[currentSearchIndex];
+				const nodeIndex = flatNodes.findIndex(
+					(node) => node.path === currentPath,
+				);
+				if (nodeIndex >= 0 && listRef.current) {
+					listRef.current.scrollToItem(nodeIndex, "center");
+				}
+			}
+		}, [searchResults, currentSearchIndex, flatNodes]);
 
 		useEffect(() => {
 			if (initialData) {
@@ -868,6 +1115,7 @@ export const CodeJsonEditor = forwardRef<
 
 		return (
 			<Container ref={containerRef} data-test-id="json-editor-container">
+				<JsonSearchBar data={jsonData} />
 				<List
 					ref={listRef}
 					height={600}
