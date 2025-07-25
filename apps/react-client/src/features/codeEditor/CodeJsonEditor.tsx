@@ -5,6 +5,8 @@ import React, {
 	useEffect,
 	forwardRef,
 	useImperativeHandle,
+	memo,
+	useMemo,
 } from "react";
 import { styled } from "@mui/material/styles";
 import { Box, TextField, Typography, IconButton } from "@mui/material";
@@ -18,32 +20,174 @@ import {
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { create } from "zustand";
+import { produce } from "immer";
+import { FixedSizeList as List } from "react-window";
 
 interface JsonEditorState {
 	focusedPath: string | null;
-	highlightedPaths: Set<string>;
+	highlightedPaths: Record<string, boolean>;
+	expandedPaths: Record<string, boolean>;
 	setFocus: (path: string | null) => void;
 	addHighlight: (path: string) => void;
 	removeHighlight: (path: string) => void;
 	clearHighlights: () => void;
+	toggleExpanded: (path: string) => void;
+	setExpanded: (path: string, expanded: boolean) => void;
+	isExpanded: (path: string) => boolean;
 }
 
-const useJsonEditorStore = create<JsonEditorState>((set) => ({
+const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 	focusedPath: null,
-	highlightedPaths: new Set(),
+	highlightedPaths: {},
+	expandedPaths: { "": true, address: true, hobbies: true },
 	setFocus: (path) => set({ focusedPath: path }),
 	addHighlight: (path) =>
-		set((state) => ({
-			highlightedPaths: new Set([...state.highlightedPaths, path]),
-		})),
+		set(
+			produce((state) => {
+				state.highlightedPaths[path] = true;
+			}),
+		),
 	removeHighlight: (path) =>
-		set((state) => {
-			const newHighlights = new Set(state.highlightedPaths);
-			newHighlights.delete(path);
-			return { highlightedPaths: newHighlights };
-		}),
-	clearHighlights: () => set({ highlightedPaths: new Set() }),
+		set(
+			produce((state) => {
+				delete state.highlightedPaths[path];
+			}),
+		),
+	clearHighlights: () => set({ highlightedPaths: {} }),
+	toggleExpanded: (path) =>
+		set(
+			produce((state) => {
+				state.expandedPaths[path] = !state.expandedPaths[path];
+			}),
+		),
+	setExpanded: (path, expanded) =>
+		set(
+			produce((state) => {
+				state.expandedPaths[path] = expanded;
+			}),
+		),
+	isExpanded: (path) => Boolean(get().expandedPaths[path]),
 }));
+
+const isPrimitive = (value: any): boolean => {
+	return value === null || typeof value !== "object";
+};
+
+const getValueType = (value: any): string => {
+	if (value === null) return "null";
+	return typeof value;
+};
+
+const formatValue = (value: any): string => {
+	if (typeof value === "string") return `"${value}"`;
+	if (value === null) return "null";
+	return String(value);
+};
+
+const parseEditValue = (editValue: string): any => {
+	if (editValue === "true" || editValue === "false") {
+		return editValue === "true";
+	}
+	if (!Number.isNaN(Number(editValue)) && editValue.trim() !== "") {
+		return Number(editValue);
+	}
+	if (editValue === "null") {
+		return null;
+	}
+	return editValue;
+};
+
+interface FlatJsonNode {
+	path: string;
+	key: string | number;
+	value: any;
+	depth: number;
+	isLast: boolean;
+	isExpandable: boolean;
+	isExpanded: boolean;
+	parentPath: string;
+}
+
+const flattenJsonData = (
+	data: any,
+	expandedPaths: Record<string, boolean>,
+	path = "",
+	depth = 0,
+): FlatJsonNode[] => {
+	const result: FlatJsonNode[] = [];
+
+	if (isPrimitive(data)) {
+		return [
+			{
+				path,
+				key: path.split(".").pop() || "",
+				value: data,
+				depth,
+				isLast: true,
+				isExpandable: false,
+				isExpanded: false,
+				parentPath: path.split(".").slice(0, -1).join("."),
+			},
+		];
+	}
+
+	const isArray = Array.isArray(data);
+	const entries = isArray
+		? data.map((item, index) => [index, item])
+		: Object.entries(data);
+
+	if (path === "" && expandedPaths[""]) {
+		entries.forEach(([key, value], index) => {
+			const currentPath = String(key);
+			const isLast = index === entries.length - 1;
+			const isExpandable = !isPrimitive(value);
+			const isExpanded = Boolean(expandedPaths[currentPath]);
+
+			result.push({
+				path: currentPath,
+				key,
+				value,
+				depth,
+				isLast,
+				isExpandable,
+				isExpanded,
+				parentPath: "",
+			});
+
+			if (isExpandable && isExpanded) {
+				result.push(
+					...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
+				);
+			}
+		});
+	} else if (path !== "") {
+		entries.forEach(([key, value], index) => {
+			const currentPath = `${path}.${key}`;
+			const isLast = index === entries.length - 1;
+			const isExpandable = !isPrimitive(value);
+			const isExpanded = Boolean(expandedPaths[currentPath]);
+
+			result.push({
+				path: currentPath,
+				key,
+				value,
+				depth,
+				isLast,
+				isExpandable,
+				isExpanded,
+				parentPath: path,
+			});
+
+			if (isExpandable && isExpanded) {
+				result.push(
+					...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
+				);
+			}
+		});
+	}
+
+	return result;
+};
 
 const Container = styled(Box)(({ theme }) => ({
 	fontFamily: 'Monaco, "Lucida Console", monospace',
@@ -66,7 +210,10 @@ const JsonLine = styled(Box)<{
 	display: "flex",
 	alignItems: "center",
 	paddingLeft: $depth * 20,
-	minHeight: "24px",
+	paddingRight: theme.spacing(1),
+	minHeight: "32px",
+	height: "32px",
+	gap: theme.spacing(0.5),
 	backgroundColor: $isFocused
 		? theme.palette.primary.light
 		: $isHighlighted
@@ -76,6 +223,7 @@ const JsonLine = styled(Box)<{
 		backgroundColor: theme.palette.action.hover,
 	},
 	transition: "background-color 0.2s ease",
+	cursor: "pointer",
 }));
 
 const EditableValue = styled(TextField)(({ theme }) => ({
@@ -107,277 +255,269 @@ const ValueText = styled(Typography)<{ $type: string }>(({ theme, $type }) => ({
 					? theme.palette.warning.main
 					: theme.palette.text.primary,
 	cursor: "pointer",
+	padding: theme.spacing(0.5, 1),
+	borderRadius: theme.shape.borderRadius,
+	flex: 1,
+	minWidth: 0,
 	"&:hover": {
 		backgroundColor: theme.palette.action.hover,
 	},
+	transition: "background-color 0.2s ease",
+}));
+
+const EditActions = styled(Box)(({ theme }) => ({
+	display: "flex",
+	alignItems: "center",
+	gap: theme.spacing(0.5),
+	marginLeft: "auto",
+	flexShrink: 0,
+}));
+
+const ValueContainer = styled(Box)(({ theme }) => ({
+	display: "flex",
+	alignItems: "center",
+	flex: 1,
+	minWidth: 0,
+	gap: theme.spacing(0.5),
 }));
 
 interface JsonNodeProps {
-	data: any;
-	path: string;
-	depth: number;
+	node: FlatJsonNode;
 	onUpdate: (path: string, value: any) => void;
-	isLast?: boolean;
+	onToggleExpand: (path: string) => void;
+	isHighlighted: boolean;
+	isFocused: boolean;
+	onNodeClick: (path: string) => void;
 }
 
-const JsonNode: React.FC<JsonNodeProps> = ({
-	data,
-	path,
-	depth,
-	onUpdate,
-	isLast = false,
-}) => {
-	const [isExpanded, setIsExpanded] = useState(true);
-	const [isEditing, setIsEditing] = useState(false);
-	const [editValue, setEditValue] = useState("");
-	const inputRef = useRef<HTMLDivElement>(null);
-	const nodeRef = useRef<HTMLDivElement>(null);
+const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
+	({
+		node,
+		onUpdate,
+		onToggleExpand,
+		isHighlighted,
+		isFocused,
+		onNodeClick,
+	}) => {
+		const [isEditing, setIsEditing] = useState(false);
+		const [editValue, setEditValue] = useState("");
+		const inputRef = useRef<HTMLDivElement>(null);
+		const nodeRef = useRef<HTMLDivElement>(null);
 
-	const { focusedPath, highlightedPaths, setFocus } = useJsonEditorStore();
+		const { setFocus } = useJsonEditorStore(
+			useShallow((state) => ({
+				setFocus: state.setFocus,
+			})),
+		);
 
-	const {
-		selectedNodes,
-		revealPosition,
-		isNeedReveal,
-		selectNode,
-		setRevealPosition,
-		currentGraph,
-	} = useDataLineageStore(
-		useShallow((state) => ({
-			selectedNodes: state.selectedNodes,
-			revealPosition: state.revealPosition,
-			isNeedReveal: state.isNeedReveal,
-			selectNode: state.selectNode,
-			setRevealPosition: state.setRevealPosition,
-			currentGraph: state.currentGraph,
-		})),
-	);
+		const { revealPosition, isNeedReveal, currentGraph } = useDataLineageStore(
+			useShallow((state) => ({
+				revealPosition: state.revealPosition,
+				isNeedReveal: state.isNeedReveal,
+				currentGraph: state.currentGraph,
+			})),
+		);
 
-	const isHighlighted = highlightedPaths.has(path);
-	const isFocused = focusedPath === path;
-
-	useEffect(() => {
-		if (isFocused && inputRef.current) {
-			const input = inputRef.current.querySelector("input");
-			if (input) {
-				input.focus();
-				input.select();
-			}
-		}
-	}, [isFocused]);
-
-	useEffect(() => {
-		if (isNeedReveal("editor") && revealPosition.nodeId && nodeRef.current) {
-			const nodeIndex = currentGraph?.nodes.findIndex(
-				(n) => n.id === revealPosition.nodeId,
-			);
-			if (nodeIndex !== undefined && nodeIndex >= 0) {
-				const targetPath = `.nodes.${nodeIndex}`;
-				if (path === targetPath) {
-					nodeRef.current.scrollIntoView({
-						behavior: "smooth",
-						block: "center",
-					});
-					setFocus(path);
+		useEffect(() => {
+			if (isFocused && inputRef.current) {
+				const input = inputRef.current.querySelector("input");
+				if (input) {
+					input.focus();
+					input.select();
 				}
 			}
-		}
-	}, [revealPosition, isNeedReveal, currentGraph, path, setFocus]);
+		}, [isFocused]);
 
-	const handleEdit = useCallback(
-		(value: any) => {
-			setEditValue(String(value));
-			setIsEditing(true);
-			setFocus(path);
-		},
-		[path, setFocus],
-	);
-
-	const handleSave = useCallback(() => {
-		let parsedValue: any = editValue;
-
-		if (editValue === "true" || editValue === "false") {
-			parsedValue = editValue === "true";
-		} else if (!Number.isNaN(Number(editValue)) && editValue.trim() !== "") {
-			parsedValue = Number(editValue);
-		} else if (editValue === "null") {
-			parsedValue = null;
-		}
-
-		onUpdate(path, parsedValue);
-		setIsEditing(false);
-		setFocus(null);
-	}, [editValue, onUpdate, path, setFocus]);
-
-	const handleCancel = useCallback(() => {
-		setIsEditing(false);
-		setFocus(null);
-	}, [setFocus]);
-
-	const handleKeyPress = useCallback(
-		(e: React.KeyboardEvent) => {
-			if (e.key === "Enter") {
-				handleSave();
-			} else if (e.key === "Escape") {
-				handleCancel();
+		useEffect(() => {
+			if (isNeedReveal("editor") && revealPosition.nodeId && nodeRef.current) {
+				const nodeIndex = currentGraph?.nodes.findIndex(
+					(n) => n.id === revealPosition.nodeId,
+				);
+				if (nodeIndex !== undefined && nodeIndex >= 0) {
+					const targetPath = `.nodes.${nodeIndex}`;
+					if (node.path === targetPath) {
+						nodeRef.current.scrollIntoView({
+							behavior: "smooth",
+							block: "center",
+						});
+						setFocus(node.path);
+					}
+				}
 			}
-		},
-		[handleSave, handleCancel],
-	);
+		}, [revealPosition, isNeedReveal, currentGraph, node.path, setFocus]);
 
-	const handleNodeClick = useCallback(() => {
-		const pathParts = path.split(".").filter(Boolean);
-		if (pathParts[0] === "nodes" && pathParts[1] !== undefined) {
-			const nodeIndex = Number.parseInt(pathParts[1], 10);
-			const node = currentGraph?.nodes[nodeIndex];
-			if (node) {
-				selectNode(node.id);
-				setRevealPosition({ nodeId: node.id, from: "editor" });
-			}
+		const handleEdit = useCallback(
+			(value: any) => {
+				setEditValue(String(value));
+				setIsEditing(true);
+				setFocus(node.path);
+			},
+			[node.path, setFocus],
+		);
+
+		const handleSave = useCallback(() => {
+			const parsedValue = parseEditValue(editValue);
+			onUpdate(node.path, parsedValue);
+			setIsEditing(false);
+			setFocus(null);
+		}, [editValue, onUpdate, node.path, setFocus]);
+
+		const handleCancel = useCallback(() => {
+			setIsEditing(false);
+			setFocus(null);
+		}, [setFocus]);
+
+		const handleKeyPress = useCallback(
+			(e: React.KeyboardEvent) => {
+				if (e.key === "Enter") {
+					handleSave();
+				} else if (e.key === "Escape") {
+					handleCancel();
+				}
+			},
+			[handleSave, handleCancel],
+		);
+
+		const handleNodeClickInternal = useCallback(() => {
+			onNodeClick(node.path);
+		}, [node.path, onNodeClick]);
+
+		const handleToggleExpand = useCallback(() => {
+			onToggleExpand(node.path);
+		}, [node.path, onToggleExpand]);
+
+		if (!node.isExpandable) {
+			return (
+				<JsonLine
+					ref={nodeRef}
+					data-path={node.path}
+					data-test-id={`json-node-primitive-${node.path.replace(/\./g, "-")}`}
+					$isHighlighted={isHighlighted}
+					$isFocused={isFocused}
+					$depth={node.depth}
+				>
+					{node.key !== "" && (
+						<KeyText data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}>
+							"{node.key}":
+						</KeyText>
+					)}
+					{isEditing ? (
+						<ValueContainer
+							data-test-id={`json-value-editing-${node.path.replace(/\./g, "-")}`}
+						>
+							<EditableValue
+								ref={inputRef}
+								value={editValue}
+								onChange={(e) => setEditValue(e.target.value)}
+								onKeyDown={handleKeyPress}
+								size="small"
+								variant="outlined"
+								sx={{ flex: 1 }}
+								data-test-id={`json-input-${node.path.replace(/\./g, "-")}`}
+							/>
+							<EditActions>
+								<IconButton
+									size="small"
+									onClick={(e) => {
+										e.stopPropagation();
+										handleSave();
+									}}
+									data-test-id={`json-save-btn-${node.path.replace(/\./g, "-")}`}
+								>
+									<Check fontSize="small" />
+								</IconButton>
+								<IconButton
+									size="small"
+									onClick={(e) => {
+										e.stopPropagation();
+										handleCancel();
+									}}
+									data-test-id={`json-cancel-btn-${node.path.replace(/\./g, "-")}`}
+								>
+									<Close fontSize="small" />
+								</IconButton>
+							</EditActions>
+						</ValueContainer>
+					) : (
+						<ValueContainer
+							data-test-id={`json-value-container-${node.path.replace(/\./g, "-")}`}
+						>
+							<ValueText
+								$type={getValueType(node.value)}
+								onClick={(e) => {
+									e.stopPropagation();
+									handleEdit(node.value);
+								}}
+								data-test-id={`json-value-${node.path.replace(/\./g, "-")}`}
+							>
+								{formatValue(node.value)}
+							</ValueText>
+							<EditActions>
+								<IconButton
+									size="small"
+									onClick={(e) => {
+										e.stopPropagation();
+										handleEdit(node.value);
+									}}
+									sx={{ opacity: 0.7, "&:hover": { opacity: 1 } }}
+									data-test-id={`json-edit-btn-${node.path.replace(/\./g, "-")}`}
+								>
+									<Edit fontSize="small" />
+								</IconButton>
+							</EditActions>
+						</ValueContainer>
+					)}
+					{/* {!node.isLast && <Typography>,</Typography>} */}
+				</JsonLine>
+			);
 		}
-	}, [path, currentGraph, selectNode, setRevealPosition]);
 
-	const isPrimitive = (value: any): boolean => {
-		return value === null || typeof value !== "object";
-	};
+		const isArray = Array.isArray(node.value);
+		const entries = isArray
+			? node.value.map((item: any, index: number) => [index, item])
+			: Object.entries(node.value);
 
-	const getValueType = (value: any): string => {
-		if (value === null) return "null";
-		return typeof value;
-	};
-
-	const formatValue = (value: any): string => {
-		if (typeof value === "string") return `"${value}"`;
-		if (value === null) return "null";
-		return String(value);
-	};
-
-	if (isPrimitive(data)) {
 		return (
 			<JsonLine
 				ref={nodeRef}
-				data-path={path}
+				data-path={node.path}
+				data-test-id={`json-node-expandable-${node.path.replace(/\./g, "-")}`}
 				$isHighlighted={isHighlighted}
 				$isFocused={isFocused}
-				$depth={depth}
-				onClick={handleNodeClick}
+				$depth={node.depth}
+				onClick={handleNodeClickInternal}
 			>
-				{isEditing ? (
-					<>
-						<EditableValue
-							ref={inputRef}
-							value={editValue}
-							onChange={(e) => setEditValue(e.target.value)}
-							onKeyDown={handleKeyPress}
-							size="small"
-							variant="outlined"
-						/>
-						<IconButton size="small" onClick={handleSave}>
-							<Check fontSize="small" />
-						</IconButton>
-						<IconButton size="small" onClick={handleCancel}>
-							<Close fontSize="small" />
-						</IconButton>
-					</>
-				) : (
-					<>
-						<ValueText
-							$type={getValueType(data)}
-							onClick={() => handleEdit(data)}
-						>
-							{formatValue(data)}
-						</ValueText>
-						<IconButton size="small" onClick={() => handleEdit(data)}>
-							<Edit fontSize="small" />
-						</IconButton>
-					</>
-				)}
-				{!isLast && <Typography>,</Typography>}
-			</JsonLine>
-		);
-	}
-
-	const isArray = Array.isArray(data);
-	const entries = isArray
-		? data.map((item, index) => [index, item])
-		: Object.entries(data);
-
-	return (
-		<>
-			<JsonLine
-				ref={nodeRef}
-				data-path={path}
-				$isHighlighted={isHighlighted}
-				$isFocused={isFocused}
-				$depth={depth}
-				onClick={handleNodeClick}
-			>
-				<IconButton size="small" onClick={() => setIsExpanded(!isExpanded)}>
-					{isExpanded ? <ExpandLess /> : <ExpandMore />}
+				<IconButton
+					size="small"
+					onClick={(e) => {
+						e.stopPropagation();
+						handleToggleExpand();
+					}}
+					sx={{ flexShrink: 0 }}
+					data-test-id={`json-expand-btn-${node.path.replace(/\./g, "-")}`}
+				>
+					{node.isExpanded ? <ExpandLess /> : <ExpandMore />}
 				</IconButton>
+				{node.key !== "" && (
+					<KeyText data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}>
+						"{node.key}":
+					</KeyText>
+				)}
 				<Typography>{isArray ? "[" : "{"}</Typography>
-				{!isExpanded && (
-					<Typography sx={{ ml: 1, color: "text.secondary" }}>
+				{!node.isExpanded && (
+					<Typography
+						sx={{ ml: 1, color: "text.secondary" }}
+						data-test-id={`json-collapsed-info-${node.path.replace(/\./g, "-")}`}
+					>
 						...{entries.length} {isArray ? "элементов" : "свойств"}
 					</Typography>
 				)}
-				{!isExpanded && <Typography>{isArray ? "]" : "}"}</Typography>}
-				{!isLast && !isExpanded && <Typography>,</Typography>}
+				{!node.isExpanded && <Typography>{isArray ? "]" : "}"}</Typography>}
+				{!node.isLast && !node.isExpanded && <Typography>,</Typography>}
 			</JsonLine>
-
-			{isExpanded &&
-				entries.map(([key, value], index) => {
-					const currentPath = `${path}.${key}`;
-					const isLastEntry = index === entries.length - 1;
-
-					return (
-						<Box key={key}>
-							{!isPrimitive(value) ? (
-								<>
-									<JsonLine
-										$isHighlighted={false}
-										$isFocused={false}
-										$depth={depth + 1}
-									>
-										{!isArray && <KeyText>"{key}":</KeyText>}
-									</JsonLine>
-									<JsonNode
-										data={value}
-										path={currentPath}
-										depth={depth + 1}
-										onUpdate={onUpdate}
-										isLast={isLastEntry}
-									/>
-								</>
-							) : (
-								<JsonLine
-									$isHighlighted={false}
-									$isFocused={false}
-									$depth={depth + 1}
-								>
-									{!isArray && <KeyText>"{key}":</KeyText>}
-									<JsonNode
-										data={value}
-										path={currentPath}
-										depth={0}
-										onUpdate={onUpdate}
-										isLast={isLastEntry}
-									/>
-								</JsonLine>
-							)}
-						</Box>
-					);
-				})}
-
-			{isExpanded && (
-				<JsonLine $isHighlighted={false} $isFocused={false} $depth={depth}>
-					<Typography>{isArray ? "]" : "}"}</Typography>
-					{!isLast && <Typography>,</Typography>}
-				</JsonLine>
-			)}
-		</>
-	);
-};
+		);
+	},
+);
 
 interface CodeJsonEditorProps {
 	initialData?: any;
@@ -415,19 +555,40 @@ export const CodeJsonEditor = forwardRef<
 	) => {
 		const [jsonData, setJsonData] = useState(initialData);
 		const containerRef = useRef<HTMLDivElement>(null);
+		const listRef = useRef<List>(null);
 
-		const { setFocus, addHighlight, removeHighlight, clearHighlights } =
-			useJsonEditorStore();
+		const {
+			focusedPath,
+			highlightedPaths,
+			expandedPaths,
+			setFocus,
+			addHighlight,
+			removeHighlight,
+			clearHighlights,
+			toggleExpanded,
+		} = useJsonEditorStore();
 
-		const { revealPosition, isNeedReveal, currentGraph, selectedNodes } =
-			useDataLineageStore(
-				useShallow((state) => ({
-					revealPosition: state.revealPosition,
-					isNeedReveal: state.isNeedReveal,
-					currentGraph: state.currentGraph,
-					selectedNodes: state.selectedNodes,
-				})),
-			);
+		const {
+			revealPosition,
+			isNeedReveal,
+			currentGraph,
+			selectedNodes,
+			selectNode,
+			setRevealPosition,
+		} = useDataLineageStore(
+			useShallow((state) => ({
+				revealPosition: state.revealPosition,
+				isNeedReveal: state.isNeedReveal,
+				currentGraph: state.currentGraph,
+				selectedNodes: state.selectedNodes,
+				selectNode: state.selectNode,
+				setRevealPosition: state.setRevealPosition,
+			})),
+		);
+
+		const flatNodes = useMemo(() => {
+			return flattenJsonData(jsonData, expandedPaths);
+		}, [jsonData, expandedPaths]);
 
 		useEffect(() => {
 			if (initialData) {
@@ -456,16 +617,15 @@ export const CodeJsonEditor = forwardRef<
 			(path: string, value: any) => {
 				const pathParts = path.split(".").filter(Boolean);
 
-				const newData = JSON.parse(JSON.stringify(jsonData));
-				let current = newData;
-
-				for (let i = 0; i < pathParts.length - 1; i++) {
-					const part = pathParts[i];
-					current = current[part];
-				}
-
-				const lastPart = pathParts[pathParts.length - 1];
-				current[lastPart] = value;
+				const newData = produce(jsonData, (draft: any) => {
+					let current = draft;
+					for (let i = 0; i < pathParts.length - 1; i++) {
+						const part = pathParts[i];
+						current = current[part];
+					}
+					const lastPart = pathParts[pathParts.length - 1];
+					current[lastPart] = value;
+				});
 
 				setJsonData(newData);
 				onChange?.(newData);
@@ -473,25 +633,31 @@ export const CodeJsonEditor = forwardRef<
 			[jsonData, onChange],
 		);
 
+		const handleNodeClick = useCallback(
+			(path: string) => {
+				const pathParts = path.split(".").filter(Boolean);
+				if (pathParts[0] === "nodes" && pathParts[1] !== undefined) {
+					const nodeIndex = Number.parseInt(pathParts[1], 10);
+					const node = currentGraph?.nodes[nodeIndex];
+					if (node) {
+						selectNode(node.id);
+						setRevealPosition({ nodeId: node.id, from: "editor" });
+					}
+				}
+			},
+			[currentGraph, selectNode, setRevealPosition],
+		);
+
 		const focusPath = useCallback(
 			(path: string) => {
 				setFocus(path);
 
-				setTimeout(() => {
-					if (containerRef.current) {
-						const targetElement = containerRef.current.querySelector(
-							`[data-path="${path}"]`,
-						);
-						if (targetElement) {
-							targetElement.scrollIntoView({
-								behavior: "smooth",
-								block: "center",
-							});
-						}
-					}
-				}, 100);
+				const nodeIndex = flatNodes.findIndex((node) => node.path === path);
+				if (nodeIndex >= 0 && listRef.current) {
+					listRef.current.scrollToItem(nodeIndex, "center");
+				}
 			},
-			[setFocus],
+			[setFocus, flatNodes],
 		);
 
 		const highlightPath = useCallback(
@@ -525,9 +691,49 @@ export const CodeJsonEditor = forwardRef<
 			[focusPath, highlightPath, unhighlightPath, clearAllHighlights, jsonData],
 		);
 
+		const renderRow = useCallback(
+			({ index, style }: { index: number; style: React.CSSProperties }) => {
+				const node = flatNodes[index];
+				if (!node) return null;
+
+				const isHighlighted = Boolean(highlightedPaths[node.path]);
+				const isFocused = focusedPath === node.path;
+
+				return (
+					<div style={style} data-test-id={`json-row-${index}`}>
+						<JsonNodeComponent
+							node={node}
+							onUpdate={updateValue}
+							onToggleExpand={toggleExpanded}
+							isHighlighted={isHighlighted}
+							isFocused={isFocused}
+							onNodeClick={handleNodeClick}
+						/>
+					</div>
+				);
+			},
+			[
+				flatNodes,
+				highlightedPaths,
+				focusedPath,
+				updateValue,
+				toggleExpanded,
+				handleNodeClick,
+			],
+		);
+
 		return (
-			<Container ref={containerRef}>
-				<JsonNode data={jsonData} path="" depth={0} onUpdate={updateValue} />
+			<Container ref={containerRef} data-test-id="json-editor-container">
+				<List
+					ref={listRef}
+					height={600}
+					itemCount={flatNodes.length}
+					itemSize={32}
+					width="100%"
+					data-test-id="json-editor-list"
+				>
+					{renderRow}
+				</List>
 			</Container>
 		);
 	},
