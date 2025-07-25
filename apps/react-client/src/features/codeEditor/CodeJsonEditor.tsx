@@ -9,7 +9,7 @@ import React, {
 	memo,
 	useMemo,
 } from "react";
-import { styled } from "@mui/material/styles";
+import { styled, alpha, useColorScheme } from "@mui/material/styles";
 import { TextField, IconButton, Box, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -342,7 +342,6 @@ const SearchContainer = styled(Box)(({ theme }) => ({
 	gap: theme.spacing(1),
 	padding: theme.spacing(1),
 	borderBottom: `1px solid ${theme.palette.divider}`,
-	backgroundColor: theme.palette.background.paper,
 }));
 
 const SearchField = styled(TextField)(({ theme }) => ({
@@ -366,7 +365,6 @@ const Container = styled(Box)(({ theme }) => ({
 	border: `1px solid ${theme.palette.divider}`,
 	borderRadius: theme.shape.borderRadius,
 	overflow: "hidden",
-	backgroundColor: theme.palette.background.paper,
 	display: "flex",
 	flexDirection: "column",
 }));
@@ -379,6 +377,7 @@ const JsonLine = styled(Box, {
 	$depth: number;
 	$isSearchMatch?: boolean;
 	$isCurrentSearchResult?: boolean;
+	$isDark?: boolean;
 	"data-path"?: string;
 }>(
 	({
@@ -388,6 +387,7 @@ const JsonLine = styled(Box, {
 		$depth,
 		$isSearchMatch,
 		$isCurrentSearchResult,
+		$isDark,
 	}) => ({
 		display: "flex",
 		alignItems: "center",
@@ -396,13 +396,21 @@ const JsonLine = styled(Box, {
 		height: "32px",
 		gap: theme.spacing(0.5),
 		backgroundColor: $isCurrentSearchResult
-			? theme.palette.secondary.light
+			? $isDark
+				? alpha(theme.palette.secondary.main, 0.3)
+				: theme.palette.secondary.light
 			: $isSearchMatch
-				? theme.palette.secondary.main + "20"
+				? $isDark
+					? alpha(theme.palette.secondary.main, 0.15)
+					: theme.palette.secondary.main + "20"
 				: $isFocused
-					? theme.palette.primary.light
+					? $isDark
+						? alpha(theme.palette.primary.main, 0.2)
+						: alpha(theme.palette.primary.main, 0.1)
 					: $isHighlighted
-						? theme.palette.warning.light
+						? $isDark
+							? alpha(theme.palette.warning.main, 0.25)
+							: alpha(theme.palette.warning.main, 0.2)
 						: "transparent",
 		"&:hover": {
 			backgroundColor: theme.palette.action.hover,
@@ -412,21 +420,23 @@ const JsonLine = styled(Box, {
 	}),
 );
 
-const LineNumberColumn = styled(Box)(({ theme }) => ({
-	width: "60px",
-	backgroundColor: theme.palette.grey[50],
-	borderRight: `1px solid ${theme.palette.divider}`,
-	fontSize: "12px",
-	color: theme.palette.text.secondary,
-	userSelect: "none",
-	flexShrink: 0,
-	display: "flex",
-	alignItems: "center",
-	justifyContent: "flex-end",
-	paddingRight: theme.spacing(1),
-	minHeight: "32px",
-	height: "32px",
-}));
+const LineNumberColumn = styled(Box)<{ $isDark?: boolean }>(
+	({ theme, $isDark }) => ({
+		width: "60px",
+		backgroundColor: $isDark ? theme.palette.grey[900] : theme.palette.grey[50],
+		borderRight: `1px solid ${theme.palette.divider}`,
+		fontSize: "12px",
+		color: theme.palette.text.secondary,
+		userSelect: "none",
+		flexShrink: 0,
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "flex-end",
+		paddingRight: theme.spacing(1),
+		minHeight: "32px",
+		height: "32px",
+	}),
+);
 
 const ContentColumn = styled(Box)<{ $depth: number }>(({ theme, $depth }) => ({
 	flex: 1,
@@ -450,22 +460,30 @@ const EditableValue = styled(TextField)(({ theme }) => ({
 	},
 }));
 
-const KeyText = styled(Typography)(({ theme }) => ({
-	color: theme.palette.primary.main,
-	fontWeight: "bold",
-	marginRight: theme.spacing(1),
-}));
+const KeyText = styled(Typography)<{ $isDark?: boolean }>(
+	({ theme, $isDark }) => ({
+		color: $isDark ? theme.palette.primary.light : theme.palette.primary.main,
+		fontWeight: "bold",
+		marginRight: theme.spacing(1),
+	}),
+);
 
 const ValueText = styled(Typography, {
 	shouldForwardProp: (prop) => !prop.toString().startsWith("$"),
-})<{ $type: string }>(({ theme, $type }) => ({
+})<{ $type: string; $isDark?: boolean }>(({ theme, $type, $isDark }) => ({
 	color:
 		$type === "string"
-			? theme.palette.success.main
+			? $isDark
+				? theme.palette.success.light
+				: theme.palette.success.main
 			: $type === "number"
-				? theme.palette.info.main
+				? $isDark
+					? theme.palette.info.light
+					: theme.palette.info.main
 				: $type === "boolean"
-					? theme.palette.warning.main
+					? $isDark
+						? theme.palette.warning.light
+						: theme.palette.warning.main
 					: theme.palette.text.primary,
 	cursor: "pointer",
 	padding: theme.spacing(0.5, 1),
@@ -588,6 +606,7 @@ interface JsonNodeProps {
 	isHighlighted: boolean;
 	isFocused: boolean;
 	onNodeClick: (path: string) => void;
+	isDark: boolean;
 }
 
 const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
@@ -599,6 +618,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		isHighlighted,
 		isFocused,
 		onNodeClick,
+		isDark,
 	}) => {
 		const inputRef = useRef<HTMLDivElement>(null);
 		const nodeRef = useRef<HTMLDivElement>(null);
@@ -720,11 +740,13 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 					$depth={node.depth}
 					$isSearchMatch={isSearchMatch}
 					$isCurrentSearchResult={isCurrentSearchResult}
+					$isDark={isDark}
 				>
-					<LineNumberColumn>{lineNumber}</LineNumberColumn>
+					<LineNumberColumn $isDark={isDark}>{lineNumber}</LineNumberColumn>
 					<ContentColumn $depth={node.depth}>
 						{node.key !== "" && (
 							<KeyText
+								$isDark={isDark}
 								data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}
 							>
 								"{node.key}":
@@ -773,6 +795,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 							>
 								<ValueText
 									$type={getValueType(node.value)}
+									$isDark={isDark}
 									onClick={(e) => {
 										e.stopPropagation();
 										handleEdit(node.value);
@@ -814,9 +837,10 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				$depth={node.depth}
 				$isSearchMatch={isSearchMatch}
 				$isCurrentSearchResult={isCurrentSearchResult}
+				$isDark={isDark}
 				onClick={handleNodeClickInternal}
 			>
-				<LineNumberColumn>{lineNumber}</LineNumberColumn>
+				<LineNumberColumn $isDark={isDark}>{lineNumber}</LineNumberColumn>
 				<ContentColumn $depth={node.depth}>
 					<IconButton
 						size="small"
@@ -830,7 +854,10 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 						{node.isExpanded ? <ExpandLess /> : <ExpandMore />}
 					</IconButton>
 					{node.key !== "" && (
-						<KeyText data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}>
+						<KeyText
+							$isDark={isDark}
+							data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}
+						>
 							"{node.key}":
 						</KeyText>
 					)}
@@ -885,6 +912,7 @@ export const CodeJsonEditor = forwardRef<
 		},
 		ref,
 	) => {
+		const { mode } = useColorScheme();
 		const [jsonData, setJsonData] = useState(initialData);
 		const containerRef = useRef<HTMLDivElement>(null);
 		const listRef = useRef<List>(null);
@@ -1128,6 +1156,7 @@ export const CodeJsonEditor = forwardRef<
 							isHighlighted={isHighlighted}
 							isFocused={isFocused}
 							onNodeClick={handleNodeClick}
+							isDark={mode === "dark"}
 						/>
 					</div>
 				);
@@ -1139,6 +1168,7 @@ export const CodeJsonEditor = forwardRef<
 				updateValue,
 				toggleExpanded,
 				handleNodeClick,
+				mode,
 			],
 		);
 
