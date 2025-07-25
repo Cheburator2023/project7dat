@@ -40,7 +40,7 @@ export function App() {
 		<StyledEngineProvider injectFirst>
 			<QueryClientProvider client={queryClient}>
 				<BrowserRouter>
-					<AppTheme themeComponents={xThemeComponents}>
+					<AppTheme themeComponents={xThemeComponents as any}>
 						<CssBaseline enableColorScheme />
 						<Suspense fallback={<CircularProgress />}>
 							<LocalizationProvider dateAdapter={AdapterDateFns}>

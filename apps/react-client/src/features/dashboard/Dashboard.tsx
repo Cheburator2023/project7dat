@@ -163,7 +163,10 @@ export const Dashboard = () => {
 	);
 };
 
-const PanelResizeHandleStyled = styled(PanelResizeHandle)<{
+const PanelResizeHandleStyled = styled(PanelResizeHandle, {
+	shouldForwardProp: (prop) =>
+		!["vertical", "visible"].includes(prop as string),
+})<{
 	vertical?: boolean;
 	visible?: boolean;
 }>`

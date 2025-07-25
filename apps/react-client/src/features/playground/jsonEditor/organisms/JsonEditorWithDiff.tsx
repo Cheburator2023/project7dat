@@ -117,7 +117,9 @@ const Wrapper = styled(Flex)`
 	}
 `;
 
-const PanelResizeHandleStyled = styled(PanelResizeHandle)<{
+const PanelResizeHandleStyled = styled(PanelResizeHandle, {
+	shouldForwardProp: (prop) => prop !== "vertical",
+})<{
 	vertical?: boolean;
 }>`
 	display: flex;

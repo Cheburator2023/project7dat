@@ -85,7 +85,39 @@ export type TFlexboxProps = {
 	flexBasis?: number | string;
 };
 
-export const Flex = styled("div")<TFlexboxProps>`
+export const Flex = styled("div", {
+	shouldForwardProp: (prop) =>
+		!(
+			[
+				"fillChild",
+				"height",
+				"width",
+				"maxHeight",
+				"maxWidth",
+				"minHeight",
+				"minWidth",
+				"padding",
+				"pad",
+				"margin",
+				"position",
+				"pointerEvents",
+				"top",
+				"left",
+				"right",
+				"bottom",
+				"zIndex",
+				"flexDirection",
+				"wrap",
+				"gap",
+				"justifyContent",
+				"alignContent",
+				"alignItems",
+				"flexShrink",
+				"flexGrow",
+				"flexBasis",
+			] as string[]
+		).includes(prop as string),
+})<TFlexboxProps>`
   display: flex;
   ${(props) => `
     ${
