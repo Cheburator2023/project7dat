@@ -231,17 +231,78 @@ const formatValue = (value: any): string => {
 	return String(value);
 };
 
-const parseEditValue = (editValue: string): any => {
-	if (editValue === "true" || editValue === "false") {
-		return editValue === "true";
+const getTypeHint = (originalValue: any): string => {
+	const type = getValueType(originalValue);
+	switch (type) {
+		case "string":
+			return "Строка";
+		case "number":
+			return "Число";
+		case "boolean":
+			return "true или false";
+		case "null":
+			return "Любой тип";
+		default:
+			return "Значение";
 	}
-	if (!Number.isNaN(Number(editValue)) && editValue.trim() !== "") {
-		return Number(editValue);
+};
+
+const validateInput = (editValue: string, originalValue: any): boolean => {
+	const originalType = getValueType(originalValue);
+
+	if (originalValue === null) {
+		return true; // null может быть изменен на любой тип
 	}
-	if (editValue === "null") {
-		return null;
+
+	switch (originalType) {
+		case "string":
+			return true; // строки всегда валидны
+		case "number":
+			return !Number.isNaN(Number(editValue)) && editValue.trim() !== "";
+		case "boolean":
+			return editValue === "true" || editValue === "false";
+		default:
+			return true;
 	}
-	return editValue;
+};
+
+const parseEditValue = (editValue: string, originalValue: any): any => {
+	const originalType = getValueType(originalValue);
+
+	// Если исходное значение null, разрешаем изменение типа
+	if (originalValue === null) {
+		if (editValue === "true" || editValue === "false") {
+			return editValue === "true";
+		}
+		if (!Number.isNaN(Number(editValue)) && editValue.trim() !== "") {
+			return Number(editValue);
+		}
+		if (editValue === "null") {
+			return null;
+		}
+		return editValue;
+	}
+
+	// Принудительно сохраняем исходный тип
+	switch (originalType) {
+		case "string":
+			return editValue;
+		case "number": {
+			const numValue = Number(editValue);
+			if (Number.isNaN(numValue)) {
+				// Если не удается преобразовать в число, возвращаем исходное значение
+				return originalValue;
+			}
+			return numValue;
+		}
+		case "boolean":
+			if (editValue === "true") return true;
+			if (editValue === "false") return false;
+			// Если не булево значение, возвращаем исходное
+			return originalValue;
+		default:
+			return editValue;
+	}
 };
 
 interface FlatJsonNode {
@@ -703,10 +764,10 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		);
 
 		const handleSave = useCallback(() => {
-			const parsedValue = parseEditValue(editValue);
+			const parsedValue = parseEditValue(editValue, node.value);
 			onUpdate(node.path, parsedValue);
 			stopEditing();
-		}, [editValue, onUpdate, node.path, stopEditing]);
+		}, [editValue, onUpdate, node.path, stopEditing, node.value]);
 
 		const handleCancel = useCallback(() => {
 			stopEditing();
@@ -764,6 +825,12 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 									size="small"
 									variant="outlined"
 									sx={{ flex: 1 }}
+									error={!validateInput(editValue, node.value)}
+									helperText={
+										!validateInput(editValue, node.value)
+											? `Ожидается: ${getTypeHint(node.value)}`
+											: `Тип: ${getTypeHint(node.value)}`
+									}
 									data-test-id={`json-input-${node.path.replace(/\./g, "-")}`}
 								/>
 								<EditActions>
@@ -773,6 +840,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 											e.stopPropagation();
 											handleSave();
 										}}
+										disabled={!validateInput(editValue, node.value)}
 										data-test-id={`json-save-btn-${node.path.replace(/\./g, "-")}`}
 									>
 										<Check fontSize="small" />
