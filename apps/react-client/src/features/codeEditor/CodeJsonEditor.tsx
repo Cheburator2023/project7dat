@@ -23,6 +23,7 @@ import {
 	Close,
 } from "@mui/icons-material";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import type { DataLineageNode } from "@react-client/types/dataLineage";
 import { useShallow } from "zustand/react/shallow";
 import { create } from "zustand";
 import { produce } from "immer";
@@ -1050,6 +1051,7 @@ export const CodeJsonEditor = forwardRef<
 			selectedNodes,
 			selectNode,
 			setRevealPosition,
+			updateNode,
 		} = useDataLineageStore(
 			useShallow((state) => ({
 				revealPosition: state.revealPosition,
@@ -1058,8 +1060,10 @@ export const CodeJsonEditor = forwardRef<
 				selectedNodes: state.selectedNodes,
 				selectNode: state.selectNode,
 				setRevealPosition: state.setRevealPosition,
+				updateNode: state.updateNode,
 			})),
 		);
+		console.log("🐸 Pepe said >> currentGraph:", currentGraph);
 
 		const flatNodes = useMemo(() => {
 			return flattenJsonData(jsonData, expandedPaths);
@@ -1123,6 +1127,80 @@ export const CodeJsonEditor = forwardRef<
 				setJsonData(newData);
 				onChange?.(newData);
 
+				// Обновляем store если изменяется узел графа
+				if (
+					pathParts[0] === "nodes" &&
+					pathParts[1] !== undefined &&
+					currentGraph
+				) {
+					const nodeIndex = Number.parseInt(pathParts[1], 10);
+					const node = currentGraph.nodes[nodeIndex];
+
+					if (node) {
+						// Создаем обновления для узла на основе измененного пути
+						const updates: Partial<DataLineageNode> = {};
+
+						// Определяем какое поле было изменено
+						if (pathParts.length === 3) {
+							// Прямое поле узла (name, type, description, status)
+							const fieldName = pathParts[2] as keyof DataLineageNode;
+							if (
+								fieldName === "name" ||
+								fieldName === "type" ||
+								fieldName === "description" ||
+								fieldName === "status"
+							) {
+								(updates as any)[fieldName] = value;
+							}
+						} else if (pathParts.length === 4 && pathParts[2] === "metadata") {
+							// Поле в metadata
+							const metadataField = pathParts[3];
+							updates.metadata = {
+								...node.metadata,
+								[metadataField]: value,
+							};
+						} else if (pathParts.length === 4 && pathParts[2] === "position") {
+							// Поле в position
+							const positionField = pathParts[3] as "x" | "y";
+							updates.position = {
+								...node.position,
+								[positionField]: value,
+							};
+						} else if (
+							pathParts.length >= 5 &&
+							pathParts[2] === "metadata" &&
+							pathParts[3] === "schema"
+						) {
+							// Поле в schema
+							const schemaUpdates = {
+								fields: [],
+								...node.metadata.schema,
+							};
+							let current = schemaUpdates as any;
+
+							// Навигируем по пути в schema
+							for (let i = 4; i < pathParts.length - 1; i++) {
+								const part = pathParts[i];
+								if (!current[part]) current[part] = {};
+								current = current[part];
+							}
+
+							const lastField = pathParts[pathParts.length - 1];
+							current[lastField] = value;
+
+							updates.metadata = {
+								...node.metadata,
+								schema: schemaUpdates,
+							};
+						}
+
+						// Обновляем узел в store если есть изменения
+						if (Object.keys(updates).length > 0) {
+							updateNode(node.id, updates);
+						}
+					}
+				}
+
 				// Восстанавливаем позицию скролла после обновления
 				setTimeout(() => {
 					if (listRef.current && typeof currentScrollOffset === "number") {
@@ -1133,7 +1211,7 @@ export const CodeJsonEditor = forwardRef<
 					}
 				}, 0);
 			},
-			[jsonData, onChange],
+			[jsonData, onChange, currentGraph, updateNode],
 		);
 
 		const handleNodeClick = useCallback(
