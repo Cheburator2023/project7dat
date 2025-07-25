@@ -222,12 +222,14 @@ const isPrimitive = (value: any): boolean => {
 
 const getValueType = (value: any): string => {
 	if (value === null) return "null";
+	if (value === undefined) return "undefined";
 	return typeof value;
 };
 
 const formatValue = (value: any): string => {
 	if (typeof value === "string") return `"${value}"`;
 	if (value === null) return "null";
+	if (value === undefined) return "undefined";
 	return String(value);
 };
 
@@ -241,6 +243,7 @@ const getTypeHint = (originalValue: any): string => {
 		case "boolean":
 			return "true или false";
 		case "null":
+		case "undefined":
 			return "Любой тип";
 		default:
 			return "Значение";
@@ -250,8 +253,8 @@ const getTypeHint = (originalValue: any): string => {
 const validateInput = (editValue: string, originalValue: any): boolean => {
 	const originalType = getValueType(originalValue);
 
-	if (originalValue === null) {
-		return true; // null может быть изменен на любой тип
+	if (originalValue === null || originalValue === undefined) {
+		return true; // null и undefined могут быть изменены на любой тип
 	}
 
 	switch (originalType) {
@@ -269,8 +272,8 @@ const validateInput = (editValue: string, originalValue: any): boolean => {
 const parseEditValue = (editValue: string, originalValue: any): any => {
 	const originalType = getValueType(originalValue);
 
-	// Если исходное значение null, разрешаем изменение типа
-	if (originalValue === null) {
+	// Если исходное значение null или undefined, разрешаем изменение типа
+	if (originalValue === null || originalValue === undefined) {
 		if (editValue === "true" || editValue === "false") {
 			return editValue === "true";
 		}
@@ -279,6 +282,9 @@ const parseEditValue = (editValue: string, originalValue: any): any => {
 		}
 		if (editValue === "null") {
 			return null;
+		}
+		if (editValue === "undefined") {
+			return undefined;
 		}
 		return editValue;
 	}
@@ -521,41 +527,59 @@ const EditableValue = styled(TextField)(({ theme }) => ({
 	},
 }));
 
-const KeyText = styled(Typography)<{ $isDark?: boolean }>(
-	({ theme, $isDark }) => ({
+const KeyText = styled(Typography, {
+	shouldForwardProp: (prop) => !prop.toString().startsWith("$"),
+})<{ $isDark?: boolean; $isSelectedNodeName?: boolean }>(
+	({ theme, $isDark, $isSelectedNodeName }) => ({
 		color: $isDark ? theme.palette.primary.light : theme.palette.primary.main,
 		fontWeight: "bold",
 		marginRight: theme.spacing(1),
+		backgroundColor: $isSelectedNodeName
+			? $isDark
+				? theme.palette.warning.dark
+				: theme.palette.warning.light
+			: "transparent",
+		padding: $isSelectedNodeName ? theme.spacing(0.25, 0.5) : 0,
+		borderRadius: $isSelectedNodeName ? theme.shape.borderRadius : 0,
+		transition: "background-color 0.3s ease, padding 0.3s ease",
 	}),
 );
 
 const ValueText = styled(Typography, {
 	shouldForwardProp: (prop) => !prop.toString().startsWith("$"),
-})<{ $type: string; $isDark?: boolean }>(({ theme, $type, $isDark }) => ({
-	color:
-		$type === "string"
-			? $isDark
-				? theme.palette.success.light
-				: theme.palette.success.main
-			: $type === "number"
-				? $isDark
-					? theme.palette.info.light
-					: theme.palette.info.main
-				: $type === "boolean"
-					? $isDark
-						? theme.palette.warning.light
-						: theme.palette.warning.main
-					: theme.palette.text.primary,
-	cursor: "pointer",
-	padding: theme.spacing(0.5, 1),
-	borderRadius: theme.shape.borderRadius,
-	flex: 1,
-	minWidth: 0,
-	"&:hover": {
-		backgroundColor: theme.palette.action.hover,
-	},
-	transition: "background-color 0.2s ease",
-}));
+})<{ $type: string; $isDark?: boolean }>(({ theme, $type, $isDark }) => {
+	const getTypeColor = () => {
+		switch ($type) {
+			case "string":
+				return $isDark ? "#98D982" : "#2E7D32";
+			case "number":
+				return $isDark ? "#64B5F6" : "#1565C0";
+			case "boolean":
+				return $isDark ? "#FFB74D" : "#F57C00";
+			case "null":
+				return $isDark ? "#F48FB1" : "#C2185B";
+			case "undefined":
+				return $isDark ? "#CE93D8" : "#7B1FA2";
+			default:
+				return theme.palette.text.primary;
+		}
+	};
+
+	return {
+		color: getTypeColor(),
+		fontWeight: $type === "string" ? 400 : 500,
+		fontStyle: $type === "null" || $type === "undefined" ? "italic" : "normal",
+		cursor: "pointer",
+		padding: theme.spacing(0.5, 1),
+		borderRadius: theme.shape.borderRadius,
+		flex: 1,
+		minWidth: 0,
+		"&:hover": {
+			backgroundColor: theme.palette.action.hover,
+		},
+		transition: "background-color 0.2s ease, color 0.2s ease",
+	};
+});
 
 const EditActions = styled(Box)(({ theme }) => ({
 	display: "flex",
@@ -668,7 +692,30 @@ interface JsonNodeProps {
 	isFocused: boolean;
 	onNodeClick: (path: string) => void;
 	isDark: boolean;
+	selectedNodes: string[];
+	currentGraph?: any;
 }
+
+const isSelectedNodeName = (
+	node: FlatJsonNode,
+	selectedNodes: string[],
+	currentGraph?: any,
+): boolean => {
+	if (!currentGraph || selectedNodes.length === 0) return false;
+
+	const pathParts = node.path.split(".");
+	if (
+		pathParts.length >= 3 &&
+		pathParts[0] === "nodes" &&
+		pathParts[2] === "name"
+	) {
+		const nodeIndex = Number.parseInt(pathParts[1], 10);
+		const graphNode = currentGraph.nodes[nodeIndex];
+		return graphNode && selectedNodes.includes(graphNode.id);
+	}
+
+	return false;
+};
 
 const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 	({
@@ -680,6 +727,8 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		isFocused,
 		onNodeClick,
 		isDark,
+		selectedNodes,
+		currentGraph,
 	}) => {
 		const inputRef = useRef<HTMLDivElement>(null);
 		const nodeRef = useRef<HTMLDivElement>(null);
@@ -704,18 +753,15 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 			})),
 		);
 
-		const { revealPosition, isNeedReveal, currentGraph } = useDataLineageStore(
-			useShallow((state) => ({
-				revealPosition: state.revealPosition,
-				isNeedReveal: state.isNeedReveal,
-				currentGraph: state.currentGraph,
-			})),
-		);
-
 		const isEditing = editingPath === node.path;
 		const isSearchMatch = searchResults.includes(node.path);
 		const isCurrentSearchResult =
 			searchResults[currentSearchIndex] === node.path;
+		const isNodeNameSelected = isSelectedNodeName(
+			node,
+			selectedNodes,
+			currentGraph,
+		);
 
 		useEffect(() => {
 			if (isFocused && inputRef.current) {
@@ -738,23 +784,6 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				}
 			}
 		}, [isEditing, node.path]);
-
-		useEffect(() => {
-			if (revealPosition.nodeId && nodeRef.current) {
-				const nodeIndex = currentGraph?.nodes.findIndex(
-					(n) => n.id === revealPosition.nodeId,
-				);
-				if (nodeIndex !== undefined && nodeIndex >= 0) {
-					const targetPath = `.nodes.${nodeIndex}`;
-					if (node.path === targetPath) {
-						nodeRef.current.scrollIntoView({
-							behavior: "smooth",
-							block: "center",
-						});
-					}
-				}
-			}
-		}, [revealPosition, isNeedReveal, currentGraph, node.path]);
 
 		const handleEdit = useCallback(
 			(value: any) => {
@@ -808,6 +837,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 						{node.key !== "" && (
 							<KeyText
 								$isDark={isDark}
+								$isSelectedNodeName={isNodeNameSelected}
 								data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}
 							>
 								"{node.key}":
@@ -924,6 +954,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 					{node.key !== "" && (
 						<KeyText
 							$isDark={isDark}
+							$isSelectedNodeName={isNodeNameSelected}
 							data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}
 						>
 							"{node.key}":
@@ -969,12 +1000,24 @@ export const CodeJsonEditor = forwardRef<
 			initialData = {
 				name: "Пример",
 				age: 25,
+				price: 99.99,
 				active: true,
+				verified: false,
+				description: null,
+				metadata: undefined,
 				address: {
 					city: "Москва",
 					country: "Россия",
+					zipCode: null,
 				},
 				hobbies: ["чтение", "программирование"],
+				scores: [85, 92, 78],
+				settings: {
+					theme: "dark",
+					notifications: true,
+					autoSave: false,
+					maxRetries: 3,
+				},
 			},
 			onChange,
 		},
@@ -1225,6 +1268,8 @@ export const CodeJsonEditor = forwardRef<
 							isFocused={isFocused}
 							onNodeClick={handleNodeClick}
 							isDark={mode === "dark"}
+							selectedNodes={selectedNodes}
+							currentGraph={currentGraph}
 						/>
 					</div>
 				);
@@ -1237,6 +1282,8 @@ export const CodeJsonEditor = forwardRef<
 				toggleExpanded,
 				handleNodeClick,
 				mode,
+				selectedNodes,
+				currentGraph,
 			],
 		);
 
