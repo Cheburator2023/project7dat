@@ -363,13 +363,12 @@ const SearchResults = styled(Typography)(({ theme }) => ({
 const Container = styled(Box)(({ theme }) => ({
 	fontFamily: 'Monaco, "Lucida Console", monospace',
 	fontSize: "14px",
-	lineHeight: "1.4",
-	padding: theme.spacing(2),
-	backgroundColor: theme.palette.background.paper,
 	border: `1px solid ${theme.palette.divider}`,
 	borderRadius: theme.shape.borderRadius,
-	maxHeight: "600px",
-	overflow: "auto",
+	overflow: "hidden",
+	backgroundColor: theme.palette.background.paper,
+	display: "flex",
+	flexDirection: "column",
 }));
 
 const JsonLine = styled(Box, {
@@ -392,7 +391,6 @@ const JsonLine = styled(Box, {
 	}) => ({
 		display: "flex",
 		alignItems: "center",
-		paddingLeft: $depth * 20,
 		paddingRight: theme.spacing(1),
 		minHeight: "32px",
 		height: "32px",
@@ -413,6 +411,31 @@ const JsonLine = styled(Box, {
 		cursor: "pointer",
 	}),
 );
+
+const LineNumberColumn = styled(Box)(({ theme }) => ({
+	width: "60px",
+	backgroundColor: theme.palette.grey[50],
+	borderRight: `1px solid ${theme.palette.divider}`,
+	fontSize: "12px",
+	color: theme.palette.text.secondary,
+	userSelect: "none",
+	flexShrink: 0,
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "flex-end",
+	paddingRight: theme.spacing(1),
+	minHeight: "32px",
+	height: "32px",
+}));
+
+const ContentColumn = styled(Box)<{ $depth: number }>(({ theme, $depth }) => ({
+	flex: 1,
+	display: "flex",
+	alignItems: "center",
+	paddingLeft: theme.spacing($depth * 2 + 1),
+	minHeight: "32px",
+	height: "32px",
+}));
 
 const EditableValue = styled(TextField)(({ theme }) => ({
 	"& .MuiInputBase-input": {
@@ -559,6 +582,7 @@ const JsonSearchBar: React.FC<JsonSearchBarProps> = ({ data }) => {
 
 interface JsonNodeProps {
 	node: FlatJsonNode;
+	lineNumber: number;
 	onUpdate: (path: string, value: any) => void;
 	onToggleExpand: (path: string) => void;
 	isHighlighted: boolean;
@@ -569,6 +593,7 @@ interface JsonNodeProps {
 const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 	({
 		node,
+		lineNumber,
 		onUpdate,
 		onToggleExpand,
 		isHighlighted,
@@ -692,84 +717,86 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 					ref={nodeRef}
 					data-path={node.path}
 					data-test-id={`json-node-primitive-${node.path.replace(/\./g, "-")}`}
-					$isHighlighted={isHighlighted}
-					$isFocused={isFocused}
 					$depth={node.depth}
 					$isSearchMatch={isSearchMatch}
 					$isCurrentSearchResult={isCurrentSearchResult}
 				>
-					{node.key !== "" && (
-						<KeyText data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}>
-							"{node.key}":
-						</KeyText>
-					)}
-					{isEditing ? (
-						<ValueContainer
-							data-test-id={`json-value-editing-${node.path.replace(/\./g, "-")}`}
-						>
-							<EditableValue
-								ref={inputRef}
-								value={editValue}
-								onChange={(e) => setEditValue(e.target.value)}
-								onKeyDown={handleKeyPress}
-								size="small"
-								variant="outlined"
-								sx={{ flex: 1 }}
-								data-test-id={`json-input-${node.path.replace(/\./g, "-")}`}
-							/>
-							<EditActions>
-								<IconButton
-									size="small"
-									onClick={(e) => {
-										e.stopPropagation();
-										handleSave();
-									}}
-									data-test-id={`json-save-btn-${node.path.replace(/\./g, "-")}`}
-								>
-									<Check fontSize="small" />
-								</IconButton>
-								<IconButton
-									size="small"
-									onClick={(e) => {
-										e.stopPropagation();
-										handleCancel();
-									}}
-									data-test-id={`json-cancel-btn-${node.path.replace(/\./g, "-")}`}
-								>
-									<Close fontSize="small" />
-								</IconButton>
-							</EditActions>
-						</ValueContainer>
-					) : (
-						<ValueContainer
-							data-test-id={`json-value-container-${node.path.replace(/\./g, "-")}`}
-						>
-							<ValueText
-								$type={getValueType(node.value)}
-								onClick={(e) => {
-									e.stopPropagation();
-									handleEdit(node.value);
-								}}
-								data-test-id={`json-value-${node.path.replace(/\./g, "-")}`}
+					<LineNumberColumn>{lineNumber}</LineNumberColumn>
+					<ContentColumn $depth={node.depth}>
+						{node.key !== "" && (
+							<KeyText
+								data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}
 							>
-								{formatValue(node.value)}
-							</ValueText>
-							<EditActions>
-								<IconButton
+								"{node.key}":
+							</KeyText>
+						)}
+						{isEditing ? (
+							<ValueContainer
+								data-test-id={`json-value-editing-${node.path.replace(/\./g, "-")}`}
+							>
+								<EditableValue
+									ref={inputRef}
+									value={editValue}
+									onChange={(e) => setEditValue(e.target.value)}
+									onKeyDown={handleKeyPress}
 									size="small"
+									variant="outlined"
+									sx={{ flex: 1 }}
+									data-test-id={`json-input-${node.path.replace(/\./g, "-")}`}
+								/>
+								<EditActions>
+									<IconButton
+										size="small"
+										onClick={(e) => {
+											e.stopPropagation();
+											handleSave();
+										}}
+										data-test-id={`json-save-btn-${node.path.replace(/\./g, "-")}`}
+									>
+										<Check fontSize="small" />
+									</IconButton>
+									<IconButton
+										size="small"
+										onClick={(e) => {
+											e.stopPropagation();
+											handleCancel();
+										}}
+										data-test-id={`json-cancel-btn-${node.path.replace(/\./g, "-")}`}
+									>
+										<Close fontSize="small" />
+									</IconButton>
+								</EditActions>
+							</ValueContainer>
+						) : (
+							<ValueContainer
+								data-test-id={`json-value-container-${node.path.replace(/\./g, "-")}`}
+							>
+								<ValueText
+									$type={getValueType(node.value)}
 									onClick={(e) => {
 										e.stopPropagation();
 										handleEdit(node.value);
 									}}
-									sx={{ opacity: 0.7, "&:hover": { opacity: 1 } }}
-									data-test-id={`json-edit-btn-${node.path.replace(/\./g, "-")}`}
+									data-test-id={`json-value-${node.path.replace(/\./g, "-")}`}
 								>
-									<Edit fontSize="small" />
-								</IconButton>
-							</EditActions>
-						</ValueContainer>
-					)}
-					{/* {!node.isLast && <Typography>,</Typography>} */}
+									{formatValue(node.value)}
+								</ValueText>
+								<EditActions>
+									<IconButton
+										size="small"
+										onClick={(e) => {
+											e.stopPropagation();
+											handleEdit(node.value);
+										}}
+										sx={{ opacity: 0.7, "&:hover": { opacity: 1 } }}
+										data-test-id={`json-edit-btn-${node.path.replace(/\./g, "-")}`}
+									>
+										<Edit fontSize="small" />
+									</IconButton>
+								</EditActions>
+							</ValueContainer>
+						)}
+					</ContentColumn>
 				</JsonLine>
 			);
 		}
@@ -784,40 +811,41 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				ref={nodeRef}
 				data-path={node.path}
 				data-test-id={`json-node-expandable-${node.path.replace(/\./g, "-")}`}
-				$isHighlighted={isHighlighted}
-				$isFocused={isFocused}
 				$depth={node.depth}
 				$isSearchMatch={isSearchMatch}
 				$isCurrentSearchResult={isCurrentSearchResult}
 				onClick={handleNodeClickInternal}
 			>
-				<IconButton
-					size="small"
-					onClick={(e) => {
-						e.stopPropagation();
-						handleToggleExpand();
-					}}
-					sx={{ flexShrink: 0 }}
-					data-test-id={`json-expand-btn-${node.path.replace(/\./g, "-")}`}
-				>
-					{node.isExpanded ? <ExpandLess /> : <ExpandMore />}
-				</IconButton>
-				{node.key !== "" && (
-					<KeyText data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}>
-						"{node.key}":
-					</KeyText>
-				)}
-				<Typography>{isArray ? "[" : "{"}</Typography>
-				{!node.isExpanded && (
-					<Typography
-						sx={{ ml: 1, color: "text.secondary" }}
-						data-test-id={`json-collapsed-info-${node.path.replace(/\./g, "-")}`}
+				<LineNumberColumn>{lineNumber}</LineNumberColumn>
+				<ContentColumn $depth={node.depth}>
+					<IconButton
+						size="small"
+						onClick={(e) => {
+							e.stopPropagation();
+							handleToggleExpand();
+						}}
+						sx={{ flexShrink: 0 }}
+						data-test-id={`json-expand-btn-${node.path.replace(/\./g, "-")}`}
 					>
-						...{entries.length} {isArray ? "элементов" : "свойств"}
-					</Typography>
-				)}
-				{!node.isExpanded && <Typography>{isArray ? "]" : "}"}</Typography>}
-				{!node.isLast && !node.isExpanded && <Typography>,</Typography>}
+						{node.isExpanded ? <ExpandLess /> : <ExpandMore />}
+					</IconButton>
+					{node.key !== "" && (
+						<KeyText data-test-id={`json-key-${node.path.replace(/\./g, "-")}`}>
+							"{node.key}":
+						</KeyText>
+					)}
+					<Typography>{isArray ? "[" : "{"}</Typography>
+					{!node.isExpanded && (
+						<Typography
+							sx={{ ml: 1, color: "text.secondary" }}
+							data-test-id={`json-collapsed-info-${node.path.replace(/\./g, "-")}`}
+						>
+							...{entries.length} {isArray ? "элементов" : "свойств"}
+						</Typography>
+					)}
+					{!node.isExpanded && <Typography>{isArray ? "]" : "}"}</Typography>}
+					{!node.isLast && !node.isExpanded && <Typography>,</Typography>}
+				</ContentColumn>
 			</JsonLine>
 		);
 	},
@@ -1094,6 +1122,7 @@ export const CodeJsonEditor = forwardRef<
 					<div style={style} data-test-id={`json-row-${index}`}>
 						<JsonNodeComponent
 							node={node}
+							lineNumber={index + 1}
 							onUpdate={updateValue}
 							onToggleExpand={toggleExpanded}
 							isHighlighted={isHighlighted}
