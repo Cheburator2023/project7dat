@@ -36,6 +36,11 @@
 			"!**/.cache/vite-app",
 			"!**/.cache/vite-app/**/*",
 			"!**/.cache/**/*",
+			"!**/deps_temp*",
+			"!**/deps_temp_*",
+			"!**/*_temp_*",
+			"!**/.vite/**/*",
+			"!**/node_modules/.vite/**/*",
 			"!apps/react-client/dist",
 			"!apps/react-client/dist/**/*"
 		]

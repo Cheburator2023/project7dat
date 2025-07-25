@@ -50,6 +50,8 @@ export function Editor({ kind, ...props }: EditorProps) {
 				},
 			}}
 			onMount={(editor, monaco) => {
+				console.log("🐸 Pepe said >> monaco:", monaco);
+
 				monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
 					validate: true,
 					schemas: [

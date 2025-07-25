@@ -477,18 +477,25 @@ export function CodeEditor({ readOnly = false, ...props }: EditorProps) {
 							let lastValidContent = model.getValue();
 
 							model.onDidChangeContent((e) => {
-								setCanUndo(true);
-								setCanRedo(false);
+								// Update undo/redo state directly
+								if (editorRef.current) {
+									const undoAction = editorRef.current.getAction("undo");
+									const redoAction = editorRef.current.getAction("redo");
+									setCanUndo(undoAction ? undoAction.isEnabled() : false);
+									setCanRedo(redoAction ? redoAction.isEnabled() : false);
+								}
 
 								if (readOnly || isUpdatingFromInternal) return;
 
 								const currentContent = model.getValue();
-								const currentRanges = parseJsonRanges(currentContent);
-								const keyRanges = currentRanges.filter(
+
+								// Parse ranges from the previous content to check if change overlaps with keys
+								const previousRanges = parseJsonRanges(lastValidContent);
+								const previousKeyRanges = previousRanges.filter(
 									(range) => range.type === "key",
 								) as JsonKeyRange[];
 
-								// Check if any changes affected key areas
+								// Check if any changes affected key areas or key quotes
 								let hasKeyChanges = false;
 								for (const change of e.changes) {
 									const changeStart = {
@@ -500,19 +507,42 @@ export function CodeEditor({ readOnly = false, ...props }: EditorProps) {
 										column: change.range.endColumn,
 									};
 
-									// Parse ranges from the previous content to check if change overlaps with keys
-									const previousRanges = parseJsonRanges(lastValidContent);
-									const previousKeyRanges = previousRanges.filter(
-										(range) => range.type === "key",
-									) as JsonKeyRange[];
+									// Check if change overlaps with any key range (including quotes)
+									for (const keyRange of previousKeyRanges) {
+										const keyStart = {
+											lineNumber: keyRange.startLineNumber,
+											column: keyRange.startColumn,
+										};
+										const keyEnd = {
+											lineNumber: keyRange.endLineNumber,
+											column: keyRange.endColumn,
+										};
 
-									if (
-										isPositionInKeyRange(changeStart, previousKeyRanges) ||
-										isPositionInKeyRange(changeEnd, previousKeyRanges)
-									) {
-										hasKeyChanges = true;
-										break;
+										// Check if change overlaps with key range (including quotes)
+										if (
+											(changeStart.lineNumber < keyEnd.lineNumber ||
+												(changeStart.lineNumber === keyEnd.lineNumber &&
+													changeStart.column <= keyEnd.column)) &&
+											(changeEnd.lineNumber > keyStart.lineNumber ||
+												(changeEnd.lineNumber === keyStart.lineNumber &&
+													changeEnd.column >= keyStart.column))
+										) {
+											hasKeyChanges = true;
+											break;
+										}
 									}
+
+									if (hasKeyChanges) break;
+								}
+
+								// Also check if the current content has fewer keys than before (key deletion)
+								const currentRanges = parseJsonRanges(currentContent);
+								const currentKeyRanges = currentRanges.filter(
+									(range) => range.type === "key",
+								) as JsonKeyRange[];
+
+								if (currentKeyRanges.length < previousKeyRanges.length) {
+									hasKeyChanges = true;
 								}
 
 								if (hasKeyChanges) {
@@ -531,7 +561,16 @@ export function CodeEditor({ readOnly = false, ...props }: EditorProps) {
 							if (readOnly) return;
 
 							const position = editor.getPosition();
-							if (position && isPositionInKeyRange(position, keyRanges)) {
+							const currentContent = editor.getValue();
+							const currentRanges = parseJsonRanges(currentContent);
+							const currentKeyRanges = currentRanges.filter(
+								(range) => range.type === "key",
+							) as JsonKeyRange[];
+
+							if (
+								position &&
+								isPositionInKeyRange(position, currentKeyRanges)
+							) {
 								if (
 									e.keyCode === monaco.KeyCode.Backspace ||
 									e.keyCode === monaco.KeyCode.Delete ||
@@ -560,9 +599,15 @@ export function CodeEditor({ readOnly = false, ...props }: EditorProps) {
 								column: range.endColumn,
 							};
 
+							const currentContent = editor.getValue();
+							const currentRanges = parseJsonRanges(currentContent);
+							const currentKeyRanges = currentRanges.filter(
+								(range) => range.type === "key",
+							) as JsonKeyRange[];
+
 							if (
-								isPositionInKeyRange(startPosition, keyRanges) ||
-								isPositionInKeyRange(endPosition, keyRanges)
+								isPositionInKeyRange(startPosition, currentKeyRanges) ||
+								isPositionInKeyRange(endPosition, currentKeyRanges)
 							) {
 								e.preventDefault();
 							}
