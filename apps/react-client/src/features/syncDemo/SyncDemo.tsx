@@ -1,9 +1,10 @@
 import { Box, Typography, Paper } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { NodeGraph } from "@react-client/features/nodeGraph";
-import { CodeEditor } from "@react-client/features/codeEditor";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
+import { useRef } from "react";
+import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
 
 const DemoContainer = styled(Box)(({ theme }) => ({
 	height: "100vh",
@@ -33,6 +34,8 @@ const ContentArea = styled(Box)({
 });
 
 export function SyncDemo() {
+	const editorRef = useRef<React.ElementRef<typeof CodeJsonEditor>>(null);
+
 	const { currentGraph, selectedNodes } = useDataLineageStore(
 		useShallow((state) => ({
 			currentGraph: state.currentGraph,
@@ -40,18 +43,20 @@ export function SyncDemo() {
 		})),
 	);
 
+	const handleJsonChange = (data: any) => {
+		console.log("JSON данные изменены:", data);
+	};
+
 	return (
 		<DemoContainer>
 			<Typography variant="h4" gutterBottom>
-				Node Graph & Code Editor Synchronization Demo
+				Демо синхронизации графа узлов и JSON-просмотрщика
 			</Typography>
 			<Typography variant="body1" color="text.secondary" gutterBottom>
-				Click on nodes in the graph to see the corresponding JSON highlighted in
-				the editor. Click on JSON properties in the editor to select nodes in
-				the graph.
-				{selectedNodes.length > 0 && (
-					<> Currently selected: {selectedNodes.join(", ")}</>
-				)}
+				Кликните на узлы в графе, чтобы увидеть соответствующий JSON,
+				подсвеченный в просмотрщике. Кликните на свойства JSON в просмотрщике,
+				чтобы выбрать узлы в графе.
+				{selectedNodes.length > 0 && <> Выбрано: {selectedNodes.join(", ")}</>}
 			</Typography>
 
 			<PanelsContainer>
@@ -65,10 +70,14 @@ export function SyncDemo() {
 				</PanelContainer>
 				<PanelContainer>
 					<Typography variant="h6" gutterBottom>
-						Code Editor
+						JSON Viewer
 					</Typography>
 					<ContentArea>
-						<CodeEditor readOnly />
+						<CodeJsonEditor
+							ref={editorRef}
+							initialData={currentGraph}
+							onChange={handleJsonChange}
+						/>
 					</ContentArea>
 				</PanelContainer>
 			</PanelsContainer>
