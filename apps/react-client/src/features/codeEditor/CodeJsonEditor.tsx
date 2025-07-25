@@ -28,6 +28,8 @@ interface JsonEditorState {
 	focusedPath: string | null;
 	highlightedPaths: Record<string, boolean>;
 	expandedPaths: Record<string, boolean>;
+	editingPath: string | null;
+	editValue: string;
 	setFocus: (path: string | null) => void;
 	addHighlight: (path: string) => void;
 	removeHighlight: (path: string) => void;
@@ -36,12 +38,17 @@ interface JsonEditorState {
 	setExpanded: (path: string, expanded: boolean) => void;
 	isExpanded: (path: string) => boolean;
 	expandAll: (data: any) => void;
+	startEditing: (path: string, value: string) => void;
+	stopEditing: () => void;
+	setEditValue: (value: string) => void;
 }
 
 const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 	focusedPath: null,
 	highlightedPaths: {},
 	expandedPaths: { "": true, address: true, hobbies: true },
+	editingPath: null,
+	editValue: "",
 	setFocus: (path) => set({ focusedPath: path }),
 	addHighlight: (path) =>
 		set(
@@ -77,6 +84,11 @@ const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 		});
 		set({ expandedPaths });
 	},
+	startEditing: (path, value) =>
+		set({ editingPath: path, editValue: value, focusedPath: path }),
+	stopEditing: () =>
+		set({ editingPath: null, editValue: "", focusedPath: null }),
+	setEditValue: (value) => set({ editValue: value }),
 }));
 
 const getAllExpandablePaths = (data: any, path = ""): string[] => {
@@ -347,16 +359,19 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		isFocused,
 		onNodeClick,
 	}) => {
-		const [isEditing, setIsEditing] = useState(false);
-		const [editValue, setEditValue] = useState("");
 		const inputRef = useRef<HTMLDivElement>(null);
 		const nodeRef = useRef<HTMLDivElement>(null);
 
-		const { setFocus } = useJsonEditorStore(
-			useShallow((state) => ({
-				setFocus: state.setFocus,
-			})),
-		);
+		const { editingPath, editValue, startEditing, stopEditing, setEditValue } =
+			useJsonEditorStore(
+				useShallow((state) => ({
+					editingPath: state.editingPath,
+					editValue: state.editValue,
+					startEditing: state.startEditing,
+					stopEditing: state.stopEditing,
+					setEditValue: state.setEditValue,
+				})),
+			);
 
 		const { revealPosition, isNeedReveal, currentGraph } = useDataLineageStore(
 			useShallow((state) => ({
@@ -365,6 +380,8 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				currentGraph: state.currentGraph,
 			})),
 		);
+
+		const isEditing = editingPath === node.path;
 
 		useEffect(() => {
 			if (isFocused && inputRef.current) {
@@ -375,6 +392,23 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				}
 			}
 		}, [isFocused]);
+
+		useEffect(() => {
+			console.log("isEditing changed", { isEditing, path: node.path });
+			if (isEditing && inputRef.current) {
+				console.log("Setting focus and focusing input", { path: node.path });
+				const input = inputRef.current.querySelector("input");
+				if (input) {
+					console.log("Input found, focusing");
+					setTimeout(() => {
+						input.focus();
+						input.select();
+					}, 0);
+				} else {
+					console.log("Input not found");
+				}
+			}
+		}, [isEditing, node.path]);
 
 		useEffect(() => {
 			if (revealPosition.nodeId && nodeRef.current) {
@@ -388,32 +422,28 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 							behavior: "smooth",
 							block: "center",
 						});
-						setFocus(node.path);
 					}
 				}
 			}
-		}, [revealPosition, isNeedReveal, currentGraph, node.path, setFocus]);
+		}, [revealPosition, isNeedReveal, currentGraph, node.path]);
 
 		const handleEdit = useCallback(
 			(value: any) => {
-				setEditValue(String(value));
-				setIsEditing(true);
-				setFocus(node.path);
+				console.log("handleEdit called", { value, path: node.path });
+				startEditing(node.path, String(value));
 			},
-			[node.path, setFocus],
+			[node.path, startEditing],
 		);
 
 		const handleSave = useCallback(() => {
 			const parsedValue = parseEditValue(editValue);
 			onUpdate(node.path, parsedValue);
-			setIsEditing(false);
-			setFocus(null);
-		}, [editValue, onUpdate, node.path, setFocus]);
+			stopEditing();
+		}, [editValue, onUpdate, node.path, stopEditing]);
 
 		const handleCancel = useCallback(() => {
-			setIsEditing(false);
-			setFocus(null);
-		}, [setFocus]);
+			stopEditing();
+		}, [stopEditing]);
 
 		const handleKeyPress = useCallback(
 			(e: React.KeyboardEvent) => {
