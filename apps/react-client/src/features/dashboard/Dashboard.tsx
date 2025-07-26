@@ -1,6 +1,7 @@
 import DownloadIcon from "@mui/icons-material/Download";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import DatasetIcon from "@mui/icons-material/Dataset";
 import { Button, IconButton, styled, Tooltip } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
@@ -16,6 +17,7 @@ import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { NodeGraph } from "@react-client/features/nodeGraph";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { dataLineageExample } from "@react-client/examples/dataLineageExample";
 import {
 	useDataLineageGraphs,
 	useSaveDataLineageGraph,
@@ -48,6 +50,7 @@ export const Dashboard = () => {
 		discardChanges,
 		commitChanges: originalCommitChanges,
 		hasUnsavedChanges,
+		setExampleData,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			hasUnsavedChanges: state.hasUnsavedChanges,
@@ -58,6 +61,7 @@ export const Dashboard = () => {
 			setCurrentGraph: state.setCurrentGraph,
 			setGraphs: state.setGraphs,
 			setLoading: state.setLoading,
+			setExampleData: state.setExampleData,
 		})),
 	);
 
@@ -101,6 +105,10 @@ export const Dashboard = () => {
 		editorRef.current?.exportToFile();
 	};
 
+	const handleSetExampleData = () => {
+		setExampleData(dataLineageExample);
+	};
+
 	return (
 		<div>
 			<Header>
@@ -135,6 +143,11 @@ export const Dashboard = () => {
 				<Tooltip title="Экспорт JSON в файл">
 					<IconButton onClick={handleExportJson}>
 						<DownloadIcon />
+					</IconButton>
+				</Tooltip>
+				<Tooltip title="Загрузить пример данных">
+					<IconButton onClick={handleSetExampleData}>
+						<DatasetIcon />
 					</IconButton>
 				</Tooltip>
 			</Header>

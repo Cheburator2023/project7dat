@@ -56,6 +56,7 @@ interface DataLineageActions {
 	resetView: () => void;
 	exportGraph: (format: "json" | "csv") => string;
 	importGraph: (data: string, format: "json") => Promise<void>;
+	setExampleData: (graph: DataLineageGraph) => void;
 	setRevealPosition: (pos: Partial<RevealPosition>) => void;
 	isNeedReveal: (scene: "editor" | "graph") => boolean;
 	setEnableSyncScroll: (enable: boolean) => void;
@@ -321,6 +322,17 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		} catch (error) {
 			set({ error: `Ошибка импорта графика: ${error}`, isLoading: false });
 		}
+	},
+
+	setExampleData: (graph: DataLineageGraph) => {
+		set({
+			currentGraph: graph,
+			originalGraph: graph,
+			hasUnsavedChanges: false,
+			selectedNodes: [],
+			selectedEdges: [],
+			error: null,
+		});
 	},
 
 	setRevealPosition: (pos: Partial<RevealPosition>) => {
