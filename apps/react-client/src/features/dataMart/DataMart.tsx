@@ -24,9 +24,9 @@ export const DataMart = () => {
 
 		return currentGraph.nodes.map((node) => ({
 			...node,
-			owner: node.metadata.owner || "Unknown",
+			owner: node.metadata.owner || "Неизвестно",
 			tagsString: node.metadata.tags.join(", "),
-			location: node.metadata.location || "N/A",
+			location: node.metadata.location || "Н/Д",
 			rowCount: node.metadata.rowCount || null,
 			size: node.metadata.size || null,
 		}));
@@ -36,80 +36,92 @@ export const DataMart = () => {
 		() => [
 			{
 				field: "name",
-				headerName: "Name",
+				headerName: "Название",
 				flex: 2,
 				sortable: true,
 				filter: true,
 			},
 			{
 				field: "type",
-				headerName: "Type",
-				flex: 1,
-				sortable: true,
-				filter: true,
-			},
-			{
-				field: "status",
-				headerName: "Status",
+				headerName: "Тип",
 				flex: 1,
 				sortable: true,
 				filter: true,
 				cellRenderer: (params: any) => {
-					const status = params.value;
-					const color =
-						status === "active"
-							? "green"
-							: status === "inactive"
-								? "orange"
-								: status === "deprecated"
-									? "red"
-									: "gray";
-					return `<span style="color: ${color}; font-weight: bold;">${status}</span>`;
+					const typeMap: Record<string, string> = {
+						source: "Источник",
+						transformation: "Трансформация",
+						destination: "Назначение",
+						dataset: "Датасет",
+						model: "Модель",
+						view: "Представление",
+					};
+					return typeMap[params.value] || params.value;
+				},
+			},
+			{
+				field: "status",
+				headerName: "Статус",
+				flex: 1,
+				sortable: true,
+				filter: true,
+				cellRenderer: (params: any) => {
+					const statusMap: Record<string, { label: string; color: string }> = {
+						active: { label: "Активный", color: "green" },
+						inactive: { label: "Неактивный", color: "orange" },
+						deprecated: { label: "Устаревший", color: "red" },
+						error: { label: "Ошибка", color: "red" },
+					};
+					const statusInfo = statusMap[params.value] || {
+						label: params.value,
+						color: "gray",
+					};
+					return `<span style="color: ${statusInfo.color}; font-weight: bold;">${statusInfo.label}</span>`;
 				},
 			},
 			{
 				field: "owner",
-				headerName: "Owner",
+				headerName: "Владелец",
 				flex: 1.5,
 				sortable: true,
 				filter: true,
 			},
 			{
 				field: "tagsString",
-				headerName: "Tags",
+				headerName: "Теги",
 				flex: 2,
 				sortable: true,
 				filter: true,
 			},
 			{
 				field: "location",
-				headerName: "Location",
+				headerName: "Расположение",
 				flex: 2,
 				sortable: true,
 				filter: true,
 			},
 			{
 				field: "rowCount",
-				headerName: "Row Count",
-				flex: 1,
+				headerName: "Количество строк",
+				flex: 1.2,
 				sortable: true,
 				filter: "agNumberColumnFilter",
 				cellRenderer: (params: any) => {
 					const value = params.value;
-					return value ? value.toLocaleString() : "N/A";
+					return value ? value.toLocaleString() : "Н/Д";
 				},
 			},
 			{
 				field: "size",
-				headerName: "Size (bytes)",
+				headerName: "Размер",
 				flex: 1,
 				sortable: true,
 				filter: "agNumberColumnFilter",
 				cellRenderer: (params: any) => {
 					const value = params.value;
-					if (!value) return "N/A";
+					if (!value) return "Н/Д";
 
-					const units = ["B", "KB", "MB", "GB", "TB"];
+					const units = ["Б", "КБ", "МБ", "ГБ", "ТБ"];
 					let size = value;
 					let unitIndex = 0;
 

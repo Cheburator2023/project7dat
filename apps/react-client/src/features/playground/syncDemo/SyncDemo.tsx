@@ -5,6 +5,7 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { useRef } from "react";
 import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
+import { DataMart } from "@react-client/features/dataMart/DataMart";
 
 const DemoContainer = styled(Box)(({ theme }) => ({
 	height: "100vh",
@@ -26,6 +27,7 @@ const PanelContainer = styled(Paper)(({ theme }) => ({
 	padding: theme.spacing(2),
 	display: "flex",
 	flexDirection: "column",
+	minWidth: 0,
 }));
 
 const ContentArea = styled(Box)({
@@ -50,19 +52,19 @@ export function SyncDemo() {
 	return (
 		<DemoContainer>
 			<Typography variant="h4" gutterBottom>
-				Демо синхронизации графа узлов и JSON-просмотрщика
+				Демо синхронизации графа узлов, JSON-просмотрщика и датамарта
 			</Typography>
 			<Typography variant="body1" color="text.secondary" gutterBottom>
 				Кликните на узлы в графе, чтобы увидеть соответствующий JSON,
-				подсвеченный в просмотрщике. Кликните на свойства JSON в просмотрщике,
-				чтобы выбрать узлы в графе.
+				подсвеченный в просмотрщике. Кликните на строки в датамарте или свойства
+				JSON в просмотрщике, чтобы выбрать узлы в графе.
 				{selectedNodes.length > 0 && <> Выбрано: {selectedNodes.join(", ")}</>}
 			</Typography>
 
 			<PanelsContainer>
 				<PanelContainer>
 					<Typography variant="h6" gutterBottom>
-						Node Graph
+						Граф узлов
 					</Typography>
 					<ContentArea>
 						<NodeGraph />
@@ -70,7 +72,7 @@ export function SyncDemo() {
 				</PanelContainer>
 				<PanelContainer>
 					<Typography variant="h6" gutterBottom>
-						JSON Viewer
+						JSON просмотрщик
 					</Typography>
 					<ContentArea>
 						<CodeJsonEditor
@@ -81,6 +83,15 @@ export function SyncDemo() {
 					</ContentArea>
 				</PanelContainer>
 			</PanelsContainer>
+
+			<PanelContainer>
+				<Typography variant="h6" gutterBottom>
+					Датамарт
+				</Typography>
+				<ContentArea>
+					<DataMart />
+				</ContentArea>
+			</PanelContainer>
 		</DemoContainer>
 	);
 }

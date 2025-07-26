@@ -9,6 +9,7 @@ import React, {
 	memo,
 	useMemo,
 } from "react";
+import { flushSync } from "react-dom";
 import { styled, alpha, useColorScheme } from "@mui/material/styles";
 import { TextField, IconButton, Box, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -412,13 +413,7 @@ const SearchContainer = styled(Box)(({ theme }) => ({
 	borderBottom: `1px solid ${theme.palette.divider}`,
 }));
 
-const SearchField = styled(TextField)(({ theme }) => ({
-	flex: 1,
-	"& .MuiOutlinedInput-root": {
-		height: "32px",
-		fontSize: "14px",
-	},
-}));
+const SearchField = styled(TextField)(({ theme }) => ({}));
 
 const SearchResults = styled(Typography)(({ theme }) => ({
 	fontSize: "12px",
@@ -1124,7 +1119,9 @@ export const CodeJsonEditor = forwardRef<
 					current[lastPart] = value;
 				});
 
-				setJsonData(newData);
+				flushSync(() => {
+					setJsonData(newData);
+				});
 				onChange?.(newData);
 
 				// Обновляем store если изменяется узел графа

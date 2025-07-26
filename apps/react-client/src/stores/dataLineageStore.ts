@@ -18,6 +18,8 @@ interface RevealPosition {
 
 interface DataLineageState {
 	currentGraph: DataLineageGraph | null;
+	originalGraph: DataLineageGraph | null;
+	hasUnsavedChanges: boolean;
 	graphs: DataLineageGraph[];
 	selectedNodes: string[];
 	selectedEdges: string[];
@@ -62,6 +64,9 @@ interface DataLineageActions {
 	setRevealPosition: (pos: Partial<RevealPosition>) => void;
 	isNeedReveal: (scene: "editor" | "graph") => boolean;
 	setEnableSyncScroll: (enable: boolean) => void;
+	markAsChanged: () => void;
+	discardChanges: () => void;
+	commitChanges: () => void;
 }
 
 type DataLineageStore = DataLineageState & DataLineageActions;
@@ -73,6 +78,8 @@ const allSampleGraphs = [
 
 const initialState: DataLineageState = {
 	currentGraph: allSampleGraphs[0],
+	originalGraph: allSampleGraphs[0],
+	hasUnsavedChanges: false,
 	graphs: allSampleGraphs,
 	selectedNodes: [],
 	selectedEdges: [],
@@ -107,7 +114,12 @@ export const useDataLineageStore = create<DataLineageStore>()(
 					const { graphs } = get();
 					const graph = graphs.find((g) => g.id === graphId);
 					if (graph) {
-						set({ currentGraph: graph, isLoading: false });
+						set({
+							currentGraph: graph,
+							originalGraph: graph,
+							hasUnsavedChanges: false,
+							isLoading: false,
+						});
 					} else {
 						set({
 							error: `Graph with id ${graphId} not found`,
@@ -132,12 +144,16 @@ export const useDataLineageStore = create<DataLineageStore>()(
 						set({
 							graphs: updatedGraphs,
 							currentGraph: updatedGraph,
+							originalGraph: updatedGraph,
+							hasUnsavedChanges: false,
 							isLoading: false,
 						});
 					} else {
 						set({
 							graphs: [...graphs, updatedGraph],
 							currentGraph: updatedGraph,
+							originalGraph: updatedGraph,
+							hasUnsavedChanges: false,
 							isLoading: false,
 						});
 					}
@@ -161,6 +177,8 @@ export const useDataLineageStore = create<DataLineageStore>()(
 					set({
 						graphs: [...graphs, newGraph],
 						currentGraph: newGraph,
+						originalGraph: newGraph,
+						hasUnsavedChanges: false,
 						isLoading: false,
 					});
 				} catch (error) {
@@ -207,6 +225,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				};
 
 				set({ currentGraph: updatedGraph });
+				get().markAsChanged();
 			},
 
 			updateNode: (nodeId: string, updates: Partial<DataLineageNode>) => {
@@ -234,6 +253,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				};
 
 				set({ currentGraph: updatedGraph });
+				get().markAsChanged();
 			},
 
 			deleteNode: (nodeId: string) => {
@@ -258,6 +278,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 					currentGraph: updatedGraph,
 					selectedNodes: get().selectedNodes.filter((id) => id !== nodeId),
 				});
+				get().markAsChanged();
 			},
 
 			addEdge: (edgeData) => {
@@ -280,6 +301,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				};
 
 				set({ currentGraph: updatedGraph });
+				get().markAsChanged();
 			},
 
 			updateEdge: (edgeId: string, updates: Partial<DataLineageEdge>) => {
@@ -297,6 +319,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				};
 
 				set({ currentGraph: updatedGraph });
+				get().markAsChanged();
 			},
 
 			deleteEdge: (edgeId: string) => {
@@ -317,6 +340,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 					currentGraph: updatedGraph,
 					selectedEdges: get().selectedEdges.filter((id) => id !== edgeId),
 				});
+				get().markAsChanged();
 			},
 
 			selectNode: (nodeId: string, multiSelect = false) => {
@@ -487,6 +511,26 @@ export const useDataLineageStore = create<DataLineageStore>()(
 
 			setEnableSyncScroll: (enable: boolean) => {
 				set({ enableSyncScroll: enable });
+			},
+
+			markAsChanged: () => {
+				set({ hasUnsavedChanges: true });
+			},
+
+			discardChanges: () => {
+				const { originalGraph } = get();
+				set({
+					currentGraph: originalGraph,
+					hasUnsavedChanges: false,
+				});
+			},
+
+			commitChanges: () => {
+				const { currentGraph } = get();
+				set({
+					originalGraph: currentGraph,
+					hasUnsavedChanges: false,
+				});
 			},
 		}),
 		{

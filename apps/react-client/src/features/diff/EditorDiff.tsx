@@ -1,43 +1,27 @@
-import { Typography, useColorScheme } from "@mui/material";
+import { Typography, useColorScheme, Stack } from "@mui/material";
 import { Flex } from "@react-client/common/primitives/Flex";
-import { useEditor } from "@react-client/features/json4u/stores/editorStore";
-import { useTreeVersion } from "@react-client/features/json4u/stores/treeStore";
-import { useEffect, useState } from "react";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
+import { DiffControls } from "./DiffControls";
 
 export const EditorDiff = () => {
-	const main = useEditor("main");
-	const _treeVersion = useTreeVersion();
+	const { currentGraph, originalGraph, hasUnsavedChanges } =
+		useDataLineageStore();
 	const { mode } = useColorScheme();
-	const [newDataSet, setNewData] = useState<string>();
-	const [originalData, setOriginalData] = useState<string>();
-
-	const oldText = originalData || "";
-
-	useEffect(() => {
-		if (main?.tree.text && originalData) {
-			setNewData(main?.tree.text);
-		}
-	}, [main?.tree.text]);
-
-	useEffect(() => {
-		if (main?.tree.text && !originalData) {
-			setOriginalData(main?.tree.text);
-		}
-	}, [main?.tree.text, originalData]);
 
 	return (
-		<div>
-			{newDataSet ? (
+		<Stack height="100%" width="100%" overflow={"auto"}>
+			<DiffControls />
+			{hasUnsavedChanges && currentGraph && originalGraph ? (
 				<ReactDiffViewer
-					oldValue={oldText}
-					newValue={newDataSet}
+					oldValue={JSON.stringify(originalGraph, null, 2)}
+					newValue={JSON.stringify(currentGraph, null, 2)}
 					splitView={true}
 					compareMethod={DiffMethod.CHARS}
 					useDarkTheme={mode === "dark"}
 					showDiffOnly
-					leftTitle="old"
-					rightTitle="new"
+					leftTitle="Исходная версия"
+					rightTitle="Текущая версия"
 				/>
 			) : (
 				<Flex
@@ -46,9 +30,13 @@ export const EditorDiff = () => {
 					alignItems="center"
 					justifyContent="center"
 				>
-					<Typography>Введите изменения</Typography>
+					<Typography>
+						{hasUnsavedChanges
+							? "Загрузка изменений..."
+							: "Нет несохранённых изменений"}
+					</Typography>
 				</Flex>
 			)}
-		</div>
+		</Stack>
 	);
 };

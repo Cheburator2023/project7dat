@@ -5,18 +5,21 @@ import { styled } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
+import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 import { Search } from "@react-client/features/dashboard/Search";
 import { DataMart } from "@react-client/features/dataMart/DataMart";
 import { EditorDiff } from "@react-client/features/diff/EditorDiff";
-import { Editor } from "@react-client/features/json4u/containers/editor/editor/Editor";
-import { Graph } from "@react-client/features/json4u/containers/editor/graph/Graph";
 import { ExportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ExportPopover";
 import { ImportPopover } from "@react-client/features/json4u/containers/editor/sidenav/ImportPopover";
 import { PopoverButton } from "@react-client/features/json4u/containers/editor/sidenav/PopoverButton";
 import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar";
 import { Header } from "@react-client/features/navigation/organisms/Header";
+import { NodeGraph } from "@react-client/features/nodeGraph";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useRef } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useShallow } from "zustand/react/shallow";
 
 export const Dashboard = () => {
 	const {
@@ -27,6 +30,19 @@ export const Dashboard = () => {
 		toggleCommitHistory,
 		toggleJsonPreview,
 	} = useGlobalSettingsStore();
+
+	const editorRef = useRef<React.ElementRef<typeof CodeJsonEditor>>(null);
+
+	const { currentGraph, selectedNodes } = useDataLineageStore(
+		useShallow((state) => ({
+			currentGraph: state.currentGraph,
+			selectedNodes: state.selectedNodes,
+		})),
+	);
+
+	const handleJsonChange = (data: any) => {
+		console.log("JSON данные изменены:", data);
+	};
 
 	return (
 		<div>
@@ -74,7 +90,11 @@ export const Dashboard = () => {
 									>
 										<PanelGroup direction="horizontal">
 											<Panel>
-												<Editor kind="main" />
+												<CodeJsonEditor
+													ref={editorRef}
+													initialData={currentGraph}
+													onChange={handleJsonChange}
+												/>
 											</Panel>
 											<PanelResizeHandleStyled>
 												<DragIndicatorIcon />
@@ -82,6 +102,9 @@ export const Dashboard = () => {
 											<Panel>
 												<EditorDiff />
 											</Panel>
+											<PanelResizeHandleStyled>
+												<DragIndicatorIcon />
+											</PanelResizeHandleStyled>
 										</PanelGroup>
 									</Card>
 								</Panel>
@@ -155,7 +178,7 @@ export const Dashboard = () => {
 					</PanelGroup>
 				</Flex>
 				<BG width="100%" height="100%">
-					<Graph />
+					<NodeGraph />
 				</BG>
 				<BottomBar />
 			</Wrapper>
