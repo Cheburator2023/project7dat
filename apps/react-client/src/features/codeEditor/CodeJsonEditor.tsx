@@ -1327,6 +1327,40 @@ export const CodeJsonEditor = forwardRef<
 			[focusPath, highlightPath, unhighlightPath, clearAllHighlights, jsonData],
 		);
 
+		const lineNumberMap = useMemo(() => {
+			const map = new Map<string, number>();
+			let lineNumber = 1;
+
+			const assignLineNumbers = (data: any, path = "", depth = 0) => {
+				if (isPrimitive(data)) {
+					map.set(path, lineNumber++);
+					return;
+				}
+
+				const isArray = Array.isArray(data);
+				const entries = isArray
+					? data.map((item, index) => [index, item])
+					: Object.entries(data);
+
+				if (path === "") {
+					entries.forEach(([key, value]) => {
+						const currentPath = String(key);
+						map.set(currentPath, lineNumber++);
+						assignLineNumbers(value, currentPath, depth + 1);
+					});
+				} else {
+					entries.forEach(([key, value]) => {
+						const currentPath = `${path}.${key}`;
+						map.set(currentPath, lineNumber++);
+						assignLineNumbers(value, currentPath, depth + 1);
+					});
+				}
+			};
+
+			assignLineNumbers(jsonData);
+			return map;
+		}, [jsonData]);
+
 		const renderRow = useCallback(
 			({ index, style }: { index: number; style: React.CSSProperties }) => {
 				const node = flatNodes[index];
@@ -1334,12 +1368,13 @@ export const CodeJsonEditor = forwardRef<
 
 				const isHighlighted = Boolean(highlightedPaths[node.path]);
 				const isFocused = focusedPath === node.path;
+				const lineNumber = lineNumberMap.get(node.path) || index + 1;
 
 				return (
 					<div style={style} data-test-id={`json-row-${index}`}>
 						<JsonNodeComponent
 							node={node}
-							lineNumber={index + 1}
+							lineNumber={lineNumber}
 							onUpdate={updateValue}
 							onToggleExpand={toggleExpanded}
 							isHighlighted={isHighlighted}
@@ -1362,6 +1397,7 @@ export const CodeJsonEditor = forwardRef<
 				mode,
 				selectedNodes,
 				currentGraph,
+				lineNumberMap,
 			],
 		);
 
