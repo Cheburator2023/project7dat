@@ -42,6 +42,7 @@ interface DataLineageActions {
 		graph: Omit<DataLineageGraph, "id" | "created" | "updated">,
 	) => Promise<void>;
 	deleteGraph: (graphId: string) => Promise<void>;
+	setCurrentGraph: (graph: DataLineageGraph) => void;
 	addNode: (node: Omit<DataLineageNode, "id">) => void;
 	updateNode: (nodeId: string, updates: Partial<DataLineageNode>) => void;
 	deleteNode: (nodeId: string) => void;
@@ -202,6 +203,11 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				} catch (error) {
 					set({ error: `Failed to delete graph: ${error}`, isLoading: false });
 				}
+			},
+
+			setCurrentGraph: (graph: DataLineageGraph) => {
+				set({ currentGraph: graph });
+				get().markAsChanged();
 			},
 
 			addNode: (nodeData) => {

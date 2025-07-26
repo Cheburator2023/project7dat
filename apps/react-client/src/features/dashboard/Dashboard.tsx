@@ -33,15 +33,20 @@ export const Dashboard = () => {
 
 	const editorRef = useRef<React.ElementRef<typeof CodeJsonEditor>>(null);
 
-	const { currentGraph, selectedNodes } = useDataLineageStore(
+	const { currentGraph, selectedNodes, setCurrentGraph } = useDataLineageStore(
 		useShallow((state) => ({
 			currentGraph: state.currentGraph,
 			selectedNodes: state.selectedNodes,
+			setCurrentGraph: state.setCurrentGraph,
 		})),
 	);
 
 	const handleJsonChange = (data: any) => {
 		console.log("JSON данные изменены:", data);
+		// Обновляем граф в store только если это действительно граф
+		if (data && typeof data === "object" && data.nodes && data.edges) {
+			setCurrentGraph(data);
+		}
 	};
 
 	return (
