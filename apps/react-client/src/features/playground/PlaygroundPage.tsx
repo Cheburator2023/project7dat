@@ -1,17 +1,9 @@
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Header } from "@react-client/features/navigation/organisms/Header";
-import { JsonEditorSvelte } from "@react-client/features/playground/jsonEditor/organisms/JsonEditorSvelte";
-import { JsonEditorWithDiff } from "@react-client/features/playground/jsonEditor/organisms/JsonEditorWithDiff";
-import { MonacoJSONwithValidation } from "@react-client/features/playground/MonacoJSONwithValidation";
-import { SyncDemo } from "@react-client/features/syncDemo";
+import DataMartLineageUI from "@react-client/features/playground/DataMartExample";
 
-const data = [
-	{ name: "SyncDemo", Component: SyncDemo },
-	{ name: "JsonEditorWithDiff", Component: JsonEditorWithDiff },
-	{ name: "JsonEditorSvelte", Component: JsonEditorSvelte },
-	{ name: "MonacoJSONwithValidation", Component: MonacoJSONwithValidation },
-];
+const data = [{ name: "DataMartLineageUI", Component: DataMartLineageUI }];
 
 export const PlaygroundPage = () => {
 	return (
