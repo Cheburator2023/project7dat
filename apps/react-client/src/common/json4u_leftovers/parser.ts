@@ -1,18 +1,19 @@
-import { rootMarker } from "@react-client/features/json4u/lib/idgen";
+import { rootMarker } from "./idgen";
 
 export type SortType = "asc" | "desc";
+
 export interface ParseOptions {
-	nest?: boolean; // 进行嵌套解析吗？
-	format?: boolean | "minify"; // stringify 时进行格式化吗？
-	prettyMaxWidth?: number; // prettier 格式化参考的字符数
-	tabWidth?: number; // prettier 格式化时，缩进的空白数
-	sort?: SortType; // 指定 stringify 排序的顺序
+	nest?: boolean;
+	format?: boolean | "minify";
+	prettyMaxWidth?: number;
+	tabWidth?: number;
+	sort?: SortType;
 }
 
 export interface ContextError {
 	offset: number;
 	length: number;
-	context: [string, string, string]; // 错误上下文，包含 left, errorText, right
+	context: [string, string, string];
 }
 
 export type NodeType =
@@ -24,16 +25,16 @@ export type NodeType =
 	| "null";
 
 export interface Node {
-	id: string; // construct by json pointer with format of `$/a/b/c`
+	id: string;
 	type: NodeType;
-	offset: number; // offset of rawValue in the whole text
-	length: number; // length of rawValue
-	boundOffset: number; // offset of bounding in the whole text
-	boundLength: number; // length of bounding
-	value?: any; // value with type (only leaf node have)
-	rawValue?: string; // raw value in string type
+	offset: number;
+	length: number;
+	boundOffset: number;
+	boundLength: number;
+	value?: any;
+	rawValue?: string;
 	childrenKeys?: string[];
-	childrenKey2Id?: Record<string, string>; // key to id
+	childrenKey2Id?: Record<string, string>;
 }
 
 export function isRoot(node: Node) {

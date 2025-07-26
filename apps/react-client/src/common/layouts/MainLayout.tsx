@@ -1,95 +1,7 @@
 import { styled, useColorScheme } from "@mui/material/styles";
-import { Box } from "@mui/material";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
-
-import { setupGlobalGraphStyle } from "@react-client/features/json4u/lib/graph/layout";
-import { px2num } from "@react-client/features/json4u/lib/utils";
-import type { MyWorker } from "@react-client/features/json4u/lib/worker/worker";
-import { useConfigFromCookies } from "@react-client/features/json4u/stores/hook";
-import { useStatusStore } from "@react-client/features/json4u/stores/statusStore";
-import { useUserStore } from "@react-client/features/json4u/stores/userStore";
-import { wrap } from "comlink";
-import { useEffect } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { SideMenu } from "../../features/navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
-
-function useInitial() {
-	const cc = useConfigFromCookies();
-	const { user } = useUserStore(
-		useShallow((state) => ({
-			user: state.user,
-		})),
-	);
-
-	useEffect(() => {
-		useStatusStore.setState({ _hasHydrated: true, ...cc });
-
-		// initial worker
-
-		window.rawWorker = new Worker(
-			new URL("../../features/json4u/lib/worker/worker.ts", import.meta.url),
-			{
-				type: "module",
-			},
-		);
-
-		window.worker = wrap<MyWorker>(window.rawWorker);
-		window.addEventListener("beforeunload", () => {
-			window.rawWorker?.terminate();
-		});
-
-		// measure graph style
-		const el = document.getElementById("width-measure")!;
-		const span = el.querySelector("span")!;
-		const { lineHeight } = getComputedStyle(span);
-		const { borderWidth } = getComputedStyle(el);
-		const { paddingLeft, paddingRight } = getComputedStyle(
-			el.querySelector(".graph-kv")!,
-		);
-		const { marginRight, maxWidth: maxKeyWidth } = getComputedStyle(
-			el.querySelector(".graph-k")!,
-		);
-		const { maxWidth: maxValueWidth } = getComputedStyle(
-			el.querySelector(".graph-v")!,
-		);
-		const measured = {
-			fontWidth: span.offsetWidth / (span.textContent?.length || 1),
-			kvHeight: px2num(lineHeight),
-			padding: px2num(paddingLeft) + px2num(paddingRight),
-			borderWidth: px2num(borderWidth),
-			kvGap: px2num(marginRight),
-			maxKeyWidth: px2num(maxKeyWidth),
-			maxValueWidth: px2num(maxValueWidth),
-		};
-
-		setupGlobalGraphStyle(measured);
-
-		window.worker.setupGlobalGraphStyle(measured);
-
-		console.log("finished measuring graph base style:", measured);
-	}, []);
-}
-
-const MeasureContainer = styled(Box)({
-	position: "absolute",
-	visibility: "hidden",
-});
-
-function WidthMeasure() {
-	useInitial();
-
-	return (
-		<MeasureContainer id="width-measure" className="graph-node">
-			<div className="graph-kv">
-				<div className="graph-k">
-					<span>{"measure"}</span>
-				</div>
-				<div className="graph-v" />
-			</div>
-		</MeasureContainer>
-	);
-}
 
 const MainWrapper = styled("div", {
 	shouldForwardProp: (prop) => prop !== "open",
@@ -150,7 +62,6 @@ export function MainLayout({
 			>
 				{children}
 			</MainWrapper>
-			<WidthMeasure />
 		</Flex>
 	);
 }

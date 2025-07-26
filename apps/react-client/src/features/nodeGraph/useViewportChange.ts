@@ -1,5 +1,4 @@
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { useDebounceFn } from "@react-client/features/json4u/lib/hooks";
 import { useOnViewportChange, useReactFlow } from "@xyflow/react";
 import {
 	type Dispatch,
@@ -12,6 +11,7 @@ import {
 import { useResizeObserver } from "usehooks-ts";
 import { useShallow } from "zustand/react/shallow";
 import type { EdgeWithData, NodeWithData } from "./useVirtualGraph";
+import { useDebounceFn } from "@react-client/common/json4u_leftovers/hooks";
 
 const refreshInterval = 100;
 

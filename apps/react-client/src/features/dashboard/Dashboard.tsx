@@ -1,13 +1,12 @@
 import DownloadIcon from "@mui/icons-material/Download";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import { IconButton, styled } from "@mui/material";
+import { Button, IconButton, styled } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
 import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
-import { Search } from "@react-client/features/dashboard/Search";
 import { DataMart } from "@react-client/features/dataMart/DataMart";
 import { EditorDiff } from "@react-client/features/diff/EditorDiff";
 import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar";
@@ -30,8 +29,18 @@ export const Dashboard = () => {
 
 	const editorRef = useRef<React.ElementRef<typeof CodeJsonEditor>>(null);
 
-	const { currentGraph, selectedNodes, setCurrentGraph } = useDataLineageStore(
+	const {
+		currentGraph,
+		selectedNodes,
+		setCurrentGraph,
+		discardChanges,
+		commitChanges,
+		hasUnsavedChanges,
+	} = useDataLineageStore(
 		useShallow((state) => ({
+			hasUnsavedChanges: state.hasUnsavedChanges,
+			commitChanges: state.commitChanges,
+			discardChanges: state.discardChanges,
 			currentGraph: state.currentGraph,
 			selectedNodes: state.selectedNodes,
 			setCurrentGraph: state.setCurrentGraph,
@@ -49,7 +58,28 @@ export const Dashboard = () => {
 	return (
 		<div>
 			<Header>
-				<Search />
+				{/* <Search /> */}
+
+				{hasUnsavedChanges && (
+					<Flex gap={6}>
+						<Button
+							variant="outlined"
+							color="error"
+							onClick={discardChanges}
+							size="small"
+						>
+							Отменить
+						</Button>
+						<Button
+							variant="contained"
+							color="primary"
+							onClick={commitChanges}
+							size="small"
+						>
+							Сохранить
+						</Button>
+					</Flex>
+				)}
 
 				<IconButton>
 					<UploadFileIcon />

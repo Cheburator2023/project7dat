@@ -4,16 +4,16 @@
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",
 		"baseUrl": "./",
-		"rootDir": "src",
+		"rootDir": "json4u_leftovers",
 		"outDir": "dist",
 		"paths": {
-			"@/*": ["src/*"]
+			"@/*": ["json4u_leftovers/*"]
 		},
 		"esModuleInterop": true,
 		"jsx": "react-jsx",
 		"resolveJsonModule": false,
 		"incremental": false
 	},
-	"include": ["src"],
+	"include": ["json4u_leftovers"],
 	"exclude": ["node_modules", "**/__tests__/*", "build"]
 }
