@@ -25,7 +25,7 @@
 		"build": "turbo run build",
 		"lint": "turbo run lint",
 		"biome": "npx @biomejs/biome check",
-		"biome:fix": "npx @biomejs/biome check --log-level=error --diagnostic-level=error --fix --unsafe ./apps/react-client/src",
+		"biome:fix": "npx @biomejs/biome@2.1.2 check --log-level=error --diagnostic-level=error --unsafe --fix ./apps/react-client/src ./apps/nestjs-server/src",
 		"prepare": "husky"
 	},
 	"lint-staged": {
