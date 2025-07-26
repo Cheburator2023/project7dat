@@ -84,26 +84,28 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 							<b>{header}</b>
 						</Typography>
 					)}
-					<ButtonGroup variant="text" size="small">
-						<Button
-							onClick={() => zoomHandler(-0.1)}
-							sx={{
-								minWidth: "30px !important",
-								height: "26px",
-							}}
-						>
-							<b>-</b>
-						</Button>
-						<Button
-							onClick={() => zoomHandler(0.1)}
-							sx={{
-								minWidth: "30px !important",
-								height: "26px",
-							}}
-						>
-							<b>+</b>
-						</Button>
-					</ButtonGroup>
+					{props.showZoomControl && (
+						<ButtonGroup variant="text" size="small">
+							<Button
+								onClick={() => zoomHandler(-0.1)}
+								sx={{
+									minWidth: "30px !important",
+									height: "26px",
+								}}
+							>
+								<b>-</b>
+							</Button>
+							<Button
+								onClick={() => zoomHandler(0.1)}
+								sx={{
+									minWidth: "30px !important",
+									height: "26px",
+								}}
+							>
+								<b>+</b>
+							</Button>
+						</ButtonGroup>
+					)}
 					{onClose && (
 						<IconButton onClick={handler}>
 							<CloseIcon />
@@ -215,6 +217,7 @@ type BaseCardProps = PaperProps & {
 	onClose?: any;
 	overflow?: string;
 	nonClickable?: boolean;
+	showZoomControl?: boolean;
 };
 
 type CardWithZoomProps = BaseCardProps & {
@@ -244,7 +247,8 @@ const MUIPaperStyled = styled(Paper, {
 	position: relative;
 	overflow: hidden;
 	& > div {
-		overflow: ${({ overflow }) => overflow && "auto"};
+		padding: 0;
+		//overflow: ${({ overflow }) => overflow && "auto"};
 	}
 `;
 
