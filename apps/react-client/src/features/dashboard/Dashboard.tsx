@@ -17,7 +17,7 @@ import { Header } from "@react-client/features/navigation/organisms/Header";
 import { NodeGraph } from "@react-client/features/nodeGraph";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useCreateJsonData } from "@react-client/hooks/useJsonData";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
 
@@ -42,6 +42,7 @@ export const Dashboard = () => {
 		discardChanges,
 		commitChanges: originalCommitChanges,
 		hasUnsavedChanges,
+		loadGraphsFromBackend,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			hasUnsavedChanges: state.hasUnsavedChanges,
@@ -50,8 +51,13 @@ export const Dashboard = () => {
 			currentGraph: state.currentGraph,
 			selectedNodes: state.selectedNodes,
 			setCurrentGraph: state.setCurrentGraph,
+			loadGraphsFromBackend: state.loadGraphsFromBackend,
 		})),
 	);
+
+	useEffect(() => {
+		loadGraphsFromBackend();
+	}, [loadGraphsFromBackend]);
 
 	const handleJsonChange = (data: any) => {
 		console.log("JSON данные изменены:", data);
