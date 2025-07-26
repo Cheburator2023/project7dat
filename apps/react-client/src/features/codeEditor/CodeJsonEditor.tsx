@@ -322,6 +322,9 @@ interface FlatJsonNode {
 	isExpandable: boolean;
 	isExpanded: boolean;
 	parentPath: string;
+	nodeType: "opening" | "property" | "closing";
+	syntaxElement?: string;
+	isArrayElement?: boolean;
 }
 
 const flattenJsonData = (
@@ -343,6 +346,7 @@ const flattenJsonData = (
 				isExpandable: false,
 				isExpanded: false,
 				parentPath: path.split(".").slice(0, -1).join("."),
+				nodeType: "property",
 			},
 		];
 	}
@@ -352,7 +356,22 @@ const flattenJsonData = (
 		? data.map((item, index) => [index, item])
 		: Object.entries(data);
 
+	// Добавляем открывающую скобку для корневого объекта
 	if (path === "" && expandedPaths[""]) {
+		result.push({
+			path: "__root_opening__",
+			key: "",
+			value: data,
+			depth: 0,
+			isLast: false,
+			isExpandable: true,
+			isExpanded: true,
+			parentPath: "",
+			nodeType: "opening",
+			syntaxElement: isArray ? "[" : "{",
+			isArrayElement: isArray,
+		});
+
 		entries.forEach(([key, value], index) => {
 			const currentPath = String(key);
 			const isLast = index === entries.length - 1;
@@ -363,11 +382,13 @@ const flattenJsonData = (
 				path: currentPath,
 				key,
 				value,
-				depth,
+				depth: depth + 1,
 				isLast,
 				isExpandable,
 				isExpanded,
 				parentPath: "",
+				nodeType: "property",
+				isArrayElement: isArray,
 			});
 
 			if (isExpandable && isExpanded) {
@@ -375,34 +396,117 @@ const flattenJsonData = (
 					...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
 				);
 			}
+		});
+
+		// Добавляем закрывающую скобку для корневого объекта
+		result.push({
+			path: "__root_closing__",
+			key: "",
+			value: data,
+			depth: 0,
+			isLast: true,
+			isExpandable: true,
+			isExpanded: true,
+			parentPath: "",
+			nodeType: "closing",
+			syntaxElement: isArray ? "]" : "}",
+			isArrayElement: isArray,
 		});
 	} else if (path !== "") {
-		entries.forEach(([key, value], index) => {
-			const currentPath = `${path}.${key}`;
-			const isLast = index === entries.length - 1;
-			const isExpandable = !isPrimitive(value);
-			const isExpanded = Boolean(expandedPaths[currentPath]);
-
+		// Добавляем открывающую скобку для вложенного объекта/массива
+		if (expandedPaths[path]) {
 			result.push({
-				path: currentPath,
-				key,
-				value,
-				depth,
-				isLast,
-				isExpandable,
-				isExpanded,
+				path: `${path}__opening__`,
+				key: "",
+				value: data,
+				depth: depth,
+				isLast: false,
+				isExpandable: true,
+				isExpanded: true,
 				parentPath: path,
+				nodeType: "opening",
+				syntaxElement: isArray ? "[" : "{",
+				isArrayElement: isArray,
 			});
 
-			if (isExpandable && isExpanded) {
-				result.push(
-					...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
-				);
+			entries.forEach(([key, value], index) => {
+				const currentPath = `${path}.${key}`;
+				const isLast = index === entries.length - 1;
+				const isExpandable = !isPrimitive(value);
+				const isExpanded = Boolean(expandedPaths[currentPath]);
+
+				result.push({
+					path: currentPath,
+					key,
+					value,
+					depth: depth + 1,
+					isLast,
+					isExpandable,
+					isExpanded,
+					parentPath: path,
+					nodeType: "property",
+					isArrayElement: isArray,
+				});
+
+				if (isExpandable && isExpanded) {
+					result.push(
+						...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
+					);
+				}
+			});
+
+			// Добавляем закрывающую скобку для вложенного объекта/массива
+			// Определяем isLast на основе родительского контекста
+			const parentPathParts = path.split(".");
+			const parentKey = parentPathParts[parentPathParts.length - 1];
+			const grandParentPath = parentPathParts.slice(0, -1).join(".");
+
+			let isLastInParent = true;
+			if (grandParentPath !== "" || parentPathParts.length === 1) {
+				// Получаем родительский объект для определения позиции
+				const parentData =
+					grandParentPath === ""
+						? parentPathParts.length === 1
+							? result[0]?.value
+							: null
+						: getValueByPath(result[0]?.value, grandParentPath);
+
+				if (parentData) {
+					const parentIsArray = Array.isArray(parentData);
+					const parentEntries = parentIsArray
+						? parentData.map((item: any, index: number) => [index, item])
+						: Object.entries(parentData);
+
+					const currentIndex = parentEntries.findIndex(
+						([key]) => String(key) === parentKey,
+					);
+					isLastInParent = currentIndex === parentEntries.length - 1;
+				}
 			}
-		});
+
+			result.push({
+				path: `${path}__closing__`,
+				key: "",
+				value: data,
+				depth: depth,
+				isLast: isLastInParent,
+				isExpandable: true,
+				isExpanded: true,
+				parentPath: path,
+				nodeType: "closing",
+				syntaxElement: isArray ? "]" : "}",
+				isArrayElement: isArray,
+			});
+		}
 	}
 
 	return result;
+};
+
+// Вспомогательная функция для получения значения по пути
+const getValueByPath = (obj: any, path: string): any => {
+	if (!path) return obj;
+	return path.split(".").reduce((current, key) => current?.[key], obj);
 };
 
 const SearchContainer = styled(Box)(({ theme }) => ({
@@ -821,7 +925,52 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 			onToggleExpand(node.path);
 		}, [node.path, onToggleExpand]);
 
+		// Обработка синтаксических элементов (открывающие и закрывающие скобки)
+		if (node.nodeType === "opening" || node.nodeType === "closing") {
+			// Определяем, нужна ли запятая после закрывающей скобки
+			const needsComma = node.nodeType === "closing" && !node.isLast;
+
+			return (
+				<JsonLine
+					ref={nodeRef}
+					data-path={node.path}
+					data-test-id={`json-syntax-${node.nodeType}-${node.path.replace(/\./g, "-")}`}
+					$depth={node.depth}
+					$isSearchMatch={isSearchMatch}
+					$isCurrentSearchResult={isCurrentSearchResult}
+					$isDark={isDark}
+				>
+					<LineNumberColumn $isDark={isDark}>{lineNumber}</LineNumberColumn>
+					<ContentColumn $depth={node.depth}>
+						<Typography
+							sx={{
+								color: isDark ? "#FFD700" : "#B8860B",
+								fontWeight: "bold",
+								fontSize: "16px",
+							}}
+						>
+							{node.syntaxElement}
+						</Typography>
+						{needsComma && (
+							<Typography
+								sx={{
+									color: isDark ? "#FFD700" : "#B8860B",
+									fontWeight: "bold",
+									marginLeft: "2px",
+								}}
+							>
+								,
+							</Typography>
+						)}
+					</ContentColumn>
+				</JsonLine>
+			);
+		}
+
+		// Обработка примитивных значений
 		if (!node.isExpandable) {
+			const needsComma = !node.isLast;
+
 			return (
 				<JsonLine
 					ref={nodeRef}
@@ -834,7 +983,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				>
 					<LineNumberColumn $isDark={isDark}>{lineNumber}</LineNumberColumn>
 					<ContentColumn $depth={node.depth}>
-						{node.key !== "" && (
+						{!node.isArrayElement && node.key !== "" && (
 							<KeyText
 								$isDark={isDark}
 								$isSelectedNodeName={isNodeNameSelected}
@@ -927,15 +1076,28 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 								)}
 							</ValueContainer>
 						)}
+						{needsComma && (
+							<Typography
+								sx={{
+									color: isDark ? "#FFD700" : "#B8860B",
+									fontWeight: "bold",
+									marginLeft: "2px",
+								}}
+							>
+								,
+							</Typography>
+						)}
 					</ContentColumn>
 				</JsonLine>
 			);
 		}
 
+		// Обработка расширяемых объектов/массивов (только заголовок с ключом)
 		const isArray = Array.isArray(node.value);
 		const entries = isArray
 			? node.value.map((item: any, index: number) => [index, item])
 			: Object.entries(node.value);
+		const needsComma = !node.isLast;
 
 		return (
 			<JsonLine
@@ -961,7 +1123,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 					>
 						{node.isExpanded ? <ExpandLess /> : <ExpandMore />}
 					</IconButton>
-					{node.key !== "" && (
+					{!node.isArrayElement && node.key !== "" && (
 						<KeyText
 							$isDark={isDark}
 							$isSelectedNodeName={isNodeNameSelected}
@@ -970,17 +1132,46 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 							"{node.key}":
 						</KeyText>
 					)}
-					<Typography>{isArray ? "[" : "{"}</Typography>
+					{/* Рендерим скобки только для свернутых элементов */}
 					{!node.isExpanded && (
-						<Typography
-							sx={{ ml: 1, color: "text.secondary" }}
-							data-test-id={`json-collapsed-info-${node.path.replace(/\./g, "-")}`}
-						>
-							...{entries.length} {isArray ? "элементов" : "свойств"}
-						</Typography>
+						<>
+							<Typography
+								sx={{
+									color: isDark ? "#FFD700" : "#B8860B",
+									fontWeight: "bold",
+									fontSize: "16px",
+								}}
+							>
+								{isArray ? "[" : "{"}
+							</Typography>
+							<Typography
+								sx={{ ml: 1, color: "text.secondary" }}
+								data-test-id={`json-collapsed-info-${node.path.replace(/\./g, "-")}`}
+							>
+								...{entries.length} {isArray ? "элементов" : "свойств"}
+							</Typography>
+							<Typography
+								sx={{
+									color: isDark ? "#FFD700" : "#B8860B",
+									fontWeight: "bold",
+									fontSize: "16px",
+								}}
+							>
+								{isArray ? "]" : "}"}
+							</Typography>
+							{needsComma && (
+								<Typography
+									sx={{
+										color: isDark ? "#FFD700" : "#B8860B",
+										fontWeight: "bold",
+										marginLeft: "2px",
+									}}
+								>
+									,
+								</Typography>
+							)}
+						</>
 					)}
-					{!node.isExpanded && <Typography>{isArray ? "]" : "}"}</Typography>}
-					{!node.isLast && !node.isExpanded && <Typography>,</Typography>}
 				</ContentColumn>
 			</JsonLine>
 		);
@@ -1405,37 +1596,11 @@ export const CodeJsonEditor = forwardRef<
 
 		const lineNumberMap = useMemo(() => {
 			const map = new Map<string, number>();
-			let lineNumber = 1;
-
-			const assignLineNumbers = (data: any, path = "", depth = 0) => {
-				if (isPrimitive(data)) {
-					map.set(path, lineNumber++);
-					return;
-				}
-
-				const isArray = Array.isArray(data);
-				const entries = isArray
-					? data.map((item, index) => [index, item])
-					: Object.entries(data);
-
-				if (path === "") {
-					entries.forEach(([key, value]) => {
-						const currentPath = String(key);
-						map.set(currentPath, lineNumber++);
-						assignLineNumbers(value, currentPath, depth + 1);
-					});
-				} else {
-					entries.forEach(([key, value]) => {
-						const currentPath = `${path}.${key}`;
-						map.set(currentPath, lineNumber++);
-						assignLineNumbers(value, currentPath, depth + 1);
-					});
-				}
-			};
-
-			assignLineNumbers(jsonData);
+			flatNodes.forEach((node, index) => {
+				map.set(node.path, index + 1);
+			});
 			return map;
-		}, [jsonData]);
+		}, [flatNodes]);
 
 		const renderRow = useCallback(
 			({ index, style }: { index: number; style: React.CSSProperties }) => {
