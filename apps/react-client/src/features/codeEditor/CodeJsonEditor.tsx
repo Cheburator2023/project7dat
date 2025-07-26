@@ -359,6 +359,21 @@ const flattenJsonData = (
 
 	// Для корневого объекта
 	if (path === "" && expandedPaths[""]) {
+		// Добавляем открывающую скобку для корневого объекта
+		result.push({
+			path: "__root_opening__",
+			key: "",
+			value: data,
+			depth: 0,
+			isLast: false,
+			isExpandable: true,
+			isExpanded: true,
+			parentPath: "",
+			nodeType: "opening",
+			syntaxElement: isArray ? "[" : "{",
+			isArrayElement: isArray,
+		});
+
 		entries.forEach(([key, value], index) => {
 			const currentPath = String(key);
 			const isLast = index === entries.length - 1;
@@ -369,7 +384,7 @@ const flattenJsonData = (
 				path: currentPath,
 				key,
 				value,
-				depth: depth,
+				depth: depth + 1,
 				isLast,
 				isExpandable,
 				isExpanded,
@@ -381,7 +396,7 @@ const flattenJsonData = (
 
 			if (isExpandable && isExpanded) {
 				result.push(
-					...flattenJsonData(value, expandedPaths, currentPath, depth),
+					...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
 				);
 			}
 		});
@@ -1308,15 +1323,17 @@ export const CodeJsonEditor = forwardRef<
 
 				const pathParts = path.split(".").filter(Boolean);
 
-				const newData = produce(jsonData, (draft: any) => {
-					let current = draft;
-					for (let i = 0; i < pathParts.length - 1; i++) {
-						const part = pathParts[i];
-						current = current[part];
-					}
-					const lastPart = pathParts[pathParts.length - 1];
-					current[lastPart] = value;
-				});
+				// Создаем глубокую копию данных для безопасного изменения
+				const newData = JSON.parse(JSON.stringify(jsonData));
+
+				// Навигируем по пути и обновляем значение
+				let current = newData;
+				for (let i = 0; i < pathParts.length - 1; i++) {
+					const part = pathParts[i];
+					current = current[part];
+				}
+				const lastPart = pathParts[pathParts.length - 1];
+				current[lastPart] = value;
 
 				flushSync(() => {
 					setJsonData(newData);
