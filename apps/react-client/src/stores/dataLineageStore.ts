@@ -5,7 +5,6 @@ import type {
 	DataLineageNode,
 	DataLineageSearchResult,
 } from "@react-client/types/dataLineage";
-import { jsonDataService } from "@react-client/api/jsonDataApi";
 import { create } from "zustand";
 
 interface RevealPosition {
@@ -34,14 +33,10 @@ interface DataLineageState {
 }
 
 interface DataLineageActions {
-	loadGraphsFromBackend: () => Promise<void>;
-	loadGraph: (graphId: string) => Promise<void>;
-	loadFromFile: (file: File) => Promise<void>;
-	loadFromAPI: (url: string) => Promise<void>;
-	saveGraph: (graph: DataLineageGraph) => Promise<void>;
-	createGraph: (graph: DataLineageGraph) => Promise<void>;
-	deleteGraph: (graphId: string) => Promise<void>;
 	setCurrentGraph: (graph: DataLineageGraph) => void;
+	setGraphs: (graphs: DataLineageGraph[]) => void;
+	setLoading: (loading: boolean) => void;
+	setError: (error: string | null) => void;
 	addNode: (node: Omit<DataLineageNode, "id">) => void;
 	updateNode: (nodeId: string, updates: Partial<DataLineageNode>) => void;
 	deleteNode: (nodeId: string) => void;
@@ -101,158 +96,21 @@ const generateTimestamp = (): string => {
 export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	...initialState,
 
-	loadGraphsFromBackend: async () => {
-		set({ isLoading: true, error: null });
-		try {
-			const backendItems = await jsonDataService.getAll();
-			const graphs = backendItems.map((item) => item.data as DataLineageGraph);
-
-			const currentGraph = graphs.length > 0 ? graphs[0] : null;
-
-			set({
-				graphs,
-				currentGraph,
-				originalGraph: currentGraph,
-				hasUnsavedChanges: false,
-				isLoading: false,
-			});
-		} catch (error) {
-			console.error("Ошибка загрузки данных с бэкенда:", error);
-			set({
-				error: `Ошибка загрузки данных: ${error}`,
-				isLoading: false,
-				graphs: [],
-				currentGraph: null,
-				originalGraph: null,
-			});
-		}
-	},
-
-	loadGraph: async (graphId: string) => {
-		set({ isLoading: true, error: null });
-		try {
-			const backendItem = await jsonDataService.getById(graphId);
-			const graph = backendItem.data as DataLineageGraph;
-
-			set({
-				currentGraph: graph,
-				originalGraph: graph,
-				hasUnsavedChanges: false,
-				isLoading: false,
-			});
-		} catch (error) {
-			set({
-				error: `Ошибка загрузки графика с ID ${graphId}: ${error}`,
-				isLoading: false,
-			});
-		}
-	},
-
-	loadFromFile: async (file: File) => {
-		set({ isLoading: true, error: null });
-		try {
-			const text = await file.text();
-			const data = JSON.parse(text);
-
-			if (data.desc && data.entities && data.mappings) {
-				const graph = data as DataLineageGraph;
-				set({
-					currentGraph: graph,
-					originalGraph: graph,
-					hasUnsavedChanges: false,
-					isLoading: false,
-				});
-			} else {
-				throw new Error("Неподдерживаемый формат файла");
-			}
-		} catch (error) {
-			set({ error: `Ошибка загрузки файла: ${error}`, isLoading: false });
-		}
-	},
-
-	loadFromAPI: async (url: string) => {
-		set({ isLoading: true, error: null });
-		try {
-			const response = await fetch(url);
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-
-			const data = await response.json();
-
-			if (data.desc && data.entities && data.mappings) {
-				const graph = data as DataLineageGraph;
-				set({
-					currentGraph: graph,
-					originalGraph: graph,
-					hasUnsavedChanges: false,
-					isLoading: false,
-				});
-			} else {
-				throw new Error("API вернул данные в неподдерживаемом формате");
-			}
-		} catch (error) {
-			set({ error: `Ошибка загрузки с API: ${error}`, isLoading: false });
-		}
-	},
-
-	saveGraph: async (graph: DataLineageGraph) => {
-		set({ isLoading: true, error: null });
-		try {
-			await jsonDataService.create({ data: graph });
-			await get().loadGraphsFromBackend();
-			set({
-				originalGraph: graph,
-				hasUnsavedChanges: false,
-				isLoading: false,
-			});
-		} catch (error) {
-			set({ error: `Ошибка сохранения графика: ${error}`, isLoading: false });
-		}
-	},
-
-	createGraph: async (graph: DataLineageGraph) => {
-		set({ isLoading: true, error: null });
-		try {
-			await jsonDataService.create({ data: graph });
-			await get().loadGraphsFromBackend();
-			set({
-				currentGraph: graph,
-				originalGraph: graph,
-				hasUnsavedChanges: false,
-				isLoading: false,
-			});
-		} catch (error) {
-			set({ error: `Ошибка создания графика: ${error}`, isLoading: false });
-		}
-	},
-
-	deleteGraph: async (graphId: string) => {
-		set({ isLoading: true, error: null });
-		try {
-			await jsonDataService.delete(graphId);
-			await get().loadGraphsFromBackend();
-
-			const { currentGraph } = get();
-			if (currentGraph && (currentGraph as any).id === graphId) {
-				const { graphs } = get();
-				const newCurrentGraph = graphs.length > 0 ? graphs[0] : null;
-				set({
-					currentGraph: newCurrentGraph,
-					originalGraph: newCurrentGraph,
-					hasUnsavedChanges: false,
-				});
-			}
-
-			set({ isLoading: false });
-		} catch (error) {
-			set({ error: `Ошибка удаления графика: ${error}`, isLoading: false });
-		}
-	},
-
 	setCurrentGraph: (graph: DataLineageGraph) => {
 		set({ currentGraph: graph });
 		get().markAsChanged();
+	},
+
+	setGraphs: (graphs: DataLineageGraph[]) => {
+		set({ graphs });
+	},
+
+	setLoading: (loading: boolean) => {
+		set({ isLoading: loading });
+	},
+
+	setError: (error: string | null) => {
+		set({ error });
 	},
 
 	addNode: (nodeData) => {
@@ -269,8 +127,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			},
 		};
 
-		// Note: This would need to be adapted based on actual DataLineageGraph structure
-		// Since DataLineageGraph doesn't have nodes directly, this might need restructuring
 		console.warn(
 			"addNode: DataLineageGraph structure doesn't support direct node addition",
 		);
@@ -281,7 +137,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		const { currentGraph } = get();
 		if (!currentGraph) return;
 
-		// Note: This would need to be adapted based on actual DataLineageGraph structure
 		console.warn(
 			"updateNode: DataLineageGraph structure doesn't support direct node updates",
 		);
@@ -292,7 +147,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		const { currentGraph } = get();
 		if (!currentGraph) return;
 
-		// Note: This would need to be adapted based on actual DataLineageGraph structure
 		console.warn(
 			"deleteNode: DataLineageGraph structure doesn't support direct node deletion",
 		);
@@ -316,7 +170,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			},
 		};
 
-		// Note: This would need to be adapted based on actual DataLineageGraph structure
 		console.warn(
 			"addEdge: DataLineageGraph structure doesn't support direct edge addition",
 		);
@@ -327,7 +180,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		const { currentGraph } = get();
 		if (!currentGraph) return;
 
-		// Note: This would need to be adapted based on actual DataLineageGraph structure
 		console.warn(
 			"updateEdge: DataLineageGraph structure doesn't support direct edge updates",
 		);
@@ -338,7 +190,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		const { currentGraph } = get();
 		if (!currentGraph) return;
 
-		// Note: This would need to be adapted based on actual DataLineageGraph structure
 		console.warn(
 			"deleteEdge: DataLineageGraph structure doesn't support direct edge deletion",
 		);
@@ -401,7 +252,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			return;
 		}
 
-		// Note: Search would need to be adapted for DataLineageGraph structure
 		const searchResults: DataLineageSearchResult = {
 			nodes: [],
 			edges: [],
@@ -438,7 +288,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		if (format === "json") {
 			return JSON.stringify(currentGraph, null, 2);
 		} else {
-			// CSV export would need to be adapted for DataLineageGraph structure
 			const headers = ["id", "name", "type", "namespace"];
 			const rows = currentGraph.entities.map((entity) => [
 				entity.id,

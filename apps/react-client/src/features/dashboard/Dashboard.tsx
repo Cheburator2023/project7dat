@@ -16,7 +16,10 @@ import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { NodeGraph } from "@react-client/features/nodeGraph";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { useCreateJsonData } from "@react-client/hooks/useJsonData";
+import {
+	useDataLineageGraphs,
+	useSaveDataLineageGraph,
+} from "@react-client/hooks/api";
 import { useRef, useEffect } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
@@ -33,16 +36,18 @@ export const Dashboard = () => {
 
 	const editorRef = useRef<CodeJsonEditorRef>(null);
 
-	const createJsonDataMutation = useCreateJsonData();
+	const { data: graphs, isLoading } = useDataLineageGraphs();
+	const saveGraphMutation = useSaveDataLineageGraph();
 
 	const {
 		currentGraph,
 		selectedNodes,
 		setCurrentGraph,
+		setGraphs,
+		setLoading,
 		discardChanges,
 		commitChanges: originalCommitChanges,
 		hasUnsavedChanges,
-		loadGraphsFromBackend,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			hasUnsavedChanges: state.hasUnsavedChanges,
@@ -51,13 +56,23 @@ export const Dashboard = () => {
 			currentGraph: state.currentGraph,
 			selectedNodes: state.selectedNodes,
 			setCurrentGraph: state.setCurrentGraph,
-			loadGraphsFromBackend: state.loadGraphsFromBackend,
+			setGraphs: state.setGraphs,
+			setLoading: state.setLoading,
 		})),
 	);
 
 	useEffect(() => {
-		loadGraphsFromBackend();
-	}, [loadGraphsFromBackend]);
+		if (graphs) {
+			setGraphs(graphs);
+			if (graphs.length > 0 && !currentGraph) {
+				setCurrentGraph(graphs[0]);
+			}
+		}
+	}, [graphs, setGraphs, currentGraph, setCurrentGraph]);
+
+	useEffect(() => {
+		setLoading(isLoading);
+	}, [isLoading, setLoading]);
 
 	const handleJsonChange = (data: any) => {
 		console.log("JSON данные изменены:", data);
@@ -69,9 +84,7 @@ export const Dashboard = () => {
 	const handleCommitChanges = async () => {
 		try {
 			if (currentGraph) {
-				await createJsonDataMutation.mutateAsync({
-					data: currentGraph,
-				});
+				await saveGraphMutation.mutateAsync(currentGraph);
 				console.log("Данные успешно сохранены в API");
 			}
 			originalCommitChanges();

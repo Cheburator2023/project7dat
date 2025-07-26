@@ -12,8 +12,8 @@ export function findNodePositionInJson(
 ): Position | null {
 	if (!graph || !nodeId) return null;
 
-	const node = graph.nodes.find((n) => n.id === nodeId);
-	if (!node) return null;
+	const entity = graph.entities.find((e) => e.id === nodeId);
+	if (!entity) return null;
 
 	const lines = jsonText.split("\n");
 	const _currentLine = 0;
@@ -25,7 +25,7 @@ export function findNodePositionInJson(
 			return { line: i + 1, column: 1 };
 		}
 
-		if (line.includes(`"name": "${node.name}"`)) {
+		if (line.includes(`"name": "${entity.name}"`)) {
 			for (
 				let j = Math.max(0, i - 10);
 				j <= Math.min(lines.length - 1, i + 10);
@@ -55,21 +55,21 @@ export function findNodeByPosition(
 
 	const idMatch = currentLine.match(/"id":\s*"([^"]+)"/);
 	if (idMatch) {
-		const nodeId = idMatch[1];
-		const node = graph.nodes.find((n) => n.id === nodeId);
-		return node ? nodeId : null;
+		const entityId = idMatch[1];
+		const entity = graph.entities.find((e) => e.id === entityId);
+		return entity ? entityId : null;
 	}
 
 	for (let i = position.line - 1; i >= 0; i--) {
 		const line = lines[i];
 		const idMatch = line.match(/"id":\s*"([^"]+)"/);
 		if (idMatch) {
-			const nodeId = idMatch[1];
-			const node = graph.nodes.find((n) => n.id === nodeId);
-			if (node) {
+			const entityId = idMatch[1];
+			const entity = graph.entities.find((e) => e.id === entityId);
+			if (entity) {
 				for (let j = i; j < Math.min(lines.length, i + 20); j++) {
 					if (j >= position.line - 1) {
-						return nodeId;
+						return entityId;
 					}
 				}
 			}

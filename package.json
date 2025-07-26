@@ -27,7 +27,10 @@
 		"lint": "turbo run lint",
 		"biome": "npx @biomejs/biome check",
 		"biome:fix": "npx @biomejs/biome@2.1.2 check --log-level=error --diagnostic-level=error --unsafe --fix ./apps/react-client/src ./apps/nestjs-server/src",
-		"prepare": "husky"
+		"prepare": "husky",
+		"db:reset": "npm run db:reset:dev",
+		"db:reset:dev": "node ./apps/nestjs-server/scripts/reset-dev-db.js",
+		"db:reset:dev:restart": "npm run db:reset:dev && npm run dev"
 	},
 	"lint-staged": {
 		"*.{ts,tsx}": [
