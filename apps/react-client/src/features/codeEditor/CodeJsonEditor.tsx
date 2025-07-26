@@ -690,6 +690,7 @@ interface JsonNodeProps {
 	isDark: boolean;
 	selectedNodes: string[];
 	currentGraph?: any;
+	changedPaths: Set<string>;
 }
 
 const isSelectedNodeName = (
@@ -725,6 +726,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		isDark,
 		selectedNodes,
 		currentGraph,
+		changedPaths,
 	}) => {
 		const inputRef = useRef<HTMLDivElement>(null);
 		const nodeRef = useRef<HTMLDivElement>(null);
@@ -758,6 +760,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 			selectedNodes,
 			currentGraph,
 		);
+		const hasChanges = changedPaths.has("*") || changedPaths.has(node.path);
 
 		useEffect(() => {
 			if (isFocused && inputRef.current) {
@@ -791,6 +794,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		const handleSave = useCallback(() => {
 			const parsedValue = parseEditValue(editValue, node.value);
 			onUpdate(node.path, parsedValue);
+			// Останавливаем редактирование сразу после обновления
 			stopEditing();
 		}, [editValue, onUpdate, node.path, stopEditing, node.value]);
 
@@ -890,27 +894,37 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 								<ValueText
 									$type={getValueType(node.value)}
 									$isDark={isDark}
-									onClick={(e) => {
-										e.stopPropagation();
-										handleEdit(node.value);
-									}}
+									onClick={
+										hasChanges
+											? (e) => {
+													e.stopPropagation();
+													handleEdit(node.value);
+												}
+											: undefined
+									}
 									data-test-id={`json-value-${node.path.replace(/\./g, "-")}`}
+									sx={{
+										cursor: hasChanges ? "pointer" : "default",
+										opacity: hasChanges ? 1 : 0.7,
+									}}
 								>
 									{formatValue(node.value)}
 								</ValueText>
-								<EditActions>
-									<IconButton
-										size="small"
-										onClick={(e) => {
-											e.stopPropagation();
-											handleEdit(node.value);
-										}}
-										sx={{ opacity: 0.7, "&:hover": { opacity: 1 } }}
-										data-test-id={`json-edit-btn-${node.path.replace(/\./g, "-")}`}
-									>
-										<Edit fontSize="small" />
-									</IconButton>
-								</EditActions>
+								{hasChanges && (
+									<EditActions>
+										<IconButton
+											size="small"
+											onClick={(e) => {
+												e.stopPropagation();
+												handleEdit(node.value);
+											}}
+											sx={{ opacity: 0.7, "&:hover": { opacity: 1 } }}
+											data-test-id={`json-edit-btn-${node.path.replace(/\./g, "-")}`}
+										>
+											<Edit fontSize="small" />
+										</IconButton>
+									</EditActions>
+								)}
 							</ValueContainer>
 						)}
 					</ContentColumn>
@@ -1043,22 +1057,30 @@ export const CodeJsonEditor = forwardRef<
 			revealPosition,
 			isNeedReveal,
 			currentGraph,
+			hasUnsavedChanges,
 			selectedNodes,
 			selectNode,
 			setRevealPosition,
 			updateNode,
+			markAsChanged,
 		} = useDataLineageStore(
 			useShallow((state) => ({
 				revealPosition: state.revealPosition,
 				isNeedReveal: state.isNeedReveal,
 				currentGraph: state.currentGraph,
+				hasUnsavedChanges: state.hasUnsavedChanges,
 				selectedNodes: state.selectedNodes,
 				selectNode: state.selectNode,
 				setRevealPosition: state.setRevealPosition,
 				updateNode: state.updateNode,
+				markAsChanged: state.markAsChanged,
 			})),
 		);
-		console.log("🐸 Pepe said >> currentGraph:", currentGraph);
+
+		const changedPaths = useMemo(() => {
+			// По умолчанию разрешаем редактирование всех полей
+			return new Set(["*"]);
+		}, []);
 
 		const flatNodes = useMemo(() => {
 			return flattenJsonData(jsonData, expandedPaths);
@@ -1196,6 +1218,9 @@ export const CodeJsonEditor = forwardRef<
 							updateNode(node.id, updates);
 						}
 					}
+				} else {
+					// Для всех остальных изменений (не узлов графа) также помечаем как измененные
+					markAsChanged();
 				}
 
 				// Восстанавливаем позицию скролла после обновления
@@ -1208,7 +1233,7 @@ export const CodeJsonEditor = forwardRef<
 					}
 				}, 0);
 			},
-			[jsonData, onChange, currentGraph, updateNode],
+			[jsonData, onChange, currentGraph, updateNode, markAsChanged],
 		);
 
 		const handleNodeClick = useCallback(
@@ -1380,6 +1405,7 @@ export const CodeJsonEditor = forwardRef<
 							isDark={mode === "dark"}
 							selectedNodes={selectedNodes}
 							currentGraph={currentGraph}
+							changedPaths={changedPaths}
 						/>
 					</div>
 				);
@@ -1395,6 +1421,7 @@ export const CodeJsonEditor = forwardRef<
 				selectedNodes,
 				currentGraph,
 				lineNumberMap,
+				changedPaths,
 			],
 		);
 

@@ -7,6 +7,9 @@ import { DiffControls } from "./DiffControls";
 export const EditorDiff = () => {
 	const { currentGraph, originalGraph, hasUnsavedChanges } =
 		useDataLineageStore();
+	console.log("🐸 Pepe said >> EditorDiff >> originalGraph:", originalGraph);
+	console.log("🐸 Pepe said >> EditorDiff >> currentGraph:", currentGraph);
+
 	const { mode } = useColorScheme();
 
 	return (
