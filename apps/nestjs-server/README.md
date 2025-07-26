@@ -26,7 +26,36 @@ https://sfera.inno.local/sourcecode/projects/SUMD/repos/npm_deps_collection/code
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+NestJS сервер с интеграцией PGLite для эмуляции PostgreSQL базы данных в файлах во время разработки.
+
+## Особенности
+
+- **Продакшн**: Использует настоящий PostgreSQL сервер
+- **Разработка**: Использует PGLite для хранения данных в файлах (`./dev-database`)
+- **Type-safe API**: Zod схемы для валидации данных
+- **JSONB поддержка**: Нативная поддержка JSONB типов в PGLite
+- **REST API**: CRUD операции для JSON документов
+- **Автоматическое переключение**: Сервис автоматически выбирает между TypeORM и PGLite
+
+## API Endpoints
+
+- `POST /api/json-data` - Создание JSON документа
+- `GET /api/json-data` - Получение списка с пагинацией и поиском
+- `GET /api/json-data/:id` - Получение по ID
+- `PUT /api/json-data/:id` - Обновление
+- `DELETE /api/json-data/:id` - Удаление
+- `GET /api/health` - Проверка состояния сервера
+
+## Переменные окружения
+
+```env
+NODE_ENV=development|production
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=password
+DB_NAME=data_lineage
+```
 
 ## Project setup
 

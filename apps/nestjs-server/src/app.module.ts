@@ -6,17 +6,23 @@ import { JsonDataModule } from "./modules/json-data.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 
+const isDevelopment = process.env.NODE_ENV !== "production";
+
 @Module({
 	imports: [
 		ConfigModule.forRoot({
 			isGlobal: true,
 		}),
-		TypeOrmModule.forRootAsync({
-			imports: [ConfigModule],
-			useFactory: (configService: ConfigService) =>
-				getDataSourceOptions(configService),
-			inject: [ConfigService],
-		}),
+		...(isDevelopment
+			? []
+			: [
+					TypeOrmModule.forRootAsync({
+						imports: [ConfigModule],
+						useFactory: (configService: ConfigService) =>
+							getDataSourceOptions(configService),
+						inject: [ConfigService],
+					}),
+				]),
 		JsonDataModule,
 	],
 	controllers: [AppController],

@@ -46,3 +46,5 @@ next-env.d.ts
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+apps/nestjs-server/dev-database

@@ -14,8 +14,8 @@ export class JsonDataEntity {
 	@Column({ type: "varchar", length: 255 })
 	name: string;
 
-	@Column({ type: "text" })
-	data: string;
+	@Column({ type: "jsonb" })
+	data: Record<string, any>;
 
 	@Column({ type: "text", nullable: true })
 	description?: string;
