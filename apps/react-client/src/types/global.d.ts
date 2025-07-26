@@ -1,7 +1,6 @@
 /** biome-ignore-all lint/correctness/noUnusedImports: <explanation> */
-import type { MonacoApi } from "@react-client/features/json4u/lib/editor/types";
 import "@hcaptcha/types";
-import type { MyWorker } from "@react-client/features/json4u/lib/worker/worker";
+// import type { MyWorker } from "@react-client/features/json4u/lib/worker/worker";
 import type { Remote } from "comlink";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 
@@ -18,9 +17,6 @@ declare global {
 	}
 
 	interface Window {
-		rawWorker: Worker;
-		worker: Remote<MyWorker>;
-		monacoApi: MonacoApi;
 		leftPanelHandle: ImperativePanelHandle | null;
 		searchComponents: Record<string, any>;
 	}

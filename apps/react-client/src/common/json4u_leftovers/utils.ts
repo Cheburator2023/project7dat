@@ -9,7 +9,6 @@ export function tryCatch<T>(fn: () => T, fallback: T): T {
 	}
 }
 
-// stolen from https://github.com/piotrwitek/utility-types/blob/master/src/mapped-types.ts#L77
 export type FunctionKeys<T extends object> = {
 	[K in keyof T]-?: T[K] extends (...rest: any[]) => any ? K : never;
 }[keyof T];
@@ -26,7 +25,6 @@ export function clamp(v: number, min: number, max: number) {
 	return Math.min(Math.max(v, min), max);
 }
 
-// 200px => 200
 export function px2num(px: string) {
 	return Number(px.slice(0, -2));
 }
@@ -52,7 +50,6 @@ export function detectOS() {
 		return "Unknown OS";
 	}
 
-	// if a browser has no support for navigator.userAgentData.platform use platform as fallback
 	const ua =
 		// @ts-ignore
 		navigator.userAgentData?.platform ??
