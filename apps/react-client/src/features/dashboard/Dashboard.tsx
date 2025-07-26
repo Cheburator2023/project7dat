@@ -1,14 +1,17 @@
 import DownloadIcon from "@mui/icons-material/Download";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import { Button, IconButton, styled } from "@mui/material";
+import { Button, IconButton, styled, Tooltip } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
-import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
+import {
+	CodeJsonEditor,
+	type CodeJsonEditorRef,
+} from "@react-client/features/codeEditor/CodeJsonEditor";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 import { DataMart } from "@react-client/features/dataMart/DataMart";
-import { EditorDiff } from "@react-client/features/diff/EditorDiff";
+import { EditorDiff } from "@react-client/features/codeEditor/EditorDiff";
 import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { NodeGraph } from "@react-client/features/nodeGraph";
@@ -27,7 +30,7 @@ export const Dashboard = () => {
 		toggleJsonPreview,
 	} = useGlobalSettingsStore();
 
-	const editorRef = useRef<React.ElementRef<typeof CodeJsonEditor>>(null);
+	const editorRef = useRef<CodeJsonEditorRef>(null);
 
 	const {
 		currentGraph,
@@ -53,6 +56,14 @@ export const Dashboard = () => {
 		if (data && typeof data === "object" && data.nodes && data.edges) {
 			setCurrentGraph(data);
 		}
+	};
+
+	const handleImportJson = () => {
+		editorRef.current?.importFromFile();
+	};
+
+	const handleExportJson = () => {
+		editorRef.current?.exportToFile();
 	};
 
 	return (
@@ -81,12 +92,16 @@ export const Dashboard = () => {
 					</Flex>
 				)}
 
-				<IconButton>
-					<UploadFileIcon />
-				</IconButton>
-				<IconButton>
-					<DownloadIcon />
-				</IconButton>
+				<Tooltip title="Импорт JSON из файла">
+					<IconButton onClick={handleImportJson}>
+						<UploadFileIcon />
+					</IconButton>
+				</Tooltip>
+				<Tooltip title="Экспорт JSON в файл">
+					<IconButton onClick={handleExportJson}>
+						<DownloadIcon />
+					</IconButton>
+				</Tooltip>
 			</Header>
 			<Wrapper id="dashboard_page_container">
 				<Flex

@@ -999,7 +999,11 @@ interface CodeJsonEditorRef {
 	clearAllHighlights: () => void;
 	getData: () => any;
 	setData: (data: any) => void;
+	importFromFile: () => void;
+	exportToFile: () => void;
 }
+
+export type { CodeJsonEditorRef };
 
 export const CodeJsonEditor = forwardRef<
 	CodeJsonEditorRef,
@@ -1336,6 +1340,46 @@ export const CodeJsonEditor = forwardRef<
 			clearHighlights();
 		}, [clearHighlights]);
 
+		const importFromFile = useCallback(() => {
+			const input = document.createElement("input");
+			input.type = "file";
+			input.accept = ".json";
+			input.onchange = (event) => {
+				const file = (event.target as HTMLInputElement).files?.[0];
+				if (file) {
+					const reader = new FileReader();
+					reader.onload = (e) => {
+						try {
+							const content = e.target?.result as string;
+							const parsedData = JSON.parse(content);
+							setJsonData(parsedData);
+							expandAll(parsedData);
+							onChange?.(parsedData);
+						} catch (error) {
+							console.error("Ошибка при парсинге JSON:", error);
+							alert("Ошибка при загрузке файла. Проверьте формат JSON.");
+						}
+					};
+					reader.readAsText(file);
+				}
+			};
+			input.click();
+		}, [setJsonData, expandAll, onChange]);
+
+		const exportToFile = useCallback(() => {
+			const dataStr = JSON.stringify(jsonData, null, 2);
+			const dataBlob = new Blob([dataStr], { type: "application/json" });
+			const url = URL.createObjectURL(dataBlob);
+
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = `json-export-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+		}, [jsonData]);
+
 		useImperativeHandle(
 			ref,
 			() => ({
@@ -1345,8 +1389,18 @@ export const CodeJsonEditor = forwardRef<
 				clearAllHighlights,
 				getData: () => jsonData,
 				setData: setJsonData,
+				importFromFile,
+				exportToFile,
 			}),
-			[focusPath, highlightPath, unhighlightPath, clearAllHighlights, jsonData],
+			[
+				focusPath,
+				highlightPath,
+				unhighlightPath,
+				clearAllHighlights,
+				jsonData,
+				importFromFile,
+				exportToFile,
+			],
 		);
 
 		const lineNumberMap = useMemo(() => {
