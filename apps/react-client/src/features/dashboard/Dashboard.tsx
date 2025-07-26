@@ -16,6 +16,7 @@ import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { NodeGraph } from "@react-client/features/nodeGraph";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useCreateJsonData } from "@react-client/hooks/useJsonData";
 import { useRef } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
@@ -32,12 +33,14 @@ export const Dashboard = () => {
 
 	const editorRef = useRef<CodeJsonEditorRef>(null);
 
+	const createJsonDataMutation = useCreateJsonData();
+
 	const {
 		currentGraph,
 		selectedNodes,
 		setCurrentGraph,
 		discardChanges,
-		commitChanges,
+		commitChanges: originalCommitChanges,
 		hasUnsavedChanges,
 	} = useDataLineageStore(
 		useShallow((state) => ({
@@ -52,9 +55,22 @@ export const Dashboard = () => {
 
 	const handleJsonChange = (data: any) => {
 		console.log("JSON данные изменены:", data);
-		// Обновляем граф в store только если это действительно граф
 		if (data && typeof data === "object" && data.nodes && data.edges) {
 			setCurrentGraph(data);
+		}
+	};
+
+	const handleCommitChanges = async () => {
+		try {
+			if (currentGraph) {
+				await createJsonDataMutation.mutateAsync({
+					data: currentGraph,
+				});
+				console.log("Данные успешно сохранены в API");
+			}
+			originalCommitChanges();
+		} catch (error) {
+			console.error("Ошибка при сохранении данных:", error);
 		}
 	};
 
@@ -84,7 +100,7 @@ export const Dashboard = () => {
 						<Button
 							variant="contained"
 							color="primary"
-							onClick={commitChanges}
+							onClick={handleCommitChanges}
 							size="small"
 						>
 							Сохранить
