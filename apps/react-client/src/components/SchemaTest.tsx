@@ -1,27 +1,28 @@
 import { Button, Card, CardContent, Typography } from "@mui/material";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { sampleDataLineageActual } from "@react-client/data/sampleDataLineageActual";
 import { useShallow } from "zustand/react/shallow";
 
 export const SchemaTest = () => {
 	const {
-		currentActualData,
 		currentGraph,
-		loadActualData,
+		loadGraphsFromBackend,
 		loadFromFile,
 		loadFromAPI,
+		isLoading,
+		error,
 	} = useDataLineageStore(
 		useShallow((state) => ({
-			currentActualData: state.currentActualData,
 			currentGraph: state.currentGraph,
-			loadActualData: state.loadActualData,
+			loadGraphsFromBackend: state.loadGraphsFromBackend,
 			loadFromFile: state.loadFromFile,
 			loadFromAPI: state.loadFromAPI,
+			isLoading: state.isLoading,
+			error: state.error,
 		})),
 	);
 
-	const handleLoadSampleData = () => {
-		loadActualData(sampleDataLineageActual);
+	const handleLoadFromBackend = () => {
+		loadGraphsFromBackend();
 	};
 
 	const handleLoadFromFile = () => {
@@ -45,22 +46,26 @@ export const SchemaTest = () => {
 		<Card sx={{ m: 2, p: 2 }}>
 			<CardContent>
 				<Typography variant="h6" gutterBottom>
-					Тест новой схемы данных
+					Тест схемы данных
 				</Typography>
 
 				<Typography variant="body2" color="text.secondary" gutterBottom>
-					Текущие данные (новый формат):{" "}
-					{currentActualData ? "Загружены" : "Не загружены"}
+					Текущий граф: {currentGraph ? "Загружен" : "Не загружен"}
 				</Typography>
 
-				<Typography variant="body2" color="text.secondary" gutterBottom>
-					Текущий граф (legacy формат):{" "}
-					{currentGraph ? "Загружен" : "Не загружен"}
-				</Typography>
+				{error && (
+					<Typography variant="body2" color="error" gutterBottom>
+						Ошибка: {error}
+					</Typography>
+				)}
 
 				<div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
-					<Button variant="contained" onClick={handleLoadSampleData}>
-						Загрузить пример данных
+					<Button
+						variant="contained"
+						onClick={handleLoadFromBackend}
+						disabled={isLoading}
+					>
+						{isLoading ? "Загрузка..." : "Загрузить с бэкенда"}
 					</Button>
 					<Button variant="outlined" onClick={handleLoadFromFile}>
 						Загрузить из файла
@@ -70,17 +75,15 @@ export const SchemaTest = () => {
 					</Button>
 				</div>
 
-				{currentActualData && (
+				{currentGraph && (
 					<div style={{ marginTop: "16px" }}>
 						<Typography variant="subtitle2">Описание:</Typography>
+						<Typography variant="body2">{currentGraph.desc.appName}</Typography>
 						<Typography variant="body2">
-							{currentActualData.desc.appName}
+							Сущностей: {currentGraph.entities.length}
 						</Typography>
 						<Typography variant="body2">
-							Сущностей: {currentActualData.entities.length}
-						</Typography>
-						<Typography variant="body2">
-							Маппингов: {currentActualData.mappings.length}
+							Маппингов: {currentGraph.mappings.length}
 						</Typography>
 					</div>
 				)}

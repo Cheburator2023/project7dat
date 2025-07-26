@@ -21,6 +21,7 @@
 		"dev": "turbo run dev --parallel --no-cache",
 		"dev:ui": "turbo run dev --filter=react-client",
 		"dev:server:nest": "turbo run dev --filter=nestjs-server",
+		"dev:fullstack": "turbo run dev --filter=react-client --filter=nestjs-server",
 		"turbo:ls": "turbo ls",
 		"build": "turbo run build",
 		"lint": "turbo run lint",

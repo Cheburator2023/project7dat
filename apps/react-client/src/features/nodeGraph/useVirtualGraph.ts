@@ -54,38 +54,84 @@ export function useVirtualGraph() {
 			return;
 		}
 
-		const flowNodes: NodeWithData[] = currentGraph.nodes.map((node, index) => {
-			const x = (index % 4) * (config.nodeWidth + config.nodeGap);
-			const y = Math.floor(index / 4) * (config.nodeHeight + config.levelGap);
+		const flowNodes: NodeWithData[] = currentGraph.entities.map(
+			(entity, index) => {
+				const x = (index % 4) * (config.nodeWidth + config.nodeGap);
+				const y = Math.floor(index / 4) * (config.nodeHeight + config.levelGap);
 
-			return {
-				id: node.id,
-				type: "dataLineageNode",
-				position: node.position || { x, y },
-				data: {
-					node,
-					selected: selectedNodes.includes(node.id),
-					width: config.nodeWidth,
-					height: config.nodeHeight,
-				},
-				draggable: true,
-				selectable: true,
-			};
-		});
+				const node: DataLineageNode = {
+					id: entity.id,
+					name: entity.name,
+					type: entity.type === "table" ? "dataset" : "view",
+					description: `${entity.namespace ? `${entity.namespace}.` : ""}${entity.name}`,
+					metadata: {
+						created: new Date().toISOString(),
+						updated: new Date().toISOString(),
+						tags: [],
+						schema: entity.attrSeq
+							? {
+									fields: entity.attrSeq.map((attr) => ({
+										name: attr.name,
+										type: attr.type as
+											| "string"
+											| "number"
+											| "boolean"
+											| "date"
+											| "timestamp"
+											| "json"
+											| "array",
+										nullable: true,
+										description: attr.comment,
+									})),
+								}
+							: undefined,
+					},
+					position: { x, y },
+					status: entity.modified ? "active" : "inactive",
+				};
 
-		const flowEdges: EdgeWithData[] = currentGraph.edges.map((edge) => ({
-			id: edge.id,
-			source: edge.sourceId,
-			target: edge.targetId,
-			type: "smoothstep",
-			data: {
-				selected: selectedEdges.includes(edge.id),
+				return {
+					id: entity.id,
+					type: "dataLineageNode",
+					position: { x, y },
+					data: {
+						node,
+						selected: selectedNodes.includes(entity.id),
+						width: config.nodeWidth,
+						height: config.nodeHeight,
+					},
+					draggable: true,
+					selectable: true,
+				};
 			},
-			style: {
-				stroke: selectedEdges.includes(edge.id) ? "#ff6b6b" : "#b1b1b7",
-				strokeWidth: selectedEdges.includes(edge.id) ? 3 : 1,
-			},
-		}));
+		);
+
+		const flowEdges: EdgeWithData[] = currentGraph.mappings.flatMap(
+			(mapping) =>
+				mapping.deps?.map((dep) => ({
+					id: `${mapping.entityId}-${dep.entityId}`,
+					source: dep.entityId,
+					target: mapping.entityId,
+					type: "smoothstep" as const,
+					data: {
+						selected: selectedEdges.includes(
+							`${mapping.entityId}-${dep.entityId}`,
+						),
+					},
+					style: {
+						stroke: selectedEdges.includes(
+							`${mapping.entityId}-${dep.entityId}`,
+						)
+							? "#ff6b6b"
+							: "#b1b1b7",
+						strokeWidth: selectedEdges.includes(
+							`${mapping.entityId}-${dep.entityId}`,
+						)
+							? 3
+							: 1,
+					},
+				})) || [],
+		);
 
 		setNodes(flowNodes);
 		setEdges(flowEdges);
