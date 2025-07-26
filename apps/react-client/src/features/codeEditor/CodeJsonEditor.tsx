@@ -1430,7 +1430,7 @@ export const CodeJsonEditor = forwardRef<
 				<JsonSearchBar data={jsonData} />
 				<List
 					ref={listRef}
-					height={600}
+					height={700}
 					itemCount={flatNodes.length}
 					itemSize={32}
 					width="100%"

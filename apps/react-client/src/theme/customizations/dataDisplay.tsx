@@ -106,10 +106,10 @@ export const dataDisplayCustomizations: Components<Theme> = {
 							borderColor: gray[200],
 							backgroundColor: gray[100],
 							[`& .${chipClasses.label}`]: {
-								color: gray[500],
+								// color: gray[500],
 							},
 							[`& .${chipClasses.icon}`]: {
-								color: gray[500],
+								// color: gray[500],
 							},
 							...theme.applyStyles("dark", {
 								borderColor: gray[700],

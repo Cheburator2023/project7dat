@@ -46,7 +46,6 @@ export const DataLineageNodeComponent = memo(
 					width: data.width,
 					minHeight: data.height,
 					border: selected ? "2px solid #1976d2" : "1px solid #e0e0e0",
-					borderRadius: 2,
 					cursor: "pointer",
 					transition: "all 0.2s ease-in-out",
 					"&:hover": {
@@ -81,7 +80,7 @@ export const DataLineageNodeComponent = memo(
 						size="small"
 						sx={{
 							backgroundColor: getNodeColor(node.type),
-							color: "white",
+							color: "white !important",
 							fontSize: "0.7rem",
 							height: 20,
 							mb: 1,
