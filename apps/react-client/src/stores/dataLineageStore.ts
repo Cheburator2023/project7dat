@@ -1,12 +1,13 @@
-import exampleDataLineage from "@react-client/data/exampleDataLineage.json";
-import { sampleDataLineageGraphs } from "@react-client/data/sampleDataLineageGraphs";
+import { sampleDataLineageActual } from "@react-client/data/sampleDataLineageActual";
 import type {
 	DataLineageEdge,
 	DataLineageFilter,
 	DataLineageGraph,
 	DataLineageNode,
 	DataLineageSearchResult,
+	LegacyDataLineageGraph,
 } from "@react-client/types/dataLineage";
+import { convertToLegacyFormat } from "@react-client/utils/schemaConverter";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -17,10 +18,12 @@ interface RevealPosition {
 }
 
 interface DataLineageState {
-	currentGraph: DataLineageGraph | null;
-	originalGraph: DataLineageGraph | null;
+	currentGraph: LegacyDataLineageGraph | null;
+	originalGraph: LegacyDataLineageGraph | null;
+	currentActualData: DataLineageGraph | null;
 	hasUnsavedChanges: boolean;
-	graphs: DataLineageGraph[];
+	graphs: LegacyDataLineageGraph[];
+	actualDataSources: DataLineageGraph[];
 	selectedNodes: string[];
 	selectedEdges: string[];
 	filter: DataLineageFilter;
@@ -37,12 +40,15 @@ interface DataLineageState {
 
 interface DataLineageActions {
 	loadGraph: (graphId: string) => Promise<void>;
-	saveGraph: (graph: DataLineageGraph) => Promise<void>;
+	loadActualData: (data: DataLineageGraph) => void;
+	loadFromFile: (file: File) => Promise<void>;
+	loadFromAPI: (url: string) => Promise<void>;
+	saveGraph: (graph: LegacyDataLineageGraph) => Promise<void>;
 	createGraph: (
-		graph: Omit<DataLineageGraph, "id" | "created" | "updated">,
+		graph: Omit<LegacyDataLineageGraph, "id" | "created" | "updated">,
 	) => Promise<void>;
 	deleteGraph: (graphId: string) => Promise<void>;
-	setCurrentGraph: (graph: DataLineageGraph) => void;
+	setCurrentGraph: (graph: LegacyDataLineageGraph) => void;
 	addNode: (node: Omit<DataLineageNode, "id">) => void;
 	updateNode: (nodeId: string, updates: Partial<DataLineageNode>) => void;
 	deleteNode: (nodeId: string) => void;
@@ -72,16 +78,17 @@ interface DataLineageActions {
 
 type DataLineageStore = DataLineageState & DataLineageActions;
 
-const allSampleGraphs = [
-	exampleDataLineage as DataLineageGraph,
-	...sampleDataLineageGraphs,
-];
+const allActualDataSources = [sampleDataLineageActual];
+
+const initialLegacyGraph = convertToLegacyFormat(sampleDataLineageActual);
 
 const initialState: DataLineageState = {
-	currentGraph: allSampleGraphs[0],
-	originalGraph: allSampleGraphs[0],
+	currentGraph: initialLegacyGraph,
+	originalGraph: initialLegacyGraph,
+	currentActualData: sampleDataLineageActual,
 	hasUnsavedChanges: false,
-	graphs: allSampleGraphs,
+	graphs: [initialLegacyGraph],
+	actualDataSources: allActualDataSources,
 	selectedNodes: [],
 	selectedEdges: [],
 	filter: {},
@@ -132,7 +139,67 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				}
 			},
 
-			saveGraph: async (graph: DataLineageGraph) => {
+			loadActualData: (data: DataLineageGraph) => {
+				const legacyGraph = convertToLegacyFormat(data);
+				set({
+					currentActualData: data,
+					currentGraph: legacyGraph,
+					originalGraph: legacyGraph,
+					hasUnsavedChanges: false,
+				});
+			},
+
+			loadFromFile: async (file: File) => {
+				set({ isLoading: true, error: null });
+				try {
+					const text = await file.text();
+					const data = JSON.parse(text);
+
+					if (data.desc && data.entities && data.mappings) {
+						const actualData = data as DataLineageGraph;
+						get().loadActualData(actualData);
+					} else if (data.id && data.nodes && data.edges) {
+						const legacyData = data as LegacyDataLineageGraph;
+						set({
+							currentGraph: legacyData,
+							originalGraph: legacyData,
+							currentActualData: null,
+							hasUnsavedChanges: false,
+						});
+					} else {
+						throw new Error("Неподдерживаемый формат файла");
+					}
+
+					set({ isLoading: false });
+				} catch (error) {
+					set({ error: `Ошибка загрузки файла: ${error}`, isLoading: false });
+				}
+			},
+
+			loadFromAPI: async (url: string) => {
+				set({ isLoading: true, error: null });
+				try {
+					const response = await fetch(url);
+					if (!response.ok) {
+						throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+					}
+
+					const data = await response.json();
+
+					if (data.desc && data.entities && data.mappings) {
+						const actualData = data as DataLineageGraph;
+						get().loadActualData(actualData);
+					} else {
+						throw new Error("API вернул данные в неподдерживаемом формате");
+					}
+
+					set({ isLoading: false });
+				} catch (error) {
+					set({ error: `Ошибка загрузки с API: ${error}`, isLoading: false });
+				}
+			},
+
+			saveGraph: async (graph: LegacyDataLineageGraph) => {
 				set({ isLoading: true, error: null });
 				try {
 					const { graphs } = get();
@@ -167,7 +234,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				set({ isLoading: true, error: null });
 				try {
 					const timestamp = generateTimestamp();
-					const newGraph: DataLineageGraph = {
+					const newGraph: LegacyDataLineageGraph = {
 						...graphData,
 						id: generateId(),
 						created: timestamp,
@@ -205,7 +272,7 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				}
 			},
 
-			setCurrentGraph: (graph: DataLineageGraph) => {
+			setCurrentGraph: (graph: LegacyDataLineageGraph) => {
 				set({ currentGraph: graph });
 				get().markAsChanged();
 			},
@@ -469,13 +536,25 @@ export const useDataLineageStore = create<DataLineageStore>()(
 				set({ isLoading: true, error: null });
 				try {
 					if (format === "json") {
-						const graph = JSON.parse(data) as DataLineageGraph;
-						const { graphs } = get();
-						set({
-							graphs: [...graphs, graph],
-							currentGraph: graph,
-							isLoading: false,
-						});
+						const parsedData = JSON.parse(data);
+
+						if (parsedData.desc && parsedData.entities && parsedData.mappings) {
+							const actualData = parsedData as DataLineageGraph;
+							get().loadActualData(actualData);
+						} else if (parsedData.id && parsedData.nodes && parsedData.edges) {
+							const legacyGraph = parsedData as LegacyDataLineageGraph;
+							const { graphs } = get();
+							set({
+								graphs: [...graphs, legacyGraph],
+								currentGraph: legacyGraph,
+								originalGraph: legacyGraph,
+								currentActualData: null,
+								hasUnsavedChanges: false,
+								isLoading: false,
+							});
+						} else {
+							throw new Error("Неподдерживаемый формат данных");
+						}
 					}
 				} catch (error) {
 					set({ error: `Failed to import graph: ${error}`, isLoading: false });

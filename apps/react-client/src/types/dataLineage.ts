@@ -1,3 +1,52 @@
+export interface DataLineageDescription {
+	appId: string;
+	appName: string;
+}
+
+export interface DataLineageAttribute {
+	name: string;
+	type: string;
+	comment?: string;
+}
+
+export interface DataLineageEntity {
+	id: string;
+	modified: boolean;
+	type: "table" | "view";
+	namespace?: string;
+	name: string;
+	attrSeq?: DataLineageAttribute[];
+}
+
+export interface AttributeMapping {
+	src: string;
+	dst: string;
+}
+
+export interface AttributeDependency {
+	attr: string;
+	linktypes?: ("window" | "join" | "where" | "groupby")[];
+}
+
+export interface EntityDependency {
+	entityId: string;
+	attrMaps?: AttributeMapping[];
+	atrDeps?: AttributeDependency[];
+}
+
+export interface DataLineageMapping {
+	id: number;
+	entityId: string;
+	deps?: EntityDependency[];
+	unmatched?: unknown[];
+}
+
+export interface DataLineageGraph {
+	desc: DataLineageDescription;
+	entities: DataLineageEntity[];
+	mappings: DataLineageMapping[];
+}
+
 export interface DataLineageNode {
 	id: string;
 	name: string;
@@ -73,7 +122,7 @@ export interface ForeignKey {
 	referencedFields: string[];
 }
 
-export interface DataLineageGraph {
+export interface LegacyDataLineageGraph {
 	id: string;
 	name: string;
 	description?: string;
