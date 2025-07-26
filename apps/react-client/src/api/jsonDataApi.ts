@@ -11,7 +11,9 @@ export const jsonDataApi = axios.create({
 
 export interface JsonDataItem {
 	id: string;
+	name: string;
 	data: Record<string, any>;
+	description?: string;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -21,7 +23,9 @@ export interface CreateJsonDataRequest {
 }
 
 export interface UpdateJsonDataRequest {
-	data: Record<string, any>;
+	name?: string;
+	data?: Record<string, any>;
+	description?: string;
 }
 
 export const jsonDataService = {

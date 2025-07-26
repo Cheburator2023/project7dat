@@ -25,8 +25,16 @@ export class JsonDataService {
 	}
 
 	async create(input: CreateJsonDataInput): Promise<any> {
+		const name = input.name || `График ${new Date().toLocaleString("ru-RU")}`;
+		const description =
+			input.description || "Сохранённое состояние графика данных";
+
 		if (this.isProduction) {
-			const jsonData = this.jsonDataRepository.create(input);
+			const jsonData = this.jsonDataRepository.create({
+				name,
+				data: input.data,
+				description,
+			});
 			return this.jsonDataRepository.save(jsonData);
 		}
 
@@ -34,12 +42,15 @@ export class JsonDataService {
 			`INSERT INTO json_data (name, data, description) 
 			 VALUES ($1, $2, $3) 
 			 RETURNING *`,
-			[input.name, JSON.stringify(input.data), input.description],
+			[name, JSON.stringify(input.data), description],
 		);
 
 		return {
 			...result[0],
-			data: JSON.parse(result[0].data),
+			data:
+				typeof result[0].data === "string"
+					? JSON.parse(result[0].data)
+					: result[0].data,
 		};
 	}
 
@@ -86,7 +97,7 @@ export class JsonDataService {
 
 		const data = dataResult.map((item: any) => ({
 			...item,
-			data: JSON.parse(item.data),
+			data: typeof item.data === "string" ? JSON.parse(item.data) : item.data,
 		}));
 
 		return { data, total: Number.parseInt(countResult[0].total) };
@@ -112,7 +123,10 @@ export class JsonDataService {
 
 		return {
 			...result[0],
-			data: JSON.parse(result[0].data),
+			data:
+				typeof result[0].data === "string"
+					? JSON.parse(result[0].data)
+					: result[0].data,
 		};
 	}
 
@@ -161,7 +175,10 @@ export class JsonDataService {
 
 		return {
 			...result[0],
-			data: JSON.parse(result[0].data),
+			data:
+				typeof result[0].data === "string"
+					? JSON.parse(result[0].data)
+					: result[0].data,
 		};
 	}
 

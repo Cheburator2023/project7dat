@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const CreateJsonDataSchema = z.object({
-	name: z.string().min(1).max(255),
 	data: z.record(z.any()),
+	name: z.string().min(1).max(255).optional(),
 	description: z.string().optional(),
 });
 
