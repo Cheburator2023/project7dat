@@ -325,6 +325,7 @@ interface FlatJsonNode {
 	nodeType: "opening" | "property" | "closing";
 	syntaxElement?: string;
 	isArrayElement?: boolean;
+	showInlineOpeningBrace?: boolean;
 }
 
 const flattenJsonData = (
@@ -356,22 +357,8 @@ const flattenJsonData = (
 		? data.map((item, index) => [index, item])
 		: Object.entries(data);
 
-	// Добавляем открывающую скобку для корневого объекта
+	// Для корневого объекта
 	if (path === "" && expandedPaths[""]) {
-		result.push({
-			path: "__root_opening__",
-			key: "",
-			value: data,
-			depth: 0,
-			isLast: false,
-			isExpandable: true,
-			isExpanded: true,
-			parentPath: "",
-			nodeType: "opening",
-			syntaxElement: isArray ? "[" : "{",
-			isArrayElement: isArray,
-		});
-
 		entries.forEach(([key, value], index) => {
 			const currentPath = String(key);
 			const isLast = index === entries.length - 1;
@@ -382,18 +369,19 @@ const flattenJsonData = (
 				path: currentPath,
 				key,
 				value,
-				depth: depth + 1,
+				depth: depth,
 				isLast,
 				isExpandable,
 				isExpanded,
 				parentPath: "",
 				nodeType: "property",
 				isArrayElement: isArray,
+				showInlineOpeningBrace: isExpandable && isExpanded,
 			});
 
 			if (isExpandable && isExpanded) {
 				result.push(
-					...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
+					...flattenJsonData(value, expandedPaths, currentPath, depth),
 				);
 			}
 		});
@@ -413,22 +401,8 @@ const flattenJsonData = (
 			isArrayElement: isArray,
 		});
 	} else if (path !== "") {
-		// Добавляем открывающую скобку для вложенного объекта/массива
+		// Для вложенных объектов/массивов
 		if (expandedPaths[path]) {
-			result.push({
-				path: `${path}__opening__`,
-				key: "",
-				value: data,
-				depth: depth,
-				isLast: false,
-				isExpandable: true,
-				isExpanded: true,
-				parentPath: path,
-				nodeType: "opening",
-				syntaxElement: isArray ? "[" : "{",
-				isArrayElement: isArray,
-			});
-
 			entries.forEach(([key, value], index) => {
 				const currentPath = `${path}.${key}`;
 				const isLast = index === entries.length - 1;
@@ -446,6 +420,7 @@ const flattenJsonData = (
 					parentPath: path,
 					nodeType: "property",
 					isArrayElement: isArray,
+					showInlineOpeningBrace: isExpandable && isExpanded,
 				});
 
 				if (isExpandable && isExpanded) {
@@ -467,9 +442,9 @@ const flattenJsonData = (
 				const parentData =
 					grandParentPath === ""
 						? parentPathParts.length === 1
-							? result[0]?.value
+							? data
 							: null
-						: getValueByPath(result[0]?.value, grandParentPath);
+						: getValueByPath(data, grandParentPath);
 
 				if (parentData) {
 					const parentIsArray = Array.isArray(parentData);
@@ -695,6 +670,12 @@ const ValueContainer = styled(Box)(({ theme }) => ({
 	flex: 1,
 	minWidth: 0,
 	gap: theme.spacing(0.5),
+}));
+
+const _JsonSyntax = styled("span")(({ theme }) => ({
+	color: theme.palette.warning.main,
+	fontWeight: "bold",
+	fontSize: "16px",
 }));
 
 interface JsonSearchBarProps {
@@ -1132,6 +1113,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 							"{node.key}":
 						</KeyText>
 					)}
+
 					{/* Рендерим скобки только для свернутых элементов */}
 					{!node.isExpanded && (
 						<>
