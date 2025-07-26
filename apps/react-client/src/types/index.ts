@@ -41,3 +41,5 @@ export type T_CONFIG_MAP = {
 	KEYCLOAK_URL: string;
 	KABVAL_URL: string;
 };
+
+export * from "./jsonData";
