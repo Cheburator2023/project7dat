@@ -1,38 +1,34 @@
 import { useMemo } from "react";
 
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import type { DataLineageNode } from "@react-client/types/dataLineage";
+import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import type { ColDef } from "ag-grid-community";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-interface DataLineageNodeRow extends DataLineageNode {
-	owner: string;
-	tagsString: string;
-	location: string;
-	rowCount: number | null;
-	size: number | null;
+interface DataLineageEntityRow extends DataLineageEntity {
+	modifiedText: string;
+	typeText: string;
+	attributeCount: number;
 }
 
 export const DataMart = () => {
 	const { currentGraph, selectedNodes, selectNode } = useDataLineageStore();
 
-	const rowData = useMemo<DataLineageNodeRow[]>(() => {
+	const rowData = useMemo<DataLineageEntityRow[]>(() => {
 		if (!currentGraph) return [];
 
-		return currentGraph.nodes.map((node) => ({
-			...node,
-			owner: node.metadata.owner || "Неизвестно",
-			tagsString: node.metadata.tags.join(", "),
-			location: node.metadata.location || "Н/Д",
-			rowCount: node.metadata.rowCount || null,
-			size: node.metadata.size || null,
+		return currentGraph.entities.map((entity) => ({
+			...entity,
+			modifiedText: entity.modified ? "Таргет" : "Источник",
+			typeText: entity.type === "table" ? "Таблица" : "Представление",
+			attributeCount: entity.attrSeq?.length || 0,
 		}));
 	}, [currentGraph]);
 
-	const columnDefs = useMemo<ColDef<DataLineageNodeRow>[]>(
+	const columnDefs = useMemo<ColDef<DataLineageEntityRow>[]>(
 		() => [
 			{
 				field: "name",
@@ -42,95 +38,46 @@ export const DataMart = () => {
 				filter: true,
 			},
 			{
-				field: "type",
+				field: "typeText",
 				headerName: "Тип",
 				flex: 1,
 				sortable: true,
 				filter: true,
-				cellRenderer: (params: any) => {
-					const typeMap: Record<string, string> = {
-						source: "Источник",
-						transformation: "Трансформация",
-						destination: "Назначение",
-						dataset: "Датасет",
-						model: "Модель",
-						view: "Представление",
-					};
-					return typeMap[params.value] || params.value;
-				},
 			},
 			{
-				field: "status",
-				headerName: "Статус",
+				field: "modifiedText",
+				headerName: "Роль",
 				flex: 1,
 				sortable: true,
 				filter: true,
 				cellRenderer: (params: any) => {
-					const statusMap: Record<string, { label: string; color: string }> = {
-						active: { label: "Активный", color: "green" },
-						inactive: { label: "Неактивный", color: "orange" },
-						deprecated: { label: "Устаревший", color: "red" },
-						error: { label: "Ошибка", color: "red" },
-					};
-					const statusInfo = statusMap[params.value] || {
-						label: params.value,
-						color: "gray",
-					};
-					return `<span style="color: ${statusInfo.color}; font-weight: bold;">${statusInfo.label}</span>`;
+					const color = params.data.modified ? "green" : "blue";
+					return `<span style="color: ${color}; font-weight: bold;">${params.value}</span>`;
 				},
 			},
 			{
-				field: "owner",
-				headerName: "Владелец",
+				field: "namespace",
+				headerName: "Схема",
 				flex: 1.5,
 				sortable: true,
 				filter: true,
 			},
 			{
-				field: "tagsString",
-				headerName: "Теги",
+				field: "id",
+				headerName: "Идентификатор",
 				flex: 2,
 				sortable: true,
 				filter: true,
 			},
 			{
-				field: "location",
-				headerName: "Расположение",
-				flex: 2,
-				sortable: true,
-				filter: true,
-			},
-			{
-				field: "rowCount",
-				headerName: "Количество строк",
+				field: "attributeCount",
+				headerName: "Количество атрибутов",
 				flex: 1.2,
 				sortable: true,
 				filter: "agNumberColumnFilter",
 				cellRenderer: (params: any) => {
 					const value = params.value;
-					return value ? value.toLocaleString() : "Н/Д";
-				},
-			},
-			{
-				field: "size",
-				headerName: "Размер",
-				flex: 1,
-				sortable: true,
-				filter: "agNumberColumnFilter",
-				cellRenderer: (params: any) => {
-					const value = params.value;
-					if (!value) return "Н/Д";
-
-					const units = ["Б", "КБ", "МБ", "ГБ", "ТБ"];
-					let size = value;
-					let unitIndex = 0;
-
-					while (size >= 1024 && unitIndex < units.length - 1) {
-						size /= 1024;
-						unitIndex++;
-					}
-
-					return `${size.toFixed(1)} ${units[unitIndex]}`;
+					return value ? value.toLocaleString() : "0";
 				},
 			},
 		],
@@ -157,7 +104,7 @@ export const DataMart = () => {
 
 	return (
 		<div style={{ width: "100%", height: "100%" }}>
-			<AgGridReact<DataLineageNodeRow>
+			<AgGridReact<DataLineageEntityRow>
 				rowData={rowData}
 				columnDefs={columnDefs}
 				defaultColDef={defaultColDef}

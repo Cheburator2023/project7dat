@@ -1,121 +1,110 @@
 import { Box, Button, Typography } from "@mui/material";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import {
+	useDataLineageGraphs,
+	useCreateDataLineageGraph,
+} from "@react-client/hooks/api";
 import { useShallow } from "zustand/react/shallow";
 
 import { NodeGraph } from "./NodeGraph";
 
 export function NodeGraphDemo() {
-	const { graphs, currentGraph, loadGraph, createGraph } = useDataLineageStore(
+	const { data: graphs = [] } = useDataLineageGraphs();
+	const createGraphMutation = useCreateDataLineageGraph();
+
+	const { currentGraph, setCurrentGraph } = useDataLineageStore(
 		useShallow((state) => ({
-			graphs: state.graphs,
 			currentGraph: state.currentGraph,
-			loadGraph: state.loadGraph,
-			createGraph: state.createGraph,
+			setCurrentGraph: state.setCurrentGraph,
 		})),
 	);
 
 	const handleLoadFirstGraph = () => {
 		if (graphs.length > 0) {
-			loadGraph(graphs[0].id);
+			setCurrentGraph(graphs[0]);
 		}
 	};
 
 	const handleCreateSampleGraph = () => {
-		const now = new Date().toISOString();
+		const _now = new Date().toISOString();
 		const sampleGraph = {
-			id: "sample-graph",
-			name: "Sample Data Lineage",
-			description: "A sample data lineage graph for demonstration",
-			version: "1.0.0",
-			created: now,
-			updated: now,
-			metadata: {
-				author: "demo-user",
-				environment: "development" as const,
-				tags: ["demo", "sample"],
+			desc: {
+				appId: "sample-app",
+				appName: "Sample Data Lineage",
 			},
-			nodes: [
+			entities: [
 				{
 					id: "source-1",
+					modified: false,
+					type: "table" as const,
+					namespace: "prod",
 					name: "Customer Database",
-					type: "source" as const,
-					description: "Main customer database",
-					metadata: {
-						owner: "data-team",
-						created: now,
-						updated: now,
-						tags: ["customer", "database"],
-						location: "prod-db-01",
-						size: 10737418240, // 10GB in bytes
-						rowCount: 1000000,
-					},
-					position: { x: 100, y: 100 },
-					status: "active" as const,
+					attrSeq: [
+						{ name: "id", type: "string" },
+						{ name: "name", type: "string" },
+						{ name: "email", type: "string" },
+					],
 				},
 				{
 					id: "transform-1",
+					modified: false,
+					type: "view" as const,
+					namespace: "airflow",
 					name: "Customer ETL",
-					type: "transformation" as const,
-					description: "ETL process for customer data",
-					metadata: {
-						owner: "data-team",
-						created: now,
-						updated: now,
-						tags: ["etl", "transformation"],
-						location: "airflow-cluster",
-						rowCount: 0,
-					},
-					position: { x: 400, y: 100 },
-					status: "active" as const,
+					attrSeq: [
+						{ name: "customer_id", type: "string" },
+						{ name: "customer_name", type: "string" },
+						{ name: "processed_date", type: "string" },
+					],
 				},
 				{
 					id: "dest-1",
+					modified: false,
+					type: "table" as const,
+					namespace: "warehouse",
 					name: "Customer Warehouse",
-					type: "destination" as const,
-					description: "Data warehouse for customer analytics",
-					metadata: {
-						owner: "analytics-team",
-						created: now,
-						updated: now,
-						tags: ["warehouse", "analytics"],
-						location: "snowflake-prod",
-						size: 5368709120, // 5GB in bytes
-						rowCount: 950000,
-					},
-					position: { x: 700, y: 100 },
-					status: "active" as const,
+					attrSeq: [
+						{ name: "id", type: "string" },
+						{ name: "name", type: "string" },
+						{ name: "created_at", type: "string" },
+					],
 				},
 			],
-			edges: [
+			mappings: [
 				{
-					id: "edge-1",
-					sourceId: "source-1",
-					targetId: "transform-1",
-					type: "data_flow" as const,
-					metadata: {
-						created: now,
-						frequency: "batch" as const,
-						lastRun: now,
-						status: "active" as const,
-					},
+					id: 1,
+					entityId: "transform-1",
+					deps: [
+						{
+							entityId: "source-1",
+							attrMaps: [
+								{ src: "id", dst: "customer_id" },
+								{ src: "name", dst: "customer_name" },
+							],
+						},
+					],
 				},
 				{
-					id: "edge-2",
-					sourceId: "transform-1",
-					targetId: "dest-1",
-					type: "data_flow" as const,
-					metadata: {
-						created: now,
-						frequency: "batch" as const,
-						lastRun: now,
-						status: "active" as const,
-					},
+					id: 2,
+					entityId: "dest-1",
+					deps: [
+						{
+							entityId: "transform-1",
+							attrMaps: [
+								{ src: "customer_id", dst: "id" },
+								{ src: "customer_name", dst: "name" },
+							],
+						},
+					],
 				},
 			],
 		};
 
-		createGraph(sampleGraph);
-		loadGraph(sampleGraph.id);
+		createGraphMutation.mutate(sampleGraph, {
+			onSuccess: (createdGraph: any) => {
+				setCurrentGraph(createdGraph.data);
+			},
+		});
 	};
 
 	return (
@@ -138,8 +127,8 @@ export function NodeGraphDemo() {
 				</Box>
 				{currentGraph && (
 					<Typography variant="body2" sx={{ mt: 1 }}>
-						Current: {currentGraph.name} ({currentGraph.nodes.length} nodes,{" "}
-						{currentGraph.edges.length} edges)
+						Current: {currentGraph.desc.appName} ({currentGraph.entities.length}{" "}
+						entities, {currentGraph.mappings.length} mappings)
 					</Typography>
 				)}
 			</Box>

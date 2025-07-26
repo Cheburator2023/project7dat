@@ -10,9 +10,3 @@ export {
 	useDeleteJsonData,
 	JSON_DATA_QUERY_KEYS,
 } from "./useJsonData";
-
-export {
-	useJsonDataActions,
-	useJsonDataManager,
-	useJsonDataSearch,
-} from "./useJsonDataActions";

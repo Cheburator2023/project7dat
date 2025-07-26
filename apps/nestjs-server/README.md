@@ -76,6 +76,27 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Database Management
+
+```bash
+# Сброс базы данных разработки (удаляет папку ./dev-database)
+$ npm run db:reset
+
+# Сброс базы данных разработки с автоматическим перезапуском сервера
+$ npm run db:reset:dev:restart
+
+# Запуск миграций (только для продакшена с PostgreSQL)
+$ npm run migration:run
+
+# Откат миграций
+$ npm run migration:revert
+
+# Генерация новой миграции
+$ npm run migration:generate --name=МояМиграция
+```
+
+**⚠️ Важно**: Команды `db:reset` работают только в режиме разработки и безопасно удаляют только папку `./dev-database`. В продакшене эти команды заблокированы.
+
 ## Run tests
 
 ```bash
