@@ -26,7 +26,7 @@ async function bootstrap() {
 		}),
 	);
 
-	const port = process.env.PORT || 3333;
+	const port = process.env.PORT || 3000;
 	await app.listen(port);
 	console.log(`🚀 Сервер запущен на http://localhost:${port}`);
 	console.log("📚 API эндпоинты доступны по адресу /api/json-data");
