@@ -8,7 +8,9 @@ import {
 	UpdateJsonDataInput,
 	GetJsonDataListInput,
 } from "../schemas/json-data.schema";
+import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { MemoryStorageService } from "../shared/database/memory-storage.service";
+import { JsonCommitService } from "./json-commit.service";
 
 @Injectable()
 export class JsonDataService {
@@ -20,6 +22,7 @@ export class JsonDataService {
 		private readonly jsonDataRepository: Repository<JsonDataEntity>,
 		private readonly configService: ConfigService,
 		private readonly memoryStorageService: MemoryStorageService,
+		private readonly jsonCommitService: JsonCommitService,
 	) {
 		this.isProduction = this.configService.get("NODE_ENV") === "production";
 	}
@@ -133,6 +136,24 @@ export class JsonDataService {
 			throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
 		}
 		return result;
+	}
+
+	async updateWithCommit(
+		id: string,
+		commitInput: CommitJsonDataInput,
+		newData: Record<string, any>,
+	): Promise<any> {
+		const _existingData = await this.findOne(id);
+
+		const updateInput: UpdateJsonDataInput = {
+			data: newData,
+		};
+
+		const updatedData = await this.update(id, updateInput);
+
+		await this.jsonCommitService.createCommit(id, commitInput, newData);
+
+		return updatedData;
 	}
 
 	async remove(id: string): Promise<void> {
