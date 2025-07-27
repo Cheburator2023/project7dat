@@ -17,6 +17,7 @@ export interface ApiClient {
 		create: (data: CreateJsonDataInput) => Promise<JsonDataResponse>;
 		list: (params: GetJsonDataListInput) => Promise<JsonDataListResponse>;
 		getById: (id: string) => Promise<JsonDataResponse>;
+		getCurrent: () => Promise<JsonDataResponse>;
 		update: (
 			id: string,
 			data: UpdateJsonDataInput,
@@ -50,7 +51,7 @@ export const createApiClient = (
 	return {
 		jsonData: {
 			create: (data: CreateJsonDataInput) =>
-				request<JsonDataResponse>("/api/json-data", {
+				request<JsonDataResponse>("/api/json-data/create", {
 					method: "POST",
 					body: JSON.stringify(data),
 				}),
@@ -61,20 +62,24 @@ export const createApiClient = (
 				if (params.limit) searchParams.append("limit", params.limit.toString());
 				if (params.search) searchParams.append("search", params.search);
 
-				return request<JsonDataListResponse>(`/api/json-data?${searchParams}`);
+				return request<JsonDataListResponse>(
+					`/api/json-data/list?${searchParams}`,
+				);
 			},
 
 			getById: (id: string) =>
 				request<JsonDataResponse>(`/api/json-data/${id}`),
 
+			getCurrent: () => request<JsonDataResponse>("/api/json-data/current"),
+
 			update: (id: string, data: UpdateJsonDataInput) =>
-				request<JsonDataResponse>(`/api/json-data/${id}`, {
+				request<JsonDataResponse>(`/api/json-data/update/${id}`, {
 					method: "PUT",
 					body: JSON.stringify(data),
 				}),
 
 			delete: (id: string) =>
-				request<{ success: boolean }>(`/api/json-data/${id}`, {
+				request<{ success: boolean }>(`/api/json-data/delete/${id}`, {
 					method: "DELETE",
 				}),
 		},

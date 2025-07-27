@@ -12,6 +12,7 @@ export const DATA_LINEAGE_QUERY_KEYS = {
 	all: ["dataLineage"] as const,
 	graphs: () => [...DATA_LINEAGE_QUERY_KEYS.all, "graphs"] as const,
 	graph: (id: string) => [...DATA_LINEAGE_QUERY_KEYS.all, "graph", id] as const,
+	current: () => [...DATA_LINEAGE_QUERY_KEYS.all, "current"] as const,
 };
 
 export const useDataLineageGraphs = (): UseQueryResult<
@@ -43,6 +44,20 @@ export const useDataLineageGraph = (
 	});
 };
 
+export const useCurrentDataLineageGraph = (): UseQueryResult<
+	DataLineageGraph,
+	Error
+> => {
+	return useQuery({
+		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
+		queryFn: async () => {
+			const backendItem = await jsonDataService.getCurrent();
+			return backendItem.data as DataLineageGraph;
+		},
+		staleTime: 5 * 60 * 1000,
+	});
+};
+
 export const useCreateDataLineageGraph = (): UseMutationResult<
 	JsonDataItem,
 	Error,
@@ -56,6 +71,9 @@ export const useCreateDataLineageGraph = (): UseMutationResult<
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: DATA_LINEAGE_QUERY_KEYS.graphs(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 			});
 		},
 	});
@@ -74,6 +92,9 @@ export const useSaveDataLineageGraph = (): UseMutationResult<
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: DATA_LINEAGE_QUERY_KEYS.graphs(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 			});
 		},
 	});

@@ -29,7 +29,7 @@ import {
 export class JsonDataController {
 	constructor(private readonly jsonDataService: JsonDataService) {}
 
-	@Post()
+	@Post("create")
 	@ApiOperation({
 		summary: "Создать новый JSON документ",
 		description: "Создает новый JSON документ в системе",
@@ -46,12 +46,12 @@ export class JsonDataController {
 				},
 				name: {
 					type: "string",
-					description: "Название документа",
+					description: "Название документа (опционально)",
 					example: "Мой документ",
 				},
 				description: {
 					type: "string",
-					description: "Описание документа",
+					description: "Описание документа (опционально)",
 					example: "Описание моего документа",
 				},
 			},
@@ -81,7 +81,7 @@ export class JsonDataController {
 		return await this.jsonDataService.create(createJsonDataDto);
 	}
 
-	@Get()
+	@Get("list")
 	@ApiOperation({
 		summary: "Получить список JSON документов",
 		description:
@@ -171,6 +171,34 @@ export class JsonDataController {
 		}
 	}
 
+	@Get("current")
+	@ApiOperation({
+		summary: "Получить последний JSON документ",
+		description: "Возвращает самый последний созданный JSON документ",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Последний JSON документ успешно найден",
+		schema: {
+			type: "object",
+			properties: {
+				id: { type: "string", example: "uuid-string" },
+				name: { type: "string", example: "Мой документ" },
+				data: { type: "object", example: { key: "value" } },
+				description: { type: "string", example: "Описание" },
+				createdAt: { type: "string", format: "date-time" },
+				updatedAt: { type: "string", format: "date-time" },
+			},
+		},
+	})
+	@ApiResponse({
+		status: 404,
+		description: "JSON документы не найдены",
+	})
+	async findLatest() {
+		return await this.jsonDataService.findLatest();
+	}
+
 	@Get(":id")
 	@ApiOperation({
 		summary: "Получить JSON документ по ID",
@@ -205,7 +233,7 @@ export class JsonDataController {
 		return await this.jsonDataService.findOne(id);
 	}
 
-	@Put(":id")
+	@Put("update/:id")
 	@ApiOperation({
 		summary: "Обновить JSON документ",
 		description: "Обновляет существующий JSON документ по его идентификатору",
@@ -269,7 +297,7 @@ export class JsonDataController {
 		return await this.jsonDataService.update(id, updateJsonDataDto);
 	}
 
-	@Delete(":id")
+	@Delete("delete/:id")
 	@ApiOperation({
 		summary: "Удалить JSON документ",
 		description: "Удаляет JSON документ по его идентификатору",
