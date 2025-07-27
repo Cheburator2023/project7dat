@@ -45,18 +45,13 @@ export class JsonCommitController {
 					example: "Обновлены узлы графа",
 					description: "Сообщение коммита",
 				},
-				diff: {
-					type: "object",
-					example: { entities: [{ id: "1", name: "Updated Node" }] },
-					description: "Изменения в формате diff",
-				},
 				data: {
 					type: "object",
 					example: { entities: [], mappings: [] },
-					description: "Полные данные после изменений",
+					description: "Данные для коммита",
 				},
 			},
-			required: ["message", "diff", "data"],
+			required: ["message", "data"],
 		},
 	})
 	@ApiResponse({
@@ -76,13 +71,9 @@ export class JsonCommitController {
 	})
 	async commitCurrent(
 		@Body()
-		body: CommitJsonDataInput & { data: Record<string, any> },
+		body: CommitJsonDataInput,
 	) {
-		const { data, ...commitInput } = body;
-		return await this.jsonDataService.createCommitForCurrentGraph(
-			commitInput,
-			data,
-		);
+		return await this.jsonDataService.createCommitForCurrentGraph(body);
 	}
 
 	@Post("commit/:id")
@@ -106,18 +97,13 @@ export class JsonCommitController {
 					example: "Обновлены узлы графа",
 					description: "Сообщение коммита",
 				},
-				diff: {
-					type: "object",
-					example: { entities: [{ id: "1", name: "Updated Node" }] },
-					description: "Изменения в формате diff",
-				},
 				data: {
 					type: "object",
 					example: { entities: [], mappings: [] },
-					description: "Полные данные после изменений",
+					description: "Данные для коммита",
 				},
 			},
-			required: ["message", "diff", "data"],
+			required: ["message", "data"],
 		},
 	})
 	@ApiResponse({
@@ -142,14 +128,9 @@ export class JsonCommitController {
 	async updateWithCommit(
 		@Param("id") id: string,
 		@Body()
-		body: CommitJsonDataInput & { data: Record<string, any> },
+		body: CommitJsonDataInput,
 	) {
-		const { data, ...commitInput } = body;
-		return await this.jsonDataService.updateGraphWithCommit(
-			id,
-			commitInput,
-			data,
-		);
+		return await this.jsonDataService.updateGraphWithCommit(id, body);
 	}
 
 	@Get("commits")

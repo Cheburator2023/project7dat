@@ -2,9 +2,7 @@ import { z } from "zod";
 
 export const CreateCommitSchema = z.object({
 	message: z.string(),
-	diff: z.record(z.any()),
-	fullData: z.record(z.any()),
-	graphId: z.string(),
+	data: z.record(z.any()),
 });
 
 export const JsonCommitResponseSchema = z.object({

@@ -32,6 +32,7 @@
 		"clsx": "2.1.1",
 		"date-fns": "^2.30.0",
 		"immer": "^10.1.1",
+		"jsondiffpatch": "0.7.3",
 		"json-edit-react": "1.26.2",
 		"nanoid": "^5.0.2",
 		"pretty-bytes": "^6.1.1",

@@ -30,7 +30,6 @@ export interface UpdateJsonDataRequest {
 
 export interface CommitJsonDataRequest {
 	message: string;
-	diff: Record<string, any>;
 	data: Record<string, any>;
 }
 

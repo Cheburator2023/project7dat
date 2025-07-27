@@ -46,14 +46,22 @@ export const useDataLineageGraph = (
 };
 
 export const useCurrentDataLineageGraph = () => {
-	const { loadGraphFromApiWithId } = useDataLineageStore();
+	const { setCurrentGraph, setCurrentGraphId } = useDataLineageStore();
 
 	return useQuery({
 		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 		queryFn: async () => {
 			const item = await jsonDataService.getCurrent();
 			if (item?.data) {
-				loadGraphFromApiWithId(item.data as DataLineageGraph, item.id);
+				const graph = item.data as DataLineageGraph;
+				const deepCopy = JSON.parse(JSON.stringify(graph));
+				setCurrentGraph(graph);
+				setCurrentGraphId(item.id);
+				// Set original graph to enable save buttons on fresh load
+				useDataLineageStore.setState({
+					originalGraph: deepCopy,
+					hasUnsavedChanges: true,
+				});
 			}
 			return item;
 		},

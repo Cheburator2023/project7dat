@@ -37,8 +37,9 @@ interface DataLineageState {
 
 interface DataLineageActions {
 	setCurrentGraph: (graph: DataLineageGraph) => void;
-	loadGraphFromApi: (graph: DataLineageGraph) => void;
-	loadGraphFromApiWithId: (graph: DataLineageGraph, id: string) => void;
+	setCurrentGraphId: (id: string) => void;
+	loadGraphFromApi: () => Promise<void>;
+	loadGraphFromApiWithId: (id: string) => Promise<void>;
 	setGraphs: (graphs: DataLineageGraph[]) => void;
 	setLoading: (loading: boolean) => void;
 	setError: (error: string | null) => void;
@@ -69,7 +70,6 @@ interface DataLineageActions {
 	discardChanges: () => void;
 	commitChanges: () => void;
 	commitChangesWithMessage: (message: string) => Promise<void>;
-	calculateDiff: () => Record<string, any> | null;
 }
 
 type DataLineageStore = DataLineageState & DataLineageActions;
@@ -120,29 +120,58 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		}
 	},
 
-	loadGraphFromApi: (graph: DataLineageGraph) => {
-		const deepCopy = JSON.parse(JSON.stringify(graph));
-		set({
-			currentGraph: graph,
-			originalGraph: deepCopy,
-			hasUnsavedChanges: false,
-			selectedNodes: [],
-			selectedEdges: [],
-			error: null,
-		});
+	setCurrentGraphId: (id: string) => {
+		set({ currentGraphId: id });
 	},
 
-	loadGraphFromApiWithId: (graph: DataLineageGraph, id: string) => {
-		const deepCopy = JSON.parse(JSON.stringify(graph));
-		set({
-			currentGraph: graph,
-			currentGraphId: id,
-			originalGraph: deepCopy,
-			hasUnsavedChanges: false,
-			selectedNodes: [],
-			selectedEdges: [],
-			error: null,
-		});
+	loadGraphFromApi: async () => {
+		set({ isLoading: true, error: null });
+		try {
+			const response = await jsonDataService.getCurrent();
+			if (response?.data) {
+				const graph = response.data as DataLineageGraph;
+				const deepCopy = JSON.parse(JSON.stringify(graph));
+				set({
+					currentGraph: graph,
+					originalGraph: deepCopy,
+					currentGraphId: response.id,
+					hasUnsavedChanges: false,
+					selectedNodes: [],
+					selectedEdges: [],
+					error: null,
+					isLoading: false,
+				});
+			} else {
+				set({ error: "График не найден", isLoading: false });
+			}
+		} catch (error) {
+			set({ error: `Ошибка загрузки графика: ${error}`, isLoading: false });
+		}
+	},
+
+	loadGraphFromApiWithId: async (id: string) => {
+		set({ isLoading: true, error: null });
+		try {
+			const response = await jsonDataService.getById(id);
+			if (response?.data) {
+				const graph = response.data as DataLineageGraph;
+				const deepCopy = JSON.parse(JSON.stringify(graph));
+				set({
+					currentGraph: graph,
+					originalGraph: deepCopy,
+					currentGraphId: id,
+					hasUnsavedChanges: false,
+					selectedNodes: [],
+					selectedEdges: [],
+					error: null,
+					isLoading: false,
+				});
+			} else {
+				set({ error: "График не найден", isLoading: false });
+			}
+		} catch (error) {
+			set({ error: `Ошибка загрузки графика: ${error}`, isLoading: false });
+		}
 	},
 
 	setGraphs: (graphs: DataLineageGraph[]) => {
@@ -441,14 +470,9 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	},
 
 	commitChangesWithMessage: async (message: string) => {
-		const { currentGraph, currentGraphId, calculateDiff } = get();
+		const { currentGraph, currentGraphId } = get();
 		if (!currentGraph) {
-			throw new Error("Нет текущего графика для коммита");
-		}
-
-		const diff = calculateDiff();
-		if (!diff) {
-			throw new Error("Нет изменений для коммита");
+			throw new Error("Нет данных для коммита");
 		}
 
 		try {
@@ -456,7 +480,6 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 
 			const commitData: CommitJsonDataRequest = {
 				message,
-				diff,
 				data: currentGraph,
 			};
 
@@ -478,24 +501,5 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			});
 			throw error;
 		}
-	},
-
-	calculateDiff: () => {
-		const { currentGraph, originalGraph } = get();
-		if (!currentGraph || !originalGraph) return null;
-
-		const diff: Record<string, any> = {};
-		const currentStr = JSON.stringify(currentGraph);
-		const originalStr = JSON.stringify(originalGraph);
-
-		if (currentStr !== originalStr) {
-			diff.type = "full_replace";
-			diff.changes = {
-				from: originalGraph,
-				to: currentGraph,
-			};
-		}
-
-		return Object.keys(diff).length > 0 ? diff : null;
 	},
 }));
