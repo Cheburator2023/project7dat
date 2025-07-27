@@ -1228,6 +1228,7 @@ export const CodeJsonEditor = forwardRef<
 		const [jsonData, setJsonData] = useState(initialData);
 		const containerRef = useRef<HTMLDivElement>(null);
 		const listRef = useRef<List>(null);
+		const isUpdatingFromStore = useRef(false);
 
 		const {
 			focusedPath,
@@ -1292,10 +1293,21 @@ export const CodeJsonEditor = forwardRef<
 
 		useEffect(() => {
 			if (initialData) {
+				isUpdatingFromStore.current = true;
 				setJsonData(initialData);
 				expandAll(initialData);
+				isUpdatingFromStore.current = false;
 			}
 		}, [initialData, expandAll]);
+
+		useEffect(() => {
+			if (currentGraph && !isUpdatingFromStore.current) {
+				isUpdatingFromStore.current = true;
+				setJsonData(currentGraph);
+				expandAll(currentGraph);
+				isUpdatingFromStore.current = false;
+			}
+		}, [currentGraph, expandAll]);
 
 		useEffect(() => {
 			if (selectedNodes.length > 0 && currentGraph) {
@@ -1337,7 +1349,10 @@ export const CodeJsonEditor = forwardRef<
 				flushSync(() => {
 					setJsonData(newData);
 				});
-				onChange?.(newData);
+
+				if (!isUpdatingFromStore.current) {
+					onChange?.(newData);
+				}
 
 				// Обновляем store если изменяется сущность графа
 				if (

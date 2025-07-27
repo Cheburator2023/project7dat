@@ -6,13 +6,14 @@ import {
 	type UseQueryResult,
 } from "@tanstack/react-query";
 import { jsonDataService, type JsonDataItem } from "../../api/jsonDataApi";
+import { useDataLineageStore } from "../../stores/dataLineageStore";
 import type { DataLineageGraph } from "../../types/dataLineage";
 
 export const DATA_LINEAGE_QUERY_KEYS = {
 	all: ["dataLineage"] as const,
-	graphs: () => [...DATA_LINEAGE_QUERY_KEYS.all, "graphs"] as const,
-	graph: (id: string) => [...DATA_LINEAGE_QUERY_KEYS.all, "graph", id] as const,
-	current: () => [...DATA_LINEAGE_QUERY_KEYS.all, "current"] as const,
+	graphs: () => ["dataLineage/graphs"] as const,
+	graph: (id: string) => [`dataLineage/graph/${id}`] as const,
+	current: () => ["dataLineage/current"] as const,
 };
 
 export const useDataLineageGraphs = (): UseQueryResult<
@@ -44,17 +45,20 @@ export const useDataLineageGraph = (
 	});
 };
 
-export const useCurrentDataLineageGraph = (): UseQueryResult<
-	DataLineageGraph,
-	Error
-> => {
+export const useCurrentDataLineageGraph = () => {
+	const { loadGraphFromApiWithId } = useDataLineageStore();
+
 	return useQuery({
 		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 		queryFn: async () => {
-			const backendItem = await jsonDataService.getCurrent();
-			return backendItem.data as DataLineageGraph;
+			const item = await jsonDataService.getCurrent();
+			if (item?.data) {
+				loadGraphFromApiWithId(item.data as DataLineageGraph, item.id);
+			}
+			return item;
 		},
 		staleTime: 5 * 60 * 1000,
+		gcTime: 10 * 60 * 1000,
 	});
 };
 
@@ -85,10 +89,15 @@ export const useSaveDataLineageGraph = (): UseMutationResult<
 	DataLineageGraph
 > => {
 	const queryClient = useQueryClient();
+	const { currentGraphId } = useDataLineageStore();
 
 	return useMutation({
-		mutationFn: (graph: DataLineageGraph) =>
-			jsonDataService.create({ data: graph }),
+		mutationFn: (graph: DataLineageGraph) => {
+			if (currentGraphId) {
+				return jsonDataService.update(currentGraphId, { data: graph });
+			}
+			return jsonDataService.create({ data: graph });
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: DATA_LINEAGE_QUERY_KEYS.graphs(),
