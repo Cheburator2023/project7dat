@@ -8,7 +8,13 @@ import {
 	TextField,
 	Typography,
 	Box,
+	Accordion,
+	AccordionSummary,
+	AccordionDetails,
+	useColorScheme,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 
 interface CommitDialogProps {
@@ -22,7 +28,13 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 }) => {
 	const [message, setMessage] = useState("");
 	const [isCommitting, setIsCommitting] = useState(false);
-	const { commitChangesWithMessage, hasUnsavedChanges } = useDataLineageStore();
+	const {
+		commitChangesWithMessage,
+		hasUnsavedChanges,
+		currentGraph,
+		originalGraph,
+	} = useDataLineageStore();
+	const { mode } = useColorScheme();
 
 	const handleCommit = async () => {
 		if (!message.trim()) return;
@@ -40,7 +52,7 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 	};
 
 	return (
-		<Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+		<Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
 			<DialogTitle>Сохранить изменения</DialogTitle>
 			<DialogContent>
 				<Box sx={{ mb: 2 }}>
@@ -60,7 +72,30 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 					rows={3}
 					placeholder="Опишите ваши изменения..."
 					disabled={isCommitting || !hasUnsavedChanges}
+					sx={{ mb: 2 }}
 				/>
+
+				{hasUnsavedChanges && currentGraph && originalGraph && (
+					<Accordion>
+						<AccordionSummary expandIcon={<ExpandMoreIcon />}>
+							<Typography>Просмотр изменений</Typography>
+						</AccordionSummary>
+						<AccordionDetails>
+							<Box sx={{ maxHeight: 400, overflow: "auto" }}>
+								<ReactDiffViewer
+									oldValue={JSON.stringify(originalGraph, null, 2)}
+									newValue={JSON.stringify(currentGraph, null, 2)}
+									splitView={true}
+									compareMethod={DiffMethod.CHARS}
+									useDarkTheme={mode === "dark"}
+									showDiffOnly
+									leftTitle="Исходная версия"
+									rightTitle="Новая версия"
+								/>
+							</Box>
+						</AccordionDetails>
+					</Accordion>
+				)}
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose} disabled={isCommitting}>
