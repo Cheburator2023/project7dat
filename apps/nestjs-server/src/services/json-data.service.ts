@@ -91,14 +91,14 @@ export class JsonDataService {
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
 			if (!jsonData) {
-				throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
+				throw new NotFoundException(`1 JSON данные с ID ${id} не найдены`);
 			}
 			return jsonData;
 		}
 
 		const result = await this.memoryStorageService.findById(id);
 		if (!result) {
-			throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
+			throw new NotFoundException(`1 JSON данные с ID ${id} не найдены`);
 		}
 		return result;
 	}
@@ -125,7 +125,7 @@ export class JsonDataService {
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
 			if (!jsonData) {
-				throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
+				throw new NotFoundException(`2 JSON данные с ID ${id} не найдены`);
 			}
 			Object.assign(jsonData, input);
 			return this.jsonDataRepository.save(jsonData);
@@ -133,7 +133,7 @@ export class JsonDataService {
 
 		const result = await this.memoryStorageService.update(id, input);
 		if (!result) {
-			throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
+			throw new NotFoundException(`2 JSON данные с ID ${id} не найдены`);
 		}
 		return result;
 	}
@@ -161,7 +161,8 @@ export class JsonDataService {
 
 		await this.jsonCommitService.createCommit(
 			currentData.id,
-			commitInput,
+			commitInput.message,
+			commitInput.diff,
 			newData,
 		);
 
@@ -181,7 +182,12 @@ export class JsonDataService {
 
 		const updatedData = await this.update(id, updateInput);
 
-		await this.jsonCommitService.createCommit(id, commitInput, newData);
+		await this.jsonCommitService.createCommit(
+			id,
+			commitInput.message,
+			commitInput.diff,
+			newData,
+		);
 
 		return updatedData;
 	}
@@ -190,14 +196,14 @@ export class JsonDataService {
 		if (this.isProduction) {
 			const result = await this.jsonDataRepository.delete(id);
 			if (result.affected === 0) {
-				throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
+				throw new NotFoundException(`3 JSON данные с ID ${id} не найдены`);
 			}
 			return;
 		}
 
 		const success = await this.memoryStorageService.delete(id);
 		if (!success) {
-			throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
+			throw new NotFoundException(`3 JSON данные с ID ${id} не найдены`);
 		}
 	}
 }

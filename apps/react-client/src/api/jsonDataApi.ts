@@ -40,7 +40,7 @@ export interface JsonCommitItem {
 	message: string;
 	diff: Record<string, any>;
 	fullData: Record<string, any>;
-	jsonDataId: string;
+	graphId: string;
 	createdAt: string;
 }
 
@@ -82,13 +82,12 @@ export const jsonDataService = {
 	getCommits: (params?: {
 		page?: number;
 		limit?: number;
-		jsonDataId?: string;
+		graphId?: string;
 	}): Promise<CommitListResponse> => {
 		const searchParams = new URLSearchParams();
 		if (params?.page) searchParams.append("page", params.page.toString());
 		if (params?.limit) searchParams.append("limit", params.limit.toString());
-		if (params?.jsonDataId)
-			searchParams.append("jsonDataId", params.jsonDataId);
+		if (params?.graphId) searchParams.append("graphId", params.graphId);
 
 		return jsonDataApi
 			.get(`/commits?${searchParams}`)

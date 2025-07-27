@@ -62,7 +62,7 @@ export const useCommitCurrentJsonData = (): UseMutationResult<
 			});
 			queryClient.invalidateQueries({
 				queryKey: JSON_DATA_QUERY_KEYS.commitList({
-					jsonDataId: updatedItem.id,
+					graphId: updatedItem.id,
 				}),
 			});
 		},
@@ -94,7 +94,7 @@ export const useCommitJsonData = (): UseMutationResult<
 				queryKey: JSON_DATA_QUERY_KEYS.lists(),
 			});
 			queryClient.invalidateQueries({
-				queryKey: JSON_DATA_QUERY_KEYS.commitList({ jsonDataId: id }),
+				queryKey: JSON_DATA_QUERY_KEYS.commitList({ graphId: id }),
 			});
 		},
 	});
@@ -103,7 +103,7 @@ export const useCommitJsonData = (): UseMutationResult<
 export const useCommitList = (params?: {
 	page?: number;
 	limit?: number;
-	jsonDataId?: string;
+	graphId?: string;
 }): UseQueryResult<CommitListResponse, Error> => {
 	return useQuery({
 		queryKey: JSON_DATA_QUERY_KEYS.commitList(params),
