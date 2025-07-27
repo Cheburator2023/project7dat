@@ -23,7 +23,7 @@ export const CommitHistory: React.FC = () => {
 		isLoading,
 		error,
 	} = useCommitList({
-		jsonDataId: currentGraphId || undefined,
+		graphId: currentGraphId || undefined,
 		limit: 20,
 	});
 

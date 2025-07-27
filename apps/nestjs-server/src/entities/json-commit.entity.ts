@@ -26,10 +26,10 @@ export class JsonCommitEntity {
 	fullData: Record<string, any>;
 
 	@Column({ type: "uuid" })
-	jsonDataId: string;
+	graphId: string;
 
 	@ManyToOne(() => JsonDataEntity, { onDelete: "CASCADE" })
-	@JoinColumn({ name: "jsonDataId" })
+	@JoinColumn({ name: "graphId" })
 	jsonData: JsonDataEntity;
 
 	@CreateDateColumn()

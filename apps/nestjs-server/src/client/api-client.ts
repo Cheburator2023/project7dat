@@ -114,8 +114,7 @@ export const createApiClient = (
 				const searchParams = new URLSearchParams();
 				if (params.page) searchParams.append("page", params.page.toString());
 				if (params.limit) searchParams.append("limit", params.limit.toString());
-				if (params.jsonDataId)
-					searchParams.append("jsonDataId", params.jsonDataId);
+				if (params.graphId) searchParams.append("graphId", params.graphId);
 
 				return request<CommitListResponse>(
 					`/api/json-data/commits?${searchParams}`,

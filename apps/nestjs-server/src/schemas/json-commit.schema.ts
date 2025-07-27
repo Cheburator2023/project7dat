@@ -1,8 +1,10 @@
 import { z } from "zod";
 
-export const CommitJsonDataSchema = z.object({
-	message: z.string().min(1).max(500),
+export const CreateCommitSchema = z.object({
+	message: z.string(),
 	diff: z.record(z.any()),
+	fullData: z.record(z.any()),
+	graphId: z.string(),
 });
 
 export const JsonCommitResponseSchema = z.object({
@@ -11,16 +13,16 @@ export const JsonCommitResponseSchema = z.object({
 	message: z.string(),
 	diff: z.record(z.any()),
 	fullData: z.record(z.any()),
-	jsonDataId: z.string(),
+	graphId: z.string(),
 	createdAt: z.date(),
 });
 
 export const GetCommitListSchema = z.object({
 	page: z.number().min(1).default(1),
 	limit: z.number().min(1).max(100).default(10),
-	jsonDataId: z.string().optional(),
+	graphId: z.string().optional(),
 });
 
-export type CommitJsonDataInput = z.infer<typeof CommitJsonDataSchema>;
+export type CommitJsonDataInput = z.infer<typeof CreateCommitSchema>;
 export type JsonCommitResponse = z.infer<typeof JsonCommitResponseSchema>;
 export type GetCommitListInput = z.infer<typeof GetCommitListSchema>;

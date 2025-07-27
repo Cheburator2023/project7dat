@@ -166,10 +166,10 @@ export class JsonCommitController {
 		example: 10,
 	})
 	@ApiQuery({
-		name: "jsonDataId",
+		name: "graphId",
 		required: false,
 		type: String,
-		description: "ID JSON документа для фильтрации коммитов",
+		description: "ID графика для фильтрации коммитов",
 		example: "uuid-string",
 	})
 	@ApiResponse({
@@ -188,7 +188,7 @@ export class JsonCommitController {
 							message: { type: "string", example: "Обновлены узлы графа" },
 							diff: { type: "object", example: {} },
 							fullData: { type: "object", example: {} },
-							jsonDataId: { type: "string", example: "uuid-string" },
+							graphId: { type: "string", example: "uuid-string" },
 							createdAt: { type: "string", format: "date-time" },
 						},
 					},
@@ -233,7 +233,7 @@ export class JsonCommitController {
 				message: { type: "string", example: "Обновлены узлы графа" },
 				diff: { type: "object", example: {} },
 				fullData: { type: "object", example: {} },
-				jsonDataId: { type: "string", example: "uuid-string" },
+				graphId: { type: "string", example: "uuid-string" },
 				createdAt: { type: "string", format: "date-time" },
 			},
 		},
