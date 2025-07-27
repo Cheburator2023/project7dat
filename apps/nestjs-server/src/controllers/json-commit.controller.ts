@@ -1,12 +1,4 @@
-import {
-	Controller,
-	Get,
-	Post,
-	Body,
-	Param,
-	Query,
-	ValidationPipe,
-} from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Query } from "@nestjs/common";
 import {
 	ApiTags,
 	ApiOperation,
@@ -17,13 +9,10 @@ import {
 } from "@nestjs/swagger";
 import { JsonCommitService } from "../services/json-commit.service";
 import { JsonDataService } from "../services/json-data.service";
-import {
-	CommitJsonDataInput,
-	GetCommitListInput,
-} from "../schemas/json-commit.schema";
+import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 
 @ApiTags("JSON Коммиты")
-@Controller("api/json-data")
+@Controller("api/json-commits")
 export class JsonCommitController {
 	constructor(
 		private readonly jsonCommitService: JsonCommitService,
@@ -188,19 +177,35 @@ export class JsonCommitController {
 		},
 	})
 	async getCommitList(
-		@Query(new ValidationPipe({ transform: true }))
-		query: GetCommitListInput,
+		@Query()
+		query: any,
 	) {
+		console.log(`[JsonCommitController] METHOD CALLED!`);
 		console.log(
-			`[JsonCommitController] getCommitList вызван с параметрами:`,
+			`[JsonCommitController] getCommitList вызван с RAW параметрами:`,
 			query,
 		);
-		const result = await this.jsonCommitService.getCommitsWithPagination(query);
+
+		const page = query.page ? Number.parseInt(query.page, 10) : 1;
+		const limit = query.limit ? Number.parseInt(query.limit, 10) : 10;
+		const graphId = query.graphId;
+
+		console.log(`[JsonCommitController] Обработанные параметры:`, {
+			page,
+			limit,
+			graphId,
+		});
+
+		const result = await this.jsonCommitService.getCommitsWithPagination({
+			page,
+			limit,
+			graphId,
+		});
 		console.log(`[JsonCommitController] Результат:`, result);
 		return {
 			...result,
-			page: query.page,
-			limit: query.limit,
+			page,
+			limit,
 		};
 	}
 

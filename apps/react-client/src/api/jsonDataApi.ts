@@ -9,6 +9,13 @@ export const jsonDataApi = axios.create({
 	},
 });
 
+export const jsonCommitApi = axios.create({
+	baseURL: `${API_BASE_URL}/api/json-commits`,
+	headers: {
+		"Content-Type": "application/json",
+	},
+});
+
 export interface JsonDataItem {
 	id: string;
 	name: string;
@@ -70,13 +77,13 @@ export const jsonDataService = {
 		jsonDataApi.delete(`/delete/${id}`).then(() => undefined),
 
 	commitCurrent: (data: CommitJsonDataRequest): Promise<JsonDataItem> =>
-		jsonDataApi.post("/commit", data).then((response) => response.data),
+		jsonCommitApi.post("/commit", data).then((response) => response.data),
 
 	commitUpdate: (
 		id: string,
 		data: CommitJsonDataRequest,
 	): Promise<JsonDataItem> =>
-		jsonDataApi.post(`/commit/${id}`, data).then((response) => response.data),
+		jsonCommitApi.post(`/commit/${id}`, data).then((response) => response.data),
 
 	getCommits: (params?: {
 		page?: number;
@@ -88,11 +95,11 @@ export const jsonDataService = {
 		if (params?.limit) searchParams.append("limit", params.limit.toString());
 		if (params?.graphId) searchParams.append("graphId", params.graphId);
 
-		return jsonDataApi
+		return jsonCommitApi
 			.get(`/commits?${searchParams}`)
 			.then((response) => response.data);
 	},
 
 	getCommitById: (id: string): Promise<JsonCommitItem> =>
-		jsonDataApi.get(`/commits/${id}`).then((response) => response.data),
+		jsonCommitApi.get(`/commits/${id}`).then((response) => response.data),
 };

@@ -105,7 +105,7 @@ export const createApiClient = (
 				id: string,
 				data: CommitJsonDataInput & { data: Record<string, any> },
 			) =>
-				request<JsonDataResponse>(`/api/json-data/commit/${id}`, {
+				request<JsonDataResponse>(`/api/json-commits/commit/${id}`, {
 					method: "POST",
 					body: JSON.stringify(data),
 				}),
@@ -117,12 +117,12 @@ export const createApiClient = (
 				if (params.graphId) searchParams.append("graphId", params.graphId);
 
 				return request<CommitListResponse>(
-					`/api/json-data/commits?${searchParams}`,
+					`/api/json-commits/commits?${searchParams}`,
 				);
 			},
 
 			getCommitById: (id: string) =>
-				request<JsonCommitResponse>(`/api/json-data/commits/${id}`),
+				request<JsonCommitResponse>(`/api/json-commits/commits/${id}`),
 		},
 	};
 };
