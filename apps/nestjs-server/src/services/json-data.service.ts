@@ -27,7 +27,7 @@ export class JsonDataService {
 		this.isProduction = this.configService.get("NODE_ENV") === "production";
 	}
 
-	async create(input: CreateJsonDataInput): Promise<any> {
+	async createGraphData(input: CreateJsonDataInput): Promise<any> {
 		const name = input.name || `График ${new Date().toLocaleString("ru-RU")}`;
 		const description =
 			input.description || "Сохранённое состояние графика данных";
@@ -48,7 +48,7 @@ export class JsonDataService {
 		);
 	}
 
-	async findAll(
+	async getAllGraphsWithPagination(
 		input: GetJsonDataListInput,
 	): Promise<{ data: any[]; total: number }> {
 		const { page, limit, search } = input;
@@ -87,23 +87,34 @@ export class JsonDataService {
 		return { data, total };
 	}
 
-	async findOne(id: string): Promise<any> {
+	async getGraphDataById(id: string): Promise<any> {
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
 			if (!jsonData) {
-				throw new NotFoundException(`1 JSON данные с ID ${id} не найдены`);
+				throw new NotFoundException(`График с ID ${id} не найден`);
 			}
 			return jsonData;
 		}
 
 		const result = await this.memoryStorageService.findById(id);
 		if (!result) {
-			throw new NotFoundException(`1 JSON данные с ID ${id} не найдены`);
+			return [];
+			// throw new NotFoundException(`График с ID ${id} не найден`);
 		}
 		return result;
 	}
 
-	async findLatest(): Promise<any> {
+	async findGraphDataByIdOrNull(id: string): Promise<any | null> {
+		if (this.isProduction) {
+			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
+			return jsonData || null;
+		}
+
+		const result = await this.memoryStorageService.findById(id);
+		return result || null;
+	}
+
+	async getLatestGraphData(): Promise<any> {
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({
 				order: { createdAt: "DESC" },
@@ -121,11 +132,11 @@ export class JsonDataService {
 		return result;
 	}
 
-	async update(id: string, input: UpdateJsonDataInput): Promise<any> {
+	async updateGraphData(id: string, input: UpdateJsonDataInput): Promise<any> {
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
 			if (!jsonData) {
-				throw new NotFoundException(`2 JSON данные с ID ${id} не найдены`);
+				throw new NotFoundException(`График с ID ${id} не найден`);
 			}
 			Object.assign(jsonData, input);
 			return this.jsonDataRepository.save(jsonData);
@@ -133,21 +144,21 @@ export class JsonDataService {
 
 		const result = await this.memoryStorageService.update(id, input);
 		if (!result) {
-			throw new NotFoundException(`2 JSON данные с ID ${id} не найдены`);
+			throw new NotFoundException(`График с ID ${id} не найден`);
 		}
 		return result;
 	}
 
-	async commitCurrent(
+	async createCommitForCurrentGraph(
 		commitInput: CommitJsonDataInput,
 		newData: Record<string, any>,
 	): Promise<any> {
-		let currentData = await this.findLatest();
+		let currentData = await this.getLatestGraphData();
 
 		if (!currentData) {
 			const name = `График ${new Date().toLocaleString("ru-RU")}`;
 			const description = "Автоматически созданный график для коммита";
-			currentData = await this.create({
+			currentData = await this.createGraphData({
 				name,
 				data: newData,
 				description,
@@ -156,10 +167,10 @@ export class JsonDataService {
 			const updateInput: UpdateJsonDataInput = {
 				data: newData,
 			};
-			currentData = await this.update(currentData.id, updateInput);
+			currentData = await this.updateGraphData(currentData.id, updateInput);
 		}
 
-		await this.jsonCommitService.createCommit(
+		await this.jsonCommitService.createNewCommit(
 			currentData.id,
 			commitInput.message,
 			commitInput.diff,
@@ -169,20 +180,52 @@ export class JsonDataService {
 		return currentData;
 	}
 
-	async updateWithCommit(
+	async updateGraphWithCommit(
 		id: string,
 		commitInput: CommitJsonDataInput,
 		newData: Record<string, any>,
 	): Promise<any> {
-		const _existingData = await this.findOne(id);
+		console.log(
+			`[JsonDataService] updateGraphWithCommit вызван для graphId: ${id}`,
+		);
+		const existingData = await this.findGraphDataByIdOrNull(id);
 
+		if (!existingData) {
+			console.log(
+				`[JsonDataService] График с ID ${id} не найден, создаем новый`,
+			);
+			const name = `График ${new Date().toLocaleString("ru-RU")}`;
+			const description = "Автоматически созданный график для коммита";
+			const newGraphData = await this.createGraphData({
+				name,
+				data: newData,
+				description,
+			});
+
+			console.log(
+				`[JsonDataService] Создан новый график с ID: ${newGraphData.id}`,
+			);
+			await this.jsonCommitService.createNewCommit(
+				newGraphData.id,
+				commitInput.message,
+				commitInput.diff,
+				newData,
+			);
+
+			return newGraphData;
+		}
+
+		console.log(`[JsonDataService] График с ID ${id} найден, обновляем`);
 		const updateInput: UpdateJsonDataInput = {
 			data: newData,
 		};
 
-		const updatedData = await this.update(id, updateInput);
+		const updatedData = await this.updateGraphData(id, updateInput);
 
-		await this.jsonCommitService.createCommit(
+		console.log(
+			`[JsonDataService] График обновлен, создаем коммит для ID: ${id}`,
+		);
+		await this.jsonCommitService.createNewCommit(
 			id,
 			commitInput.message,
 			commitInput.diff,
@@ -192,18 +235,18 @@ export class JsonDataService {
 		return updatedData;
 	}
 
-	async remove(id: string): Promise<void> {
+	async deleteGraphData(id: string): Promise<void> {
 		if (this.isProduction) {
 			const result = await this.jsonDataRepository.delete(id);
 			if (result.affected === 0) {
-				throw new NotFoundException(`3 JSON данные с ID ${id} не найдены`);
+				throw new NotFoundException(`График с ID ${id} не найден`);
 			}
 			return;
 		}
 
 		const success = await this.memoryStorageService.delete(id);
 		if (!success) {
-			throw new NotFoundException(`3 JSON данные с ID ${id} не найдены`);
+			throw new NotFoundException(`График с ID ${id} не найден`);
 		}
 	}
 }
