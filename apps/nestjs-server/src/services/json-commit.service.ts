@@ -24,7 +24,7 @@ export class JsonCommitService {
 		this.isProduction = this.configService.get("NODE_ENV") === "production";
 	}
 
-	private generateCommitHash(
+	private generateUniqueCommitHash(
 		message: string,
 		diff: Record<string, any>,
 		timestamp: Date,
@@ -37,21 +37,22 @@ export class JsonCommitService {
 		return createHash("sha256").update(content).digest("hex").substring(0, 8);
 	}
 
-	async createCommit(
+	async createNewCommit(
 		graphId: string,
 		message: string,
 		diff: Record<string, any>,
 		fullData: Record<string, any>,
 	): Promise<any> {
+		console.log(`[JsonCommitService] Создание коммита для graphId: ${graphId}`);
 		const timestamp = new Date();
-		const hash = this.generateCommitHash(message, diff, timestamp);
+		const hash = this.generateUniqueCommitHash(message, diff, timestamp);
 
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({
 				where: { id: graphId },
 			});
 			if (!jsonData) {
-				throw new NotFoundException(`0 JSON данные с ID ${graphId} не найдены`);
+				throw new NotFoundException(`График с ID ${graphId} не найден`);
 			}
 
 			const commit = this.commitRepository.create({
@@ -63,7 +64,9 @@ export class JsonCommitService {
 				createdAt: timestamp,
 			});
 
-			return this.commitRepository.save(commit);
+			const savedCommit = await this.commitRepository.save(commit);
+			console.log(`[JsonCommitService] Коммит сохранен в БД:`, savedCommit.id);
+			return savedCommit;
 		}
 
 		if (!this.memoryCommits.has(graphId)) {
@@ -81,13 +84,21 @@ export class JsonCommitService {
 		};
 
 		this.memoryCommits.get(graphId)!.push(commit);
+		console.log(`[JsonCommitService] Коммит добавлен в память:`, commit.id);
+		console.log(
+			`[JsonCommitService] Всего коммитов для graphId ${graphId}:`,
+			this.memoryCommits.get(graphId)!.length,
+		);
 		return commit;
 	}
 
-	async getCommitList(
+	async getCommitsWithPagination(
 		input: GetCommitListInput,
 	): Promise<{ data: any[]; total: number }> {
 		const { page, limit, graphId } = input;
+		console.log(
+			`[JsonCommitService] Получение коммитов для graphId: ${graphId}, page: ${page}, limit: ${limit}`,
+		);
 		const skip = (page - 1) * limit;
 
 		if (this.isProduction) {
@@ -100,17 +111,31 @@ export class JsonCommitService {
 				order: { createdAt: "DESC" },
 			});
 
+			console.log(`[JsonCommitService] Найдено коммитов в БД: ${total}`);
 			return { data, total };
 		}
 
 		let allCommits: any[] = [];
 		if (graphId) {
 			allCommits = this.memoryCommits.get(graphId) || [];
+			console.log(
+				`[JsonCommitService] Коммиты для graphId ${graphId} из памяти:`,
+				allCommits.length,
+			);
 		} else {
 			for (const commits of this.memoryCommits.values()) {
 				allCommits.push(...commits);
 			}
+			console.log(
+				`[JsonCommitService] Все коммиты из памяти:`,
+				allCommits.length,
+			);
 		}
+
+		console.log(
+			`[JsonCommitService] Все ключи в memoryCommits:`,
+			Array.from(this.memoryCommits.keys()),
+		);
 
 		allCommits.sort(
 			(a, b) =>
@@ -120,10 +145,13 @@ export class JsonCommitService {
 		const total = allCommits.length;
 		const data = allCommits.slice(skip, skip + limit);
 
+		console.log(
+			`[JsonCommitService] Возвращаем коммитов: ${data.length} из ${total}`,
+		);
 		return { data, total };
 	}
 
-	async getCommitById(id: string): Promise<any> {
+	async findCommitById(id: string): Promise<any> {
 		if (this.isProduction) {
 			const commit = await this.commitRepository.findOne({ where: { id } });
 			if (!commit) {

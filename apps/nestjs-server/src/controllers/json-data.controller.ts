@@ -78,7 +78,7 @@ export class JsonDataController {
 		description: "Неверные данные запроса",
 	})
 	async create(@Body() createJsonDataDto: CreateJsonDataInput) {
-		return await this.jsonDataService.create(createJsonDataDto);
+		return await this.jsonDataService.createGraphData(createJsonDataDto);
 	}
 
 	@Get("list")
@@ -162,7 +162,9 @@ export class JsonDataController {
 				search: query.search,
 			});
 
-			return await this.jsonDataService.findAll(validatedQuery);
+			return await this.jsonDataService.getAllGraphsWithPagination(
+				validatedQuery,
+			);
 		} catch (error) {
 			if (error instanceof BadRequestException) {
 				throw error;
@@ -196,7 +198,7 @@ export class JsonDataController {
 		description: "JSON документы не найдены",
 	})
 	async findLatest() {
-		return await this.jsonDataService.findLatest();
+		return await this.jsonDataService.getLatestGraphData();
 	}
 
 	@Get(":id")
@@ -230,7 +232,7 @@ export class JsonDataController {
 		description: "JSON документ не найден",
 	})
 	async findOne(@Param("id") id: string) {
-		return await this.jsonDataService.findOne(id);
+		return await this.jsonDataService.getGraphDataById(id);
 	}
 
 	@Put("update/:id")
@@ -294,7 +296,7 @@ export class JsonDataController {
 		@Param("id") id: string,
 		@Body() updateJsonDataDto: UpdateJsonDataInput,
 	) {
-		return await this.jsonDataService.update(id, updateJsonDataDto);
+		return await this.jsonDataService.updateGraphData(id, updateJsonDataDto);
 	}
 
 	@Delete("delete/:id")
@@ -323,7 +325,7 @@ export class JsonDataController {
 		description: "JSON документ не найден",
 	})
 	async remove(@Param("id") id: string) {
-		await this.jsonDataService.remove(id);
+		await this.jsonDataService.deleteGraphData(id);
 		return { success: true };
 	}
 }

@@ -79,7 +79,10 @@ export class JsonCommitController {
 		body: CommitJsonDataInput & { data: Record<string, any> },
 	) {
 		const { data, ...commitInput } = body;
-		return await this.jsonDataService.commitCurrent(commitInput, data);
+		return await this.jsonDataService.createCommitForCurrentGraph(
+			commitInput,
+			data,
+		);
 	}
 
 	@Post("commit/:id")
@@ -142,7 +145,11 @@ export class JsonCommitController {
 		body: CommitJsonDataInput & { data: Record<string, any> },
 	) {
 		const { data, ...commitInput } = body;
-		return await this.jsonDataService.updateWithCommit(id, commitInput, data);
+		return await this.jsonDataService.updateGraphWithCommit(
+			id,
+			commitInput,
+			data,
+		);
 	}
 
 	@Get("commits")
@@ -203,7 +210,7 @@ export class JsonCommitController {
 		@Query(new ValidationPipe({ transform: true }))
 		query: GetCommitListInput,
 	) {
-		const result = await this.jsonCommitService.getCommitList(query);
+		const result = await this.jsonCommitService.getCommitsWithPagination(query);
 		return {
 			...result,
 			page: query.page,
@@ -243,6 +250,6 @@ export class JsonCommitController {
 		description: "Коммит не найден",
 	})
 	async getCommit(@Param("id") id: string) {
-		return await this.jsonCommitService.getCommitById(id);
+		return await this.jsonCommitService.findCommitById(id);
 	}
 }
