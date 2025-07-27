@@ -70,6 +70,9 @@ export const jsonDataService = {
 	delete: (id: string): Promise<void> =>
 		jsonDataApi.delete(`/delete/${id}`).then(() => undefined),
 
+	commitCurrent: (data: CommitJsonDataRequest): Promise<JsonDataItem> =>
+		jsonDataApi.post("/commit", data).then((response) => response.data),
+
 	commitUpdate: (
 		id: string,
 		data: CommitJsonDataRequest,
