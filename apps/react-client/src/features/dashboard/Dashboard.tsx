@@ -66,23 +66,27 @@ export const Dashboard = () => {
 	);
 
 	useEffect(() => {
-		if (graph) {
-			setCurrentGraph(graph);
-		}
-	}, [graph, setCurrentGraph]);
-
-	useEffect(() => {
 		setLoading(isLoading);
 	}, [isLoading, setLoading]);
 
 	const handleJsonChange = (data: any) => {
 		console.log("JSON данные изменены:", data);
-		if (data && typeof data === "object" && data.nodes && data.edges) {
+		if (
+			data &&
+			typeof data === "object" &&
+			data.desc &&
+			data.entities &&
+			data.mappings
+		) {
 			setCurrentGraph(data);
 		}
 	};
 
 	const handleCommitChanges = async () => {
+		console.log(
+			"🐸 Pepe said >> handleCommitChanges >> currentGraph:",
+			currentGraph,
+		);
 		try {
 			if (currentGraph) {
 				await saveGraphMutation.mutateAsync(currentGraph);

@@ -106,14 +106,14 @@ export class JsonDataService {
 				order: { createdAt: "DESC" },
 			});
 			if (!jsonData) {
-				throw new NotFoundException("JSON данные не найдены");
+				return undefined;
 			}
 			return jsonData;
 		}
 
 		const result = await this.memoryStorageService.findLatest();
 		if (!result) {
-			throw new NotFoundException("JSON данные не найдены");
+			return undefined;
 		}
 		return result;
 	}

@@ -15,6 +15,7 @@ interface RevealPosition {
 
 interface DataLineageState {
 	currentGraph: DataLineageGraph | null;
+	currentGraphId: string | null;
 	originalGraph: DataLineageGraph | null;
 	hasUnsavedChanges: boolean;
 	graphs: DataLineageGraph[];
@@ -34,6 +35,8 @@ interface DataLineageState {
 
 interface DataLineageActions {
 	setCurrentGraph: (graph: DataLineageGraph) => void;
+	loadGraphFromApi: (graph: DataLineageGraph) => void;
+	loadGraphFromApiWithId: (graph: DataLineageGraph, id: string) => void;
 	setGraphs: (graphs: DataLineageGraph[]) => void;
 	setLoading: (loading: boolean) => void;
 	setError: (error: string | null) => void;
@@ -69,6 +72,7 @@ type DataLineageStore = DataLineageState & DataLineageActions;
 
 const initialState: DataLineageState = {
 	currentGraph: null,
+	currentGraphId: null,
 	originalGraph: null,
 	hasUnsavedChanges: false,
 	graphs: [],
@@ -98,8 +102,43 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	...initialState,
 
 	setCurrentGraph: (graph: DataLineageGraph) => {
-		set({ currentGraph: graph });
-		get().markAsChanged();
+		const { originalGraph } = get();
+		if (!originalGraph) {
+			const deepCopy = JSON.parse(JSON.stringify(graph));
+			set({
+				currentGraph: graph,
+				originalGraph: deepCopy,
+				hasUnsavedChanges: false,
+			});
+		} else {
+			set({ currentGraph: graph });
+			get().markAsChanged();
+		}
+	},
+
+	loadGraphFromApi: (graph: DataLineageGraph) => {
+		const deepCopy = JSON.parse(JSON.stringify(graph));
+		set({
+			currentGraph: graph,
+			originalGraph: deepCopy,
+			hasUnsavedChanges: false,
+			selectedNodes: [],
+			selectedEdges: [],
+			error: null,
+		});
+	},
+
+	loadGraphFromApiWithId: (graph: DataLineageGraph, id: string) => {
+		const deepCopy = JSON.parse(JSON.stringify(graph));
+		set({
+			currentGraph: graph,
+			currentGraphId: id,
+			originalGraph: deepCopy,
+			hasUnsavedChanges: false,
+			selectedNodes: [],
+			selectedEdges: [],
+			error: null,
+		});
 	},
 
 	setGraphs: (graphs: DataLineageGraph[]) => {
@@ -309,10 +348,14 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 
 				if (parsedData.desc && parsedData.entities && parsedData.mappings) {
 					const graph = parsedData as DataLineageGraph;
+					const deepCopy = JSON.parse(JSON.stringify(graph));
 					set({
 						currentGraph: graph,
-						originalGraph: graph,
+						originalGraph: deepCopy,
 						hasUnsavedChanges: false,
+						selectedNodes: [],
+						selectedEdges: [],
+						error: null,
 						isLoading: false,
 					});
 				} else {
@@ -325,9 +368,10 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	},
 
 	setExampleData: (graph: DataLineageGraph) => {
+		const deepCopy = JSON.parse(JSON.stringify(graph));
 		set({
 			currentGraph: graph,
-			originalGraph: graph,
+			originalGraph: deepCopy,
 			hasUnsavedChanges: false,
 			selectedNodes: [],
 			selectedEdges: [],

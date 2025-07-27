@@ -6,6 +6,9 @@ import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 export const EditorDiff = () => {
 	const { currentGraph, originalGraph, hasUnsavedChanges } =
 		useDataLineageStore();
+	console.log("🐸 Pepe said >> EditorDiff >> currentGraph:", currentGraph);
+
+	console.log("🐸 Pepe said >> EditorDiff >> originalGraph:", originalGraph);
 
 	const { mode } = useColorScheme();
 
