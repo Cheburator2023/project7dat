@@ -30,6 +30,58 @@ export class JsonCommitController {
 		private readonly jsonDataService: JsonDataService,
 	) {}
 
+	@Post("commit")
+	@ApiOperation({
+		summary: "Коммит текущего графика",
+		description: "Создает коммит для текущего активного JSON документа",
+	})
+	@ApiBody({
+		description: "Данные для коммита",
+		schema: {
+			type: "object",
+			properties: {
+				message: {
+					type: "string",
+					example: "Обновлены узлы графа",
+					description: "Сообщение коммита",
+				},
+				diff: {
+					type: "object",
+					example: { entities: [{ id: "1", name: "Updated Node" }] },
+					description: "Изменения в формате diff",
+				},
+				data: {
+					type: "object",
+					example: { entities: [], mappings: [] },
+					description: "Полные данные после изменений",
+				},
+			},
+			required: ["message", "diff", "data"],
+		},
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Коммит успешно создан",
+		schema: {
+			type: "object",
+			properties: {
+				id: { type: "string", example: "uuid-string" },
+				name: { type: "string", example: "Мой документ" },
+				data: { type: "object", example: { key: "value" } },
+				description: { type: "string", example: "Описание" },
+				createdAt: { type: "string", format: "date-time" },
+				updatedAt: { type: "string", format: "date-time" },
+			},
+		},
+	})
+	async commitCurrent(
+		@Body()
+		body: CommitJsonDataInput & { data: Record<string, any> },
+	) {
+		const { data, ...commitInput } = body;
+		return await this.jsonDataService.commitCurrent(commitInput, data);
+	}
+
 	@Post("commit/:id")
 	@ApiOperation({
 		summary: "Обновить JSON с коммитом",

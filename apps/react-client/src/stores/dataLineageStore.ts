@@ -441,9 +441,9 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	},
 
 	commitChangesWithMessage: async (message: string) => {
-		const { currentGraph, currentGraphId, calculateDiff } = get();
-		if (!currentGraph || !currentGraphId) {
-			throw new Error("Нет текущего графика или ID для коммита");
+		const { currentGraph, calculateDiff } = get();
+		if (!currentGraph) {
+			throw new Error("Нет текущего графика для коммита");
 		}
 
 		const diff = calculateDiff();
@@ -460,7 +460,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 				data: currentGraph,
 			};
 
-			await jsonDataService.commitUpdate(currentGraphId, commitData);
+			await jsonDataService.commitCurrent(commitData);
 
 			set({
 				originalGraph: JSON.parse(JSON.stringify(currentGraph)),

@@ -138,6 +138,36 @@ export class JsonDataService {
 		return result;
 	}
 
+	async commitCurrent(
+		commitInput: CommitJsonDataInput,
+		newData: Record<string, any>,
+	): Promise<any> {
+		let currentData = await this.findLatest();
+
+		if (!currentData) {
+			const name = `График ${new Date().toLocaleString("ru-RU")}`;
+			const description = "Автоматически созданный график для коммита";
+			currentData = await this.create({
+				name,
+				data: newData,
+				description,
+			});
+		} else {
+			const updateInput: UpdateJsonDataInput = {
+				data: newData,
+			};
+			currentData = await this.update(currentData.id, updateInput);
+		}
+
+		await this.jsonCommitService.createCommit(
+			currentData.id,
+			commitInput,
+			newData,
+		);
+
+		return currentData;
+	}
+
 	async updateWithCommit(
 		id: string,
 		commitInput: CommitJsonDataInput,

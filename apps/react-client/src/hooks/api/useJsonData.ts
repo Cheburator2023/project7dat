@@ -36,6 +36,39 @@ export const useJsonDataList = (): UseQueryResult<JsonDataItem[], Error> => {
 	});
 };
 
+export const useCommitCurrentJsonData = (): UseMutationResult<
+	JsonDataItem,
+	Error,
+	CommitJsonDataRequest
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: jsonDataService.commitCurrent,
+		onSuccess: (updatedItem) => {
+			queryClient.setQueryData(
+				JSON_DATA_QUERY_KEYS.detail(updatedItem.id),
+				updatedItem,
+			);
+			queryClient.setQueryData<JsonDataItem[]>(
+				JSON_DATA_QUERY_KEYS.list(),
+				(old) =>
+					old?.map((item) =>
+						item.id === updatedItem.id ? updatedItem : item,
+					) || [],
+			);
+			queryClient.invalidateQueries({
+				queryKey: JSON_DATA_QUERY_KEYS.lists(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: JSON_DATA_QUERY_KEYS.commitList({
+					jsonDataId: updatedItem.id,
+				}),
+			});
+		},
+	});
+};
+
 export const useCommitJsonData = (): UseMutationResult<
 	JsonDataItem,
 	Error,
