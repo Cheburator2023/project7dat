@@ -30,17 +30,20 @@ export interface UpdateJsonDataRequest {
 
 export const jsonDataService = {
 	getAll: (): Promise<JsonDataItem[]> =>
-		jsonDataApi.get("/").then((response) => response.data),
+		jsonDataApi.get("/list").then((response) => response.data.data),
 
 	getById: (id: string): Promise<JsonDataItem> =>
 		jsonDataApi.get(`/${id}`).then((response) => response.data),
 
+	getCurrent: (): Promise<JsonDataItem> =>
+		jsonDataApi.get("/current").then((response) => response.data),
+
 	create: (data: CreateJsonDataRequest): Promise<JsonDataItem> =>
-		jsonDataApi.post("/", data).then((response) => response.data),
+		jsonDataApi.post("/create", data).then((response) => response.data),
 
 	update: (id: string, data: UpdateJsonDataRequest): Promise<JsonDataItem> =>
-		jsonDataApi.put(`/${id}`, data).then((response) => response.data),
+		jsonDataApi.put(`/update/${id}`, data).then((response) => response.data),
 
 	delete: (id: string): Promise<void> =>
-		jsonDataApi.delete(`/${id}`).then(() => undefined),
+		jsonDataApi.delete(`/delete/${id}`).then(() => undefined),
 };

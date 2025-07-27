@@ -10,6 +10,7 @@ export {
 export {
 	useDataLineageGraphs,
 	useDataLineageGraph,
+	useCurrentDataLineageGraph,
 	useCreateDataLineageGraph,
 	useSaveDataLineageGraph,
 	useDeleteDataLineageGraph,

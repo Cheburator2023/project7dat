@@ -8,7 +8,7 @@ import {
 	UpdateJsonDataInput,
 	GetJsonDataListInput,
 } from "../schemas/json-data.schema";
-import { PGLiteService } from "../shared/database/pglite.service";
+import { MemoryStorageService } from "../shared/database/memory-storage.service";
 
 @Injectable()
 export class JsonDataService {
@@ -19,7 +19,7 @@ export class JsonDataService {
 		@InjectRepository(JsonDataEntity)
 		private readonly jsonDataRepository: Repository<JsonDataEntity>,
 		private readonly configService: ConfigService,
-		private readonly pgliteService: PGLiteService,
+		private readonly memoryStorageService: MemoryStorageService,
 	) {
 		this.isProduction = this.configService.get("NODE_ENV") === "production";
 	}
@@ -38,20 +38,11 @@ export class JsonDataService {
 			return this.jsonDataRepository.save(jsonData);
 		}
 
-		const result = await this.pgliteService.query(
-			`INSERT INTO json_data (name, data, description) 
-			 VALUES ($1, $2, $3) 
-			 RETURNING *`,
-			[name, JSON.stringify(input.data), description],
+		return await this.memoryStorageService.create(
+			name,
+			input.data,
+			description,
 		);
-
-		return {
-			...result[0],
-			data:
-				typeof result[0].data === "string"
-					? JSON.parse(result[0].data)
-					: result[0].data,
-		};
 	}
 
 	async findAll(
@@ -75,32 +66,22 @@ export class JsonDataService {
 			return { data, total };
 		}
 
-		let whereClause = "";
-		const params_array: any[] = [limit, skip];
+		const allData = await this.memoryStorageService.findAll();
 
+		let filteredData = allData;
 		if (search) {
-			whereClause = "WHERE name ILIKE $3 OR description ILIKE $3";
-			params_array.push(`%${search}%`);
+			filteredData = allData.filter(
+				(item) =>
+					item.name.toLowerCase().includes(search.toLowerCase()) ||
+					(item.description &&
+						item.description.toLowerCase().includes(search.toLowerCase())),
+			);
 		}
 
-		const countResult = await this.pgliteService.query(
-			`SELECT COUNT(*) as total FROM json_data ${whereClause}`,
-			search ? [`%${search}%`] : [],
-		);
+		const total = filteredData.length;
+		const data = filteredData.slice(skip, skip + limit);
 
-		const dataResult = await this.pgliteService.query(
-			`SELECT * FROM json_data ${whereClause} 
-			 ORDER BY "createdAt" DESC 
-			 LIMIT $1 OFFSET $2`,
-			params_array,
-		);
-
-		const data = dataResult.map((item: any) => ({
-			...item,
-			data: typeof item.data === "string" ? JSON.parse(item.data) : item.data,
-		}));
-
-		return { data, total: Number.parseInt(countResult[0].total) };
+		return { data, total };
 	}
 
 	async findOne(id: string): Promise<any> {
@@ -112,22 +93,29 @@ export class JsonDataService {
 			return jsonData;
 		}
 
-		const result = await this.pgliteService.query(
-			"SELECT * FROM json_data WHERE id = $1",
-			[id],
-		);
-
-		if (result.length === 0) {
+		const result = await this.memoryStorageService.findById(id);
+		if (!result) {
 			throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
 		}
+		return result;
+	}
 
-		return {
-			...result[0],
-			data:
-				typeof result[0].data === "string"
-					? JSON.parse(result[0].data)
-					: result[0].data,
-		};
+	async findLatest(): Promise<any> {
+		if (this.isProduction) {
+			const jsonData = await this.jsonDataRepository.findOne({
+				order: { createdAt: "DESC" },
+			});
+			if (!jsonData) {
+				throw new NotFoundException("JSON данные не найдены");
+			}
+			return jsonData;
+		}
+
+		const result = await this.memoryStorageService.findLatest();
+		if (!result) {
+			throw new NotFoundException("JSON данные не найдены");
+		}
+		return result;
 	}
 
 	async update(id: string, input: UpdateJsonDataInput): Promise<any> {
@@ -140,46 +128,11 @@ export class JsonDataService {
 			return this.jsonDataRepository.save(jsonData);
 		}
 
-		const setClauses: string[] = [];
-		const values: any[] = [];
-		let paramIndex = 1;
-
-		if (input.name !== undefined) {
-			setClauses.push(`name = $${paramIndex++}`);
-			values.push(input.name);
-		}
-
-		if (input.data !== undefined) {
-			setClauses.push(`data = $${paramIndex++}`);
-			values.push(JSON.stringify(input.data));
-		}
-
-		if (input.description !== undefined) {
-			setClauses.push(`description = $${paramIndex++}`);
-			values.push(input.description);
-		}
-
-		setClauses.push(`"updatedAt" = CURRENT_TIMESTAMP`);
-		values.push(id);
-
-		const result = await this.pgliteService.query(
-			`UPDATE json_data SET ${setClauses.join(", ")} 
-			 WHERE id = $${paramIndex} 
-			 RETURNING *`,
-			values,
-		);
-
-		if (result.length === 0) {
+		const result = await this.memoryStorageService.update(id, input);
+		if (!result) {
 			throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
 		}
-
-		return {
-			...result[0],
-			data:
-				typeof result[0].data === "string"
-					? JSON.parse(result[0].data)
-					: result[0].data,
-		};
+		return result;
 	}
 
 	async remove(id: string): Promise<void> {
@@ -191,12 +144,8 @@ export class JsonDataService {
 			return;
 		}
 
-		const result = await this.pgliteService.query(
-			"DELETE FROM json_data WHERE id = $1 RETURNING id",
-			[id],
-		);
-
-		if (result.length === 0) {
+		const success = await this.memoryStorageService.delete(id);
+		if (!success) {
 			throw new NotFoundException(`JSON данные с ID ${id} не найдены`);
 		}
 	}

@@ -19,7 +19,7 @@ import { NodeGraph } from "@react-client/features/nodeGraph";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { dataLineageExample } from "@react-client/examples/dataLineageExample";
 import {
-	useDataLineageGraphs,
+	useCurrentDataLineageGraph,
 	useSaveDataLineageGraph,
 } from "@react-client/hooks/api";
 import { useRef, useEffect } from "react";
@@ -38,14 +38,14 @@ export const Dashboard = () => {
 
 	const editorRef = useRef<CodeJsonEditorRef>(null);
 
-	const { data: graphs, isLoading } = useDataLineageGraphs();
+	const { data: graph, isLoading } = useCurrentDataLineageGraph();
+
 	const saveGraphMutation = useSaveDataLineageGraph();
 
 	const {
 		currentGraph,
 		selectedNodes,
 		setCurrentGraph,
-		setGraphs,
 		setLoading,
 		discardChanges,
 		commitChanges: originalCommitChanges,
@@ -66,13 +66,10 @@ export const Dashboard = () => {
 	);
 
 	useEffect(() => {
-		if (graphs) {
-			setGraphs(graphs);
-			if (graphs.length > 0 && !currentGraph) {
-				setCurrentGraph(graphs[0]);
-			}
+		if (graph) {
+			setCurrentGraph(graph);
 		}
-	}, [graphs, setGraphs, currentGraph, setCurrentGraph]);
+	}, [graph, setCurrentGraph]);
 
 	useEffect(() => {
 		setLoading(isLoading);
