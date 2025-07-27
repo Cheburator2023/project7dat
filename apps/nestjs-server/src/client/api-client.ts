@@ -4,9 +4,21 @@ import {
 	GetJsonDataListInput,
 	JsonDataResponse,
 } from "../schemas/json-data.schema";
+import {
+	CommitJsonDataInput,
+	GetCommitListInput,
+	JsonCommitResponse,
+} from "../schemas/json-commit.schema";
 
 export interface JsonDataListResponse {
 	data: JsonDataResponse[];
+	total: number;
+	page: number;
+	limit: number;
+}
+
+export interface CommitListResponse {
+	data: JsonCommitResponse[];
 	total: number;
 	page: number;
 	limit: number;
@@ -23,6 +35,12 @@ export interface ApiClient {
 			data: UpdateJsonDataInput,
 		) => Promise<JsonDataResponse>;
 		delete: (id: string) => Promise<{ success: boolean }>;
+		commitUpdate: (
+			id: string,
+			data: CommitJsonDataInput & { data: Record<string, any> },
+		) => Promise<JsonDataResponse>;
+		getCommits: (params: GetCommitListInput) => Promise<CommitListResponse>;
+		getCommitById: (id: string) => Promise<JsonCommitResponse>;
 	};
 }
 
@@ -82,6 +100,30 @@ export const createApiClient = (
 				request<{ success: boolean }>(`/api/json-data/delete/${id}`, {
 					method: "DELETE",
 				}),
+
+			commitUpdate: (
+				id: string,
+				data: CommitJsonDataInput & { data: Record<string, any> },
+			) =>
+				request<JsonDataResponse>(`/api/json-data/commit/${id}`, {
+					method: "POST",
+					body: JSON.stringify(data),
+				}),
+
+			getCommits: (params: GetCommitListInput) => {
+				const searchParams = new URLSearchParams();
+				if (params.page) searchParams.append("page", params.page.toString());
+				if (params.limit) searchParams.append("limit", params.limit.toString());
+				if (params.jsonDataId)
+					searchParams.append("jsonDataId", params.jsonDataId);
+
+				return request<CommitListResponse>(
+					`/api/json-data/commits?${searchParams}`,
+				);
+			},
+
+			getCommitById: (id: string) =>
+				request<JsonCommitResponse>(`/api/json-data/commits/${id}`),
 		},
 	};
 };

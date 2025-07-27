@@ -10,7 +10,7 @@ import {
 	CodeJsonEditor,
 	type CodeJsonEditorRef,
 } from "@react-client/features/codeEditor/CodeJsonEditor";
-import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
+import { CommitDialog } from "@react-client/features/commitHistory/CommitDialog";
 import { DataMart } from "@react-client/features/dataMart/DataMart";
 import { EditorDiff } from "@react-client/features/codeEditor/EditorDiff";
 import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar";
@@ -22,9 +22,10 @@ import {
 	useCurrentDataLineageGraph,
 	useSaveDataLineageGraph,
 } from "@react-client/hooks/api";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
+import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 
 export const Dashboard = () => {
 	const {
@@ -37,10 +38,11 @@ export const Dashboard = () => {
 	} = useGlobalSettingsStore();
 
 	const editorRef = useRef<CodeJsonEditorRef>(null);
+	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
 
 	const { data: graph, isLoading } = useCurrentDataLineageGraph();
 
-	const saveGraphMutation = useSaveDataLineageGraph();
+	const _saveGraphMutation = useSaveDataLineageGraph();
 
 	const {
 		currentGraph,
@@ -83,19 +85,7 @@ export const Dashboard = () => {
 	};
 
 	const handleCommitChanges = async () => {
-		console.log(
-			"🐸 Pepe said >> handleCommitChanges >> currentGraph:",
-			currentGraph,
-		);
-		try {
-			if (currentGraph) {
-				await saveGraphMutation.mutateAsync(currentGraph);
-				console.log("Данные успешно сохранены в API");
-			}
-			originalCommitChanges();
-		} catch (error) {
-			console.error("Ошибка при сохранении данных:", error);
-		}
+		setIsCommitDialogOpen(true);
 	};
 
 	const handleImportJson = () => {
@@ -278,6 +268,10 @@ export const Dashboard = () => {
 				</BG>
 				<BottomBar />
 			</Wrapper>
+			<CommitDialog
+				open={isCommitDialogOpen}
+				onClose={() => setIsCommitDialogOpen(false)}
+			/>
 		</div>
 	);
 };

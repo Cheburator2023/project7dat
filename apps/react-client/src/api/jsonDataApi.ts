@@ -28,6 +28,29 @@ export interface UpdateJsonDataRequest {
 	description?: string;
 }
 
+export interface CommitJsonDataRequest {
+	message: string;
+	diff: Record<string, any>;
+	data: Record<string, any>;
+}
+
+export interface JsonCommitItem {
+	id: string;
+	hash: string;
+	message: string;
+	diff: Record<string, any>;
+	fullData: Record<string, any>;
+	jsonDataId: string;
+	createdAt: string;
+}
+
+export interface CommitListResponse {
+	data: JsonCommitItem[];
+	total: number;
+	page: number;
+	limit: number;
+}
+
 export const jsonDataService = {
 	getAll: (): Promise<JsonDataItem[]> =>
 		jsonDataApi.get("/list").then((response) => response.data.data),
@@ -46,4 +69,29 @@ export const jsonDataService = {
 
 	delete: (id: string): Promise<void> =>
 		jsonDataApi.delete(`/delete/${id}`).then(() => undefined),
+
+	commitUpdate: (
+		id: string,
+		data: CommitJsonDataRequest,
+	): Promise<JsonDataItem> =>
+		jsonDataApi.post(`/commit/${id}`, data).then((response) => response.data),
+
+	getCommits: (params?: {
+		page?: number;
+		limit?: number;
+		jsonDataId?: string;
+	}): Promise<CommitListResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params?.page) searchParams.append("page", params.page.toString());
+		if (params?.limit) searchParams.append("limit", params.limit.toString());
+		if (params?.jsonDataId)
+			searchParams.append("jsonDataId", params.jsonDataId);
+
+		return jsonDataApi
+			.get(`/commits?${searchParams}`)
+			.then((response) => response.data);
+	},
+
+	getCommitById: (id: string): Promise<JsonCommitItem> =>
+		jsonDataApi.get(`/commits/${id}`).then((response) => response.data),
 };

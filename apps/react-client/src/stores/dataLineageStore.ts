@@ -6,6 +6,8 @@ import type {
 	DataLineageSearchResult,
 } from "@react-client/types/dataLineage";
 import { create } from "zustand";
+import { jsonDataService } from "@react-client/api/jsonDataApi";
+import type { CommitJsonDataRequest } from "@react-client/api/jsonDataApi";
 
 interface RevealPosition {
 	version: number;
@@ -66,6 +68,8 @@ interface DataLineageActions {
 	markAsChanged: () => void;
 	discardChanges: () => void;
 	commitChanges: () => void;
+	commitChangesWithMessage: (message: string) => Promise<void>;
+	calculateDiff: () => Record<string, any> | null;
 }
 
 type DataLineageStore = DataLineageState & DataLineageActions;
@@ -434,5 +438,60 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			originalGraph: currentGraph,
 			hasUnsavedChanges: false,
 		});
+	},
+
+	commitChangesWithMessage: async (message: string) => {
+		const { currentGraph, currentGraphId, calculateDiff } = get();
+		if (!currentGraph || !currentGraphId) {
+			throw new Error("Нет текущего графика или ID для коммита");
+		}
+
+		const diff = calculateDiff();
+		if (!diff) {
+			throw new Error("Нет изменений для коммита");
+		}
+
+		try {
+			set({ isLoading: true, error: null });
+
+			const commitData: CommitJsonDataRequest = {
+				message,
+				diff,
+				data: currentGraph,
+			};
+
+			await jsonDataService.commitUpdate(currentGraphId, commitData);
+
+			set({
+				originalGraph: JSON.parse(JSON.stringify(currentGraph)),
+				hasUnsavedChanges: false,
+				isLoading: false,
+			});
+		} catch (error) {
+			set({
+				error: `Ошибка при сохранении коммита: ${error}`,
+				isLoading: false,
+			});
+			throw error;
+		}
+	},
+
+	calculateDiff: () => {
+		const { currentGraph, originalGraph } = get();
+		if (!currentGraph || !originalGraph) return null;
+
+		const diff: Record<string, any> = {};
+		const currentStr = JSON.stringify(currentGraph);
+		const originalStr = JSON.stringify(originalGraph);
+
+		if (currentStr !== originalStr) {
+			diff.type = "full_replace";
+			diff.changes = {
+				from: originalGraph,
+				to: currentGraph,
+			};
+		}
+
+		return Object.keys(diff).length > 0 ? diff : null;
 	},
 }));

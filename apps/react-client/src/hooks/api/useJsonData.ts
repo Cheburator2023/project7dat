@@ -10,6 +10,9 @@ import {
 	type CreateJsonDataRequest,
 	type JsonDataItem,
 	type UpdateJsonDataRequest,
+	type CommitJsonDataRequest,
+	type JsonCommitItem,
+	type CommitListResponse,
 } from "../../api/jsonDataApi";
 
 export const JSON_DATA_QUERY_KEYS = {
@@ -19,12 +22,71 @@ export const JSON_DATA_QUERY_KEYS = {
 		[...JSON_DATA_QUERY_KEYS.lists(), { filters }] as const,
 	details: () => [...JSON_DATA_QUERY_KEYS.all, "detail"] as const,
 	detail: (id: string) => [...JSON_DATA_QUERY_KEYS.details(), id] as const,
+	commits: () => [...JSON_DATA_QUERY_KEYS.all, "commits"] as const,
+	commitList: (filters?: Record<string, any>) =>
+		[...JSON_DATA_QUERY_KEYS.commits(), { filters }] as const,
+	commit: (id: string) => [...JSON_DATA_QUERY_KEYS.commits(), id] as const,
 };
 
 export const useJsonDataList = (): UseQueryResult<JsonDataItem[], Error> => {
 	return useQuery({
 		queryKey: JSON_DATA_QUERY_KEYS.list(),
 		queryFn: jsonDataService.getAll,
+		staleTime: 5 * 60 * 1000,
+	});
+};
+
+export const useCommitJsonData = (): UseMutationResult<
+	JsonDataItem,
+	Error,
+	{ id: string; data: CommitJsonDataRequest }
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ id, data }) => jsonDataService.commitUpdate(id, data),
+		onSuccess: (updatedItem, { id }) => {
+			queryClient.setQueryData(
+				JSON_DATA_QUERY_KEYS.detail(updatedItem.id),
+				updatedItem,
+			);
+			queryClient.setQueryData<JsonDataItem[]>(
+				JSON_DATA_QUERY_KEYS.list(),
+				(old) =>
+					old?.map((item) =>
+						item.id === updatedItem.id ? updatedItem : item,
+					) || [],
+			);
+			queryClient.invalidateQueries({
+				queryKey: JSON_DATA_QUERY_KEYS.lists(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: JSON_DATA_QUERY_KEYS.commitList({ jsonDataId: id }),
+			});
+		},
+	});
+};
+
+export const useCommitList = (params?: {
+	page?: number;
+	limit?: number;
+	jsonDataId?: string;
+}): UseQueryResult<CommitListResponse, Error> => {
+	return useQuery({
+		queryKey: JSON_DATA_QUERY_KEYS.commitList(params),
+		queryFn: () => jsonDataService.getCommits(params),
+		staleTime: 5 * 60 * 1000,
+	});
+};
+
+export const useCommitItem = (
+	id: string,
+	enabled = true,
+): UseQueryResult<JsonCommitItem, Error> => {
+	return useQuery({
+		queryKey: JSON_DATA_QUERY_KEYS.commit(id),
+		queryFn: () => jsonDataService.getCommitById(id),
+		enabled: enabled && Boolean(id),
 		staleTime: 5 * 60 * 1000,
 	});
 };
