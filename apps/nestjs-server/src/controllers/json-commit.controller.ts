@@ -210,7 +210,12 @@ export class JsonCommitController {
 		@Query(new ValidationPipe({ transform: true }))
 		query: GetCommitListInput,
 	) {
+		console.log(
+			`[JsonCommitController] getCommitList вызван с параметрами:`,
+			query,
+		);
 		const result = await this.jsonCommitService.getCommitsWithPagination(query);
+		console.log(`[JsonCommitController] Результат:`, result);
 		return {
 			...result,
 			page: query.page,
