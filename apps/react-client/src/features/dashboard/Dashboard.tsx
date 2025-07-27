@@ -2,6 +2,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DatasetIcon from "@mui/icons-material/Dataset";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { Button, IconButton, styled, Tooltip } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
@@ -21,8 +22,11 @@ import { dataLineageExample } from "@react-client/examples/dataLineageExample";
 import {
 	useCurrentDataLineageGraph,
 	useSaveDataLineageGraph,
+	DATA_LINEAGE_QUERY_KEYS,
 } from "@react-client/hooks/api";
+import { JSON_DATA_QUERY_KEYS } from "@react-client/hooks/api/useJsonData";
 import { useRef, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
@@ -39,14 +43,16 @@ export const Dashboard = () => {
 
 	const editorRef = useRef<CodeJsonEditorRef>(null);
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
+	const queryClient = useQueryClient();
 
-	const { data: graph, isLoading } = useCurrentDataLineageGraph();
+	const { data: graph, isLoading, refetch } = useCurrentDataLineageGraph();
 
 	const _saveGraphMutation = useSaveDataLineageGraph();
 
 	const {
 		currentGraph,
 		selectedNodes,
+		currentGraphId,
 		setCurrentGraph,
 		setLoading,
 		discardChanges,
@@ -59,6 +65,7 @@ export const Dashboard = () => {
 			commitChanges: state.commitChanges,
 			discardChanges: state.discardChanges,
 			currentGraph: state.currentGraph,
+			currentGraphId: state.currentGraphId,
 			selectedNodes: state.selectedNodes,
 			setCurrentGraph: state.setCurrentGraph,
 			setGraphs: state.setGraphs,
@@ -100,6 +107,26 @@ export const Dashboard = () => {
 		setExampleData(dataLineageExample);
 	};
 
+	const handleManualLoad = async () => {
+		try {
+			await refetch();
+		} catch (error) {
+			console.error("Ошибка при загрузке данных:", error);
+		}
+	};
+
+	const handleCommitDialogClose = () => {
+		setIsCommitDialogOpen(false);
+		queryClient.invalidateQueries({
+			queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
+		});
+		if (currentGraphId) {
+			queryClient.invalidateQueries({
+				queryKey: JSON_DATA_QUERY_KEYS.commitList({ graphId: currentGraphId }),
+			});
+		}
+	};
+
 	return (
 		<div>
 			<Header>
@@ -139,6 +166,11 @@ export const Dashboard = () => {
 				<Tooltip title="Загрузить пример данных">
 					<IconButton onClick={handleSetExampleData}>
 						<DatasetIcon />
+					</IconButton>
+				</Tooltip>
+				<Tooltip title="Загрузить текущее состояние">
+					<IconButton onClick={handleManualLoad} disabled={isLoading}>
+						<RefreshIcon />
 					</IconButton>
 				</Tooltip>
 			</Header>
@@ -270,7 +302,7 @@ export const Dashboard = () => {
 			</Wrapper>
 			<CommitDialog
 				open={isCommitDialogOpen}
-				onClose={() => setIsCommitDialogOpen(false)}
+				onClose={handleCommitDialogClose}
 			/>
 		</div>
 	);

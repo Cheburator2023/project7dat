@@ -151,7 +151,6 @@ export class JsonDataService {
 
 	async createCommitForCurrentGraph(
 		commitInput: CommitJsonDataInput,
-		newData: Record<string, any>,
 	): Promise<any> {
 		let currentData = await this.getLatestGraphData();
 
@@ -160,12 +159,12 @@ export class JsonDataService {
 			const description = "Автоматически созданный график для коммита";
 			currentData = await this.createGraphData({
 				name,
-				data: newData,
+				data: commitInput.data,
 				description,
 			});
 		} else {
 			const updateInput: UpdateJsonDataInput = {
-				data: newData,
+				data: commitInput.data,
 			};
 			currentData = await this.updateGraphData(currentData.id, updateInput);
 		}
@@ -173,8 +172,7 @@ export class JsonDataService {
 		await this.jsonCommitService.createNewCommit(
 			currentData.id,
 			commitInput.message,
-			commitInput.diff,
-			newData,
+			commitInput.data,
 		);
 
 		return currentData;
@@ -183,7 +181,6 @@ export class JsonDataService {
 	async updateGraphWithCommit(
 		id: string,
 		commitInput: CommitJsonDataInput,
-		newData: Record<string, any>,
 	): Promise<any> {
 		console.log(
 			`[JsonDataService] updateGraphWithCommit вызван для graphId: ${id}`,
@@ -198,7 +195,7 @@ export class JsonDataService {
 			const description = "Автоматически созданный график для коммита";
 			const newGraphData = await this.createGraphData({
 				name,
-				data: newData,
+				data: commitInput.data,
 				description,
 			});
 
@@ -208,8 +205,7 @@ export class JsonDataService {
 			await this.jsonCommitService.createNewCommit(
 				newGraphData.id,
 				commitInput.message,
-				commitInput.diff,
-				newData,
+				commitInput.data,
 			);
 
 			return newGraphData;
@@ -217,7 +213,7 @@ export class JsonDataService {
 
 		console.log(`[JsonDataService] График с ID ${id} найден, обновляем`);
 		const updateInput: UpdateJsonDataInput = {
-			data: newData,
+			data: commitInput.data,
 		};
 
 		const updatedData = await this.updateGraphData(id, updateInput);
@@ -228,8 +224,7 @@ export class JsonDataService {
 		await this.jsonCommitService.createNewCommit(
 			id,
 			commitInput.message,
-			commitInput.diff,
-			newData,
+			commitInput.data,
 		);
 
 		return updatedData;

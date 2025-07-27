@@ -22,8 +22,7 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 }) => {
 	const [message, setMessage] = useState("");
 	const [isCommitting, setIsCommitting] = useState(false);
-	const { commitChangesWithMessage, hasUnsavedChanges, calculateDiff } =
-		useDataLineageStore();
+	const { commitChangesWithMessage, hasUnsavedChanges } = useDataLineageStore();
 
 	const handleCommit = async () => {
 		if (!message.trim()) return;
@@ -40,8 +39,6 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 		}
 	};
 
-	const diff = calculateDiff();
-
 	return (
 		<Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
 			<DialogTitle>Сохранить изменения</DialogTitle>
@@ -53,27 +50,6 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 							: "Нет изменений для сохранения"}
 					</Typography>
 				</Box>
-
-				{diff && (
-					<Box sx={{ mb: 2 }}>
-						<Typography variant="subtitle2" gutterBottom>
-							Изменения:
-						</Typography>
-						<Box
-							sx={{
-								p: 2,
-								bgcolor: "grey.100",
-								borderRadius: 1,
-								maxHeight: 200,
-								overflow: "auto",
-							}}
-						>
-							<Typography variant="body2" component="pre">
-								{JSON.stringify(diff, null, 2)}
-							</Typography>
-						</Box>
-					</Box>
-				)}
 
 				<TextField
 					fullWidth
