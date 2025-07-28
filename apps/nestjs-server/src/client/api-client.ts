@@ -7,7 +7,7 @@ import {
 import {
 	CommitJsonDataInput,
 	GetCommitListInput,
-	JsonCommitResponse,
+	JsonCommitWithFullDataResponse,
 } from "../schemas/json-commit.schema";
 
 export interface JsonDataListResponse {
@@ -18,7 +18,7 @@ export interface JsonDataListResponse {
 }
 
 export interface CommitListResponse {
-	data: JsonCommitResponse[];
+	data: JsonCommitWithFullDataResponse[];
 	total: number;
 	page: number;
 	limit: number;
@@ -27,6 +27,7 @@ export interface CommitListResponse {
 export interface ApiClient {
 	jsonData: {
 		create: (data: CreateJsonDataInput) => Promise<JsonDataResponse>;
+		initializeGraph: (data: CreateJsonDataInput) => Promise<JsonDataResponse>;
 		list: (params: GetJsonDataListInput) => Promise<JsonDataListResponse>;
 		getById: (id: string) => Promise<JsonDataResponse>;
 		getCurrent: () => Promise<JsonDataResponse>;
@@ -40,7 +41,7 @@ export interface ApiClient {
 			data: CommitJsonDataInput & { data: Record<string, any> },
 		) => Promise<JsonDataResponse>;
 		getCommits: (params: GetCommitListInput) => Promise<CommitListResponse>;
-		getCommitById: (id: string) => Promise<JsonCommitResponse>;
+		getCommitById: (id: string) => Promise<JsonCommitWithFullDataResponse>;
 	};
 }
 
@@ -101,6 +102,12 @@ export const createApiClient = (
 					method: "DELETE",
 				}),
 
+			initializeGraph: (data: CreateJsonDataInput) =>
+				request<JsonDataResponse>("/api/json-commits/initialize", {
+					method: "POST",
+					body: JSON.stringify(data),
+				}),
+
 			commitUpdate: (
 				id: string,
 				data: CommitJsonDataInput & { data: Record<string, any> },
@@ -122,7 +129,9 @@ export const createApiClient = (
 			},
 
 			getCommitById: (id: string) =>
-				request<JsonCommitResponse>(`/api/json-commits/commits/${id}`),
+				request<JsonCommitWithFullDataResponse>(
+					`/api/json-commits/commits/${id}`,
+				),
 		},
 	};
 };

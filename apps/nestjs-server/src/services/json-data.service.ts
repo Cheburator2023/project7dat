@@ -149,25 +149,33 @@ export class JsonDataService {
 		return result;
 	}
 
+	async initializeGraphWithData(input: CreateJsonDataInput): Promise<any> {
+		const graphData = await this.createGraphData(input);
+
+		await this.jsonCommitService.createInitialCommit(
+			graphData.id,
+			"Initial commit",
+			input.data,
+		);
+
+		return graphData;
+	}
+
 	async createCommitForCurrentGraph(
 		commitInput: CommitJsonDataInput,
 	): Promise<any> {
 		let currentData = await this.getLatestGraphData();
 
 		if (!currentData) {
-			const name = `График ${new Date().toLocaleString("ru-RU")}`;
-			const description = "Автоматически созданный график для коммита";
-			currentData = await this.createGraphData({
-				name,
-				data: commitInput.data,
-				description,
-			});
-		} else {
-			const updateInput: UpdateJsonDataInput = {
-				data: commitInput.data,
-			};
-			currentData = await this.updateGraphData(currentData.id, updateInput);
+			throw new NotFoundException(
+				"No graph data found. Please initialize a graph first.",
+			);
 		}
+
+		const updateInput: UpdateJsonDataInput = {
+			data: commitInput.data,
+		};
+		currentData = await this.updateGraphData(currentData.id, updateInput);
 
 		await this.jsonCommitService.createNewCommit(
 			currentData.id,
@@ -202,7 +210,7 @@ export class JsonDataService {
 			console.log(
 				`[JsonDataService] Создан новый график с ID: ${newGraphData.id}`,
 			);
-			await this.jsonCommitService.createNewCommit(
+			await this.jsonCommitService.createInitialCommit(
 				newGraphData.id,
 				commitInput.message,
 				commitInput.data,

@@ -22,9 +22,6 @@ export class JsonCommitEntity {
 	@Column({ type: "jsonb" })
 	diff: Record<string, any>;
 
-	@Column({ type: "jsonb" })
-	fullData: Record<string, any>;
-
 	@Column({ type: "uuid" })
 	graphId: string;
 

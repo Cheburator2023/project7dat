@@ -77,6 +77,57 @@ export class JsonCommitController {
 		current[path[path.length - 1]] = value;
 	}
 
+	@Post("initialize")
+	@ApiOperation({
+		summary: "Инициализировать новый график с данными",
+		description: "Создает новый график и создает начальный коммит с данными",
+	})
+	@ApiBody({
+		description: "Данные для инициализации",
+		schema: {
+			type: "object",
+			properties: {
+				name: {
+					type: "string",
+					example: "Мой график",
+					description: "Название графика",
+				},
+				data: {
+					type: "object",
+					example: { entities: [], mappings: [] },
+					description: "Начальные данные",
+				},
+				description: {
+					type: "string",
+					example: "Описание графика",
+					description: "Описание графика",
+				},
+			},
+			required: ["data"],
+		},
+	})
+	@ApiResponse({
+		status: 200,
+		description: "График успешно инициализирован",
+		schema: {
+			type: "object",
+			properties: {
+				id: { type: "string", example: "uuid-string" },
+				name: { type: "string", example: "Мой документ" },
+				data: { type: "object", example: { key: "value" } },
+				description: { type: "string", example: "Описание" },
+				createdAt: { type: "string", format: "date-time" },
+				updatedAt: { type: "string", format: "date-time" },
+			},
+		},
+	})
+	async initializeGraph(
+		@Body()
+		body: any,
+	) {
+		return await this.jsonDataService.initializeGraphWithData(body);
+	}
+
 	@Post("commit")
 	@ApiOperation({
 		summary: "Коммит текущего графика",

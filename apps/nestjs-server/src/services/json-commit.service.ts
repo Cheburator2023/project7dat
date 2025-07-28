@@ -127,6 +127,65 @@ export class JsonCommitService {
 		);
 	}
 
+	async createInitialCommit(
+		graphId: string,
+		message: string,
+		initialData: Record<string, any>,
+	): Promise<any> {
+		console.log(
+			`[JsonCommitService] Создание начального коммита для graphId: ${graphId}`,
+		);
+		const timestamp = new Date();
+
+		// Create initial commit with full data
+		const diff = { _type: "initial", data: initialData };
+		const hash = this.generateUniqueCommitHash(message, diff, timestamp);
+
+		if (this.isProduction) {
+			const jsonData = await this.jsonDataRepository.findOne({
+				where: { id: graphId },
+			});
+			if (!jsonData) {
+				throw new NotFoundException(`График с ID ${graphId} не найден`);
+			}
+
+			const commit = this.commitRepository.create({
+				hash,
+				message,
+				diff,
+				graphId,
+				createdAt: timestamp,
+			});
+
+			const savedCommit = await this.commitRepository.save(commit);
+			console.log(
+				`[JsonCommitService] Начальный коммит сохранен в БД:`,
+				savedCommit.id,
+			);
+			return savedCommit;
+		}
+
+		if (!this.memoryCommits.has(graphId)) {
+			this.memoryCommits.set(graphId, []);
+		}
+
+		const commit = {
+			id: `commit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+			hash,
+			message,
+			diff,
+			graphId,
+			createdAt: timestamp,
+		};
+
+		this.memoryCommits.get(graphId)!.push(commit);
+		console.log(
+			`[JsonCommitService] Начальный коммит добавлен в память:`,
+			commit.id,
+		);
+		return commit;
+	}
+
 	async createNewCommit(
 		graphId: string,
 		message: string,
@@ -137,7 +196,13 @@ export class JsonCommitService {
 
 		// Get the last commit to calculate diff from
 		const lastCommit = await this.getLastCommit(graphId);
-		const previousData = lastCommit ? lastCommit.fullData : null;
+		if (!lastCommit) {
+			throw new Error(
+				"No previous commits found. Use createInitialCommit for the first commit.",
+			);
+		}
+
+		const previousData = await this.reconstructDataFromCommits(graphId);
 
 		// Calculate proper diff from previous commit
 		const diff = await this.calculateDiffFromPrevious(previousData, newData);
@@ -159,7 +224,6 @@ export class JsonCommitService {
 				hash,
 				message,
 				diff,
-				fullData: newData,
 				graphId,
 				createdAt: timestamp,
 			});
@@ -178,7 +242,6 @@ export class JsonCommitService {
 			hash,
 			message,
 			diff,
-			fullData: newData,
 			graphId,
 			createdAt: timestamp,
 		};
@@ -190,6 +253,33 @@ export class JsonCommitService {
 			this.memoryCommits.get(graphId)!.length,
 		);
 		return commit;
+	}
+
+	private async enrichCommitWithFullData(commit: any): Promise<any> {
+		const fullData = await this.reconstructDataFromCommits(commit.graphId);
+		return {
+			...commit,
+			fullData: fullData || {},
+		};
+	}
+
+	private async enrichCommitsWithFullData(commits: any[]): Promise<any[]> {
+		const graphDataCache = new Map<string, Record<string, any> | null>();
+		const enrichedCommits: any[] = [];
+
+		for (const commit of commits) {
+			let fullData = graphDataCache.get(commit.graphId);
+			if (fullData === undefined) {
+				fullData = await this.reconstructDataFromCommits(commit.graphId);
+				graphDataCache.set(commit.graphId, fullData);
+			}
+
+			enrichedCommits.push({
+				...commit,
+				fullData: fullData || {},
+			});
+		}
+		return enrichedCommits;
 	}
 
 	async getCommitsWithPagination(
@@ -212,7 +302,8 @@ export class JsonCommitService {
 			});
 
 			console.log(`[JsonCommitService] Найдено коммитов в БД: ${total}`);
-			return { data, total };
+			const enrichedData = await this.enrichCommitsWithFullData(data);
+			return { data: enrichedData, total };
 		}
 
 		let allCommits: any[] = [];
@@ -248,7 +339,8 @@ export class JsonCommitService {
 		console.log(
 			`[JsonCommitService] Возвращаем коммитов: ${data.length} из ${total}`,
 		);
-		return { data, total };
+		const enrichedData = await this.enrichCommitsWithFullData(data);
+		return { data: enrichedData, total };
 	}
 
 	async findCommitById(id: string): Promise<any> {
@@ -257,13 +349,13 @@ export class JsonCommitService {
 			if (!commit) {
 				throw new NotFoundException(`Коммит с ID ${id} не найден`);
 			}
-			return commit;
+			return await this.enrichCommitWithFullData(commit);
 		}
 
 		for (const commits of this.memoryCommits.values()) {
 			const commit = commits.find((c) => c.id === id);
 			if (commit) {
-				return commit;
+				return await this.enrichCommitWithFullData(commit);
 			}
 		}
 

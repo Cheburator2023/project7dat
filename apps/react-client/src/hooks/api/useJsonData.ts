@@ -185,6 +185,32 @@ export const useUpdateJsonData = (): UseMutationResult<
 	});
 };
 
+export const useInitializeJsonGraph = (): UseMutationResult<
+	JsonDataItem,
+	Error,
+	CreateJsonDataRequest
+> => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: jsonDataService.initializeGraph,
+		onSuccess: (newItem) => {
+			queryClient.setQueryData<JsonDataItem[]>(
+				JSON_DATA_QUERY_KEYS.list(),
+				(old) => (old ? [...old, newItem] : [newItem]),
+			);
+			queryClient.invalidateQueries({
+				queryKey: JSON_DATA_QUERY_KEYS.lists(),
+			});
+			queryClient.invalidateQueries({
+				queryKey: JSON_DATA_QUERY_KEYS.commitList({
+					graphId: newItem.id,
+				}),
+			});
+		},
+	});
+};
+
 export const useDeleteJsonData = (): UseMutationResult<void, Error, string> => {
 	const queryClient = useQueryClient();
 
