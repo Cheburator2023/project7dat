@@ -16,4 +16,10 @@ export const routes = {
 		devOnly: true,
 		disabled: false,
 	},
+	debug: {
+		name: "Отладка",
+		rootPath: "/debug",
+		devOnly: true,
+		disabled: false,
+	},
 };

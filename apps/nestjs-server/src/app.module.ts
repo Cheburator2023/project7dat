@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { getDataSourceOptions } from "./shared/database/database.config";
 import { JsonDataModule } from "./modules/json-data.module";
+import { DebugModule } from "./modules/debug.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 
@@ -24,6 +25,7 @@ const isDevelopment = process.env.NODE_ENV !== "production";
 					}),
 				]),
 		JsonDataModule,
+		DebugModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
