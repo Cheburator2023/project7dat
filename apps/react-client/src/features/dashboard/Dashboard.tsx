@@ -1,7 +1,6 @@
 import DownloadIcon from "@mui/icons-material/Download";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
-import DatasetIcon from "@mui/icons-material/Dataset";
+import FileUploadIcon from "@mui/icons-material/FileUpload";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { Button, IconButton, styled } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
@@ -106,7 +105,7 @@ export const Dashboard = () => {
 		editorRef.current?.exportToFile();
 	};
 
-	const handleSetExampleData = () => {
+	const _handleSetExampleData = () => {
 		setExampleData(dataLineageExample);
 	};
 
@@ -157,17 +156,12 @@ export const Dashboard = () => {
 				)}
 
 				<IconButton onClick={handleImportJson} title="Импорт JSON из файла">
-					<UploadFileIcon />
+					<FileUploadIcon />
 				</IconButton>
 				<IconButton onClick={handleExportJson} title="Экспорт JSON в файл">
 					<DownloadIcon />
 				</IconButton>
-				<IconButton
-					onClick={handleSetExampleData}
-					title="Загрузить пример данных"
-				>
-					<DatasetIcon />
-				</IconButton>
+
 				<IconButton
 					onClick={handleManualLoad}
 					disabled={isLoading}

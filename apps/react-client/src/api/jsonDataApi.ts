@@ -70,6 +70,9 @@ export const jsonDataService = {
 	create: (data: CreateJsonDataRequest): Promise<JsonDataItem> =>
 		jsonDataApi.post("/create", data).then((response) => response.data),
 
+	initializeGraph: (data: CreateJsonDataRequest): Promise<JsonDataItem> =>
+		jsonCommitApi.post("/initialize", data).then((response) => response.data),
+
 	update: (id: string, data: UpdateJsonDataRequest): Promise<JsonDataItem> =>
 		jsonDataApi.put(`/update/${id}`, data).then((response) => response.data),
 
