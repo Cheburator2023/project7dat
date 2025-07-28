@@ -1,7 +1,27 @@
-// @ts-nocheck
 import React, { useState } from "react";
-import { Tabs, Table, Card, Tag, Collapse, Descriptions, Alert } from "antd";
-import TabPane from "antd/es/tabs/TabPane";
+import {
+	Tabs,
+	Tab,
+	Card,
+	CardContent,
+	CardHeader,
+	Chip,
+	Accordion,
+	AccordionSummary,
+	AccordionDetails,
+	Alert,
+	Box,
+	Typography,
+	Table,
+	TableBody,
+	TableCell,
+	TableContainer,
+	TableRow,
+	Paper,
+} from "@mui/material";
+import { ExpandMore } from "@mui/icons-material";
+import { AgGridReact } from "ag-grid-react";
+import { ColDef } from "ag-grid-community";
 
 const data = {
 	desc: {
@@ -139,8 +159,6 @@ const data = {
 	],
 };
 
-const { Panel } = Collapse; // Добавляем импорт Panel
-
 // Типы данных
 type Attribute = {
 	name: string;
@@ -215,262 +233,338 @@ type AttributesTableProps = {
 	attributes?: Attribute[];
 };
 
-// Компонент таблицы атрибутов
 const AttributesTable: React.FC<AttributesTableProps> = ({ attributes }) => {
 	if (!attributes || attributes.length === 0) return null;
 
+	const columnDefs: ColDef[] = [
+		{ field: "name", headerName: "Name", flex: 1 },
+		{ field: "type", headerName: "Type", flex: 1 },
+		{ field: "comment", headerName: "Comment", flex: 2 },
+	];
+
 	return (
-		<Table
-			dataSource={attributes}
-			columns={[
-				{ title: "Name", dataIndex: "name", key: "name" },
-				{ title: "Type", dataIndex: "type", key: "type" },
-				{ title: "Comment", dataIndex: "comment", key: "comment" },
-			]}
-			size="small"
-			pagination={false}
-			rowKey="name"
-		/>
+		<Box sx={{ height: 200, width: "100%" }}>
+			<AgGridReact
+				rowData={attributes}
+				columnDefs={columnDefs}
+				domLayout="autoHeight"
+				headerHeight={35}
+				rowHeight={30}
+				suppressMenuHide
+			/>
+		</Box>
 	);
 };
 
-// Компонент аккордеона для маппингов
 const MappingsAccordion: React.FC<MappingsAccordionProps> = ({
 	mappings,
 	entities,
 }) => {
 	return (
-		<Collapse accordion>
+		<Box>
 			{mappings.map((mapping) => {
 				const targetEntity = entities.find((e) => e.id === mapping.entityId);
 				return (
-					<Panel
-						header={
-							<>
-								Mapping #{mapping.id} →
-								<Tag color="red" style={{ marginLeft: 8 }}>
-									DATA MART
-								</Tag>
-								{targetEntity?.name || mapping.entityId}
-							</>
-						}
-						key={mapping.id}
-					>
-						<div style={{ marginBottom: 16 }}>
-							<h4>Target: {targetEntity?.name || mapping.entityId}</h4>
-							<AttributesTable attributes={targetEntity?.attrSeq} />
-						</div>
+					<Accordion key={mapping.id}>
+						<AccordionSummary expandIcon={<ExpandMore />}>
+							<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+								<Typography>Mapping #{mapping.id} →</Typography>
+								<Chip label="DATA MART" color="error" size="small" />
+								<Typography>
+									{targetEntity?.name || mapping.entityId}
+								</Typography>
+							</Box>
+						</AccordionSummary>
+						<AccordionDetails>
+							<Box sx={{ mb: 2 }}>
+								<Typography variant="h6" gutterBottom>
+									Target: {targetEntity?.name || mapping.entityId}
+								</Typography>
+								<AttributesTable attributes={targetEntity?.attrSeq} />
+							</Box>
 
-						{mapping.deps.map((dep, idx) => {
-							const sourceEntity = entities.find((e) => e.id === dep.entityId);
-							return (
-								<div
-									key={idx}
-									style={{
-										marginBottom: 16,
-										padding: 16,
-										background: "#f9f9f9",
-									}}
-								>
-									<h4>Source: {sourceEntity?.name || dep.entityId}</h4>
-									<AttributesTable attributes={sourceEntity?.attrSeq} />
+							{mapping.deps.map((dep, idx) => {
+								const sourceEntity = entities.find(
+									(e) => e.id === dep.entityId,
+								);
+								const mappingColumnDefs: ColDef[] = [
+									{ field: "src", headerName: "Source", flex: 1 },
+									{ field: "dst", headerName: "Target", flex: 1 },
+								];
 
-									<h5 style={{ marginTop: 16 }}>Attribute Mappings</h5>
-									<Table
-										dataSource={dep.attrMaps}
-										columns={[
-											{ title: "Source", dataIndex: "src", key: "src" },
-											{ title: "Target", dataIndex: "dst", key: "dst" },
-										]}
-										size="small"
-										pagination={false}
-										rowKey="src"
-									/>
+								return (
+									<Paper
+										key={idx}
+										sx={{
+											mb: 2,
+											p: 2,
+											bgColor: "grey.50",
+										}}
+									>
+										<Typography variant="h6" gutterBottom>
+											Source: {sourceEntity?.name || dep.entityId}
+										</Typography>
+										<AttributesTable attributes={sourceEntity?.attrSeq} />
 
-									{dep.atrDeps && dep.atrDeps.length > 0 && (
-										<>
-											<h5 style={{ marginTop: 16 }}>Attribute Dependencies</h5>
-											{dep.atrDeps.map((attrDep, i) => (
-												<div key={i} style={{ marginBottom: 8 }}>
-													<strong>{attrDep.attr}:</strong>{" "}
-													{attrDep.linktypes?.map((type, j) => (
-														<Tag key={j} style={{ marginRight: 4 }}>
-															{type}
-														</Tag>
-													))}
-												</div>
-											))}
-										</>
-									)}
-								</div>
-							);
-						})}
-					</Panel>
+										<Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+											Attribute Mappings
+										</Typography>
+										<Box sx={{ height: 150, width: "100%" }}>
+											<AgGridReact
+												rowData={dep.attrMaps}
+												columnDefs={mappingColumnDefs}
+												domLayout="autoHeight"
+												headerHeight={35}
+												rowHeight={30}
+												suppressMenuHide
+											/>
+										</Box>
+
+										{dep.atrDeps && dep.atrDeps.length > 0 && (
+											<Box sx={{ mt: 2 }}>
+												<Typography variant="h6" gutterBottom>
+													Attribute Dependencies
+												</Typography>
+												{dep.atrDeps.map((attrDep, i) => (
+													<Box
+														key={i}
+														sx={{
+															mb: 1,
+															display: "flex",
+															alignItems: "center",
+															gap: 1,
+														}}
+													>
+														<Typography variant="body2" fontWeight="bold">
+															{attrDep.attr}:
+														</Typography>
+														{attrDep.linktypes?.map((type, j) => (
+															<Chip
+																key={j}
+																label={type}
+																size="small"
+																variant="outlined"
+															/>
+														))}
+													</Box>
+												))}
+											</Box>
+										)}
+									</Paper>
+								);
+							})}
+						</AccordionDetails>
+					</Accordion>
 				);
 			})}
-		</Collapse>
+		</Box>
 	);
 };
 
-// Компонент таблицы сущностей
 const EntitiesTable: React.FC<EntitiesTableProps> = ({
 	entities,
 	showType,
 }) => {
-	const columns = [
+	const columnDefs: ColDef[] = [
+		{ field: "id", headerName: "ID", flex: 1 },
 		{
-			title: "ID",
-			dataIndex: "id",
-			key: "id",
-		},
-		{
-			title: "Name",
-			dataIndex: "name",
-			key: "name",
-			render: (text: string, record: Entity) => (
-				<>
-					{text}
-					{record.modified && (
-						<Tag color="red" style={{ marginLeft: 8 }}>
-							DATA MART
-						</Tag>
+			field: "name",
+			headerName: "Name",
+			flex: 1,
+			cellRenderer: (params: any) => (
+				<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+					<span>{params.value}</span>
+					{params.data.modified && (
+						<Chip label="DATA MART" color="error" size="small" />
 					)}
-				</>
+				</Box>
 			),
 		},
 		...(showType
 			? [
 					{
-						title: "Type",
-						dataIndex: "type",
-						key: "type",
-						render: (type: EntityType) => (
-							<Tag color={type === "table" ? "blue" : "green"}>{type}</Tag>
+						field: "type",
+						headerName: "Type",
+						flex: 1,
+						cellRenderer: (params: any) => (
+							<Chip
+								label={params.value}
+								color={params.value === "table" ? "primary" : "success"}
+								size="small"
+							/>
 						),
 					},
 				]
 			: []),
+		{ field: "namespace", headerName: "Namespace", flex: 1 },
 		{
-			title: "Namespace",
-			dataIndex: "namespace",
-			key: "namespace",
-		},
-		{
-			title: "Attributes",
-			dataIndex: "attrSeq",
-			key: "attributes",
-			render: (attrs: Attribute[]) => attrs.length,
+			field: "attrSeq",
+			headerName: "Attributes",
+			flex: 1,
+			cellRenderer: (params: any) => params.value.length,
 		},
 	];
 
 	return (
-		<Table
-			dataSource={entities}
-			columns={columns}
-			rowKey="id"
-			pagination={false}
-			size="small"
-		/>
+		<Box sx={{ height: 300, width: "100%" }}>
+			<AgGridReact
+				rowData={entities}
+				columnDefs={columnDefs}
+				domLayout="autoHeight"
+				headerHeight={40}
+				rowHeight={35}
+				suppressMenuHide
+			/>
+		</Box>
 	);
 };
 
-// Компонент визуализации lineage (заглушка)
 const LineageVisualization: React.FC<LineageVisualizationProps> = ({
 	entities,
 	mappings,
 }) => {
 	return (
-		<div className="lineage-graph">
-			<Alert
-				message="Lineage Visualization"
-				description="This would display a graph showing relationships between sources and data marts based on the mappings."
-				type="info"
-				showIcon
-			/>
-			<div
-				style={{
+		<Box>
+			<Alert severity="info" sx={{ mb: 2 }}>
+				<Typography variant="h6">Lineage Visualization</Typography>
+				<Typography variant="body2">
+					This would display a graph showing relationships between sources and
+					data marts based on the mappings.
+				</Typography>
+			</Alert>
+			<Paper
+				sx={{
 					height: 400,
-					border: "1px dashed #ddd",
-					borderRadius: 4,
-					marginTop: 16,
+					border: "1px dashed",
+					borderColor: "grey.300",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					background: "#fafafa",
+					bgColor: "grey.50",
 				}}
 			>
-				Graph visualization would be implemented here
-			</div>
-		</div>
+				<Typography variant="body1" color="text.secondary">
+					Graph visualization would be implemented here
+				</Typography>
+			</Paper>
+		</Box>
 	);
 };
 
-// Основной компонент
 const DataMartLineageUI: React.FC<{ data?: DataMartLineageData }> = () => {
-	const [activeTab, setActiveTab] = useState("lineage");
+	const [activeTab, setActiveTab] = useState(0);
 
-	// Получаем DataMart (таргетные сущности) и источники
 	const dataMarts = data.entities.filter((e) => e.modified);
 	const sourceEntities = data.entities.filter((e) => !e.modified);
 
 	return (
-		<div style={{ padding: 16 }}>
-			{/* Заголовок с информацией о приложении */}
-			<Card title="Spark Application Info" style={{ marginBottom: 16 }}>
-				<Descriptions bordered size="small">
-					<Descriptions.Item label="Application ID">
-						{data.desc.appId}
-					</Descriptions.Item>
-					<Descriptions.Item label="Application Name">
-						{data.desc.appName}
-					</Descriptions.Item>
-					<Descriptions.Item label="DataMarts">
-						<Tag color="red">{dataMarts.length}</Tag>
-					</Descriptions.Item>
-					<Descriptions.Item label="Sources">
-						<Tag color="green">{sourceEntities.length}</Tag>
-					</Descriptions.Item>
-				</Descriptions>
+		<Box sx={{ p: 2 }}>
+			<Card sx={{ mb: 2 }}>
+				<CardHeader title="Spark Application Info" />
+				<CardContent>
+					<TableContainer component={Paper} variant="outlined">
+						<Table size="small">
+							<TableBody>
+								<TableRow>
+									<TableCell
+										component="th"
+										scope="row"
+										sx={{ fontWeight: "bold" }}
+									>
+										Application ID
+									</TableCell>
+									<TableCell>{data.desc.appId}</TableCell>
+								</TableRow>
+								<TableRow>
+									<TableCell
+										component="th"
+										scope="row"
+										sx={{ fontWeight: "bold" }}
+									>
+										Application Name
+									</TableCell>
+									<TableCell>{data.desc.appName}</TableCell>
+								</TableRow>
+								<TableRow>
+									<TableCell
+										component="th"
+										scope="row"
+										sx={{ fontWeight: "bold" }}
+									>
+										DataMarts
+									</TableCell>
+									<TableCell>
+										<Chip label={dataMarts.length} color="error" size="small" />
+									</TableCell>
+								</TableRow>
+								<TableRow>
+									<TableCell
+										component="th"
+										scope="row"
+										sx={{ fontWeight: "bold" }}
+									>
+										Sources
+									</TableCell>
+									<TableCell>
+										<Chip
+											label={sourceEntities.length}
+											color="success"
+											size="small"
+										/>
+									</TableCell>
+								</TableRow>
+							</TableBody>
+						</Table>
+					</TableContainer>
+				</CardContent>
 			</Card>
 
-			{/* Блок с информацией о DataMart */}
 			{dataMarts.length > 0 && (
-				<Card
-					title={
-						<>
-							<Tag color="red">DATA MARTS</Tag>
-							<span style={{ marginLeft: 8 }}>Target Entities</span>
-						</>
-					}
-					style={{ marginBottom: 16 }}
-					type="inner"
-				>
-					<EntitiesTable entities={dataMarts} showType={false} />
+				<Card sx={{ mb: 2 }} variant="outlined">
+					<CardHeader
+						title={
+							<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+								<Chip label="DATA MARTS" color="error" size="small" />
+								<Typography variant="h6">Target Entities</Typography>
+							</Box>
+						}
+					/>
+					<CardContent>
+						<EntitiesTable entities={dataMarts} showType={false} />
+					</CardContent>
 				</Card>
 			)}
 
-			{/* Основные табы */}
-			<Tabs activeKey={activeTab} onChange={setActiveTab}>
-				<TabPane tab="Data Lineage" key="lineage">
+			<Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+				<Tabs
+					value={activeTab}
+					onChange={(_, newValue) => setActiveTab(newValue)}
+				>
+					<Tab label="Data Lineage" />
+					<Tab label="Source Entities" />
+					<Tab label="Mappings" />
+				</Tabs>
+			</Box>
+
+			<Box sx={{ mt: 2 }}>
+				{activeTab === 0 && (
 					<LineageVisualization
 						entities={data.entities}
 						mappings={data.mappings}
 					/>
-				</TabPane>
-
-				<TabPane tab="Source Entities" key="sources">
+				)}
+				{activeTab === 1 && (
 					<EntitiesTable entities={sourceEntities} showType={true} />
-				</TabPane>
-
-				<TabPane tab="Mappings" key="mappings">
+				)}
+				{activeTab === 2 && (
 					<MappingsAccordion
 						mappings={data.mappings}
 						entities={data.entities}
 					/>
-				</TabPane>
-			</Tabs>
-		</div>
+				)}
+			</Box>
+		</Box>
 	);
 };
 
-export default DataMartLineageUI;
+export { DataMartLineageUI };

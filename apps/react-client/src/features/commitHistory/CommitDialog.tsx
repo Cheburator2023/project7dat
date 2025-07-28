@@ -6,16 +6,12 @@ import {
 	DialogActions,
 	Button,
 	TextField,
-	Typography,
 	Box,
-	Accordion,
-	AccordionSummary,
-	AccordionDetails,
 	useColorScheme,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 
 interface CommitDialogProps {
 	open: boolean;
@@ -55,13 +51,23 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 		<Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
 			<DialogTitle>Сохранить изменения</DialogTitle>
 			<DialogContent>
-				<Box sx={{ mb: 2 }}>
-					<Typography variant="body2" color="text.secondary">
-						{hasUnsavedChanges
-							? "У вас есть несохраненные изменения"
-							: "Нет изменений для сохранения"}
-					</Typography>
-				</Box>
+				{hasUnsavedChanges && currentGraph && originalGraph && (
+					<>
+						<Box sx={{ maxHeight: 400, overflow: "auto" }}>
+							<ReactDiffViewer
+								oldValue={JSON.stringify(originalGraph, null, 2)}
+								newValue={JSON.stringify(currentGraph, null, 2)}
+								splitView={true}
+								compareMethod={DiffMethod.CHARS}
+								useDarkTheme={mode === "dark"}
+								showDiffOnly
+								leftTitle="Исходная версия"
+								rightTitle="Новая версия"
+							/>
+						</Box>
+					</>
+				)}
+				<Spacer />
 
 				<TextField
 					fullWidth
@@ -74,28 +80,6 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 					disabled={isCommitting || !hasUnsavedChanges}
 					sx={{ mb: 2 }}
 				/>
-
-				{hasUnsavedChanges && currentGraph && originalGraph && (
-					<Accordion>
-						<AccordionSummary expandIcon={<ExpandMoreIcon />}>
-							<Typography>Просмотр изменений</Typography>
-						</AccordionSummary>
-						<AccordionDetails>
-							<Box sx={{ maxHeight: 400, overflow: "auto" }}>
-								<ReactDiffViewer
-									oldValue={JSON.stringify(originalGraph, null, 2)}
-									newValue={JSON.stringify(currentGraph, null, 2)}
-									splitView={true}
-									compareMethod={DiffMethod.CHARS}
-									useDarkTheme={mode === "dark"}
-									showDiffOnly
-									leftTitle="Исходная версия"
-									rightTitle="Новая версия"
-								/>
-							</Box>
-						</AccordionDetails>
-					</Accordion>
-				)}
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose} disabled={isCommitting}>

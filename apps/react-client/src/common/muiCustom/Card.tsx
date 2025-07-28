@@ -107,7 +107,7 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 						</ButtonGroup>
 					)}
 					{onClose && (
-						<IconButton onClick={handler}>
+						<IconButton onClick={handler} sx={{ padding: 0 }}>
 							<CloseIcon />
 						</IconButton>
 					)}

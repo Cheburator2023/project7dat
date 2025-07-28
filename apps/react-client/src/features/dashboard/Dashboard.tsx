@@ -3,7 +3,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DatasetIcon from "@mui/icons-material/Dataset";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { Button, IconButton, styled, Tooltip } from "@mui/material";
+import { Button, IconButton, styled } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
@@ -153,26 +153,25 @@ export const Dashboard = () => {
 					</Flex>
 				)}
 
-				<Tooltip title="Импорт JSON из файла">
-					<IconButton onClick={handleImportJson}>
-						<UploadFileIcon />
-					</IconButton>
-				</Tooltip>
-				<Tooltip title="Экспорт JSON в файл">
-					<IconButton onClick={handleExportJson}>
-						<DownloadIcon />
-					</IconButton>
-				</Tooltip>
-				<Tooltip title="Загрузить пример данных">
-					<IconButton onClick={handleSetExampleData}>
-						<DatasetIcon />
-					</IconButton>
-				</Tooltip>
-				<Tooltip title="Загрузить текущее состояние">
-					<IconButton onClick={handleManualLoad} disabled={isLoading}>
-						<RefreshIcon />
-					</IconButton>
-				</Tooltip>
+				<IconButton onClick={handleImportJson} title="Импорт JSON из файла">
+					<UploadFileIcon />
+				</IconButton>
+				<IconButton onClick={handleExportJson} title="Экспорт JSON в файл">
+					<DownloadIcon />
+				</IconButton>
+				<IconButton
+					onClick={handleSetExampleData}
+					title="Загрузить пример данных"
+				>
+					<DatasetIcon />
+				</IconButton>
+				<IconButton
+					onClick={handleManualLoad}
+					disabled={isLoading}
+					title="Загрузить текущее состояние"
+				>
+					<RefreshIcon />
+				</IconButton>
 			</Header>
 			<Wrapper id="dashboard_page_container">
 				<Flex

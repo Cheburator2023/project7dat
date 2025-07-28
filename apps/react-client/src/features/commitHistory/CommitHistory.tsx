@@ -5,11 +5,11 @@ import {
 	List,
 	ListItem,
 	Chip,
-	Paper,
 	CircularProgress,
 } from "@mui/material";
 import { useCommitList } from "@react-client/hooks/api/useJsonData";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { Card } from "@react-client/common/muiCustom/Card";
 
 export const CommitHistory: React.FC = () => {
 	const { currentGraphId } = useDataLineageStore();
@@ -54,47 +54,42 @@ export const CommitHistory: React.FC = () => {
 	}
 
 	return (
-		<Box>
-			<Typography variant="h6" gutterBottom>
-				История изменений
-			</Typography>
-			<List>
-				{commitData.data.map((commit) => (
-					<ListItem key={commit.id} sx={{ px: 0 }}>
-						<Paper sx={{ width: "100%", p: 2 }}>
-							<Box display="flex" alignItems="center" gap={1} mb={1}>
-								<Chip
-									label={commit.hash.substring(0, 8)}
-									size="small"
-									variant="outlined"
-								/>
-								<Typography variant="caption" color="text.secondary">
-									{new Date(commit.createdAt).toLocaleString("ru-RU")}
+		<List>
+			{commitData.data.map((commit) => (
+				<ListItem key={commit.id} sx={{ px: 0 }}>
+					<Card sx={{ width: "100%", p: 2 }}>
+						<Box display="flex" alignItems="center" gap={1} mb={1}>
+							<Chip
+								label={commit.hash.substring(0, 8)}
+								size="small"
+								variant="outlined"
+							/>
+							<Typography variant="caption" color="text.secondary">
+								{new Date(commit.createdAt).toLocaleString("ru-RU")}
+							</Typography>
+						</Box>
+						<Typography variant="body1" gutterBottom>
+							{commit.message}
+						</Typography>
+						{commit.diff && (
+							<Box
+								sx={{
+									mt: 1,
+									p: 1,
+									bgcolor: "grey.50",
+									borderRadius: 1,
+									maxHeight: 200,
+									overflow: "auto",
+								}}
+							>
+								<Typography variant="caption" component="pre">
+									{JSON.stringify(commit.diff, null, 2)}
 								</Typography>
 							</Box>
-							<Typography variant="body1" gutterBottom>
-								{commit.message}
-							</Typography>
-							{commit.diff && (
-								<Box
-									sx={{
-										mt: 1,
-										p: 1,
-										bgcolor: "grey.50",
-										borderRadius: 1,
-										maxHeight: 100,
-										overflow: "auto",
-									}}
-								>
-									<Typography variant="caption" component="pre">
-										{JSON.stringify(commit.diff, null, 2)}
-									</Typography>
-								</Box>
-							)}
-						</Paper>
-					</ListItem>
-				))}
-			</List>
-		</Box>
+						)}
+					</Card>
+				</ListItem>
+			))}
+		</List>
 	);
 };

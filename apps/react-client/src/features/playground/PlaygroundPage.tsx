@@ -1,7 +1,7 @@
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Header } from "@react-client/features/navigation/organisms/Header";
-import DataMartLineageUI from "@react-client/features/playground/DataMartExample";
+import { DataMartLineageUI } from "@react-client/features/playground/DataMartExample";
 
 const data = [{ name: "DataMartLineageUI", Component: DataMartLineageUI }];
 
