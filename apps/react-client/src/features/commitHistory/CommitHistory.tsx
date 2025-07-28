@@ -7,6 +7,7 @@ import {
 	Chip,
 	CircularProgress,
 } from "@mui/material";
+import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useCommitList } from "@react-client/hooks/api/useJsonData";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Card } from "@react-client/common/muiCustom/Card";
@@ -57,7 +58,7 @@ export const CommitHistory: React.FC = () => {
 		<List>
 			{commitData.data.map((commit) => (
 				<ListItem key={commit.id} sx={{ px: 0 }}>
-					<Card sx={{ width: "100%", p: 2 }}>
+					<Card sx={{ width: "100%", p: 2, height: "200px", overflow: "auto" }}>
 						<Box display="flex" alignItems="center" gap={1} mb={1}>
 							<Chip
 								label={commit.hash.substring(0, 8)}
@@ -72,19 +73,45 @@ export const CommitHistory: React.FC = () => {
 							{commit.message}
 						</Typography>
 						{commit.diff && (
-							<Box
-								sx={{
-									mt: 1,
-									p: 1,
-									bgcolor: "grey.50",
-									borderRadius: 1,
-									maxHeight: 200,
-									overflow: "auto",
-								}}
-							>
-								<Typography variant="caption" component="pre">
-									{JSON.stringify(commit.diff, null, 2)}
-								</Typography>
+							<Box sx={{ mt: 1 }}>
+								<ReactDiffViewer
+									oldValue={JSON.stringify(commit.diff.left, null, 2)}
+									newValue={JSON.stringify(commit.diff.right, null, 2)}
+									splitView={true}
+									compareMethod={DiffMethod.WORDS}
+									leftTitle="Original"
+									rightTitle="After Changes"
+									styles={{
+										variables: {
+											light: {
+												diffViewerBackground: "#fafafa",
+												diffViewerColor: "#212121",
+												addedBackground: "#e8f5e8",
+												addedColor: "#24292e",
+												removedBackground: "#ffecec",
+												removedColor: "#24292e",
+												wordAddedBackground: "#acf2bd",
+												wordRemovedBackground: "#fdb8c0",
+												addedGutterBackground: "#cdffd8",
+												removedGutterBackground: "#fdbdcc",
+												gutterBackground: "#f7f7f7",
+												gutterBackgroundDark: "#f3f1f1",
+												highlightBackground: "#fffbdd",
+												highlightGutterBackground: "#ffcd3c",
+												codeFoldGutterBackground: "#dbedff",
+												codeFoldBackground: "#f1f8ff",
+												emptyLineBackground: "#fafbfc",
+												gutterColor: "#212121",
+												addedGutterColor: "#212121",
+												removedGutterColor: "#212121",
+												codeFoldContentColor: "#212121",
+												diffViewerTitleBackground: "#fafbfc",
+												diffViewerTitleColor: "#212121",
+												diffViewerTitleBorderColor: "#eee",
+											},
+										},
+									}}
+								/>
 							</Box>
 						)}
 					</Card>
