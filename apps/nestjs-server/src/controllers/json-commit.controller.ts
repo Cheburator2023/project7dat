@@ -15,9 +15,67 @@ import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 @Controller("api/json-commits")
 export class JsonCommitController {
 	constructor(
-		private readonly jsonCommitService: JsonCommitService,
 		private readonly jsonDataService: JsonDataService,
+		private readonly jsonCommitService: JsonCommitService,
 	) {}
+
+	private extractDiffSlices(
+		diff: Record<string, any>,
+		_fullData: Record<string, any>,
+	): { left: Record<string, any>; right: Record<string, any> } {
+		if (diff._type === "initial") {
+			return {
+				left: {},
+				right: diff.data,
+			};
+		}
+
+		const left: Record<string, any> = {};
+		const right: Record<string, any> = {};
+
+		const extractFromDiff = (diffObj: any, path: string[] = []) => {
+			for (const [key, value] of Object.entries(diffObj)) {
+				const currentPath = [...path, key];
+
+				if (Array.isArray(value) && value.length === 2) {
+					this.setNestedValue(left, currentPath, value[0]);
+					this.setNestedValue(right, currentPath, value[1]);
+				} else if (Array.isArray(value) && value.length === 1) {
+					this.setNestedValue(right, currentPath, value[0]);
+				} else if (
+					Array.isArray(value) &&
+					value.length === 3 &&
+					value[2] === 0
+				) {
+					this.setNestedValue(left, currentPath, value[0]);
+				} else if (
+					typeof value === "object" &&
+					value !== null &&
+					!Array.isArray(value)
+				) {
+					extractFromDiff(value, currentPath);
+				}
+			}
+		};
+
+		extractFromDiff(diff);
+		return { left, right };
+	}
+
+	private setNestedValue(
+		obj: Record<string, any>,
+		path: string[],
+		value: any,
+	): void {
+		let current = obj;
+		for (let i = 0; i < path.length - 1; i++) {
+			if (!(path[i] in current)) {
+				current[path[i]] = {};
+			}
+			current = current[path[i]];
+		}
+		current[path[path.length - 1]] = value;
+	}
 
 	@Post("commit")
 	@ApiOperation({
@@ -163,7 +221,16 @@ export class JsonCommitController {
 							id: { type: "string", example: "uuid-string" },
 							hash: { type: "string", example: "a1b2c3d4" },
 							message: { type: "string", example: "Обновлены узлы графа" },
-							diff: { type: "object", example: {} },
+							diff: {
+								type: "object",
+								properties: {
+									left: { type: "object", description: "Original diff data" },
+									right: {
+										type: "object",
+										description: "Full data after changes",
+									},
+								},
+							},
 							fullData: { type: "object", example: {} },
 							graphId: { type: "string", example: "uuid-string" },
 							createdAt: { type: "string", format: "date-time" },
@@ -201,9 +268,25 @@ export class JsonCommitController {
 			limit,
 			graphId,
 		});
+
+		const transformedData = result.data.map((commit) => {
+			const { left, right } = this.extractDiffSlices(
+				commit.diff,
+				commit.fullData,
+			);
+			return {
+				...commit,
+				diff: {
+					left,
+					right,
+				},
+			};
+		});
+
 		console.log(`[JsonCommitController] Результат:`, result);
 		return {
 			...result,
+			data: transformedData,
 			page,
 			limit,
 		};
@@ -229,7 +312,13 @@ export class JsonCommitController {
 				id: { type: "string", example: "uuid-string" },
 				hash: { type: "string", example: "a1b2c3d4" },
 				message: { type: "string", example: "Обновлены узлы графа" },
-				diff: { type: "object", example: {} },
+				diff: {
+					type: "object",
+					properties: {
+						left: { type: "object", description: "Original diff data" },
+						right: { type: "object", description: "Full data after changes" },
+					},
+				},
 				fullData: { type: "object", example: {} },
 				graphId: { type: "string", example: "uuid-string" },
 				createdAt: { type: "string", format: "date-time" },
@@ -241,6 +330,17 @@ export class JsonCommitController {
 		description: "Коммит не найден",
 	})
 	async getCommit(@Param("id") id: string) {
-		return await this.jsonCommitService.findCommitById(id);
+		const commit = await this.jsonCommitService.findCommitById(id);
+		const { left, right } = this.extractDiffSlices(
+			commit.diff,
+			commit.fullData,
+		);
+		return {
+			...commit,
+			diff: {
+				left,
+				right,
+			},
+		};
 	}
 }
