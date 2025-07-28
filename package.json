@@ -61,6 +61,7 @@
 		"@hookform/resolvers": "^3.9.0",
 		"@monaco-editor-enhancer/json-editor": "^1.1.2",
 		"@monaco-editor/react": "^4.7.0",
+		"@nestjs/platform-express": "^11.1.5",
 		"@sentry/react": "^8.26.0",
 		"@sentry/utils": "^8.27.0",
 		"@textea/json-viewer": "4.0.1",

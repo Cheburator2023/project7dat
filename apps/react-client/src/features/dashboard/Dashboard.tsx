@@ -59,6 +59,7 @@ export const Dashboard = () => {
 		commitChanges: originalCommitChanges,
 		hasUnsavedChanges,
 		setExampleData,
+		markAsChanged,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			hasUnsavedChanges: state.hasUnsavedChanges,
@@ -71,6 +72,7 @@ export const Dashboard = () => {
 			setGraphs: state.setGraphs,
 			setLoading: state.setLoading,
 			setExampleData: state.setExampleData,
+			markAsChanged: state.markAsChanged,
 		})),
 	);
 
@@ -88,6 +90,7 @@ export const Dashboard = () => {
 			data.mappings
 		) {
 			setCurrentGraph(data);
+			markAsChanged();
 		}
 	};
 
