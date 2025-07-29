@@ -7,8 +7,7 @@ import {
 	ReactFlowProvider,
 } from "@xyflow/react";
 import type { Node as FlowNode } from "@xyflow/react";
-import { debounce } from "lodash-es";
-import { useRef } from "react";
+import { useRef, memo, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Box, styled } from "@mui/material";
 
@@ -27,7 +26,7 @@ const GraphContainer = styled(Box)({
 	height: "100%",
 });
 
-export function NodeGraph() {
+export const NodeGraph = memo(() => {
 	return (
 		<GraphContainer id="main_graph_reactflow">
 			<ReactFlowProvider>
@@ -35,9 +34,9 @@ export function NodeGraph() {
 			</ReactFlowProvider>
 		</GraphContainer>
 	);
-}
+});
 
-function LayoutGraph() {
+const LayoutGraph = memo(() => {
 	const ref = useRef<any>(null);
 	const { selectNode, clearSelection } = useDataLineageStore(
 		useShallow((state) => ({
@@ -59,14 +58,72 @@ function LayoutGraph() {
 	useRevealNode(nodes, setNodes, setEdges);
 	const clearSearchHl = useClearSearchHl();
 
-	const config = {
-		panOnScrollSpeed: 0.5,
-		minZoom: 0.1,
-		maxZoom: 4,
-		reconnectRadius: 20,
-		colorMode: "light" as const,
-		attributionPosition: "bottom-left" as const,
-	};
+	const config = useMemo(
+		() => ({
+			panOnScrollSpeed: 0.5,
+			minZoom: 0.1,
+			maxZoom: 10,
+			reconnectRadius: 20,
+			colorMode: "light" as const,
+			attributionPosition: "bottom-left" as const,
+		}),
+		[],
+	);
+
+	const nodeTypes = useMemo(
+		() => ({
+			dataLineageNode: DataLineageNodeComponent,
+		}),
+		[],
+	);
+
+	const defaultEdgeOptions = useMemo(
+		() => ({
+			selectable: false,
+			focusable: false,
+			deletable: false,
+		}),
+		[],
+	);
+
+	const fitViewOptions = useMemo(
+		() => ({ padding: 0.1, includeHiddenNodes: false }),
+		[],
+	);
+	const defaultViewport = useMemo(() => ({ x: 0, y: 0, zoom: 1 }), []);
+	const proOptions = useMemo(() => ({ hideAttribution: true }), []);
+
+	const handlePaneClick = useCallback(
+		(_: React.MouseEvent) => {
+			clearSearchHl();
+			clearSelection();
+		},
+		[clearSearchHl, clearSelection],
+	);
+
+	// Throttle node clicks to prevent rapid successive calls
+	const handleNodeClick = useCallback(
+		(_: React.MouseEvent, node: FlowNode) => {
+			// Simple throttling mechanism
+			const now = Date.now();
+			if (now - (handleNodeClick as any).lastCall < 150) return;
+			(handleNodeClick as any).lastCall = now;
+
+			clearSearchHl(node.id);
+			selectNode(node.id);
+		},
+		[clearSearchHl, selectNode],
+	);
+
+	const handleConnectStart: OnConnectStart = useCallback(
+		(_, { nodeId, handleId, handleType }) => {
+			if (handleType === "target" || !(nodeId && handleId)) {
+				return;
+			}
+			console.log("Connect start:", nodeId, handleId);
+		},
+		[],
+	);
 
 	return (
 		<ReactFlow
@@ -78,42 +135,31 @@ function LayoutGraph() {
 			reconnectRadius={config.reconnectRadius}
 			colorMode={config.colorMode}
 			attributionPosition={config.attributionPosition}
-			nodeTypes={{
-				dataLineageNode: DataLineageNodeComponent,
-			}}
-			defaultEdgeOptions={{
-				selectable: false,
-				focusable: false,
-				deletable: false,
-			}}
+			nodeTypes={nodeTypes}
+			defaultEdgeOptions={defaultEdgeOptions}
 			translateExtent={translateExtent}
-			onPaneClick={(_: React.MouseEvent) => {
-				clearSearchHl();
-				clearSelection();
-			}}
-			onNodeClick={(_: React.MouseEvent, node: FlowNode) => {
-				clearSearchHl(node.id);
-				selectNode(node.id);
-			}}
-			onConnectStart={(
-				_: any,
-				{ nodeId, handleId, handleType }: Parameters<OnConnectStart>[1],
-			) => {
-				if (handleType === "target" || !(nodeId && handleId)) {
-					return;
-				}
-				console.log("Connect start:", nodeId, handleId);
-			}}
+			onPaneClick={handlePaneClick}
+			onNodeClick={handleNodeClick}
+			onConnectStart={handleConnectStart}
 			onError={onError}
 			nodes={nodes}
+			snapToGrid
 			edges={edges}
 			onNodesChange={onNodesChange}
 			onEdgesChange={onEdgesChange}
 			nodesDraggable={true}
-			nodesConnectable={true}
-			connectOnClick={false}
+			nodesConnectable={false}
+			proOptions={proOptions}
+			elevateNodesOnSelect={false}
+			selectNodesOnDrag={false}
+			panOnDrag={[1, 2]}
 			deleteKeyCode={null}
+			connectOnClick={false}
+			fitViewOptions={fitViewOptions}
+			defaultViewport={defaultViewport}
 			selectionKeyCode={null}
+			onlyRenderVisibleElements={true}
+			disableKeyboardA11y={true}
 			multiSelectionKeyCode={null}
 		>
 			<Controls showInteractive={false}>
@@ -122,18 +168,8 @@ function LayoutGraph() {
 			<Background />
 		</ReactFlow>
 	);
-}
+});
 
-const print008Error = debounce(
-	(_code: string, message: string) => console.error(message),
-	100,
-	{ leading: true },
-);
-
-const onError = (code: string, message: string) => {
-	if (code === "008") {
-		print008Error(code, message);
-	} else {
-		console.error(message);
-	}
+const onError = (_code: string, message: string) => {
+	console.error(message);
 };

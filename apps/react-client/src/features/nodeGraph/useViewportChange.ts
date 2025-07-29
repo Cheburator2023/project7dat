@@ -59,27 +59,57 @@ export function useRevealNode(
 	_setEdges: Dispatch<SetStateAction<EdgeWithData[]>>,
 ) {
 	const { getZoom, setCenter } = useReactFlow();
-	const { selectedNodes, currentGraph } = useDataLineageStore(
-		useShallow((state) => ({
-			selectedNodes: state.selectedNodes,
-			currentGraph: state.currentGraph,
-		})),
+	const { selectedNodes, currentGraph, isNeedReveal, enableSyncScroll } =
+		useDataLineageStore(
+			useShallow((state) => ({
+				selectedNodes: state.selectedNodes,
+				currentGraph: state.currentGraph,
+				isNeedReveal: state.isNeedReveal,
+				enableSyncScroll: state.enableSyncScroll,
+			})),
+		);
+
+	const [lastRevealedNode, setLastRevealedNode] = useState<string | null>(null);
+
+	// Debounced reveal function to prevent excessive calls
+	const debouncedReveal = useDebounceFn(
+		async (nodeToReveal: string, nodePosition: { x: number; y: number }) => {
+			if (lastRevealedNode === nodeToReveal) return;
+
+			const zoom = getZoom();
+			// Reduce animation duration for better performance
+			setCenter(nodePosition.x, nodePosition.y, { duration: 200, zoom });
+			setLastRevealedNode(nodeToReveal);
+			console.log("Revealing node:", nodeToReveal, nodePosition);
+		},
+		200, // Debounce delay
+		[getZoom, setCenter, lastRevealedNode],
 	);
 
-	const [_waitToReveal, _setWaitToReveal] = useState<string[]>([]);
-
 	useEffect(() => {
-		if (selectedNodes.length > 0 && currentGraph) {
+		// Only reveal if sync scroll is enabled and reveal is needed from graph
+		if (
+			selectedNodes.length > 0 &&
+			currentGraph &&
+			enableSyncScroll &&
+			isNeedReveal("graph")
+		) {
 			const nodeToReveal = selectedNodes[0];
 			const node = nodes.find((n) => n.id === nodeToReveal);
 
-			if (node) {
-				const zoom = getZoom();
-				setCenter(node.position.x, node.position.y, { duration: 500, zoom });
-				console.log("Revealing node:", nodeToReveal, node.position);
+			if (node && nodeToReveal !== lastRevealedNode) {
+				debouncedReveal(nodeToReveal, node.position);
 			}
 		}
-	}, [selectedNodes, nodes, currentGraph, getZoom, setCenter]);
+	}, [
+		selectedNodes,
+		nodes,
+		currentGraph,
+		enableSyncScroll,
+		isNeedReveal,
+		lastRevealedNode,
+		debouncedReveal,
+	]);
 }
 
 export function useClearSearchHl() {
