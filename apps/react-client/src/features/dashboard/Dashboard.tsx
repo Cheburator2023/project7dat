@@ -8,10 +8,8 @@ import { Flex } from "@react-client/common/primitives/Flex";
 import AddIcon from "@mui/icons-material/Add";
 
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
-import {
-	CodeJsonEditor,
-	type CodeJsonEditorRef,
-} from "@react-client/features/codeEditor/CodeJsonEditor";
+import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
+import { useEditorStore } from "@react-client/stores/editorStore";
 import { CommitDialog } from "@react-client/features/commitHistory/CommitDialog";
 import { EditorDiff } from "@react-client/features/codeEditor/EditorDiff";
 import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar";
@@ -20,7 +18,6 @@ import { NodeGraph } from "@react-client/features/nodeGraph";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { dataLineageExample } from "@react-client/examples/dataLineageExample";
 import {
-	useCurrentDataLineageGraph,
 	useSaveDataLineageGraph,
 	DATA_LINEAGE_QUERY_KEYS,
 } from "@react-client/hooks/api";
@@ -28,7 +25,7 @@ import {
 	JSON_DATA_QUERY_KEYS,
 	useInitializeJsonGraph,
 } from "@react-client/hooks/api/useJsonData";
-import { useRef, useEffect, useState } from "react";
+import { useState, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
@@ -36,35 +33,33 @@ import { CommitHistory } from "@react-client/features/commitHistory/CommitHistor
 import { DataLineageGraph } from "@react-client/types/dataLineage";
 import { DataMart2 } from "@react-client/features/dataMart/DataMart2";
 
-export const Dashboard = () => {
-	const {
-		isCommitHistoryVisible,
-		isDataMartVisible,
-		isJsonPreviewVisible,
-		toggleDataMart,
-		toggleCommitHistory,
-		toggleJsonPreview,
-	} = useGlobalSettingsStore();
+// Memoized NodeGraph to prevent unnecessary rerenders from PanelGroup
+const MemoizedNodeGraph = memo(() => {
+	return <NodeGraph />;
+});
 
-	const editorRef = useRef<CodeJsonEditorRef>(null);
+// Isolated background layer to prevent PanelGroup rerenders from affecting NodeGraph
+const BackgroundLayer = memo(() => {
+	return (
+		<BG width="100%" height="100%">
+			<MemoizedNodeGraph />
+		</BG>
+	);
+});
+
+export const Dashboard = () => {
+	const { importFromFile, exportToFile } = useEditorStore();
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
 	const queryClient = useQueryClient();
-
-	const { data: graph, isLoading, refetch } = useCurrentDataLineageGraph();
 
 	const _saveGraphMutation = useSaveDataLineageGraph();
 
 	const {
-		currentGraph,
-		selectedNodes,
 		currentGraphId,
 		setCurrentGraph,
 		setLoading,
 		discardChanges,
-		commitChanges: originalCommitChanges,
 		hasUnsavedChanges,
-		setExampleData,
-		markAsChanged,
 		setCurrentGraphId,
 	} = useDataLineageStore(
 		useShallow((state) => ({
@@ -83,45 +78,27 @@ export const Dashboard = () => {
 		})),
 	);
 
-	useEffect(() => {
-		setLoading(isLoading);
-	}, [isLoading, setLoading]);
-
-	const handleJsonChange = (data: any) => {
-		console.log("JSON данные изменены:", data);
-		if (
-			data &&
-			typeof data === "object" &&
-			data.desc &&
-			data.entities &&
-			data.mappings
-		) {
-			setCurrentGraph(data);
-			markAsChanged();
-		}
-	};
+	// useEffect(() => {
+	// 	setLoading(isLoading);
+	// }, [isLoading, setLoading]);
 
 	const handleCommitChanges = async () => {
 		setIsCommitDialogOpen(true);
 	};
 
-	const handleImportJson = () => {
-		editorRef.current?.importFromFile();
+	const handleImport = () => {
+		importFromFile();
 	};
 
-	const handleExportJson = () => {
-		editorRef.current?.exportToFile();
-	};
-
-	const _handleSetExampleData = () => {
-		setExampleData(dataLineageExample);
+	const handleExport = () => {
+		exportToFile();
 	};
 
 	const handleManualLoad = async () => {
 		try {
-			await refetch();
-		} catch (error) {
-			console.error("Ошибка при загрузке данных:", error);
+			// await refetch();
+		} catch (_error) {
+			// console.error("Ошибка при загрузке данных:", error);
 		}
 	};
 
@@ -192,117 +169,135 @@ export const Dashboard = () => {
 					{isInitializing ? "Инициализация..." : "Создать граф"}
 				</Button>
 
-				<IconButton onClick={handleImportJson} title="Импорт JSON из файла">
+				<IconButton onClick={handleImport} title="Импорт JSON из файла">
 					<FileUploadIcon />
 				</IconButton>
-				<IconButton onClick={handleExportJson} title="Экспорт JSON в файл">
+				<IconButton onClick={handleExport} title="Экспорт JSON в файл">
 					<DownloadIcon />
 				</IconButton>
 
 				<IconButton
 					onClick={handleManualLoad}
-					disabled={isLoading}
 					title="Загрузить текущее состояние"
 				>
 					<RefreshIcon />
 				</IconButton>
 			</Header>
 			<Wrapper id="dashboard_page_container">
-				<Flex
-					position="absolute"
-					width="100%"
-					height="100%"
-					left={0}
-					top={0}
-					zIndex={1}
-					pointerEvents="none"
-				>
+				<Panels />
+				<BackgroundLayer />
+				<BottomBar />
+			</Wrapper>
+			<CommitDialog
+				open={isCommitDialogOpen}
+				onClose={handleCommitDialogClose}
+			/>
+		</div>
+	);
+};
+
+const Panels = () => {
+	const {
+		isCommitHistoryVisible,
+		isDataMartVisible,
+		isJsonPreviewVisible,
+		toggleDataMart,
+		toggleCommitHistory,
+		toggleJsonPreview,
+	} = useGlobalSettingsStore();
+
+	const { currentGraph, setCurrentGraph, setExampleData, markAsChanged } =
+		useDataLineageStore(
+			useShallow((state) => ({
+				setCurrentGraphId: state.setCurrentGraphId,
+				hasUnsavedChanges: state.hasUnsavedChanges,
+				commitChanges: state.commitChanges,
+				discardChanges: state.discardChanges,
+				currentGraph: state.currentGraph,
+				currentGraphId: state.currentGraphId,
+				selectedNodes: state.selectedNodes,
+				setCurrentGraph: state.setCurrentGraph,
+				setGraphs: state.setGraphs,
+				setLoading: state.setLoading,
+				setExampleData: state.setExampleData,
+				markAsChanged: state.markAsChanged,
+			})),
+		);
+
+	const _handleSetExampleData = () => {
+		setExampleData(dataLineageExample);
+	};
+
+	const handleJsonChange = (data: any) => {
+		console.log("JSON данные изменены:", data);
+		if (
+			data &&
+			typeof data === "object" &&
+			data.desc &&
+			data.entities &&
+			data.mappings
+		) {
+			setCurrentGraph(data);
+			markAsChanged();
+		}
+	};
+
+	return (
+		<Flex
+			position="absolute"
+			width="100%"
+			height="100%"
+			left={0}
+			top={0}
+			zIndex={1}
+			pointerEvents="none"
+		>
+			<PanelGroup
+				autoSaveId="dashboard_page_container_ver"
+				direction="vertical"
+			>
+				<Panel>
 					<PanelGroup
-						autoSaveId="dashboard_page_container_ver"
-						direction="vertical"
+						direction="horizontal"
+						autoSaveId="dashboard_page_container_hor"
 					>
 						<Panel>
-							<PanelGroup
-								direction="horizontal"
-								autoSaveId="dashboard_page_container_hor"
+							<Card
+								header="Редактор"
+								height="100%"
+								zoom={0.7}
+								uuid="json_editor"
+								onClose={toggleJsonPreview}
+								style={{
+									visibility: isJsonPreviewVisible ? undefined : "hidden",
+									display: isJsonPreviewVisible ? undefined : "none",
+								}}
 							>
-								<Panel>
-									<Card
-										header="Редактор"
-										height="100%"
-										zoom={0.7}
-										uuid="json_editor"
-										onClose={toggleJsonPreview}
-										style={{
-											visibility: isJsonPreviewVisible ? undefined : "hidden",
-											display: isJsonPreviewVisible ? undefined : "none",
-										}}
-									>
-										<PanelGroup direction="horizontal">
-											<Panel>
-												<CodeJsonEditor
-													ref={editorRef}
-													initialData={currentGraph}
-													onChange={handleJsonChange}
-												/>
-											</Panel>
-											<PanelResizeHandleStyled>
-												<DragIndicatorIcon />
-											</PanelResizeHandleStyled>
-											<Panel>
-												<EditorDiff />
-											</Panel>
-										</PanelGroup>
-									</Card>
-								</Panel>
-
-								<PanelResizeHandleStyled
-									style={{
-										visibility:
-											isCommitHistoryVisible || isJsonPreviewVisible
-												? undefined
-												: "hidden",
-										display:
-											isCommitHistoryVisible || isJsonPreviewVisible
-												? undefined
-												: "none",
-									}}
-								>
-									<DragIndicatorIcon />
-								</PanelResizeHandleStyled>
-
-								<Panel>
-									<Card
-										header="История коммитов"
-										maxHeight="100%"
-										height="100%"
-										zoom={0.7}
-										uuid="commit_history"
-										onClose={toggleCommitHistory}
-										style={{
-											visibility: isCommitHistoryVisible ? undefined : "hidden",
-											display: isCommitHistoryVisible ? undefined : "none",
-										}}
-									>
-										<CommitHistory />
-									</Card>
-								</Panel>
-							</PanelGroup>
+								<PanelGroup direction="horizontal">
+									<Panel>
+										<CodeJsonEditor
+											initialData={currentGraph}
+											onChange={handleJsonChange}
+										/>
+									</Panel>
+									<PanelResizeHandleStyled>
+										<DragIndicatorIcon />
+									</PanelResizeHandleStyled>
+									<Panel>
+										<EditorDiff />
+									</Panel>
+								</PanelGroup>
+							</Card>
 						</Panel>
 
 						<PanelResizeHandleStyled
-							vertical
 							style={{
 								visibility:
-									isCommitHistoryVisible ||
-									isJsonPreviewVisible ||
-									isDataMartVisible
+									isCommitHistoryVisible || isJsonPreviewVisible
 										? undefined
 										: "hidden",
 								display:
-									isCommitHistoryVisible ||
-									isJsonPreviewVisible ||
-									isDataMartVisible
+									isCommitHistoryVisible || isJsonPreviewVisible
 										? undefined
 										: "none",
 							}}
@@ -312,32 +307,61 @@ export const Dashboard = () => {
 
 						<Panel>
 							<Card
-								header="Витрина"
+								header="История коммитов"
 								maxHeight="100%"
 								height="100%"
 								zoom={0.7}
-								uuid="data_mart"
-								onClose={toggleDataMart}
+								uuid="commit_history"
+								onClose={toggleCommitHistory}
 								style={{
-									visibility: isDataMartVisible ? undefined : "hidden",
-									display: isDataMartVisible ? undefined : "none",
+									visibility: isCommitHistoryVisible ? undefined : "hidden",
+									display: isCommitHistoryVisible ? undefined : "none",
 								}}
 							>
-								<DataMart2 />
+								<CommitHistory />
 							</Card>
 						</Panel>
 					</PanelGroup>
-				</Flex>
-				<BG width="100%" height="100%">
-					<NodeGraph />
-				</BG>
-				<BottomBar />
-			</Wrapper>
-			<CommitDialog
-				open={isCommitDialogOpen}
-				onClose={handleCommitDialogClose}
-			/>
-		</div>
+				</Panel>
+
+				<PanelResizeHandleStyled
+					vertical
+					style={{
+						visibility:
+							isCommitHistoryVisible ||
+							isJsonPreviewVisible ||
+							isDataMartVisible
+								? undefined
+								: "hidden",
+						display:
+							isCommitHistoryVisible ||
+							isJsonPreviewVisible ||
+							isDataMartVisible
+								? undefined
+								: "none",
+					}}
+				>
+					<DragIndicatorIcon />
+				</PanelResizeHandleStyled>
+
+				<Panel>
+					<Card
+						header="Витрина"
+						maxHeight="100%"
+						height="100%"
+						zoom={0.7}
+						uuid="data_mart"
+						onClose={toggleDataMart}
+						style={{
+							visibility: isDataMartVisible ? undefined : "hidden",
+							display: isDataMartVisible ? undefined : "none",
+						}}
+					>
+						<DataMart2 />
+					</Card>
+				</Panel>
+			</PanelGroup>
+		</Flex>
 	);
 };
 

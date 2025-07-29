@@ -4,7 +4,6 @@ import type { DataLineageNode } from "@react-client/types/dataLineage";
 import { Handle, type NodeProps, Position } from "@xyflow/react";
 import { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import type { NodeWithData } from "./useVirtualGraph";
 import "./DataLineageNode.css";
 
 const getNodeColor = (type: DataLineageNode["type"]) => {
@@ -27,7 +26,7 @@ const getNodeColor = (type: DataLineageNode["type"]) => {
 };
 
 export const DataLineageNodeComponent = memo(
-	({ id, data, selected }: NodeProps<NodeWithData>) => {
+	({ id, data, selected }: NodeProps<any>) => {
 		const { selectNode } = useDataLineageStore(
 			useShallow((state) => ({
 				selectNode: state.selectNode,
@@ -76,7 +75,7 @@ export const DataLineageNodeComponent = memo(
 					)}
 					{visibleTags.length > 0 && (
 						<Box className="data-lineage-node__tags">
-							{visibleTags.map((tag) => (
+							{visibleTags.map((tag: any) => (
 								<Chip
 									key={tag}
 									label={tag}
