@@ -30,10 +30,7 @@ export class JsonCommitService {
 
 	private async initializeJsonDiffPatch() {
 		const jsondiffpatchModule = await eval('import("jsondiffpatch")');
-		console.log(
-			"🚀 ~ JsonCommitService ~ initializeJsonDiffPatch ~ jsondiffpatchModule:",
-			jsondiffpatchModule,
-		);
+
 		this.jsondiffpatch = jsondiffpatchModule.default || jsondiffpatchModule;
 		this.differ = this.jsondiffpatch.create({
 			objectHash: (obj: any) => obj.id || obj.name || JSON.stringify(obj),
