@@ -13,7 +13,6 @@ import {
 	type CodeJsonEditorRef,
 } from "@react-client/features/codeEditor/CodeJsonEditor";
 import { CommitDialog } from "@react-client/features/commitHistory/CommitDialog";
-import { DataMart } from "@react-client/features/dataMart/DataMart";
 import { EditorDiff } from "@react-client/features/codeEditor/EditorDiff";
 import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar";
 import { Header } from "@react-client/features/navigation/organisms/Header";
@@ -35,6 +34,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 import { DataLineageGraph } from "@react-client/types/dataLineage";
+import { DataMart2 } from "@react-client/features/dataMart/DataMart2";
 
 export const Dashboard = () => {
 	const {
@@ -323,7 +323,7 @@ export const Dashboard = () => {
 									display: isDataMartVisible ? undefined : "none",
 								}}
 							>
-								<DataMart />
+								<DataMart2 />
 							</Card>
 						</Panel>
 					</PanelGroup>

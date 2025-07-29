@@ -12,9 +12,9 @@ export interface DataLineageAttribute {
 export interface DataLineageEntity {
 	id: string;
 	modified: boolean;
-	type: "table" | "view";
+	type: "table" | "view" | "rdd" | "unresolved";
 	namespace?: string;
-	name: string;
+	name: string | null;
 	attrSeq?: DataLineageAttribute[];
 }
 
@@ -25,7 +25,7 @@ export interface AttributeMapping {
 
 export interface AttributeDependency {
 	attr: string;
-	linktypes?: ("window" | "join" | "where" | "groupby")[];
+	linkTypes?: ("window" | "join" | "where" | "groupby")[];
 }
 
 export interface EntityDependency {
@@ -45,11 +45,12 @@ export interface DataLineageGraph {
 	desc: DataLineageDescription;
 	entities: DataLineageEntity[];
 	mappings: DataLineageMapping[];
+	failedMappings: DataLineageMapping[];
 }
 
 export interface DataLineageNode {
 	id: string;
-	name: string;
+	name: string | null;
 	type:
 		| "source"
 		| "transformation"
