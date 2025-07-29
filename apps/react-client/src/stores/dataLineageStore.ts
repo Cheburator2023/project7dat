@@ -274,7 +274,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	},
 
 	selectNode: (nodeId: string, multiSelect = false) => {
-		const { selectedNodes, setRevealPosition } = get();
+		const { selectedNodes, setRevealPosition, enableSyncScroll } = get();
 
 		if (multiSelect) {
 			const isSelected = selectedNodes.includes(nodeId);
@@ -286,8 +286,12 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			set({ selectedNodes: [nodeId] });
 		}
 
-		if (nodeId) {
-			setRevealPosition({ nodeId, from: "graph" });
+		// Only trigger reveal if sync scroll is enabled and it's a single selection
+		if (nodeId && enableSyncScroll && !multiSelect) {
+			// Debounce the reveal to prevent excessive calls
+			setTimeout(() => {
+				setRevealPosition({ nodeId, from: "graph" });
+			}, 100);
 		}
 	},
 
