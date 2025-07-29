@@ -530,7 +530,7 @@ const DataMartLineageUI: React.FC<{ data?: DataMartLineageData }> = () => {
 						}
 					/>
 					<CardContent>
-						<EntitiesTable entities={dataMarts} showType={false} />
+						<EntitiesTable entities={dataMarts as any} showType={false} />
 					</CardContent>
 				</Card>
 			)}
@@ -549,17 +549,17 @@ const DataMartLineageUI: React.FC<{ data?: DataMartLineageData }> = () => {
 			<Box sx={{ mt: 2 }}>
 				{activeTab === 0 && (
 					<LineageVisualization
-						entities={data.entities}
-						mappings={data.mappings}
+						entities={data.entities as any}
+						mappings={data.mappings as any}
 					/>
 				)}
 				{activeTab === 1 && (
-					<EntitiesTable entities={sourceEntities} showType={true} />
+					<EntitiesTable entities={sourceEntities as any} showType={true} />
 				)}
 				{activeTab === 2 && (
 					<MappingsAccordion
-						mappings={data.mappings}
-						entities={data.entities}
+						mappings={data?.mappings as any}
+						entities={data.entities as any}
 					/>
 				)}
 			</Box>
