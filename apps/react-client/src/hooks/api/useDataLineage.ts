@@ -57,10 +57,10 @@ export const useCurrentDataLineageGraph = () => {
 				const deepCopy = JSON.parse(JSON.stringify(graph));
 				setCurrentGraph(graph);
 				setCurrentGraphId(item.id);
-				// Set original graph to enable save buttons on fresh load
+				// Set original graph without marking as changed on fresh load
 				useDataLineageStore.setState({
 					originalGraph: deepCopy,
-					hasUnsavedChanges: true,
+					hasUnsavedChanges: false,
 				});
 			}
 			return item;

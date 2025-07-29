@@ -38,6 +38,7 @@ interface DataLineageState {
 interface DataLineageActions {
 	setCurrentGraph: (graph: DataLineageGraph) => void;
 	setCurrentGraphId: (id: string) => void;
+	initializeGraph: (graph: DataLineageGraph) => void;
 	loadGraphFromApi: () => Promise<void>;
 	loadGraphFromApiWithId: (id: string) => Promise<void>;
 	setGraphs: (graphs: DataLineageGraph[]) => void;
@@ -106,8 +107,15 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	...initialState,
 
 	setCurrentGraph: (graph: DataLineageGraph) => {
+		console.log("[DEBUG] setCurrentGraph called", {
+			hasOriginalGraph: !!get().originalGraph,
+		});
 		const { originalGraph } = get();
+
 		if (!originalGraph) {
+			console.log(
+				"[DEBUG] setCurrentGraph: No original graph, setting initial state",
+			);
 			const deepCopy = JSON.parse(JSON.stringify(graph));
 			set({
 				currentGraph: graph,
@@ -115,13 +123,27 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 				hasUnsavedChanges: false,
 			});
 		} else {
+			console.log(
+				"[DEBUG] setCurrentGraph: Original graph exists, marking as changed",
+			);
 			set({ currentGraph: graph });
-			get().markAsChanged();
+			// get().markAsChanged();
 		}
 	},
 
 	setCurrentGraphId: (id: string) => {
 		set({ currentGraphId: id });
+	},
+
+	initializeGraph: (graph: DataLineageGraph) => {
+		console.log("[DEBUG] initializeGraph called");
+		const deepCopy = JSON.parse(JSON.stringify(graph));
+		set({
+			currentGraph: graph,
+			originalGraph: deepCopy,
+			hasUnsavedChanges: false,
+		});
+		console.log("[DEBUG] initializeGraph completed, hasUnsavedChanges:", false);
 	},
 
 	loadGraphFromApi: async () => {
@@ -405,6 +427,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	},
 
 	setExampleData: (graph: DataLineageGraph) => {
+		console.log("[DEBUG] setExampleData called");
 		const deepCopy = JSON.parse(JSON.stringify(graph));
 		set({
 			currentGraph: graph,
@@ -414,6 +437,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			selectedEdges: [],
 			error: null,
 		});
+		console.log("[DEBUG] setExampleData completed, hasUnsavedChanges:", false);
 	},
 
 	setRevealPosition: (pos: Partial<RevealPosition>) => {
@@ -454,6 +478,8 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	},
 
 	markAsChanged: () => {
+		console.log("[DEBUG] markAsChanged called");
+		console.trace("[DEBUG] markAsChanged stack trace");
 		set({ hasUnsavedChanges: true });
 	},
 

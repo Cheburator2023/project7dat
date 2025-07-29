@@ -50,7 +50,9 @@ const BackgroundLayer = memo(() => {
 export const Dashboard = () => {
 	const { importFromFile, exportToFile } = useEditorStore();
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
+	const [isInitializing, setIsInitializing] = useState(false);
 	const queryClient = useQueryClient();
+	const initializeGraphMutation = useInitializeJsonGraph();
 
 	const _saveGraphMutation = useSaveDataLineageGraph();
 
@@ -61,6 +63,7 @@ export const Dashboard = () => {
 		discardChanges,
 		hasUnsavedChanges,
 		setCurrentGraphId,
+		initializeGraph,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			setCurrentGraphId: state.setCurrentGraphId,
@@ -75,6 +78,7 @@ export const Dashboard = () => {
 			setLoading: state.setLoading,
 			setExampleData: state.setExampleData,
 			markAsChanged: state.markAsChanged,
+			initializeGraph: state.initializeGraph,
 		})),
 	);
 
@@ -114,20 +118,27 @@ export const Dashboard = () => {
 		}
 	};
 
-	const [isInitializing, setIsInitializing] = useState(false);
-	const initializeGraphMutation = useInitializeJsonGraph();
-
 	const handleInitializeGraph = async () => {
+		console.log("[DEBUG] Dashboard: handleInitializeGraph started");
 		setIsInitializing(true);
 		try {
+			console.log("[DEBUG] Dashboard: calling initializeGraphMutation");
 			const result = await initializeGraphMutation.mutateAsync({
 				data: dataLineageExample,
 			});
-			setCurrentGraph(result.data as DataLineageGraph);
+			console.log(
+				"[DEBUG] Dashboard: mutation completed, calling initializeGraph",
+			);
+			initializeGraph(result.data as DataLineageGraph);
+			console.log("[DEBUG] Dashboard: calling setCurrentGraphId");
 			setCurrentGraphId(result.id);
+			// Delay setting isInitializing to false to allow JSON processing to complete
+			setTimeout(() => {
+				console.log("[DEBUG] Dashboard: handleInitializeGraph finished");
+				setIsInitializing(false);
+			}, 100);
 		} catch (error) {
 			console.error("Failed to initialize graph:", error);
-		} finally {
 			setIsInitializing(false);
 		}
 	};
@@ -184,7 +195,7 @@ export const Dashboard = () => {
 				</IconButton>
 			</Header>
 			<Wrapper id="dashboard_page_container">
-				<Panels />
+				<Panels isInitializing={isInitializing} />
 				<BackgroundLayer />
 				<BottomBar />
 			</Wrapper>
@@ -196,7 +207,7 @@ export const Dashboard = () => {
 	);
 };
 
-const Panels = () => {
+const Panels = ({ isInitializing }: { isInitializing: boolean }) => {
 	const {
 		isCommitHistoryVisible,
 		isDataMartVisible,
@@ -229,6 +240,10 @@ const Panels = () => {
 	};
 
 	const handleJsonChange = (data: any) => {
+		console.log("[DEBUG] Dashboard: handleJsonChange called", {
+			isInitializing,
+			data: !!data,
+		});
 		console.log("JSON данные изменены:", data);
 		if (
 			data &&
@@ -237,8 +252,20 @@ const Panels = () => {
 			data.entities &&
 			data.mappings
 		) {
+			console.log(
+				"[DEBUG] Dashboard: handleJsonChange calling setCurrentGraph",
+			);
 			setCurrentGraph(data);
-			markAsChanged();
+			if (!isInitializing) {
+				console.log(
+					"[DEBUG] Dashboard: handleJsonChange calling markAsChanged",
+				);
+				// markAsChanged();
+			} else {
+				console.log(
+					"[DEBUG] Dashboard: handleJsonChange skipping markAsChanged (initializing)",
+				);
+			}
 		}
 	};
 
@@ -278,6 +305,7 @@ const Panels = () => {
 										<CodeJsonEditor
 											initialData={currentGraph}
 											onChange={handleJsonChange}
+											isInitializing={isInitializing}
 										/>
 									</Panel>
 									<PanelResizeHandleStyled>
