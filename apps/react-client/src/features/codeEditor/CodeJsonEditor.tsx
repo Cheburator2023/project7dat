@@ -37,6 +37,7 @@ interface JsonEditorState {
 	currentSearchIndex: number;
 	jsonData: any;
 	setJsonData: (data: any) => void;
+	setJsonDataSilently: (data: any) => void;
 	onChange: ((data: any) => void) | null;
 	setOnChange: (callback: ((data: any) => void) | null) => void;
 	setFocus: (path: string | null) => void;
@@ -73,6 +74,9 @@ export const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 		set({ jsonData: data });
 		const { onChange } = get();
 		onChange?.(data);
+	},
+	setJsonDataSilently: (data) => {
+		set({ jsonData: data });
 	},
 	onChange: null,
 	setOnChange: (callback) => set({ onChange: callback }),
@@ -1227,6 +1231,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 interface CodeJsonEditorProps {
 	initialData?: any;
 	onChange?: (data: any) => void;
+	isInitializing?: boolean;
 }
 
 export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
@@ -1253,6 +1258,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 		},
 	},
 	onChange,
+	isInitializing = false,
 }) => {
 	const { mode } = useColorScheme();
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -1265,6 +1271,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 		expandedPaths,
 		jsonData,
 		setJsonData,
+		setJsonDataSilently,
 		setOnChange,
 		setFocus,
 		addHighlight,
@@ -1280,10 +1287,10 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 	// Initialize store data and onChange callback
 	useEffect(() => {
 		if (initialData && !jsonData) {
-			setJsonData(initialData);
+			setJsonDataSilently(initialData);
 		}
 		setOnChange(onChange || null);
-	}, [initialData, jsonData, setJsonData, onChange, setOnChange]);
+	}, [initialData, jsonData, setJsonDataSilently, onChange, setOnChange]);
 
 	const {
 		revealPosition,
@@ -1406,11 +1413,15 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 				if (entity) {
 					// Для новой схемы данных мы просто помечаем как измененные
 					// так как структура DataLineageEntity отличается от DataLineageNode
-					markAsChanged();
+					if (!isInitializing) {
+						markAsChanged();
+					}
 				}
 			} else {
 				// Для всех остальных изменений также помечаем как измененные
-				markAsChanged();
+				if (!isInitializing) {
+					markAsChanged();
+				}
 			}
 
 			// Восстанавливаем позицию скролла после обновления
