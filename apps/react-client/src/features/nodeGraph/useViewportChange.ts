@@ -10,15 +10,17 @@ import {
 } from "react";
 import { useResizeObserver } from "usehooks-ts";
 import { useShallow } from "zustand/react/shallow";
-import type { EdgeWithData, NodeWithData } from "./useVirtualGraph";
 import { useDebounceFn } from "@react-client/common/json4u_leftovers/hooks";
 
 const refreshInterval = 100;
+const zoomRefreshInterval = 16; // ~60fps for smooth zoom
+const dragRefreshInterval = 8; // ~120fps for ultra-smooth drag
+const panRefreshInterval = 12; // ~80fps for smooth panning
 
 export function useViewportChange(
 	ref: RefObject<HTMLDivElement>,
-	setNodes: Dispatch<SetStateAction<NodeWithData[]>>,
-	setEdges: Dispatch<SetStateAction<EdgeWithData[]>>,
+	setNodes: Dispatch<SetStateAction<any[]>>,
+	setEdges: Dispatch<SetStateAction<any[]>>,
 ) {
 	const { setPan, setZoom } = useDataLineageStore(
 		useShallow((state) => ({
@@ -26,6 +28,15 @@ export function useViewportChange(
 			setZoom: state.setZoom,
 		})),
 	);
+
+	const [lastZoom, setLastZoom] = useState<number>(1);
+	const [lastPan, setLastPan] = useState<{ x: number; y: number }>({
+		x: 0,
+		y: 0,
+	});
+	const [isZooming, setIsZooming] = useState<boolean>(false);
+	const [isDragging, setIsDragging] = useState<boolean>(false);
+	const [dragStartTime, setDragStartTime] = useState<number>(0);
 
 	const onResize = useDebounceFn(
 		async ({ width, height }) => {
@@ -38,25 +49,103 @@ export function useViewportChange(
 		[setNodes, setEdges],
 	);
 
-	const onViewportChange = useDebounceFn(
-		async ({ x, y, zoom }) => {
-			const viewport = { x: -x, y: -y };
-			setPan(viewport);
+	// Separate handlers for zoom, pan, and drag for optimal performance
+	const onZoomChange = useDebounceFn(
+		async (zoom: number) => {
 			setZoom(zoom);
-			console.log("Viewport changed:", viewport, zoom);
+			setIsZooming(false);
 		},
-		refreshInterval,
-		[setPan, setZoom],
+		zoomRefreshInterval,
+		[setZoom],
+	);
+
+	const onPanChange = useDebounceFn(
+		async (viewport: { x: number; y: number }) => {
+			setPan(viewport);
+		},
+		panRefreshInterval,
+		[setPan],
+	);
+
+	// Ultra-fast drag handler for smooth dragging
+	const onDragChange = useDebounceFn(
+		async (viewport: { x: number; y: number }) => {
+			setPan(viewport);
+			setIsDragging(false);
+		},
+		dragRefreshInterval,
+		[setPan],
+	);
+
+	const onViewportChange = useCallback(
+		({ x, y, zoom }: { x: number; y: number; zoom: number }) => {
+			const viewport = { x: -x, y: -y };
+			const now = Date.now();
+
+			// Handle zoom changes with higher frequency
+			if (Math.abs(zoom - lastZoom) > 0.01) {
+				setIsZooming(true);
+				setLastZoom(zoom);
+				onZoomChange(zoom);
+				return; // Skip pan handling during zoom
+			}
+
+			// Detect movement for optimized handling
+			const deltaX = viewport.x - lastPan.x;
+			const deltaY = viewport.y - lastPan.y;
+			const panDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+			// Use faster pan handler for any movement to improve responsiveness
+			if (panDistance > 1) {
+				// Lower threshold for better responsiveness
+				if (panDistance > 8) {
+					// Rapid movement - likely drag operation
+					if (!isDragging) {
+						setIsDragging(true);
+						setDragStartTime(now);
+					}
+					setLastPan(viewport);
+					onDragChange(viewport); // Use ultra-fast drag handler
+				} else {
+					// Normal panning - use optimized pan handler
+					if (isDragging && now - dragStartTime > 50) {
+						setIsDragging(false);
+					}
+					setLastPan(viewport);
+					console.log("🚀 ~ viewport:", viewport);
+
+					onPanChange(viewport); // Use fast pan handler
+				}
+			} else {
+				// Minimal movement - end drag state
+				if (isDragging && now - dragStartTime > 50) {
+					setIsDragging(false);
+				}
+				setLastPan(viewport);
+			}
+		},
+		[
+			lastZoom,
+			lastPan,
+			isDragging,
+			dragStartTime,
+			onZoomChange,
+			onPanChange,
+			onDragChange,
+		],
 	);
 
 	useResizeObserver({ ref, onResize });
 	useOnViewportChange({ onChange: onViewportChange });
+
+	// Return interaction states for performance optimizations
+	return { isZooming, isDragging };
 }
 
 export function useRevealNode(
-	nodes: NodeWithData[],
-	_setNodes: Dispatch<SetStateAction<NodeWithData[]>>,
-	_setEdges: Dispatch<SetStateAction<EdgeWithData[]>>,
+	nodes: any[],
+	_setNodes: Dispatch<SetStateAction<any[]>>,
+	_setEdges: Dispatch<SetStateAction<any[]>>,
 ) {
 	const { getZoom, setCenter } = useReactFlow();
 	const { selectedNodes, currentGraph, isNeedReveal, enableSyncScroll } =
