@@ -1,8 +1,7 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import AddIcon from "@mui/icons-material/Add";
-import { IconButton, Typography, Button } from "@mui/material";
+import { IconButton, Typography } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useNavigate } from "react-router";
@@ -11,11 +10,7 @@ import { useGlobalSettingsStore } from "../../../common/store/globalSettingsStor
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
-import { useInitializeJsonGraph } from "../../../hooks/api/useJsonData";
-import { useDataLineageStore } from "../../../stores/dataLineageStore";
-import { dataLineageExample } from "../../../examples/dataLineageExample";
-import { useState } from "react";
-import { DataLineageGraph } from "@react-client/types/dataLineage";
+import { NotificationButton } from "../../notification/NotificationButton";
 
 export function Header({
 	children,
@@ -28,27 +23,9 @@ export function Header({
 }) {
 	const { toggleSideMenu, isSideMenuVisible } = useGlobalSettingsStore();
 	const navigate = useNavigate();
-	const [isInitializing, setIsInitializing] = useState(false);
-	const initializeGraphMutation = useInitializeJsonGraph();
-	const { setCurrentGraph, setCurrentGraphId } = useDataLineageStore();
 
 	const id1 = new URLSearchParams(window.location.search).get("id1");
 	const id2 = new URLSearchParams(window.location.search).get("id2");
-
-	const handleInitializeGraph = async () => {
-		setIsInitializing(true);
-		try {
-			const result = await initializeGraphMutation.mutateAsync({
-				data: dataLineageExample,
-			});
-			setCurrentGraph(result.data as DataLineageGraph);
-			setCurrentGraphId(result.id);
-		} catch (error) {
-			console.error("Failed to initialize graph:", error);
-		} finally {
-			setIsInitializing(false);
-		}
-	};
 
 	return (
 		<>
@@ -116,16 +93,8 @@ export function Header({
 						data-test-id="header--Flex-2"
 					>
 						{children}
-						<Button
-							variant="outlined"
-							size="small"
-							startIcon={<AddIcon />}
-							onClick={handleInitializeGraph}
-							disabled={isInitializing}
-							title="Создать граф"
-						>
-							{isInitializing ? "Инициализация..." : "Создать граф"}
-						</Button>
+
+						<NotificationButton />
 						<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
 					</Flex>
 				</Flex>

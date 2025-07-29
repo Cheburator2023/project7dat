@@ -98,8 +98,7 @@ export class JsonDataService {
 
 		const result = await this.memoryStorageService.findById(id);
 		if (!result) {
-			return [];
-			// throw new NotFoundException(`График с ID ${id} не найден`);
+			throw new NotFoundException(`График с ID ${id} не найден`);
 		}
 		return result;
 	}

@@ -5,6 +5,8 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import { Button, IconButton, styled } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
+import AddIcon from "@mui/icons-material/Add";
+
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
 import {
 	CodeJsonEditor,
@@ -23,12 +25,16 @@ import {
 	useSaveDataLineageGraph,
 	DATA_LINEAGE_QUERY_KEYS,
 } from "@react-client/hooks/api";
-import { JSON_DATA_QUERY_KEYS } from "@react-client/hooks/api/useJsonData";
+import {
+	JSON_DATA_QUERY_KEYS,
+	useInitializeJsonGraph,
+} from "@react-client/hooks/api/useJsonData";
 import { useRef, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
+import { DataLineageGraph } from "@react-client/types/dataLineage";
 
 export const Dashboard = () => {
 	const {
@@ -59,8 +65,10 @@ export const Dashboard = () => {
 		hasUnsavedChanges,
 		setExampleData,
 		markAsChanged,
+		setCurrentGraphId,
 	} = useDataLineageStore(
 		useShallow((state) => ({
+			setCurrentGraphId: state.setCurrentGraphId,
 			hasUnsavedChanges: state.hasUnsavedChanges,
 			commitChanges: state.commitChanges,
 			discardChanges: state.discardChanges,
@@ -129,6 +137,24 @@ export const Dashboard = () => {
 		}
 	};
 
+	const [isInitializing, setIsInitializing] = useState(false);
+	const initializeGraphMutation = useInitializeJsonGraph();
+
+	const handleInitializeGraph = async () => {
+		setIsInitializing(true);
+		try {
+			const result = await initializeGraphMutation.mutateAsync({
+				data: dataLineageExample,
+			});
+			setCurrentGraph(result.data as DataLineageGraph);
+			setCurrentGraphId(result.id);
+		} catch (error) {
+			console.error("Failed to initialize graph:", error);
+		} finally {
+			setIsInitializing(false);
+		}
+	};
+
 	return (
 		<div>
 			<Header>
@@ -150,10 +176,21 @@ export const Dashboard = () => {
 							onClick={handleCommitChanges}
 							size="small"
 						>
-							Сохранить
+							Создать коммит
 						</Button>
 					</Flex>
 				)}
+
+				<Button
+					variant="outlined"
+					size="small"
+					startIcon={<AddIcon />}
+					onClick={handleInitializeGraph}
+					disabled={isInitializing}
+					title="Инициализация графа"
+				>
+					{isInitializing ? "Инициализация..." : "Создать граф"}
+				</Button>
 
 				<IconButton onClick={handleImportJson} title="Импорт JSON из файла">
 					<FileUploadIcon />
