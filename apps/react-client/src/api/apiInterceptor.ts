@@ -5,6 +5,7 @@ import axios, {
 } from "axios";
 import { toast } from "sonner";
 import { useNotificationStore } from "../stores/notificationStore";
+import { useAuthStore } from "../common/store/authStore";
 import { jsonDataApi, jsonCommitApi } from "./jsonDataApi";
 
 interface ApiCallInfo {
@@ -78,6 +79,27 @@ const getErrorMessage = (
 };
 
 const setupInterceptorsForInstance = (instance: AxiosInstance) => {
+	// Request interceptor to add auth token
+	instance.interceptors.request.use(
+		(config) => {
+			const authStore = useAuthStore.getState();
+			if (authStore.accessToken) {
+				config.headers.Authorization = `Bearer ${authStore.accessToken}`;
+			}
+			// Add user info to headers for commit tracking
+			if (authStore.userInfo) {
+				config.headers["X-User-Id"] = authStore.userInfo.id;
+				config.headers["X-User-Name"] = authStore.userInfo.username;
+				config.headers["X-User-Email"] = authStore.userInfo.email;
+			}
+			return config;
+		},
+		(error) => {
+			return Promise.reject(error);
+		},
+	);
+
+	// Response interceptor
 	instance.interceptors.response.use(
 		(response: AxiosResponse) => {
 			const method = getMethodFromConfig(response.config);
@@ -106,6 +128,15 @@ const setupInterceptorsForInstance = (instance: AxiosInstance) => {
 			const method = getMethodFromConfig(error.config);
 			const url = getUrlFromConfig(error.config);
 			const status = error.response?.status;
+
+			// Handle authentication errors
+			if (status === 401 || status === 403) {
+				const authStore = useAuthStore.getState();
+				if (authStore.isAuthenticated) {
+					toast.error("Session expired. Please login again.");
+					authStore.logout();
+				}
+			}
 
 			if (shouldShowToast(url)) {
 				const message = getErrorMessage(method, url, status);

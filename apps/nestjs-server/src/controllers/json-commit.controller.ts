@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query } from "@nestjs/common";
+import {
+	Controller,
+	Get,
+	Post,
+	Body,
+	Param,
+	Query,
+	Headers,
+} from "@nestjs/common";
 import {
 	ApiTags,
 	ApiOperation,
@@ -18,6 +26,27 @@ export class JsonCommitController {
 		private readonly jsonDataService: JsonDataService,
 		private readonly jsonCommitService: JsonCommitService,
 	) {}
+
+	private extractUserFromHeaders(headers: Record<string, string>) {
+		const userId = headers["x-user-id"];
+		const userName = headers["x-user-name"];
+		const userEmail = headers["x-user-email"];
+
+		if (userId && userName && userEmail) {
+			return {
+				id: userId,
+				username: userName,
+				email: userEmail,
+			};
+		}
+
+		// Fallback to fake user for development
+		return {
+			id: "system-user",
+			username: "system",
+			email: "system@localhost",
+		};
+	}
 
 	private extractDiffSlices(
 		diff: Record<string, any>,
@@ -170,8 +199,11 @@ export class JsonCommitController {
 	async commitCurrent(
 		@Body()
 		body: CommitJsonDataInput,
+		@Headers() headers: Record<string, string>,
 	) {
-		return await this.jsonDataService.createCommitForCurrentGraph(body);
+		const author = this.extractUserFromHeaders(headers);
+		const commitData = { ...body, author };
+		return await this.jsonDataService.createCommitForCurrentGraph(commitData);
 	}
 
 	@Post("commit/:id")
@@ -227,8 +259,11 @@ export class JsonCommitController {
 		@Param("id") id: string,
 		@Body()
 		body: CommitJsonDataInput,
+		@Headers() headers: Record<string, string>,
 	) {
-		return await this.jsonDataService.updateGraphWithCommit(id, body);
+		const author = this.extractUserFromHeaders(headers);
+		const commitData = { ...body, author };
+		return await this.jsonDataService.updateGraphWithCommit(id, commitData);
 	}
 
 	@Get("commits")

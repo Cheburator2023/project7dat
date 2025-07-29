@@ -176,11 +176,29 @@ export class JsonDataService {
 		};
 		currentData = await this.updateGraphData(currentData.id, updateInput);
 
-		await this.jsonCommitService.createNewCommit(
-			currentData.id,
-			commitInput.message,
-			commitInput.data,
-		);
+		// Check if there are any existing commits for this graph
+		const existingCommits =
+			await this.jsonCommitService.getCommitsWithPagination({
+				page: 1,
+				limit: 1,
+				graphId: currentData.id,
+			});
+
+		if (existingCommits.total === 0) {
+			// No commits exist, create initial commit
+			await this.jsonCommitService.createInitialCommit(
+				currentData.id,
+				commitInput.message,
+				commitInput.data,
+			);
+		} else {
+			// Commits exist, create new commit
+			await this.jsonCommitService.createNewCommit(
+				currentData.id,
+				commitInput.message,
+				commitInput.data,
+			);
+		}
 
 		return currentData;
 	}

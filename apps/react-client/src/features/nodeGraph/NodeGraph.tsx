@@ -110,7 +110,7 @@ const LayoutGraph = memo(() => {
 						id: edgeId,
 						source: dep.entityId,
 						target: mapping.entityId,
-						type: "straight",
+						type: "simplebezier",
 						data: { selected: isSelected },
 						style: {
 							stroke: isSelected ? "#ff6b6b" : "#b1b1b7",
