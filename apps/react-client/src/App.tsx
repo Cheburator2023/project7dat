@@ -10,6 +10,7 @@ import { Toaster } from "sonner";
 import { MainLayout } from "@react-client/common/layouts/MainLayout";
 import { NotificationDrawer } from "./features/notification/NotificationDrawer";
 import { setupApiInterceptors } from "./api/apiInterceptor";
+import { MfeBridge } from "./common/mfe/MfeBridge";
 
 import { Routing } from "./routing";
 import { AppTheme } from "./theme/AppTheme";
@@ -50,14 +51,16 @@ export function App() {
 					<AppTheme themeComponents={xThemeComponents as any}>
 						<CssBaseline enableColorScheme />
 						<Toaster position="bottom-right" richColors closeButton />
-						<Suspense fallback={<CircularProgress />}>
-							<LocalizationProvider dateAdapter={AdapterDateFns}>
-								<MainLayout>
-									<Routing />
-								</MainLayout>
-								<NotificationDrawer />
-							</LocalizationProvider>
-						</Suspense>
+						<MfeBridge>
+							<Suspense fallback={<CircularProgress />}>
+								<LocalizationProvider dateAdapter={AdapterDateFns}>
+									<MainLayout>
+										<Routing />
+									</MainLayout>
+									<NotificationDrawer />
+								</LocalizationProvider>
+							</Suspense>
+						</MfeBridge>
 					</AppTheme>
 				</BrowserRouter>
 			</QueryClientProvider>

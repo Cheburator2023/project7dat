@@ -41,6 +41,7 @@
 		"@biomejs/biome": "2.1.2",
 		"@commitlint/cli": "^19.8.0",
 		"@commitlint/config-conventional": "^19.8.0",
+		"@originjs/vite-plugin-federation": "^1.4.1",
 		"@types/dagre": "^0.7.51",
 		"@types/js-cookie": "^3.0.6",
 		"@types/lodash-es": "4.17.12",

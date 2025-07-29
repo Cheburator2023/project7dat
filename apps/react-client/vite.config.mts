@@ -8,6 +8,7 @@ import { type HttpProxy, defineConfig, type PluginOption } from "vite";
 import checker from "vite-plugin-checker";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import tsconfigPaths from "vite-tsconfig-paths";
+import federation from "@originjs/vite-plugin-federation";
 
 const { STAGE } = process.env;
 const ROOT_DIR = path.resolve(__dirname, "./");
@@ -83,6 +84,16 @@ export default defineConfig({
 			typescript: true,
 			overlay: {
 				initialIsOpen: false,
+			},
+		}) as PluginOption,
+		federation({
+			name: "data-lineage-remote",
+			filename: "remoteEntry.js",
+			exposes: {
+				"./App": "./src/App.tsx",
+				"./MfeBridge": "./src/common/mfe/MfeBridge.tsx",
+			},
+			shared: {
 			},
 		}) as PluginOption,
 	],

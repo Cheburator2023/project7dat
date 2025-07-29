@@ -3,6 +3,13 @@ import { z } from "zod";
 export const CreateCommitSchema = z.object({
 	message: z.string(),
 	data: z.record(z.any()),
+	author: z
+		.object({
+			id: z.string(),
+			username: z.string(),
+			email: z.string(),
+		})
+		.optional(),
 });
 
 export const JsonCommitResponseSchema = z.object({
@@ -11,6 +18,13 @@ export const JsonCommitResponseSchema = z.object({
 	message: z.string(),
 	diff: z.record(z.any()),
 	graphId: z.string(),
+	author: z
+		.object({
+			id: z.string(),
+			username: z.string(),
+			email: z.string(),
+		})
+		.optional(),
 	createdAt: z.date(),
 });
 
@@ -21,6 +35,13 @@ export const JsonCommitWithFullDataResponseSchema = z.object({
 	diff: z.record(z.any()),
 	fullData: z.record(z.any()),
 	graphId: z.string(),
+	author: z
+		.object({
+			id: z.string(),
+			username: z.string(),
+			email: z.string(),
+		})
+		.optional(),
 	createdAt: z.date(),
 });
 
