@@ -19,7 +19,7 @@ export const BottomBar = () => {
 
 	return (
 		<Wrapper>
-			<Card padding="4px 12px">
+			<Card zoom={0.8} uuid="bottom-bar" padding="4px 12px">
 				<IconButton
 					onClick={toggleJsonPreview}
 					color={isJsonPreviewVisible ? "inherit" : undefined}
