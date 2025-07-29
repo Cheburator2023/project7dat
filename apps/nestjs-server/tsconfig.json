@@ -1,5 +1,7 @@
 {
-	"compilerOptions": {
+		"exclude": ["node_modules", "test", "dist", "**/*spec.ts", "**/media"],
+		"compilerOptions": {
+
 		"lib": ["ES2022", "DOM"],
 		"module": "commonjs",
 		"declaration": true,
@@ -11,12 +13,16 @@
 		"sourceMap": true,
 		"outDir": "./dist",
 		"baseUrl": "./",
-		"incremental": true,
+		"incremental": false,
 		"skipLibCheck": true,
 		"strictNullChecks": true,
 		"forceConsistentCasingInFileNames": true,
 		"noImplicitAny": false,
 		"strictBindCallApply": false,
 		"noFallthroughCasesInSwitch": false
+	},
+	"watchOptions": {
+		"watchFile": "fixedPollingInterval",
+		"watchDirectory": "fixedPollingInterval"
 	}
 }
