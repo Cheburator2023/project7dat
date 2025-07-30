@@ -1,7 +1,14 @@
 import DownloadIcon from "@mui/icons-material/Download";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { Button, IconButton, styled, Select, MenuItem } from "@mui/material";
+import {
+	Button,
+	IconButton,
+	styled,
+	Select,
+	MenuItem,
+	useColorScheme,
+} from "@mui/material";
 import { Flex } from "@react-client/common/primitives/Flex";
 import AddIcon from "@mui/icons-material/Add";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
@@ -105,7 +112,9 @@ const flexLayoutJson = {
 };
 
 export const DashboardFlex = () => {
+	const theme = useColorScheme();
 	const { importFromFile, exportToFile } = useEditorStore();
+
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
 	const [isInitializing, setIsInitializing] = useState(false);
 	const [layoutType, setLayoutType] = useState<LayoutType>("grid");
@@ -266,26 +275,23 @@ export const DashboardFlex = () => {
 		[],
 	);
 
-	const editorFactory = useCallback(
-		(innerNode: TabNode) => {
-			const innerComponent = innerNode.getComponent();
-			switch (innerComponent) {
-				case "json-editor":
-					return (
-						<CodeJsonEditor
-							initialData={currentGraph}
-							onChange={handleJsonChange}
-							isInitializing={isInitializing}
-						/>
-					);
-				case "editor-diff":
-					return <EditorDiff />;
-				default:
-					return <div>Unknown component: {innerComponent}</div>;
-			}
-		},
-		[currentGraph, handleJsonChange, isInitializing],
-	);
+	const editorFactory = (innerNode: TabNode) => {
+		const innerComponent = innerNode.getComponent();
+		switch (innerComponent) {
+			case "json-editor":
+				return (
+					<CodeJsonEditor
+						initialData={currentGraph}
+						onChange={handleJsonChange}
+						isInitializing={isInitializing}
+					/>
+				);
+			case "editor-diff":
+				return <EditorDiff />;
+			default:
+				return <div>Unknown component: {innerComponent}</div>;
+		}
+	};
 
 	const factory = useCallback(
 		(node: TabNode) => {
@@ -401,31 +407,77 @@ export const DashboardFlex = () => {
 	);
 };
 
-const FlexLayoutContainer = styled("div")`
-	position: absolute;
-	width: 100%;
-	height: 100%;
-	left: 0;
-	top: 0;
-	z-index: 1;
-	pointer-events: auto;
-`;
+const FlexLayoutContainer = styled("div")(({ theme }) => {
+	console.log("🚀 ~ FlexLayoutContainer ~ theme:", theme);
+	return {
+		position: "absolute",
+		width: "100%",
+		height: "100%",
+		left: 0,
+		top: 0,
+		zIndex: 1,
+		pointerEvents: "auto",
+		backgroundColor: theme.vars?.palette?.background.default,
+		color: theme.vars?.palette?.text.primary,
+		"& .flexlayout__layout": {
+			backgroundColor: theme.vars?.palette?.background.default,
+		},
+		"& .flexlayout__splitter": {
+			backgroundColor: theme.vars?.palette?.divider,
+		},
+		"& .flexlayout__tab": {
+			backgroundColor: theme.vars?.palette?.background.paper,
+			color: theme.vars?.palette?.text.primary,
+			borderColor: theme.vars?.palette?.divider,
+		},
+		"& .flexlayout__tab_selected": {
+			backgroundColor: theme.vars?.palette?.background.default,
+			color: theme.vars?.palette?.text.primary,
+		},
+		"& .flexlayout__tabset_header": {
+			backgroundColor: theme.vars?.palette?.background.paper,
+			borderColor: theme.vars?.palette?.divider,
+		},
+		"& .flexlayout__tabset_content": {
+			backgroundColor: theme.vars?.palette?.background.default,
+		},
+		"& .flexlayout__border": {
+			backgroundColor: theme.vars?.palette?.background.paper,
+			borderColor: theme.vars?.palette?.divider,
+		},
+		"& .flexlayout__outline_rect": {
+			borderColor: theme.vars?.palette?.primary.main,
+		},
+	};
+});
 
-const EditorContainer = styled("div")`
+const EditorContainer = styled("div")(
+	({ theme }) => `
 	height: 100%;
 	width: 100%;
-`;
+	background-color: ${theme.vars?.palette?.background.paper};
+	color: ${theme.vars?.palette?.text.primary};
+`,
+);
 
-const GraphContainer = styled("div")`
+const GraphContainer = styled("div")(
+	({ theme }) => `
 	height: 100%;
 	width: 100%;
 	position: relative;
-`;
+	background-color: ${theme.vars?.palette?.background.paper};
+	color: ${theme.vars?.palette?.text.primary};
+`,
+);
 
-const Wrapper = styled("div")`
+const Wrapper = styled("div")(
+	({ theme }) => `
 	height: calc(100vh - 82px);
 	position: relative;
-`;
+	background-color: ${theme.vars?.palette?.background.default};
+	color: ${theme.vars?.palette?.text.primary};
+`,
+);
 
 const _BG = styled(Flex)`
 	position: relative;

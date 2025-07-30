@@ -9,7 +9,7 @@ import {
 import type { Node as FlowNode } from "@xyflow/react";
 import { useRef, memo, useCallback, useMemo, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { Box, styled } from "@mui/material";
+import { Box, styled, useColorScheme } from "@mui/material";
 
 import { DataLineageNodeComponent } from "./DataLineageNode";
 import { MouseButton } from "./MouseButton";
@@ -41,6 +41,8 @@ export const NodeGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
 
 const LayoutGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
 	const ref = useRef<any>(null);
+	const theme = useColorScheme();
+
 	const {
 		selectNode,
 		clearSelection,
@@ -299,7 +301,7 @@ const LayoutGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
 			minZoom={config.minZoom}
 			maxZoom={config.maxZoom}
 			reconnectRadius={config.reconnectRadius}
-			colorMode={config.colorMode}
+			colorMode={theme.mode}
 			attributionPosition={config.attributionPosition}
 			zoomOnScroll={config.zoomOnScroll}
 			zoomOnPinch={config.zoomOnPinch}
