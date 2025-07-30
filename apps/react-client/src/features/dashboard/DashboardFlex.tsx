@@ -112,7 +112,7 @@ const flexLayoutJson = {
 };
 
 export const DashboardFlex = () => {
-	const theme = useColorScheme();
+	const _theme = useColorScheme();
 	const { importFromFile, exportToFile } = useEditorStore();
 
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
@@ -395,7 +395,12 @@ export const DashboardFlex = () => {
 			</Header>
 			<Wrapper id="dashboard_page_container">
 				<FlexLayoutContainer>
-					<Layout model={model} factory={factory} onAction={onAction} />
+					<Layout
+						model={model}
+						factory={factory}
+						onAction={onAction}
+						realtimeResize
+					/>
 				</FlexLayoutContainer>
 				{/* <BottomBar /> */}
 			</Wrapper>
@@ -422,21 +427,41 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 		"& .flexlayout__layout": {
 			backgroundColor: theme.vars?.palette?.background.default,
 		},
-		"& .flexlayout__splitter": {
-			backgroundColor: theme.vars?.palette?.divider,
-		},
 		"& .flexlayout__tab": {
 			backgroundColor: theme.vars?.palette?.background.paper,
 			color: theme.vars?.palette?.text.primary,
 			borderColor: theme.vars?.palette?.divider,
+			borderRadius: "8px",
 		},
 		"& .flexlayout__tab_selected": {
 			backgroundColor: theme.vars?.palette?.background.default,
 			color: theme.vars?.palette?.text.primary,
 		},
+		"& .flexlayout__tabset-selected": {
+			backgroundColor: theme.vars?.palette?.action.selected,
+			borderColor: theme.vars?.palette?.primary.main,
+		},
 		"& .flexlayout__tabset_header": {
 			backgroundColor: theme.vars?.palette?.background.paper,
 			borderColor: theme.vars?.palette?.divider,
+		},
+		"& .flexlayout__tab_button": {
+			backgroundColor: "transparent",
+			color: theme.vars?.palette?.text.secondary,
+			border: "none",
+			"&:hover": {
+				backgroundColor: theme.vars?.palette?.action.hover,
+				color: theme.vars?.palette?.text.primary,
+			},
+		},
+		"& .flexlayout__tabset_tabbar_outer": {
+			backgroundColor: theme.vars?.palette?.background.paper,
+			borderBottom: "1px solid rgb(83 83 83 / 30%)",
+		},
+		"& .flexlayout__tab_button_selected": {
+			backgroundColor: theme.vars?.palette?.action.selected,
+			color: theme.vars?.palette?.primary.main,
+			fontWeight: 600,
 		},
 		"& .flexlayout__tabset_content": {
 			backgroundColor: theme.vars?.palette?.background.default,
@@ -447,6 +472,24 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 		},
 		"& .flexlayout__outline_rect": {
 			borderColor: theme.vars?.palette?.primary.main,
+		},
+		"& .flexlayout__tabset": {
+			// @ts-ignore
+			fontFamily: theme.vars?.font.inherit,
+			borderRadius: "8px",
+			border: "1px solid #6873896b",
+			margin: "6px",
+			backgroundColor: theme.vars?.palette?.background.paper,
+		},
+		"& .flexlayout__splitter": {
+			backgroundColor: theme.vars?.palette?.divider,
+			borderRadius: "8px",
+		},
+		"& .flexlayout__splitter_vert": {
+			margin: "0 6px",
+		},
+		"& .flexlayout__splitter_horz": {
+			margin: "6px 0",
 		},
 	};
 });

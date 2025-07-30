@@ -6,6 +6,7 @@ import {
 	ListItem,
 	Chip,
 	CircularProgress,
+	useColorScheme,
 } from "@mui/material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useCommitList } from "@react-client/hooks/api/useJsonData";
@@ -13,6 +14,7 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Card } from "@react-client/common/muiCustom/Card";
 
 const CommitItem = memo(({ commit }: { commit: any }) => {
+	const theme = useColorScheme();
 	const oldValue = useMemo(
 		() => (commit.diff ? JSON.stringify(commit.diff.left, null, 2) : ""),
 		[commit.diff],
@@ -25,7 +27,11 @@ const CommitItem = memo(({ commit }: { commit: any }) => {
 
 	return (
 		<ListItem key={commit.id} sx={{ px: 0 }}>
-			<Card sx={{ width: "100%", p: 2, height: "200px", overflow: "auto" }}>
+			<Card
+				sx={{ width: "100%", p: 2 }}
+				zoom={0.7}
+				uuid={"card_commit_hist_" + commit.id}
+			>
 				<Box display="flex" alignItems="center" gap={1} mb={1}>
 					<Chip
 						label={commit.hash.substring(0, 8)}
@@ -42,7 +48,7 @@ const CommitItem = memo(({ commit }: { commit: any }) => {
 				{commit.diff &&
 					commit.diff.left &&
 					Object.keys(commit.diff.left).length > 0 && (
-						<Box sx={{ mt: 1 }}>
+						<Box sx={{ mt: 1, height: "200px", overflow: "auto" }}>
 							<ReactDiffViewer
 								oldValue={oldValue}
 								newValue={newValue}
@@ -50,6 +56,7 @@ const CommitItem = memo(({ commit }: { commit: any }) => {
 								compareMethod={DiffMethod.WORDS}
 								leftTitle="Старая версия"
 								rightTitle="Новая версия"
+								useDarkTheme={theme.mode === "dark"}
 								styles={{
 									variables: {
 										light: {
@@ -85,15 +92,11 @@ const CommitItem = memo(({ commit }: { commit: any }) => {
 					)}
 				{commit.diff &&
 					(!commit.diff.left || Object.keys(commit.diff.left).length === 0) && (
-						<Box sx={{ mt: 1, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
-							<Typography
-								variant="body2"
-								color="text.secondary"
-								fontStyle="italic"
-							>
+						<Card>
+							<Typography variant="body2" fontStyle="italic">
 								Начальный коммит - нет предыдущей версии для сравнения
 							</Typography>
-						</Box>
+						</Card>
 					)}
 			</Card>
 		</ListItem>

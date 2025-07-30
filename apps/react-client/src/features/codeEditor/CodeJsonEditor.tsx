@@ -571,12 +571,10 @@ const SearchResults = styled(Typography)(({ theme }) => ({
 
 const Container = styled(Box)(({ theme }) => ({
 	fontFamily: 'Monaco, "Lucida Console", monospace',
-	fontSize: "14px",
-	border: `1px solid ${theme.palette.divider}`,
-	borderRadius: theme.shape.borderRadius,
 	overflow: "hidden",
 	display: "flex",
 	flexDirection: "column",
+	zoom: 0.8,
 }));
 
 const JsonLine = styled(Box, {
