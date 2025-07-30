@@ -5,7 +5,7 @@ import {
 	type UseMutationResult,
 	type UseQueryResult,
 } from "@tanstack/react-query";
-import { jsonDataService, type JsonDataItem } from "../../api/jsonDataApi";
+import { jsonDataService, type JsonDataItem } from "../jsonDataApi";
 import { useDataLineageStore } from "../../stores/dataLineageStore";
 import type { DataLineageGraph } from "../../types/dataLineage";
 
@@ -51,22 +51,14 @@ export const useCurrentDataLineageGraph = () => {
 	return useQuery({
 		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 		queryFn: async () => {
-			const item = await jsonDataService.getCurrent();
-			if (item?.data) {
-				const graph = item.data as DataLineageGraph;
-				const deepCopy = JSON.parse(JSON.stringify(graph));
-				setCurrentGraph(graph);
-				setCurrentGraphId(item.id);
-				// Set original graph without marking as changed on fresh load
-				useDataLineageStore.setState({
-					originalGraph: deepCopy,
-					hasUnsavedChanges: false,
-				});
-			}
-			return item;
+			const backendItem = await jsonDataService.getCurrent();
+			const graph = backendItem.data as DataLineageGraph;
+			setCurrentGraph(graph);
+			setCurrentGraphId(backendItem.id);
+			return graph;
 		},
 		staleTime: 5 * 60 * 1000,
-		gcTime: 10 * 60 * 1000,
+		retry: false,
 	});
 };
 
@@ -84,9 +76,6 @@ export const useCreateDataLineageGraph = (): UseMutationResult<
 			queryClient.invalidateQueries({
 				queryKey: DATA_LINEAGE_QUERY_KEYS.graphs(),
 			});
-			queryClient.invalidateQueries({
-				queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
-			});
 		},
 	});
 };
@@ -101,18 +90,20 @@ export const useSaveDataLineageGraph = (): UseMutationResult<
 
 	return useMutation({
 		mutationFn: (graph: DataLineageGraph) => {
-			if (currentGraphId) {
-				return jsonDataService.update(currentGraphId, { data: graph });
+			if (!currentGraphId) {
+				throw new Error("No current graph ID available");
 			}
-			return jsonDataService.create({ data: graph });
+			return jsonDataService.update(currentGraphId, { data: graph });
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: DATA_LINEAGE_QUERY_KEYS.graphs(),
 			});
-			queryClient.invalidateQueries({
-				queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
-			});
+			if (currentGraphId) {
+				queryClient.invalidateQueries({
+					queryKey: DATA_LINEAGE_QUERY_KEYS.graph(currentGraphId),
+				});
+			}
 		},
 	});
 };
@@ -127,11 +118,11 @@ export const useDeleteDataLineageGraph = (): UseMutationResult<
 	return useMutation({
 		mutationFn: jsonDataService.delete,
 		onSuccess: (_, deletedId) => {
-			queryClient.removeQueries({
-				queryKey: DATA_LINEAGE_QUERY_KEYS.graph(deletedId),
-			});
 			queryClient.invalidateQueries({
 				queryKey: DATA_LINEAGE_QUERY_KEYS.graphs(),
+			});
+			queryClient.removeQueries({
+				queryKey: DATA_LINEAGE_QUERY_KEYS.graph(deletedId),
 			});
 		},
 	});
@@ -145,12 +136,7 @@ export const useLoadFromFile = (): UseMutationResult<
 	return useMutation({
 		mutationFn: async (file: File) => {
 			const text = await file.text();
-			const data = JSON.parse(text);
-
-			if (data.desc && data.entities && data.mappings) {
-				return data as DataLineageGraph;
-			}
-			throw new Error("Неподдерживаемый формат файла");
+			return JSON.parse(text) as DataLineageGraph;
 		},
 	});
 };
@@ -161,18 +147,9 @@ export const useLoadFromAPI = (): UseMutationResult<
 	string
 > => {
 	return useMutation({
-		mutationFn: async (url: string) => {
-			const response = await fetch(url);
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-
-			const data = await response.json();
-
-			if (data.desc && data.entities && data.mappings) {
-				return data as DataLineageGraph;
-			}
-			throw new Error("API вернул данные в неподдерживаемом формате");
+		mutationFn: async (id: string) => {
+			const backendItem = await jsonDataService.getById(id);
+			return backendItem.data as DataLineageGraph;
 		},
 	});
 };

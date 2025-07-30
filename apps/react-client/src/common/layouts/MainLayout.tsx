@@ -22,6 +22,7 @@ const MainWrapper = styled("div", {
 		flexDirection: "column",
 	},
 	marginLeft: `-${260}px`,
+	backgroundColor: "#9fa6c326",
 	variants: [
 		{
 			props: ({ open }) => open,

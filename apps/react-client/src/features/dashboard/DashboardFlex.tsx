@@ -23,11 +23,9 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import {
 	useSaveDataLineageGraph,
 	DATA_LINEAGE_QUERY_KEYS,
-} from "@react-client/hooks/api";
-import {
-	JSON_DATA_QUERY_KEYS,
-	useInitializeJsonGraph,
-} from "@react-client/hooks/api/useJsonData";
+	useCommitList,
+} from "@react-client/api/hooks";
+import { useInitializeJsonGraph } from "@react-client/api/hooks";
 import { useState, memo, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
@@ -171,15 +169,17 @@ export const DashboardFlex = () => {
 		}
 	};
 
+	const { refetch: refetchCommitList } = useCommitList({
+		graphId: currentGraphId || undefined,
+	});
+
 	const handleCommitDialogClose = () => {
 		setIsCommitDialogOpen(false);
 		queryClient.invalidateQueries({
 			queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 		});
 		if (currentGraphId) {
-			queryClient.invalidateQueries({
-				queryKey: JSON_DATA_QUERY_KEYS.commitList({ graphId: currentGraphId }),
-			});
+			refetchCommitList();
 		}
 	};
 
@@ -413,7 +413,6 @@ export const DashboardFlex = () => {
 };
 
 const FlexLayoutContainer = styled("div")(({ theme }) => {
-	console.log("🚀 ~ FlexLayoutContainer ~ theme:", theme);
 	return {
 		position: "absolute",
 		width: "100%",
@@ -422,10 +421,10 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 		top: 0,
 		zIndex: 1,
 		pointerEvents: "auto",
-		backgroundColor: theme.vars?.palette?.background.default,
+		backgroundColor: "transparent",
 		color: theme.vars?.palette?.text.primary,
 		"& .flexlayout__layout": {
-			backgroundColor: theme.vars?.palette?.background.default,
+			backgroundColor: "transparent",
 		},
 		"& .flexlayout__tab": {
 			backgroundColor: theme.vars?.palette?.background.paper,
@@ -449,6 +448,7 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 			backgroundColor: "transparent",
 			color: theme.vars?.palette?.text.secondary,
 			border: "none",
+			padding: "5px 0",
 			"&:hover": {
 				backgroundColor: theme.vars?.palette?.action.hover,
 				color: theme.vars?.palette?.text.primary,
@@ -478,18 +478,33 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 			fontFamily: theme.vars?.font.inherit,
 			borderRadius: "8px",
 			border: "1px solid #6873896b",
-			margin: "6px",
+			margin: "4px",
 			backgroundColor: theme.vars?.palette?.background.paper,
 		},
 		"& .flexlayout__splitter": {
 			backgroundColor: theme.vars?.palette?.divider,
 			borderRadius: "8px",
+			width: "4px !important",
+			minWidth: "4px !important",
+		},
+		"& .flexlayout__splitter.flexlayout__splitter_vert": {
+			backgroundColor: theme.vars?.palette?.divider,
+			borderRadius: "8px",
+			height: "4px !important",
+			minHeight: "4px !important",
+			width: "inherit !important",
+			minWidth: "inherit !important",
 		},
 		"& .flexlayout__splitter_vert": {
 			margin: "0 6px",
 		},
 		"& .flexlayout__splitter_horz": {
 			margin: "6px 0",
+		},
+		"& .flexlayout__tab_button_content": {
+			padding: "4px 9px",
+			borderRadius: "8px",
+			backgroundColor: "#488ecb1a",
 		},
 	};
 });
@@ -508,20 +523,16 @@ const GraphContainer = styled("div")(
 	height: 100%;
 	width: 100%;
 	position: relative;
-	background-color: ${theme.vars?.palette?.background.paper};
+	background-color: transparent;
 	color: ${theme.vars?.palette?.text.primary};
 `,
 );
 
 const Wrapper = styled("div")(
 	({ theme }) => `
-	height: calc(100vh - 82px);
+	height: calc(100vh - 64px);
 	position: relative;
-	background-color: ${theme.vars?.palette?.background.default};
+	background-color: transparent;
 	color: ${theme.vars?.palette?.text.primary};
 `,
 );
-
-const _BG = styled(Flex)`
-	position: relative;
-`;
