@@ -27,17 +27,19 @@ const GraphContainer = styled(Box)({
 	height: "100%",
 });
 
-export const NodeGraph = memo(() => {
+type LayoutType = "grid" | "force" | "hierarchical" | "circular" | "random";
+
+export const NodeGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
 	return (
 		<GraphContainer id="main_graph_reactflow">
 			<ReactFlowProvider>
-				<LayoutGraph />
+				<LayoutGraph layoutType={layoutType} />
 			</ReactFlowProvider>
 		</GraphContainer>
 	);
 });
 
-const LayoutGraph = memo(() => {
+const LayoutGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
 	const ref = useRef<any>(null);
 	const {
 		selectNode,
@@ -57,13 +59,77 @@ const LayoutGraph = memo(() => {
 		})),
 	);
 
-	// Simple node/edge creation without complex positioning algorithms
+	// Layout calculation functions
+	const calculateLayout = useCallback((entities: any[], type: LayoutType) => {
+		const nodeWidth = 200;
+		const nodeHeight = 100;
+		const spacing = 50;
+
+		switch (type) {
+			case "grid": {
+				const cols = Math.ceil(Math.sqrt(entities.length));
+				return entities.map((_, index) => ({
+					x: (index % cols) * (nodeWidth + spacing),
+					y: Math.floor(index / cols) * (nodeHeight + spacing),
+				}));
+			}
+			case "circular": {
+				const radius = Math.max(200, entities.length * 30);
+				const centerX = radius;
+				const centerY = radius;
+				return entities.map((_, index) => {
+					const angle = (index / entities.length) * 2 * Math.PI;
+					return {
+						x: centerX + radius * Math.cos(angle),
+						y: centerY + radius * Math.sin(angle),
+					};
+				});
+			}
+			case "hierarchical": {
+				const _levels = Math.ceil(entities.length / 5);
+				return entities.map((_, index) => {
+					const level = Math.floor(index / 5);
+					const posInLevel = index % 5;
+					return {
+						x: posInLevel * (nodeWidth + spacing),
+						y: level * (nodeHeight + spacing * 2),
+					};
+				});
+			}
+			case "force": {
+				// Simple force-directed simulation
+				return entities.map((_, _index) => {
+					const angle = Math.random() * 2 * Math.PI;
+					const distance = Math.random() * 400 + 100;
+					return {
+						x: 400 + distance * Math.cos(angle),
+						y: 300 + distance * Math.sin(angle),
+					};
+				});
+			}
+			case "random": {
+				return entities.map(() => ({
+					x: Math.random() * 1000,
+					y: Math.random() * 600,
+				}));
+			}
+			default:
+				return entities.map((_, index) => ({
+					x: (index % 4) * 320,
+					y: Math.floor(index / 4) * 200,
+				}));
+		}
+	}, []);
+
+	// Node creation with dynamic layout positioning
 	const initialNodes = useMemo(() => {
 		if (!currentGraph?.entities || viewMode !== "graph") return [];
 
-		return currentGraph.entities.slice(0, 100).map((entity, index) => {
-			const x = (index % 4) * 320; // Simple grid: 4 nodes per row
-			const y = Math.floor(index / 4) * 200;
+		const entities = currentGraph.entities.slice(0, 100);
+		const positions = calculateLayout(entities, layoutType);
+
+		return entities.map((entity, index) => {
+			const { x, y } = positions[index] || { x: 0, y: 0 };
 
 			return {
 				id: entity.id,
@@ -92,7 +158,13 @@ const LayoutGraph = memo(() => {
 				focusable: false,
 			};
 		});
-	}, [currentGraph?.entities, selectedNodes, viewMode]);
+	}, [
+		currentGraph?.entities,
+		selectedNodes,
+		viewMode,
+		layoutType,
+		calculateLayout,
+	]);
 
 	const initialEdges = useMemo(() => {
 		if (!currentGraph?.mappings || viewMode !== "graph") return [];
