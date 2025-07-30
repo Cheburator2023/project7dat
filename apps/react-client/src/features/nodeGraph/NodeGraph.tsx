@@ -184,13 +184,13 @@ const LayoutGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
 						id: edgeId,
 						source: dep.entityId,
 						target: mapping.entityId,
-						type: "simplebezier",
+						type: "bezier",
 						data: { selected: isSelected },
 						style: {
 							stroke: isSelected ? "#ff6b6b" : "#b1b1b7",
 							strokeWidth: isSelected ? 3 : 1,
 						},
-						animated: false,
+						animated: true,
 						interactionWidth: 20,
 						focusable: false,
 					};
@@ -244,7 +244,7 @@ const LayoutGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
 			focusable: false,
 			deletable: false,
 			// Reduce edge complexity during zoom/drag for better performance
-			animated: !isZooming && !isDragging,
+			animated: true,
 			// Simplify edges during interactions
 			style: {
 				stroke: isZooming || isDragging ? "#999" : "#b1b1b7",
