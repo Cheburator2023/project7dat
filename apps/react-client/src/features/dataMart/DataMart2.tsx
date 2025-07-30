@@ -352,6 +352,7 @@ const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
 const DataMart2 = memo(() => {
 	const [activeTab, setActiveTab] = useState(0);
 	const { currentGraph } = useDataLineageStore();
+	console.log("🚀 ~ DataMart2 ~ currentGraph:", currentGraph);
 
 	const { dataMarts, sourceEntities, mappings, entities } = useMemo(() => {
 		if (!currentGraph?.entities) {

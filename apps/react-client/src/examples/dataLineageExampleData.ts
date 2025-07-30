@@ -1,6 +1,6 @@
-import type { DataLineageGraph } from "@react-client/types/dataLineage";
+import type { DataLineageSchema } from "@react-client/types/dataLineage";
 
-export const dataLineageExample: DataLineageGraph = {
+export const dataLineageExampleData: DataLineageSchema = {
 	desc: {
 		appId: "application_1741031136784_106640",
 		appName:
