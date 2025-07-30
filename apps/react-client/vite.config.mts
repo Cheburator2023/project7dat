@@ -34,17 +34,19 @@ export default defineConfig({
 	cacheDir: fileURLToPath(new URL("./.cache/vite-app", import.meta.url)),
 	base: "/",
 	build: {
-		target: "baseline-widely-available",
+		target: "esnext",
+		minify: false,
+		cssCodeSplit: false,
 		commonjsOptions: { transformMixedEsModules: true },
 		rollupOptions: {
 			output: {
 				dir: DIST_DIR,
 				strict: false,
 				entryFileNames: "[name].js",
-				manualChunks: {
-					react: ["react", "react-dom", "react-router-dom"],
-				},
+				format: "es",
+				manualChunks: undefined,
 			},
+			external: [],
 		},
 	},
 
@@ -76,11 +78,6 @@ export default defineConfig({
 			},
 		}) as PluginOption,
 		checker({
-			biome: {
-				dev: {
-					logLevel: ["error"],
-				},
-			},
 			typescript: true,
 			overlay: {
 				initialIsOpen: false,
@@ -93,8 +90,7 @@ export default defineConfig({
 				"./App": "./src/App.tsx",
 				"./MfeBridge": "./src/common/mfe/MfeBridge.tsx",
 			},
-			shared: {
-			},
+			shared: {},
 		}) as PluginOption,
 	],
 
