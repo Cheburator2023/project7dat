@@ -9,7 +9,7 @@ import {
 	useColorScheme,
 } from "@mui/material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
-import { useCommitList } from "@react-client/hooks/api/useJsonData";
+import { useCommitList } from "@react-client/api/hooks";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Card } from "@react-client/common/muiCustom/Card";
 
@@ -112,7 +112,6 @@ export const CommitHistory: React.FC = memo(() => {
 		error,
 	} = useCommitList({
 		graphId: currentGraphId || undefined,
-		limit: 20,
 	});
 
 	if (isLoading) {

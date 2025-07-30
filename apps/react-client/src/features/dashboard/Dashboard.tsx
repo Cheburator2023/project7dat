@@ -19,11 +19,9 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import {
 	useSaveDataLineageGraph,
 	DATA_LINEAGE_QUERY_KEYS,
-} from "@react-client/hooks/api";
-import {
-	JSON_DATA_QUERY_KEYS,
-	useInitializeJsonGraph,
-} from "@react-client/hooks/api/useJsonData";
+	useCommitList,
+} from "@react-client/api/hooks";
+import { useInitializeJsonGraph } from "@react-client/api/hooks";
 import { useState, memo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -117,15 +115,17 @@ export const Dashboard = () => {
 		}
 	};
 
+	const { refetch: refetchCommitList } = useCommitList({
+		graphId: currentGraphId || undefined,
+	});
+
 	const handleCommitDialogClose = () => {
 		setIsCommitDialogOpen(false);
 		queryClient.invalidateQueries({
 			queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 		});
 		if (currentGraphId) {
-			queryClient.invalidateQueries({
-				queryKey: JSON_DATA_QUERY_KEYS.commitList({ graphId: currentGraphId }),
-			});
+			refetchCommitList();
 		}
 	};
 
@@ -445,7 +445,7 @@ const PanelResizeHandleStyled = styled(PanelResizeHandle, {
 `;
 
 const Wrapper = styled("div")`
-	height: calc(100vh - 82px);
+	height: calc(100vh - 64px);
 	position: relative;
 
 `;
