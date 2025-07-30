@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { DataLineageZodSchema } from "./json-data.schema";
 
 export const CreateCommitSchema = z.object({
 	message: z.string(),
-	data: z.record(z.any()),
+	data: DataLineageZodSchema,
 	author: z
 		.object({
 			id: z.string(),
@@ -16,7 +17,7 @@ export const JsonCommitResponseSchema = z.object({
 	id: z.string(),
 	hash: z.string(),
 	message: z.string(),
-	diff: z.record(z.any()),
+	diff: z.record(z.any()), // Keep as any for diff data
 	graphId: z.string(),
 	author: z
 		.object({
@@ -32,8 +33,8 @@ export const JsonCommitWithFullDataResponseSchema = z.object({
 	id: z.string(),
 	hash: z.string(),
 	message: z.string(),
-	diff: z.record(z.any()),
-	fullData: z.record(z.any()),
+	diff: z.record(z.any()), // Keep as any for diff data
+	fullData: DataLineageZodSchema,
 	graphId: z.string(),
 	author: z
 		.object({

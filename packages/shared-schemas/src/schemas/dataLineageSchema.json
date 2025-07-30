@@ -31,7 +31,7 @@
 					},
 					"type": {
 						"type": "string",
-						"enum": ["table", "view"],
+						"enum": ["table", "view", "rdd", "unresolved"],
 						"description": "тип сущности в HADOOP"
 					},
 					"namespace": {
@@ -116,7 +116,80 @@
 												"type": "string",
 												"description": "наименование атрибут источник"
 											},
-											"linktypes": {
+											"linkTypes": {
+												"type": "array",
+												"items": {
+													"type": "string",
+													"enum": ["window", "join", "where", "groupby"]
+												},
+												"description": "для чего используется данный атрибут"
+											}
+										},
+										"required": ["attr"]
+									}
+								}
+							},
+							"required": ["entityId"]
+						}
+					},
+					"unmatched": {
+						"type": "array",
+						"description": "несопоставленные сущности внутри скрипта"
+					}
+				},
+				"required": ["id", "entityId"]
+			},
+			"description": "маппинг витрина источник -> витрина таргет"
+		},
+		"failedMappings": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "integer",
+						"description": "порядковый номер витрины таргет"
+					},
+					"entityId": {
+						"type": "string",
+						"description": "наименование сущности таргет в HADOOP"
+					},
+					"deps": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"entityId": {
+									"type": "string",
+									"description": "наименование витрины источник в HADOOP"
+								},
+								"attrMaps": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"src": {
+												"type": "string",
+												"description": "наименование атрибут источник"
+											},
+											"dst": {
+												"type": "string",
+												"description": "наименование атрибут таргет"
+											}
+										},
+										"required": ["src", "dst"]
+									}
+								},
+								"atrDeps": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"attr": {
+												"type": "string",
+												"description": "наименование атрибут источник"
+											},
+											"linkTypes": {
 												"type": "array",
 												"items": {
 													"type": "string",

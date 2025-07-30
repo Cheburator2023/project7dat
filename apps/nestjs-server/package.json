@@ -22,6 +22,7 @@
 		"migration:generate": "typeorm-ts-node-commonjs migration:generate ./src/migrations/$npm_config_name -d ./src/ormconfig.ts"
 	},
 	"dependencies": {
+		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
 		"@electric-sql/pglite": "^0.3.5",
 		"@fastify/cors": "^11.0.0",
 		"@nestjs/cli": "11.0.5",

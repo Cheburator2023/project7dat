@@ -16,7 +16,6 @@ import { BottomBar } from "@react-client/features/navigation/organisms/BottomBar
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { NodeGraph } from "@react-client/features/nodeGraph";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { dataLineageExample } from "@react-client/examples/dataLineageExample";
 import {
 	useSaveDataLineageGraph,
 	DATA_LINEAGE_QUERY_KEYS,
@@ -32,6 +31,7 @@ import { useShallow } from "zustand/react/shallow";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 import { DataLineageGraph } from "@react-client/types/dataLineage";
 import { DataMart2 } from "@react-client/features/dataMart/DataMart2";
+import { dataLineageExampleData } from "@react-client/examples/dataLineageExampleData";
 
 type LayoutType = "grid" | "force" | "hierarchical" | "circular" | "random";
 
@@ -135,7 +135,7 @@ export const Dashboard = () => {
 		try {
 			console.log("[DEBUG] Dashboard: calling initializeGraphMutation");
 			const result = await initializeGraphMutation.mutateAsync({
-				data: dataLineageExample,
+				data: dataLineageExampleData,
 			});
 			console.log(
 				"[DEBUG] Dashboard: mutation completed, calling initializeGraph",
@@ -266,7 +266,7 @@ const Panels = ({ isInitializing }: { isInitializing: boolean }) => {
 		);
 
 	const _handleSetExampleData = () => {
-		setExampleData(dataLineageExample);
+		setExampleData(dataLineageExampleData);
 	};
 
 	const handleJsonChange = (data: any) => {
