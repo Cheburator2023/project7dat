@@ -2,7 +2,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import FileUploadIcon from "@mui/icons-material/FileUpload";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { Button, IconButton, styled } from "@mui/material";
+import { Button, IconButton, styled, Select, MenuItem } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import AddIcon from "@mui/icons-material/Add";
@@ -33,16 +33,26 @@ import { CommitHistory } from "@react-client/features/commitHistory/CommitHistor
 import { DataLineageGraph } from "@react-client/types/dataLineage";
 import { DataMart2 } from "@react-client/features/dataMart/DataMart2";
 
+type LayoutType = "grid" | "force" | "hierarchical" | "circular" | "random";
+
+const LAYOUT_OPTIONS = [
+	{ value: "grid", label: "Сетка" },
+	{ value: "force", label: "Силовая диаграмма" },
+	{ value: "hierarchical", label: "Иерархическая" },
+	{ value: "circular", label: "Круговая" },
+	{ value: "random", label: "Случайная" },
+] as const;
+
 // Memoized NodeGraph to prevent unnecessary rerenders from PanelGroup
-const MemoizedNodeGraph = memo(() => {
-	return <NodeGraph />;
+const MemoizedNodeGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
+	return <NodeGraph layoutType={layoutType} />;
 });
 
 // Isolated background layer to prevent PanelGroup rerenders from affecting NodeGraph
-const BackgroundLayer = memo(() => {
+const BackgroundLayer = memo(({ layoutType }: { layoutType: LayoutType }) => {
 	return (
 		<BG width="100%" height="100%">
-			<MemoizedNodeGraph />
+			<MemoizedNodeGraph layoutType={layoutType} />
 		</BG>
 	);
 });
@@ -51,6 +61,7 @@ export const Dashboard = () => {
 	const { importFromFile, exportToFile } = useEditorStore();
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
 	const [isInitializing, setIsInitializing] = useState(false);
+	const [layoutType, setLayoutType] = useState<LayoutType>("grid");
 	const queryClient = useQueryClient();
 	const initializeGraphMutation = useInitializeJsonGraph();
 
@@ -169,6 +180,25 @@ export const Dashboard = () => {
 					</Flex>
 				)}
 
+				<Flex
+					width={`calc(${LAYOUT_OPTIONS.find((o) => o.value === layoutType)?.label?.replace(" ", "")?.length ?? 0 + 5} * 9px)`}
+				>
+					<Select
+						value={layoutType}
+						onChange={(e) => setLayoutType(e.target.value as LayoutType)}
+						label="Разметка графа"
+						autoWidth
+						size="small"
+						fullWidth
+					>
+						{LAYOUT_OPTIONS.map((option) => (
+							<MenuItem key={option.value} value={option.value}>
+								{option.label}
+							</MenuItem>
+						))}
+					</Select>
+				</Flex>
+
 				<Button
 					variant="outlined"
 					size="small"
@@ -196,7 +226,7 @@ export const Dashboard = () => {
 			</Header>
 			<Wrapper id="dashboard_page_container">
 				<Panels isInitializing={isInitializing} />
-				<BackgroundLayer />
+				<BackgroundLayer layoutType={layoutType} />
 				<BottomBar />
 			</Wrapper>
 			<CommitDialog

@@ -24,6 +24,7 @@ import type {
 	DataLineageMapping,
 	DataLineageAttribute,
 } from "../../types/dataLineage";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 
 // Пропсы для дочерних компонентов
 interface EntitiesTableProps {
@@ -311,6 +312,7 @@ const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
 					sx={{ mb: 2, width: "100%" }}
 				/>
 			)}
+			<Spacer />
 			<Box
 				sx={{
 					height: entities && entities.length > pageSize ? 400 : "auto",
