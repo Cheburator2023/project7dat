@@ -25,6 +25,7 @@ import { useShallow } from "zustand/react/shallow";
 import { create } from "zustand";
 import { produce } from "immer";
 import { FixedSizeList as List } from "react-window";
+import { fastParse, fastStringify, jsonClone } from "@data-lineage/shared";
 
 interface JsonEditorState {
 	focusedPath: string | null;
@@ -168,7 +169,7 @@ export const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 				reader.onload = (e) => {
 					try {
 						const content = e.target?.result as string;
-						const parsedData = JSON.parse(content);
+						const parsedData = fastParse(content);
 						setJsonData(parsedData);
 						expandAll(parsedData);
 					} catch (error) {
@@ -183,7 +184,7 @@ export const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 	},
 	exportToFile: () => {
 		const { jsonData } = get();
-		const dataStr = JSON.stringify(jsonData, null, 2);
+		const dataStr = fastStringify(jsonData, { space: 2 });
 		const dataBlob = new Blob([dataStr], { type: "application/json" });
 		const url = URL.createObjectURL(dataBlob);
 
@@ -1380,7 +1381,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 			const pathParts = path.split(".").filter(Boolean);
 
 			// Создаем глубокую копию данных для безопасного изменения
-			const newData = JSON.parse(JSON.stringify(jsonData));
+			const newData = jsonClone(jsonData);
 
 			// Навигируем по пути и обновляем значение
 			let current = newData;

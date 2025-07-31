@@ -1,4 +1,5 @@
 import type { DataLineageGraph } from "@react-client/types/dataLineage";
+import { fastStringify } from "@data-lineage/shared";
 
 export interface Position {
 	line: number;
@@ -18,7 +19,7 @@ export function findNodePositionInJson(
 	if (!graph || !nodeId) return null;
 
 	// Create a cache key based on graph content and nodeId
-	const graphVersion = JSON.stringify(
+	const graphVersion = fastStringify(
 		graph.entities.map((e) => ({ id: e.id, name: e.name })),
 	);
 	const cacheKey = `${nodeId}-${graphVersion}`;

@@ -8,6 +8,12 @@ import type {
 import { create } from "zustand";
 import { jsonDataService } from "@react-client/api/jsonDataApi";
 import type { CommitJsonDataRequest } from "@react-client/api/jsonDataApi";
+import {
+	jsonClone,
+	jsonCompare,
+	fastStringify,
+	fastParse,
+} from "@data-lineage/shared";
 
 interface RevealPosition {
 	version: number;
@@ -116,7 +122,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			console.log(
 				"[DEBUG] setCurrentGraph: No original graph, setting initial state",
 			);
-			const deepCopy = JSON.parse(JSON.stringify(graph));
+			const deepCopy = jsonClone(graph);
 			set({
 				currentGraph: graph,
 				originalGraph: deepCopy,
@@ -126,8 +132,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			console.log(
 				"[DEBUG] setCurrentGraph: Original graph exists, checking for changes",
 			);
-			const hasChanges =
-				JSON.stringify(graph) !== JSON.stringify(originalGraph);
+			const hasChanges = !jsonCompare(graph, originalGraph);
 			console.log("[DEBUG] setCurrentGraph: hasChanges:", hasChanges);
 			set({
 				currentGraph: graph,
@@ -146,7 +151,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 
 	initializeGraph: (graph: DataLineageGraph) => {
 		console.log("[DEBUG] initializeGraph called");
-		const deepCopy = JSON.parse(JSON.stringify(graph));
+		const deepCopy = jsonClone(graph);
 		set({
 			currentGraph: graph,
 			originalGraph: deepCopy,
@@ -161,7 +166,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			const response = await jsonDataService.getCurrent();
 			if (response?.data) {
 				const graph = response.data as DataLineageGraph;
-				const deepCopy = JSON.parse(JSON.stringify(graph));
+				const deepCopy = jsonClone(graph);
 				set({
 					currentGraph: graph,
 					originalGraph: deepCopy,
@@ -186,7 +191,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			const response = await jsonDataService.getById(id);
 			if (response?.data) {
 				const graph = response.data as DataLineageGraph;
-				const deepCopy = JSON.parse(JSON.stringify(graph));
+				const deepCopy = jsonClone(graph);
 				set({
 					currentGraph: graph,
 					originalGraph: deepCopy,
@@ -394,7 +399,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		if (!currentGraph) return "";
 
 		if (format === "json") {
-			return JSON.stringify(currentGraph, null, 2);
+			return fastStringify(currentGraph, { space: 2 });
 		} else {
 			const headers = ["id", "name", "type", "namespace"];
 			const rows = currentGraph.entities.map((entity) => [
@@ -412,11 +417,11 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		set({ isLoading: true, error: null });
 		try {
 			if (format === "json") {
-				const parsedData = JSON.parse(data);
+				const parsedData = fastParse(data);
 
 				if (parsedData.desc && parsedData.entities && parsedData.mappings) {
 					const graph = parsedData as DataLineageGraph;
-					const deepCopy = JSON.parse(JSON.stringify(graph));
+					const deepCopy = jsonClone(graph);
 					set({
 						currentGraph: graph,
 						originalGraph: deepCopy,
@@ -437,7 +442,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 
 	setExampleData: (graph: DataLineageGraph) => {
 		console.log("[DEBUG] setExampleData called");
-		const deepCopy = JSON.parse(JSON.stringify(graph));
+		const deepCopy = jsonClone(graph);
 		set({
 			currentGraph: graph,
 			originalGraph: deepCopy,
@@ -533,7 +538,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 				"[DEBUG] commitChangesWithMessage: Commit successful, updating state",
 			);
 			set({
-				originalGraph: JSON.parse(JSON.stringify(currentGraph)),
+				originalGraph: jsonClone(currentGraph),
 				hasUnsavedChanges: false,
 				isLoading: false,
 			});

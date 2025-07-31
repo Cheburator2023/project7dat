@@ -3,6 +3,7 @@ import { Flex } from "@react-client/common/primitives/Flex";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { memo, useMemo } from "react";
+import { fastStringify } from "@data-lineage/shared";
 
 export const EditorDiff = memo(() => {
 	const { currentGraph, originalGraph, hasUnsavedChanges } =
@@ -11,12 +12,12 @@ export const EditorDiff = memo(() => {
 	const { mode } = useColorScheme();
 
 	const oldValue = useMemo(
-		() => (originalGraph ? JSON.stringify(originalGraph, null, 2) : ""),
+		() => (originalGraph ? fastStringify(originalGraph, { space: 2 }) : ""),
 		[originalGraph],
 	);
 
 	const newValue = useMemo(
-		() => (currentGraph ? JSON.stringify(currentGraph, null, 2) : ""),
+		() => (currentGraph ? fastStringify(currentGraph, { space: 2 }) : ""),
 		[currentGraph],
 	);
 
