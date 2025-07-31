@@ -32,7 +32,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 import { DataLineageGraph } from "@react-client/types/dataLineage";
-import { DataMart2 } from "@react-client/features/dataMart/DataMart2";
+import { DataMart } from "@react-client/features/dataMart/DataMart";
 import { dataLineageExampleData } from "@react-client/examples/dataLineageExampleData";
 
 type LayoutType = "grid" | "force" | "hierarchical" | "circular" | "random";
@@ -330,7 +330,7 @@ export const DashboardFlex = () => {
 				case "commit-history":
 					return <CommitHistory />;
 				case "data-mart":
-					return <DataMart2 />;
+					return <DataMart />;
 				default:
 					return <div>Unknown component: {component}</div>;
 			}
