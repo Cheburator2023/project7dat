@@ -117,7 +117,17 @@ export const DashboardFlex = () => {
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
 	const [isInitializing, setIsInitializing] = useState(false);
 	const [layoutType, setLayoutType] = useState<LayoutType>("grid");
-	const [model] = useState(() => Model.fromJson(flexLayoutJson));
+	const [model, _setModel] = useState(() => {
+		try {
+			const savedLayout = localStorage.getItem("dashboard-flex-layout");
+			if (savedLayout) {
+				return Model.fromJson(JSON.parse(savedLayout));
+			}
+		} catch (error) {
+			console.warn("Failed to load layout from localStorage:", error);
+		}
+		return Model.fromJson(flexLayoutJson);
+	});
 	const queryClient = useQueryClient();
 	const initializeGraphMutation = useInitializeJsonGraph();
 	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph();
@@ -328,9 +338,26 @@ export const DashboardFlex = () => {
 		[layoutType, editorLayoutModel, editorFactory],
 	);
 
-	const onAction = useCallback((action: Action) => {
-		return action;
-	}, []);
+	const onAction = useCallback(
+		(action: Action) => {
+			const result = action;
+
+			setTimeout(() => {
+				try {
+					const layoutJson = model.toJson();
+					localStorage.setItem(
+						"dashboard-flex-layout",
+						JSON.stringify(layoutJson),
+					);
+				} catch (error) {
+					console.warn("Failed to save layout to localStorage:", error);
+				}
+			}, 0);
+
+			return result;
+		},
+		[model],
+	);
 
 	return (
 		<div>
