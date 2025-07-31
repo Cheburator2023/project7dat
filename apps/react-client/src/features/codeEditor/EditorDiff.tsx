@@ -55,9 +55,7 @@ export const EditorDiff = memo(() => {
 					justifyContent="center"
 				>
 					<Typography>
-						{hasUnsavedChanges
-							? "Загрузка изменений..."
-							: "Нет несохранённых изменений"}
+						{hasUnsavedChanges ? "Загрузка изменений..." : "Нет изменений"}
 					</Typography>
 				</Flex>
 			)}

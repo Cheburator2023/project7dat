@@ -231,7 +231,6 @@ export const DashboardFlex = () => {
 					console.log(
 						"[DEBUG] Dashboard: handleJsonChange calling markAsChanged",
 					);
-					markAsChanged();
 				}
 			}
 		},
