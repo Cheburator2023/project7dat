@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo, useCallback } from "react";
+import React, { useState } from "react";
 import {
 	Tabs,
 	Tab,
@@ -12,10 +12,19 @@ import {
 	Box,
 	Typography,
 	TextField,
+	List,
+	ListItem,
+	ListItemText,
+	useColorScheme,
 } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { FixedSizeList as List } from "react-window";
+import { AgGridReact } from "ag-grid-react";
+import type { ColDef } from "ag-grid-community";
+import {
+	agGridCustomMUITheme,
+	agGridCustomMUIThemeDark,
+} from "../../theme/ag-grid/agGridCustomTheme";
+
 import { useDataLineageStore } from "../../stores/dataLineageStore";
 import type {
 	DataLineageEntity,
@@ -34,66 +43,62 @@ interface AttributesTableProps {
 	attributes: DataLineageAttribute[];
 }
 
-const mappingColumnDefs = [
-	{ field: "src", headerName: "Исходный атрибут" },
-	{ field: "dst", headerName: "Целевой атрибут" },
-];
-
-const columnDefs: GridColDef[] = [
-	{ field: "name", headerName: "Название", flex: 1 },
-	{ field: "type", headerName: "Тип", flex: 1 },
-	{ field: "comment", headerName: "Комментарий", flex: 2 },
-];
-
 const AttributesTable: React.FC<AttributesTableProps> = ({ attributes }) => {
 	if (!attributes || attributes.length === 0) return null;
 
 	return (
-		<Box sx={{ height: 222, width: "100%" }}>
-			<DataGrid
-				hideFooterPagination
-				density="compact"
-				rows={attributes}
-				columns={columnDefs}
-			/>
+		<Box
+			sx={{
+				maxHeight: 230,
+				overflow: "auto",
+				border: 1,
+				borderColor: "divider",
+				borderRadius: 1,
+			}}
+		>
+			<List dense>
+				{attributes.map((attr) => (
+					<ListItem key={attr.name} divider>
+						<ListItemText
+							primary={`${attr.name} (${attr.type})`}
+							secondary={attr.comment}
+						/>
+					</ListItem>
+				))}
+			</List>
 		</Box>
 	);
 };
 
-const MappingItem = memo<{
+const MappingItem = ({
+	mapping,
+	entities,
+}: {
 	mapping: DataLineageMapping;
 	entities: DataLineageEntity[];
-}>(({ mapping, entities }) => {
-	const targetEntity = useMemo(() => {
-		return entities.find((e) => e.id === mapping.entityId);
-	}, [entities, mapping.entityId]);
+}) => {
+	const targetEntity = entities.find((e) => e.id === mapping.entityId);
 
-	const mappingData = useMemo(() => {
-		return (
-			mapping.deps
-				?.flatMap((dep) => dep.attrMaps || [])
-				.map((item, index) => ({
-					id: `${item.src}-${item.dst}-${index}`,
-					src: item.src,
-					dst: item.dst,
-				})) || []
-		);
-	}, [mapping.deps]);
+	const mappingData =
+		mapping.deps
+			?.flatMap((dep) => dep.attrMaps || [])
+			.map((item, index) => ({
+				id: `${item.src}-${item.dst}-${index}`,
+				src: item.src,
+				dst: item.dst,
+			})) || [];
 
-	const dependencyData = useMemo(() => {
-		return (
-			mapping.deps?.flatMap(
-				(dep, depIndex) =>
-					dep.atrDeps?.map((atrDep, atrIndex) => ({
-						id: `${dep.entityId}-${atrDep.attr}-${depIndex}-${atrIndex}`,
-						sourceEntity:
-							entities.find((e) => e.id === dep.entityId)?.name || dep.entityId,
-						sourceAttribute: atrDep.attr,
-						linkTypes: atrDep.linkTypes?.join(", ") || "",
-					})) || [],
-			) || []
-		);
-	}, [mapping.deps, entities]);
+	const dependencyData =
+		mapping.deps?.flatMap(
+			(dep, depIndex) =>
+				dep.atrDeps?.map((atrDep, atrIndex) => ({
+					id: `${dep.entityId}-${atrDep.attr}-${depIndex}-${atrIndex}`,
+					sourceEntity:
+						entities.find((e) => e.id === dep.entityId)?.name || dep.entityId,
+					sourceAttribute: atrDep.attr,
+					linkTypes: atrDep.linkTypes?.join(", ") || "",
+				})) || [],
+		) || [];
 
 	return (
 		<Accordion>
@@ -120,21 +125,28 @@ const MappingItem = memo<{
 				</Box>
 
 				{mappingData.length > 0 && (
-					<>
+					<Box sx={{ mb: 2 }}>
 						<Typography variant="subtitle2" gutterBottom>
 							Маппинги атрибутов:
 						</Typography>
-						<Box sx={{ height: 222, width: "100%", mb: 2 }}>
-							<DataGrid
-								hideFooterPagination
-								density="compact"
-								rows={mappingData}
-								columns={mappingColumnDefs}
-								checkboxSelection
-								disableRowSelectionOnClick
-							/>
+						<Box
+							sx={{
+								maxHeight: 230,
+								overflow: "auto",
+								border: 1,
+								borderColor: "divider",
+								borderRadius: 1,
+							}}
+						>
+							<List dense>
+								{mappingData.map((mapping) => (
+									<ListItem key={mapping.id} divider>
+										<ListItemText primary={`${mapping.src} → ${mapping.dst}`} />
+									</ListItem>
+								))}
+							</List>
 						</Box>
-					</>
+					</Box>
 				)}
 
 				{dependencyData.length > 0 && (
@@ -142,51 +154,40 @@ const MappingItem = memo<{
 						<Typography variant="subtitle2" gutterBottom>
 							Зависимости атрибутов:
 						</Typography>
-						<Box sx={{ height: 222, width: "100%" }}>
-							<DataGrid
-								hideFooterPagination
-								density="compact"
-								rows={dependencyData}
-								columns={[
-									{
-										field: "sourceEntity",
-										headerName: "Исходная сущность",
-										flex: 1,
-									},
-									{
-										field: "sourceAttribute",
-										headerName: "Исходный атрибут",
-										flex: 1,
-									},
-									{ field: "linkTypes", headerName: "Типы связей", flex: 1 },
-								]}
-								checkboxSelection
-								disableRowSelectionOnClick
-							/>
+						<Box
+							sx={{
+								maxHeight: 230,
+								overflow: "auto",
+								border: 1,
+								borderColor: "divider",
+								borderRadius: 1,
+							}}
+						>
+							<List dense>
+								{dependencyData.map((dep) => (
+									<ListItem key={dep.id} divider>
+										<ListItemText
+											primary={`${dep.sourceEntity}.${dep.sourceAttribute}`}
+											secondary={dep.linkTypes}
+										/>
+									</ListItem>
+								))}
+							</List>
 						</Box>
 					</Box>
 				)}
 			</AccordionDetails>
 		</Accordion>
 	);
-});
+};
 
-const VirtualizedMappings = memo<{
+const VirtualizedMappings = ({
+	mappings,
+	entities,
+}: {
 	mappings: DataLineageMapping[];
 	entities: DataLineageEntity[];
-}>(({ mappings, entities }) => {
-	const renderMapping = useCallback(
-		({ index, style }: { index: number; style: React.CSSProperties }) => (
-			<div
-				key={`virtualized-mapping-${mappings[index]?.id || "unknown"}-${index}`}
-				style={style}
-			>
-				<MappingItem mapping={mappings[index]} entities={entities} />
-			</div>
-		),
-		[mappings, entities],
-	);
-
+}) => {
 	if (!mappings || mappings.length === 0) {
 		return (
 			<Typography variant="body2" color="text.secondary">
@@ -195,112 +196,76 @@ const VirtualizedMappings = memo<{
 		);
 	}
 
-	if (mappings.length <= 5000) {
-		return (
-			<Box sx={{ width: "100%" }}>
-				{mappings.map((mapping, index) => (
-					<Box
-						key={`mapping-${mapping.id || "unknown"}-${index}`}
-						sx={{ mb: 1 }}
-					>
-						<MappingItem mapping={mapping} entities={entities} />
-					</Box>
-				))}
-			</Box>
-		);
-	}
-
 	return (
-		<Box>
-			<List
-				height={600}
-				itemCount={mappings.length}
-				itemSize={300}
-				width="100%"
-			>
-				{renderMapping}
-			</List>
+		<Box sx={{ width: "100%", zoom: 0.7 }}>
+			{mappings.map((mapping, index) => (
+				<Box key={`mapping-${mapping.id || "unknown"}-${index}`} sx={{ mb: 1 }}>
+					<MappingItem mapping={mapping} entities={entities} />
+				</Box>
+			))}
 		</Box>
 	);
-});
+};
 
-const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
+const EntitiesTable = ({ entities, showType }: EntitiesTableProps) => {
 	const [searchTerm, setSearchTerm] = useState("");
+	const { mode } = useColorScheme();
 
-	const columnDefs = useMemo<GridColDef[]>(
-		() => [
-			{ field: "originalId", headerName: "ID", flex: 1 },
-			{
-				field: "name",
-				headerName: "Название",
-				flex: 1,
-				renderCell: (params) => {
-					return (
-						<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-							<span>{params.value}</span>
-							{params.row.modified && (
-								<Chip label="ВИТРИНА ДАННЫХ" color="error" size="small" />
-							)}
-						</Box>
-					);
-				},
+	const columnDefs: ColDef[] = [
+		{ field: "originalId", headerName: "ID", flex: 1 },
+		{
+			field: "name",
+			headerName: "Название",
+			flex: 1,
+			cellRenderer: (params: any) => {
+				return (
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+						<span>{params.value}</span>
+						{params.data.modified && (
+							<Chip label="ВИТРИНА ДАННЫХ" color="error" size="small" />
+						)}
+					</Box>
+				);
 			},
-			...(showType
-				? [
-						{
-							field: "type",
-							headerName: "Тип",
-							flex: 1,
-							renderCell: (params: any) => (
-								<Chip
-									label={params.value}
-									color={params.value === "table" ? "primary" : "success"}
-									size="small"
-								/>
-							),
-						},
-					]
-				: []),
-			{ field: "namespace", headerName: "Пространство имен", flex: 1 },
-			{
-				field: "attrSeq",
-				headerName: "Атрибуты",
-				flex: 1,
-				renderCell: (params) => params.value?.length || 0,
-			},
-		],
-		[showType],
-	);
-
-	const filteredEntities = useMemo(() => {
-		if (!entities) return [];
-		if (!searchTerm) return entities;
-		return entities.filter(
-			(entity) =>
-				entity.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				entity.namespace?.toLowerCase().includes(searchTerm.toLowerCase()),
-		);
-	}, [entities, searchTerm]);
-
-	const _gridOptions = useMemo(
-		() => ({
-			animateRows: false,
-			suppressRowHoverHighlight: true,
-			suppressMovableColumns: true,
-			enableCellTextSelection: false,
-			rowBuffer: 10,
-			suppressRowVirtualisation: false,
-			maxBlocksInCache: 5,
-		}),
-		[],
-	);
-
-	const handleSearchChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setSearchTerm(event.target.value);
 		},
-		[],
-	);
+		...(showType
+			? [
+					{
+						field: "type",
+						headerName: "Тип",
+						flex: 1,
+						cellRenderer: (params: any) => (
+							<Chip
+								label={params.value}
+								color={params.value === "table" ? "primary" : "success"}
+								size="small"
+							/>
+						),
+					},
+				]
+			: []),
+		{ field: "namespace", headerName: "Пространство имен", flex: 1 },
+		{
+			field: "attrSeq",
+			headerName: "Атрибуты",
+			flex: 1,
+			cellRenderer: (params: any) => params.value?.length || 0,
+		},
+	];
+
+	const filteredEntities = !entities
+		? []
+		: !searchTerm
+			? entities
+			: entities.filter(
+					(entity) =>
+						entity.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+						entity.namespace?.toLowerCase().includes(searchTerm.toLowerCase()),
+				);
+
+	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setSearchTerm(event.target.value);
+	};
 
 	return (
 		<Box sx={{ width: "100%" }}>
@@ -321,51 +286,38 @@ const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
 					width: "100%",
 				}}
 			>
-				<DataGrid
-					hideFooter
-					density="compact"
-					rows={filteredEntities.map((entity, index) => ({
+				<AgGridReact
+					theme={
+						mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
+					}
+					rowData={filteredEntities.map((entity, index) => ({
 						...entity,
 						id: `${entity.id}-${index}`,
 						originalId: entity.id,
 					}))}
-					columns={columnDefs}
-					checkboxSelection
-					disableRowSelectionOnClick
+					columnDefs={columnDefs}
+					rowSelection="multiple"
+					suppressRowClickSelection
+					domLayout="normal"
 				/>
 			</Box>
 		</Box>
 	);
-});
+};
 
-const DataMart2 = memo(() => {
+const DataMart2 = () => {
 	const [activeTab, setActiveTab] = useState(0);
 	const { currentGraph } = useDataLineageStore();
 
-	const { dataMarts, sourceEntities, mappings, entities } = useMemo(() => {
-		if (!currentGraph?.entities) {
-			return {
-				dataMarts: [],
-				sourceEntities: [],
-				mappings: [],
-				entities: [],
-			};
-		}
+	const dataMarts = currentGraph?.entities?.filter((e) => e.modified) || [];
+	const sourceEntities =
+		currentGraph?.entities?.filter((e) => !e.modified) || [];
+	const mappings = currentGraph?.mappings || [];
+	const entities = currentGraph?.entities || [];
 
-		return {
-			dataMarts: currentGraph.entities.filter((e) => e.modified),
-			sourceEntities: currentGraph.entities.filter((e) => !e.modified),
-			mappings: currentGraph.mappings || [],
-			entities: currentGraph.entities,
-		};
-	}, [currentGraph]);
-
-	const handleTabChange = useCallback(
-		(_: React.SyntheticEvent, newValue: number) => {
-			setActiveTab(newValue);
-		},
-		[],
-	);
+	const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+		setActiveTab(newValue);
+	};
 
 	return (
 		<Box sx={{ p: 2, "& .MuiDataGrid-footerContainer": { display: "none" } }}>
@@ -402,6 +354,6 @@ const DataMart2 = memo(() => {
 			</Box>
 		</Box>
 	);
-});
+};
 
 export { DataMart2 };
