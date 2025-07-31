@@ -11,6 +11,8 @@
 		"biome:fix": "npx @biomejs/biome check --log-level=error --diagnostic-level=error --fix --unsafe $(pwd)/src"
 	},
 	"dependencies": {
+		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
+		"@data-lineage/shared": "file:../../packages/shared",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.0",
 		"@monaco-editor/react": "4.7.0",
@@ -48,6 +50,7 @@
 		"zustand": "5.0.3"
 	},
 	"devDependencies": {
+		"@originjs/vite-plugin-federation": "^1.4.1",
 		"@svgr/rollup": "8.1.0",
 		"@testing-library/dom": "^10.4.0",
 		"@testing-library/jest-dom": "^6.6.3",

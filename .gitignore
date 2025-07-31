@@ -16,6 +16,7 @@ logs
 # production
 build
 dist
+!packages/**/*/dist
 *.tsbuildinfo
 
 # testing
