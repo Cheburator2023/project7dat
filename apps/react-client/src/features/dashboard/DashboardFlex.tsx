@@ -131,6 +131,7 @@ export const DashboardFlex = () => {
 		setCurrentGraphId,
 		initializeGraph,
 		currentGraph,
+		markAsChanged,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			setCurrentGraphId: state.setCurrentGraphId,
@@ -154,6 +155,7 @@ export const DashboardFlex = () => {
 	};
 
 	const handleImport = () => {
+		if (!currentGraph) return;
 		importFromFile();
 	};
 
@@ -229,10 +231,11 @@ export const DashboardFlex = () => {
 					console.log(
 						"[DEBUG] Dashboard: handleJsonChange calling markAsChanged",
 					);
+					markAsChanged();
 				}
 			}
 		},
-		[isInitializing, setCurrentGraph],
+		[isInitializing, setCurrentGraph, markAsChanged],
 	);
 
 	const editorLayoutModel = useMemo(
@@ -379,7 +382,11 @@ export const DashboardFlex = () => {
 					{isInitializing ? "Инициализация..." : "Создать граф"}
 				</Button>
 
-				<IconButton onClick={handleImport} title="Импорт JSON из файла">
+				<IconButton
+					onClick={handleImport}
+					title="Импорт JSON из файла"
+					disabled={!currentGraph}
+				>
 					<FileUploadIcon />
 				</IconButton>
 				<IconButton onClick={handleExport} title="Экспорт JSON в файл">

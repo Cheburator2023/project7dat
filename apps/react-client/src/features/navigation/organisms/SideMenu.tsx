@@ -101,7 +101,4 @@ export function SideMenu({
 }
 
 const StyledDrawer = styled(Drawer)`
-	& .smartAnketa_MuiPaper-root {
-		width: ${drawerWidth}px;
-	}
 `;
