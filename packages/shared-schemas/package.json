@@ -1,0 +1,26 @@
+{
+  "name": "@data-lineage/shared-schemas",
+  "version": "1.0.0",
+  "description": "Shared data lineage schemas for the monorepo",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "require": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "zod": "^3.25.20",
+    "json-schema": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/json-schema": "^7.0.15",
+    "typescript": "^5.8.2"
+  }
+}

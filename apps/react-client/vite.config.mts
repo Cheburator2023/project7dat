@@ -8,6 +8,7 @@ import { type HttpProxy, defineConfig, type PluginOption } from "vite";
 import checker from "vite-plugin-checker";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import tsconfigPaths from "vite-tsconfig-paths";
+import federation from "@originjs/vite-plugin-federation";
 
 const { STAGE } = process.env;
 const ROOT_DIR = path.resolve(__dirname, "./");
@@ -33,17 +34,19 @@ export default defineConfig({
 	cacheDir: fileURLToPath(new URL("./.cache/vite-app", import.meta.url)),
 	base: "/",
 	build: {
-		target: "baseline-widely-available",
+		target: "esnext",
+		minify: false,
+		cssCodeSplit: false,
 		commonjsOptions: { transformMixedEsModules: true },
 		rollupOptions: {
 			output: {
 				dir: DIST_DIR,
 				strict: false,
 				entryFileNames: "[name].js",
-				manualChunks: {
-					react: ["react", "react-dom", "react-router-dom"],
-				},
+				format: "es",
+				manualChunks: undefined,
 			},
+			external: [],
 		},
 	},
 
@@ -75,15 +78,19 @@ export default defineConfig({
 			},
 		}) as PluginOption,
 		checker({
-			biome: {
-				dev: {
-					logLevel: ["error"],
-				},
-			},
 			typescript: true,
 			overlay: {
 				initialIsOpen: false,
 			},
+		}) as PluginOption,
+		federation({
+			name: "data-lineage-remote",
+			filename: "remoteEntry.js",
+			exposes: {
+				"./App": "./src/App.tsx",
+				"./MfeBridge": "./src/common/mfe/MfeBridge.tsx",
+			},
+			shared: {},
 		}) as PluginOption,
 	],
 
