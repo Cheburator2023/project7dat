@@ -124,10 +124,19 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 			});
 		} else {
 			console.log(
-				"[DEBUG] setCurrentGraph: Original graph exists, marking as changed",
+				"[DEBUG] setCurrentGraph: Original graph exists, checking for changes",
 			);
-			set({ currentGraph: graph });
-			// get().markAsChanged();
+			const hasChanges =
+				JSON.stringify(graph) !== JSON.stringify(originalGraph);
+			console.log("[DEBUG] setCurrentGraph: hasChanges:", hasChanges);
+			set({
+				currentGraph: graph,
+				hasUnsavedChanges: hasChanges,
+			});
+			console.log(
+				"[DEBUG] setCurrentGraph: Updated hasUnsavedChanges to:",
+				hasChanges,
+			);
 		}
 	},
 
@@ -506,6 +515,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		}
 
 		try {
+			console.log("[DEBUG] commitChangesWithMessage: Starting commit");
 			set({ isLoading: true, error: null });
 
 			const commitData: CommitJsonDataRequest = {
@@ -519,12 +529,23 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 				await jsonDataService.commitCurrent(commitData);
 			}
 
+			console.log(
+				"[DEBUG] commitChangesWithMessage: Commit successful, updating state",
+			);
 			set({
 				originalGraph: JSON.parse(JSON.stringify(currentGraph)),
 				hasUnsavedChanges: false,
 				isLoading: false,
 			});
+			console.log(
+				"[DEBUG] commitChangesWithMessage: State updated, hasUnsavedChanges:",
+				false,
+			);
 		} catch (error) {
+			console.error(
+				"[DEBUG] commitChangesWithMessage: Error during commit:",
+				error,
+			);
 			set({
 				error: `Ошибка при сохранении коммита: ${error}`,
 				isLoading: false,
