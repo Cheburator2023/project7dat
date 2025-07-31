@@ -42,8 +42,8 @@ interface DataLineageState {
 }
 
 interface DataLineageActions {
-	setCurrentGraph: (graph: DataLineageGraph) => void;
-	setCurrentGraphId: (id: string) => void;
+	setCurrentGraph: (graph: DataLineageGraph | null) => void;
+	setCurrentGraphId: (id: string | null) => void;
 	initializeGraph: (graph: DataLineageGraph) => void;
 	loadGraphFromApi: () => Promise<void>;
 	loadGraphFromApiWithId: (id: string) => Promise<void>;
@@ -112,7 +112,7 @@ const generateTimestamp = (): string => {
 export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	...initialState,
 
-	setCurrentGraph: (graph: DataLineageGraph) => {
+	setCurrentGraph: (graph: DataLineageGraph | null) => {
 		console.log("[DEBUG] setCurrentGraph called", {
 			hasOriginalGraph: !!get().originalGraph,
 		});
@@ -145,7 +145,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		}
 	},
 
-	setCurrentGraphId: (id: string) => {
+	setCurrentGraphId: (id: string | null) => {
 		set({ currentGraphId: id });
 	},
 

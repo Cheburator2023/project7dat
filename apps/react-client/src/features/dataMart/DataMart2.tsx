@@ -12,7 +12,6 @@ import {
 	Box,
 	Typography,
 	TextField,
-	Pagination,
 } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
@@ -50,8 +49,13 @@ const AttributesTable: React.FC<AttributesTableProps> = ({ attributes }) => {
 	if (!attributes || attributes.length === 0) return null;
 
 	return (
-		<Box sx={{ height: 200, width: "100%" }}>
-			<DataGrid density="compact" rows={attributes} columns={columnDefs} />
+		<Box sx={{ height: 222, width: "100%" }}>
+			<DataGrid
+				hideFooterPagination
+				density="compact"
+				rows={attributes}
+				columns={columnDefs}
+			/>
 		</Box>
 	);
 };
@@ -68,16 +72,20 @@ const MappingItem = memo<{
 		return (
 			mapping.deps
 				?.flatMap((dep) => dep.attrMaps || [])
-				.map((item) => ({ id: item.src, src: item.src, dst: item.dst })) || []
+				.map((item, index) => ({
+					id: `${item.src}-${item.dst}-${index}`,
+					src: item.src,
+					dst: item.dst,
+				})) || []
 		);
 	}, [mapping.deps]);
 
 	const dependencyData = useMemo(() => {
 		return (
 			mapping.deps?.flatMap(
-				(dep) =>
-					dep.atrDeps?.map((atrDep) => ({
-						id: atrDep.attr,
+				(dep, depIndex) =>
+					dep.atrDeps?.map((atrDep, atrIndex) => ({
+						id: `${dep.entityId}-${atrDep.attr}-${depIndex}-${atrIndex}`,
 						sourceEntity:
 							entities.find((e) => e.id === dep.entityId)?.name || dep.entityId,
 						sourceAttribute: atrDep.attr,
@@ -101,8 +109,8 @@ const MappingItem = memo<{
 					</Typography>
 					<AttributesTable
 						attributes={
-							targetEntity?.attrSeq?.map((attr) => ({
-								id: attr.name,
+							targetEntity?.attrSeq?.map((attr, index) => ({
+								id: `${targetEntity.id}-${attr.name}-${index}`,
 								name: attr.name,
 								type: attr.type,
 								comment: attr.comment,
@@ -116,8 +124,9 @@ const MappingItem = memo<{
 						<Typography variant="subtitle2" gutterBottom>
 							Маппинги атрибутов:
 						</Typography>
-						<Box sx={{ height: 200, width: "100%", mb: 2 }}>
+						<Box sx={{ height: 222, width: "100%", mb: 2 }}>
 							<DataGrid
+								hideFooterPagination
 								density="compact"
 								rows={mappingData}
 								columns={mappingColumnDefs}
@@ -133,8 +142,9 @@ const MappingItem = memo<{
 						<Typography variant="subtitle2" gutterBottom>
 							Зависимости атрибутов:
 						</Typography>
-						<Box sx={{ height: 150, width: "100%" }}>
+						<Box sx={{ height: 222, width: "100%" }}>
 							<DataGrid
+								hideFooterPagination
 								density="compact"
 								rows={dependencyData}
 								columns={[
@@ -150,7 +160,6 @@ const MappingItem = memo<{
 									},
 									{ field: "linkTypes", headerName: "Типы связей", flex: 1 },
 								]}
-								pageSizeOptions={[500]}
 								checkboxSelection
 								disableRowSelectionOnClick
 							/>
@@ -168,7 +177,10 @@ const VirtualizedMappings = memo<{
 }>(({ mappings, entities }) => {
 	const renderMapping = useCallback(
 		({ index, style }: { index: number; style: React.CSSProperties }) => (
-			<div style={style}>
+			<div
+				key={`virtualized-mapping-${mappings[index]?.id || "unknown"}-${index}`}
+				style={style}
+			>
 				<MappingItem mapping={mappings[index]} entities={entities} />
 			</div>
 		),
@@ -187,7 +199,10 @@ const VirtualizedMappings = memo<{
 		return (
 			<Box sx={{ width: "100%" }}>
 				{mappings.map((mapping, index) => (
-					<Box key={mapping.id || index} sx={{ mb: 1 }}>
+					<Box
+						key={`mapping-${mapping.id || "unknown"}-${index}`}
+						sx={{ mb: 1 }}
+					>
 						<MappingItem mapping={mapping} entities={entities} />
 					</Box>
 				))}
@@ -211,18 +226,15 @@ const VirtualizedMappings = memo<{
 
 const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
 	const [searchTerm, setSearchTerm] = useState("");
-	const [page, setPage] = useState(1);
-	const pageSize = 50;
 
 	const columnDefs = useMemo<GridColDef[]>(
 		() => [
-			{ field: "id", headerName: "ID", flex: 1 },
+			{ field: "originalId", headerName: "ID", flex: 1 },
 			{
 				field: "name",
 				headerName: "Название",
 				flex: 1,
 				renderCell: (params) => {
-					console.log("🚀 ~ params:", params);
 					return (
 						<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
 							<span>{params.value}</span>
@@ -270,16 +282,6 @@ const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
 		);
 	}, [entities, searchTerm]);
 
-	const paginatedEntities = useMemo(() => {
-		const start = (page - 1) * pageSize;
-		return filteredEntities.slice(start, start + pageSize).map((entity) => ({
-			...entity,
-			id: entity.id,
-		}));
-	}, [filteredEntities, page, pageSize]);
-
-	const totalPages = Math.ceil(filteredEntities.length / pageSize);
-
 	const _gridOptions = useMemo(
 		() => ({
 			animateRows: false,
@@ -296,14 +298,6 @@ const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
 	const handleSearchChange = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {
 			setSearchTerm(event.target.value);
-			setPage(1);
-		},
-		[],
-	);
-
-	const handlePageChange = useCallback(
-		(_: React.ChangeEvent<unknown>, value: number) => {
-			setPage(value);
 		},
 		[],
 	);
@@ -323,28 +317,23 @@ const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
 			<Spacer />
 			<Box
 				sx={{
-					height: entities && entities.length > pageSize ? 400 : "auto",
+					height: 666,
 					width: "100%",
 				}}
 			>
 				<DataGrid
+					hideFooter
 					density="compact"
-					rows={paginatedEntities}
+					rows={filteredEntities.map((entity, index) => ({
+						...entity,
+						id: `${entity.id}-${index}`,
+						originalId: entity.id,
+					}))}
 					columns={columnDefs}
 					checkboxSelection
 					disableRowSelectionOnClick
 				/>
 			</Box>
-			{totalPages > 1 && (
-				<Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-					<Pagination
-						count={totalPages}
-						page={page}
-						onChange={handlePageChange}
-						color="primary"
-					/>
-				</Box>
-			)}
 		</Box>
 	);
 });
@@ -352,7 +341,6 @@ const EntitiesTable = memo<EntitiesTableProps>(({ entities, showType }) => {
 const DataMart2 = memo(() => {
 	const [activeTab, setActiveTab] = useState(0);
 	const { currentGraph } = useDataLineageStore();
-	console.log("🚀 ~ DataMart2 ~ currentGraph:", currentGraph);
 
 	const { dataMarts, sourceEntities, mappings, entities } = useMemo(() => {
 		if (!currentGraph?.entities) {
@@ -380,7 +368,7 @@ const DataMart2 = memo(() => {
 	);
 
 	return (
-		<Box sx={{ p: 2 }}>
+		<Box sx={{ p: 2, "& .MuiDataGrid-footerContainer": { display: "none" } }}>
 			{dataMarts.length > 0 && (
 				<Card sx={{ mb: 2 }} variant="outlined">
 					<CardHeader

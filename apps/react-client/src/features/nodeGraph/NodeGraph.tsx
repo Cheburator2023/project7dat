@@ -21,6 +21,10 @@ import {
 import { useNodesState, useEdgesState } from "@xyflow/react";
 import type { DataLineageNode } from "@react-client/types/dataLineage";
 
+const nodeTypes = {
+	dataLineageNode: DataLineageNodeComponent,
+};
+
 const GraphContainer = styled(Box)({
 	position: "relative",
 	width: "100%",
@@ -229,13 +233,6 @@ const LayoutGraph = memo(({ layoutType }: { layoutType: LayoutType }) => {
 			panOnScrollMode: "free" as const,
 		}),
 		[isDragging],
-	);
-
-	const nodeTypes = useMemo(
-		() => ({
-			dataLineageNode: DataLineageNodeComponent,
-		}),
-		[],
 	);
 
 	const defaultEdgeOptions = useMemo(

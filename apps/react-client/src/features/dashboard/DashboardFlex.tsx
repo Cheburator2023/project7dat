@@ -24,6 +24,7 @@ import {
 	useSaveDataLineageGraph,
 	DATA_LINEAGE_QUERY_KEYS,
 	useCommitList,
+	useCurrentDataLineageGraph,
 } from "@react-client/api/hooks";
 import { useInitializeJsonGraph } from "@react-client/api/hooks";
 import { useState, memo, useCallback, useMemo } from "react";
@@ -119,6 +120,7 @@ export const DashboardFlex = () => {
 	const [model] = useState(() => Model.fromJson(flexLayoutJson));
 	const queryClient = useQueryClient();
 	const initializeGraphMutation = useInitializeJsonGraph();
+	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph();
 
 	const _saveGraphMutation = useSaveDataLineageGraph();
 
@@ -165,9 +167,12 @@ export const DashboardFlex = () => {
 
 	const handleManualLoad = async () => {
 		try {
-			// await refetch();
-		} catch (_error) {
-			// console.error("Ошибка при загрузке данных:", error);
+			await refetchCurrentGraph();
+			if (currentGraphId) {
+				await refetchCommitList();
+			}
+		} catch (error) {
+			console.error("Ошибка при загрузке данных:", error);
 		}
 	};
 
