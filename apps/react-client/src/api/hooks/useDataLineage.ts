@@ -51,11 +51,21 @@ export const useCurrentDataLineageGraph = () => {
 	return useQuery({
 		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 		queryFn: async () => {
-			const backendItem = await jsonDataService.getCurrent();
-			const graph = backendItem.data as DataLineageGraph;
-			setCurrentGraph(graph);
-			setCurrentGraphId(backendItem.id);
-			return graph;
+			try {
+				const backendItem = await jsonDataService.getCurrent();
+				if (!backendItem || !backendItem.data) {
+					return null;
+				}
+				const graph = backendItem.data as DataLineageGraph;
+				setCurrentGraph(graph);
+				setCurrentGraphId(backendItem.id);
+				return graph;
+			} catch (error) {
+				console.warn("No current graph available:", error);
+				setCurrentGraph(null);
+				setCurrentGraphId(null);
+				return null;
+			}
 		},
 		staleTime: 5 * 60 * 1000,
 		retry: false,
