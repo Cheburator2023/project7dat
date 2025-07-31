@@ -12,16 +12,17 @@ import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useCommitList } from "@react-client/api/hooks";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Card } from "@react-client/common/muiCustom/Card";
+import { fastStringify } from "@data-lineage/shared";
 
 const CommitItem = memo(({ commit }: { commit: any }) => {
 	const theme = useColorScheme();
 	const oldValue = useMemo(
-		() => (commit.diff ? JSON.stringify(commit.diff.left, null, 2) : ""),
+		() => (commit.diff ? fastStringify(commit.diff.left, { space: 2 }) : ""),
 		[commit.diff],
 	);
 
 	const newValue = useMemo(
-		() => (commit.diff ? JSON.stringify(commit.diff.right, null, 2) : ""),
+		() => (commit.diff ? fastStringify(commit.diff.right, { space: 2 }) : ""),
 		[commit.diff],
 	);
 

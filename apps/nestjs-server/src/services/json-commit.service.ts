@@ -7,6 +7,7 @@ import { JsonCommitEntity } from "../entities/json-commit.entity";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import { GetCommitListInput } from "../schemas/json-commit.schema";
 import { createHash } from "crypto";
+import { fastStringify, jsonCompare } from "@data-lineage/shared";
 
 @Injectable()
 export class JsonCommitService {
@@ -33,7 +34,7 @@ export class JsonCommitService {
 
 		this.jsondiffpatch = jsondiffpatchModule.default || jsondiffpatchModule;
 		this.differ = this.jsondiffpatch.create({
-			objectHash: (obj: any) => obj.id || obj.name || JSON.stringify(obj),
+			objectHash: (obj: any) => obj.id || obj.name || fastStringify(obj),
 			arrays: {
 				detectMove: true,
 				includeValueOnMove: false,
@@ -52,7 +53,7 @@ export class JsonCommitService {
 		diff: Record<string, any>,
 		timestamp: Date,
 	): string {
-		const content = JSON.stringify({
+		const content = fastStringify({
 			message,
 			diff,
 			timestamp: timestamp.toISOString(),
@@ -375,7 +376,7 @@ export class JsonCommitService {
 		const reconstructedData = await this.reconstructDataFromCommits(graphId);
 		if (!reconstructedData) return false;
 
-		return JSON.stringify(reconstructedData) === JSON.stringify(expectedData);
+		return jsonCompare(reconstructedData, expectedData);
 	}
 
 	async getCommitChainInfo(graphId: string): Promise<{
@@ -385,7 +386,7 @@ export class JsonCommitService {
 		chainSize: number;
 	}> {
 		const commits = await this.getAllCommitsForGraph(graphId);
-		const chainSize = JSON.stringify(commits).length;
+		const chainSize = fastStringify(commits).length;
 
 		return {
 			totalCommits: commits.length,

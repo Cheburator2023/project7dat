@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
+		"@data-lineage/shared": "file:../../packages/shared",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.0",
 		"@monaco-editor/react": "4.7.0",

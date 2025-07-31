@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router";
+import { safeJsonParse, fastStringify } from "@data-lineage/shared";
 
 export const usePageLocalStorage = <T = any>(
 	componentId: string,
@@ -11,7 +12,9 @@ export const usePageLocalStorage = <T = any>(
 	const getStoredValue = useCallback((): T | null => {
 		try {
 			const item = localStorage.getItem(storageKey);
-			return item ? JSON.parse(item) : (initialValue ?? null);
+			return item
+				? safeJsonParse(item, initialValue ?? null)
+				: (initialValue ?? null);
 		} catch {
 			return initialValue ?? null;
 		}
@@ -25,7 +28,7 @@ export const usePageLocalStorage = <T = any>(
 				if (value === null) {
 					localStorage.removeItem(storageKey);
 				} else {
-					localStorage.setItem(storageKey, JSON.stringify(value));
+					localStorage.setItem(storageKey, fastStringify(value));
 				}
 				setData(value);
 			} catch (error) {
