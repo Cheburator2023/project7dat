@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createApiClient } from "../api-client";
-import { GetJsonDataListInput } from "../../schemas/json-data.schema";
+import { GetJsonDataListInput } from "../../modules/json-data/schemas/json-data.schema";
 
 const apiClient = createApiClient();
 
