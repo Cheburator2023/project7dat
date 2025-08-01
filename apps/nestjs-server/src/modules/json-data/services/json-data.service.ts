@@ -9,7 +9,7 @@ import {
 	GetJsonDataListInput,
 } from "../schemas/json-data.schema";
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
-import { MemoryStorageService } from "../shared/database/memory-storage.service";
+import { MemoryStorageService } from "../../../core/shared/database/service/memory-storage.service";
 import { JsonCommitService } from "./json-commit.service";
 
 @Injectable()

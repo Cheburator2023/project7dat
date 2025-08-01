@@ -3,12 +3,12 @@ import {
 	UpdateJsonDataInput,
 	GetJsonDataListInput,
 	JsonDataResponse,
-} from "../schemas/json-data.schema";
+} from "../modules/json-data/schemas/json-data.schema";
 import {
 	CommitJsonDataInput,
 	GetCommitListInput,
 	JsonCommitWithFullDataResponse,
-} from "../schemas/json-commit.schema";
+} from "../modules/json-data/schemas/json-commit.schema";
 
 export interface JsonDataListResponse {
 	data: JsonDataResponse[];

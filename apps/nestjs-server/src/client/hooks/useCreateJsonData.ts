@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createApiClient } from "../api-client";
-import { CreateJsonDataInput } from "../../schemas/json-data.schema";
+import { CreateJsonDataInput } from "../../modules/json-data/schemas/json-data.schema";
 
 const apiClient = createApiClient();
 
