@@ -98,8 +98,7 @@ export class JsonDataService {
 
 		const result = await this.memoryStorageService.findById(id);
 		if (!result) {
-			return [];
-			// throw new NotFoundException(`График с ID ${id} не найден`);
+			throw new NotFoundException(`График с ID ${id} не найден`);
 		}
 		return result;
 	}
@@ -177,11 +176,29 @@ export class JsonDataService {
 		};
 		currentData = await this.updateGraphData(currentData.id, updateInput);
 
-		await this.jsonCommitService.createNewCommit(
-			currentData.id,
-			commitInput.message,
-			commitInput.data,
-		);
+		// Check if there are any existing commits for this graph
+		const existingCommits =
+			await this.jsonCommitService.getCommitsWithPagination({
+				page: 1,
+				limit: 1,
+				graphId: currentData.id,
+			});
+
+		if (existingCommits.total === 0) {
+			// No commits exist, create initial commit
+			await this.jsonCommitService.createInitialCommit(
+				currentData.id,
+				commitInput.message,
+				commitInput.data,
+			);
+		} else {
+			// Commits exist, create new commit
+			await this.jsonCommitService.createNewCommit(
+				currentData.id,
+				commitInput.message,
+				commitInput.data,
+			);
+		}
 
 		return currentData;
 	}

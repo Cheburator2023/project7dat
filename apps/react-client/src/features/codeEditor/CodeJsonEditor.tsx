@@ -1,11 +1,8 @@
 import React, {
-	useState,
 	useCallback,
 	useRef,
 	useEffect,
 	useLayoutEffect,
-	forwardRef,
-	useImperativeHandle,
 	memo,
 	useMemo,
 } from "react";
@@ -28,6 +25,7 @@ import { useShallow } from "zustand/react/shallow";
 import { create } from "zustand";
 import { produce } from "immer";
 import { FixedSizeList as List } from "react-window";
+import { fastParse, fastStringify, jsonClone } from "@data-lineage/shared";
 
 interface JsonEditorState {
 	focusedPath: string | null;
@@ -38,6 +36,11 @@ interface JsonEditorState {
 	searchQuery: string;
 	searchResults: string[];
 	currentSearchIndex: number;
+	jsonData: any;
+	setJsonData: (data: any) => void;
+	setJsonDataSilently: (data: any) => void;
+	onChange: ((data: any) => void) | null;
+	setOnChange: (callback: ((data: any) => void) | null) => void;
 	setFocus: (path: string | null) => void;
 	addHighlight: (path: string) => void;
 	removeHighlight: (path: string) => void;
@@ -54,9 +57,11 @@ interface JsonEditorState {
 	clearSearch: () => void;
 	goToNextResult: () => void;
 	goToPrevResult: () => void;
+	importFromFile: () => void;
+	exportToFile: () => void;
 }
 
-const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
+export const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 	focusedPath: null,
 	highlightedPaths: {},
 	expandedPaths: { "": true, address: true, hobbies: true },
@@ -65,6 +70,17 @@ const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 	searchQuery: "",
 	searchResults: [],
 	currentSearchIndex: -1,
+	jsonData: null,
+	setJsonData: (data) => {
+		set({ jsonData: data });
+		const { onChange } = get();
+		onChange?.(data);
+	},
+	setJsonDataSilently: (data) => {
+		set({ jsonData: data });
+	},
+	onChange: null,
+	setOnChange: (callback) => set({ onChange: callback }),
 	setFocus: (path) => set({ focusedPath: path }),
 	addHighlight: (path) =>
 		set(
@@ -140,6 +156,45 @@ const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 					: currentSearchIndex - 1;
 			set({ currentSearchIndex: prevIndex });
 		}
+	},
+	importFromFile: () => {
+		const { setJsonData, expandAll } = get();
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = ".json";
+		input.onchange = (event) => {
+			const file = (event.target as HTMLInputElement).files?.[0];
+			if (file) {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					try {
+						const content = e.target?.result as string;
+						const parsedData = fastParse(content);
+						setJsonData(parsedData);
+						expandAll(parsedData);
+					} catch (error) {
+						console.error("Ошибка при парсинге JSON:", error);
+						alert("Ошибка при загрузке файла. Проверьте формат JSON.");
+					}
+				};
+				reader.readAsText(file);
+			}
+		};
+		input.click();
+	},
+	exportToFile: () => {
+		const { jsonData } = get();
+		const dataStr = fastStringify(jsonData, { space: 2 });
+		const dataBlob = new Blob([dataStr], { type: "application/json" });
+		const url = URL.createObjectURL(dataBlob);
+
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = `json-export-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
 	},
 }));
 
@@ -517,12 +572,10 @@ const SearchResults = styled(Typography)(({ theme }) => ({
 
 const Container = styled(Box)(({ theme }) => ({
 	fontFamily: 'Monaco, "Lucida Console", monospace',
-	fontSize: "14px",
-	border: `1px solid ${theme.palette.divider}`,
-	borderRadius: theme.shape.borderRadius,
 	overflow: "hidden",
 	display: "flex",
 	flexDirection: "column",
+	zoom: 0.8,
 }));
 
 const JsonLine = styled(Box, {
@@ -1177,442 +1230,370 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 interface CodeJsonEditorProps {
 	initialData?: any;
 	onChange?: (data: any) => void;
+	isInitializing?: boolean;
 }
 
-interface CodeJsonEditorRef {
-	focusPath: (path: string) => void;
-	highlightPath: (path: string) => void;
-	unhighlightPath: (path: string) => void;
-	clearAllHighlights: () => void;
-	getData: () => any;
-	setData: (data: any) => void;
-	importFromFile: () => void;
-	exportToFile: () => void;
-}
-
-export type { CodeJsonEditorRef };
-
-export const CodeJsonEditor = forwardRef<
-	CodeJsonEditorRef,
-	CodeJsonEditorProps
->(
-	(
-		{
-			initialData = {
-				name: "Пример",
-				age: 25,
-				price: 99.99,
-				active: true,
-				verified: false,
-				description: null,
-				metadata: undefined,
-				address: {
-					city: "Москва",
-					country: "Россия",
-					zipCode: null,
-				},
-				hobbies: ["чтение", "программирование"],
-				scores: [85, 92, 78],
-				settings: {
-					theme: "dark",
-					notifications: true,
-					autoSave: false,
-					maxRetries: 3,
-				},
-			},
-			onChange,
+export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
+	initialData = {
+		name: "Пример",
+		age: 25,
+		price: 99.99,
+		active: true,
+		verified: false,
+		description: null,
+		metadata: undefined,
+		address: {
+			city: "Москва",
+			country: "Россия",
+			zipCode: null,
 		},
-		ref,
-	) => {
-		const { mode } = useColorScheme();
-		const [jsonData, setJsonData] = useState(initialData);
-		const containerRef = useRef<HTMLDivElement>(null);
-		const listRef = useRef<List>(null);
-		const isUpdatingFromStore = useRef(false);
+		hobbies: ["чтение", "программирование"],
+		scores: [85, 92, 78],
+		settings: {
+			theme: "dark",
+			notifications: true,
+			autoSave: false,
+			maxRetries: 3,
+		},
+	},
+	onChange,
+	isInitializing = false,
+}) => {
+	const { mode } = useColorScheme();
+	const containerRef = useRef<HTMLDivElement>(null);
+	const listRef = useRef<List>(null);
+	const isUpdatingFromStore = useRef(false);
 
-		const {
-			focusedPath,
-			highlightedPaths,
-			expandedPaths,
-			setFocus,
-			addHighlight,
-			removeHighlight,
-			clearHighlights,
-			toggleExpanded,
-			setExpanded,
-			expandAll,
-			searchResults,
-			currentSearchIndex,
-		} = useJsonEditorStore();
+	const {
+		focusedPath,
+		highlightedPaths,
+		expandedPaths,
+		jsonData,
+		setJsonData,
+		setJsonDataSilently,
+		setOnChange,
+		setFocus,
+		addHighlight,
+		removeHighlight,
+		clearHighlights,
+		toggleExpanded,
+		setExpanded,
+		expandAll,
+		searchResults,
+		currentSearchIndex,
+	} = useJsonEditorStore();
 
-		const {
-			revealPosition,
-			isNeedReveal,
-			currentGraph,
-			hasUnsavedChanges,
-			selectedNodes,
-			selectNode,
-			setRevealPosition,
-			updateNode,
-			markAsChanged,
-		} = useDataLineageStore(
-			useShallow((state) => ({
-				revealPosition: state.revealPosition,
-				isNeedReveal: state.isNeedReveal,
-				currentGraph: state.currentGraph,
-				hasUnsavedChanges: state.hasUnsavedChanges,
-				selectedNodes: state.selectedNodes,
-				selectNode: state.selectNode,
-				setRevealPosition: state.setRevealPosition,
-				updateNode: state.updateNode,
-				markAsChanged: state.markAsChanged,
-			})),
-		);
+	// Initialize store data and onChange callback
+	useEffect(() => {
+		if (initialData && !jsonData) {
+			setJsonDataSilently(initialData);
+		}
+		setOnChange(onChange || null);
+	}, [initialData, jsonData, setJsonDataSilently, onChange, setOnChange]);
 
-		const changedPaths = useMemo(() => {
-			// По умолчанию разрешаем редактирование всех полей
-			return new Set(["*"]);
-		}, []);
+	const {
+		revealPosition,
+		isNeedReveal,
+		currentGraph,
+		hasUnsavedChanges,
+		selectedNodes,
+		selectNode,
+		setRevealPosition,
+		updateNode,
+		markAsChanged,
+	} = useDataLineageStore(
+		useShallow((state) => ({
+			revealPosition: state.revealPosition,
+			isNeedReveal: state.isNeedReveal,
+			currentGraph: state.currentGraph,
+			hasUnsavedChanges: state.hasUnsavedChanges,
+			selectedNodes: state.selectedNodes,
+			selectNode: state.selectNode,
+			setRevealPosition: state.setRevealPosition,
+			updateNode: state.updateNode,
+			markAsChanged: state.markAsChanged,
+		})),
+	);
 
-		const flatNodes = useMemo(() => {
-			return flattenJsonData(jsonData, expandedPaths);
-		}, [jsonData, expandedPaths]);
+	const changedPaths = useMemo(() => {
+		// По умолчанию разрешаем редактирование всех полей
+		return new Set(["*"]);
+	}, []);
 
-		// Автоматическая прокрутка к текущему результату поиска
-		useEffect(() => {
-			if (searchResults.length > 0 && currentSearchIndex >= 0) {
-				const currentPath = searchResults[currentSearchIndex];
-				const nodeIndex = flatNodes.findIndex(
-					(node) => node.path === currentPath,
+	const flatNodes = useMemo(() => {
+		return flattenJsonData(jsonData, expandedPaths);
+	}, [jsonData, expandedPaths]);
+
+	// Автоматическая прокрутка к текущему результату поиска
+	useEffect(() => {
+		if (searchResults.length > 0 && currentSearchIndex >= 0) {
+			const currentPath = searchResults[currentSearchIndex];
+			const nodeIndex = flatNodes.findIndex(
+				(node) => node.path === currentPath,
+			);
+			if (nodeIndex >= 0 && listRef.current) {
+				listRef.current.scrollToItem(nodeIndex, "center");
+			}
+		}
+	}, [searchResults, currentSearchIndex, flatNodes]);
+
+	useEffect(() => {
+		if (initialData) {
+			isUpdatingFromStore.current = true;
+			setJsonData(initialData);
+			expandAll(initialData);
+			isUpdatingFromStore.current = false;
+		}
+	}, [initialData, expandAll]);
+
+	useEffect(() => {
+		if (currentGraph && !isUpdatingFromStore.current) {
+			isUpdatingFromStore.current = true;
+			setJsonData(currentGraph);
+			expandAll(currentGraph);
+			isUpdatingFromStore.current = false;
+		}
+	}, [currentGraph, expandAll]);
+
+	useEffect(() => {
+		if (selectedNodes.length > 0 && currentGraph) {
+			clearHighlights();
+			selectedNodes.forEach((nodeId) => {
+				const entityIndex = currentGraph.entities.findIndex(
+					(e) => e.id === nodeId,
 				);
-				if (nodeIndex >= 0 && listRef.current) {
-					listRef.current.scrollToItem(nodeIndex, "center");
+				if (entityIndex >= 0) {
+					const entityPath = `.entities.${entityIndex}`;
+					addHighlight(entityPath);
 				}
+			});
+		} else {
+			clearHighlights();
+		}
+	}, [selectedNodes, currentGraph, addHighlight, clearHighlights]);
+
+	const updateValue = useCallback(
+		(path: string, value: any) => {
+			// Сохраняем текущую позицию скролла
+			const currentScrollOffset =
+				(listRef.current as any)?._outerRef?.scrollTop || 0;
+
+			const pathParts = path.split(".").filter(Boolean);
+
+			// Создаем глубокую копию данных для безопасного изменения
+			const newData = jsonClone(jsonData);
+
+			// Навигируем по пути и обновляем значение
+			let current = newData;
+			for (let i = 0; i < pathParts.length - 1; i++) {
+				const part = pathParts[i];
+				current = current[part];
 			}
-		}, [searchResults, currentSearchIndex, flatNodes]);
+			const lastPart = pathParts[pathParts.length - 1];
+			current[lastPart] = value;
 
-		useEffect(() => {
-			if (initialData) {
-				isUpdatingFromStore.current = true;
-				setJsonData(initialData);
-				expandAll(initialData);
-				isUpdatingFromStore.current = false;
+			flushSync(() => {
+				setJsonData(newData);
+			});
+
+			if (!isUpdatingFromStore.current) {
+				onChange?.(newData);
 			}
-		}, [initialData, expandAll]);
 
-		useEffect(() => {
-			if (currentGraph && !isUpdatingFromStore.current) {
-				isUpdatingFromStore.current = true;
-				setJsonData(currentGraph);
-				expandAll(currentGraph);
-				isUpdatingFromStore.current = false;
-			}
-		}, [currentGraph, expandAll]);
+			// Обновляем store если изменяется сущность графа
+			if (
+				pathParts[0] === "entities" &&
+				pathParts[1] !== undefined &&
+				currentGraph
+			) {
+				const entityIndex = Number.parseInt(pathParts[1], 10);
+				const entity = currentGraph.entities[entityIndex];
 
-		useEffect(() => {
-			if (selectedNodes.length > 0 && currentGraph) {
-				clearHighlights();
-				selectedNodes.forEach((nodeId) => {
-					const entityIndex = currentGraph.entities.findIndex(
-						(e) => e.id === nodeId,
-					);
-					if (entityIndex >= 0) {
-						const entityPath = `.entities.${entityIndex}`;
-						addHighlight(entityPath);
-					}
-				});
-			} else {
-				clearHighlights();
-			}
-		}, [selectedNodes, currentGraph, addHighlight, clearHighlights]);
-
-		const updateValue = useCallback(
-			(path: string, value: any) => {
-				// Сохраняем текущую позицию скролла
-				const currentScrollOffset =
-					(listRef.current as any)?._outerRef?.scrollTop || 0;
-
-				const pathParts = path.split(".").filter(Boolean);
-
-				// Создаем глубокую копию данных для безопасного изменения
-				const newData = JSON.parse(JSON.stringify(jsonData));
-
-				// Навигируем по пути и обновляем значение
-				let current = newData;
-				for (let i = 0; i < pathParts.length - 1; i++) {
-					const part = pathParts[i];
-					current = current[part];
-				}
-				const lastPart = pathParts[pathParts.length - 1];
-				current[lastPart] = value;
-
-				flushSync(() => {
-					setJsonData(newData);
-				});
-
-				if (!isUpdatingFromStore.current) {
-					onChange?.(newData);
-				}
-
-				// Обновляем store если изменяется сущность графа
-				if (
-					pathParts[0] === "entities" &&
-					pathParts[1] !== undefined &&
-					currentGraph
-				) {
-					const entityIndex = Number.parseInt(pathParts[1], 10);
-					const entity = currentGraph.entities[entityIndex];
-
-					if (entity) {
-						// Для новой схемы данных мы просто помечаем как измененные
-						// так как структура DataLineageEntity отличается от DataLineageNode
+				if (entity) {
+					// Для новой схемы данных мы просто помечаем как измененные
+					// так как структура DataLineageEntity отличается от DataLineageNode
+					if (!isInitializing) {
 						markAsChanged();
 					}
-				} else {
-					// Для всех остальных изменений также помечаем как измененные
+				}
+			} else {
+				// Для всех остальных изменений также помечаем как измененные
+				if (!isInitializing) {
 					markAsChanged();
 				}
+			}
 
-				// Восстанавливаем позицию скролла после обновления
+			// Восстанавливаем позицию скролла после обновления
+			setTimeout(() => {
+				if (listRef.current && typeof currentScrollOffset === "number") {
+					(listRef.current as any)?._outerRef?.scrollTo(0, currentScrollOffset);
+				}
+			}, 0);
+		},
+		[jsonData, onChange, currentGraph, updateNode, markAsChanged],
+	);
+
+	const handleNodeClick = useCallback(
+		(path: string) => {
+			const pathParts = path.split(".").filter(Boolean);
+			if (pathParts[0] === "entities" && pathParts[1] !== undefined) {
+				const entityIndex = Number.parseInt(pathParts[1], 10);
+				const entity = currentGraph?.entities[entityIndex];
+				if (entity) {
+					selectNode(entity.id);
+					setRevealPosition({ nodeId: entity.id, from: "editor" });
+				}
+			}
+		},
+		[currentGraph, selectNode, setRevealPosition],
+	);
+
+	const focusPath = useCallback(
+		(path: string) => {
+			setFocus(path);
+
+			// Убираем ведущую точку для поиска в flatNodes
+			const searchPath = path.startsWith(".") ? path.slice(1) : path;
+			const nodeIndex = flatNodes.findIndex((node) => node.path === searchPath);
+
+			if (nodeIndex < 0) {
+				// Если точный путь не найден, попробуем найти первый дочерний элемент
+				const childPath = `${searchPath}.`;
+				const childIndex = flatNodes.findIndex((node) =>
+					node.path.startsWith(childPath),
+				);
+
+				if (childIndex >= 0) {
+					listRef.current?.scrollToItem(childIndex, "center");
+					return;
+				}
+			}
+
+			if (nodeIndex >= 0 && listRef.current) {
+				listRef.current.scrollToItem(nodeIndex, "center");
+			}
+		},
+		[setFocus, flatNodes],
+	);
+
+	useLayoutEffect(() => {
+		if (revealPosition?.nodeId && currentGraph) {
+			const entityIndex = currentGraph.entities.findIndex(
+				(e) => e.id === revealPosition.nodeId,
+			);
+
+			if (entityIndex >= 0) {
+				const entityPath = `.entities.${entityIndex}`;
+
+				// Раскрываем родительские пути
+				const pathParts = entityPath.split(".").filter(Boolean);
+				let currentPath = "";
+				for (const part of pathParts) {
+					currentPath = currentPath ? `${currentPath}.${part}` : part;
+					setExpanded(currentPath, true);
+				}
+			}
+		}
+	}, [isNeedReveal, revealPosition, currentGraph, setExpanded]);
+
+	useLayoutEffect(() => {
+		if (isNeedReveal("editor") && revealPosition?.nodeId && currentGraph) {
+			const entityIndex = currentGraph.entities.findIndex(
+				(e) => e.id === revealPosition.nodeId,
+			);
+
+			if (entityIndex >= 0) {
+				const entityPath = `.entities.${entityIndex}`;
+
+				// Добавляем небольшую задержку, чтобы узел успел развернуться
 				setTimeout(() => {
-					if (listRef.current && typeof currentScrollOffset === "number") {
-						(listRef.current as any)?._outerRef?.scrollTo(
-							0,
-							currentScrollOffset,
-						);
-					}
-				}, 0);
-			},
-			[jsonData, onChange, currentGraph, updateNode, markAsChanged],
-		);
-
-		const handleNodeClick = useCallback(
-			(path: string) => {
-				const pathParts = path.split(".").filter(Boolean);
-				if (pathParts[0] === "entities" && pathParts[1] !== undefined) {
-					const entityIndex = Number.parseInt(pathParts[1], 10);
-					const entity = currentGraph?.entities[entityIndex];
-					if (entity) {
-						selectNode(entity.id);
-						setRevealPosition({ nodeId: entity.id, from: "editor" });
-					}
-				}
-			},
-			[currentGraph, selectNode, setRevealPosition],
-		);
-
-		const focusPath = useCallback(
-			(path: string) => {
-				setFocus(path);
-
-				// Убираем ведущую точку для поиска в flatNodes
-				const searchPath = path.startsWith(".") ? path.slice(1) : path;
-				const nodeIndex = flatNodes.findIndex(
-					(node) => node.path === searchPath,
-				);
-
-				if (nodeIndex < 0) {
-					// Если точный путь не найден, попробуем найти первый дочерний элемент
-					const childPath = `${searchPath}.`;
-					const childIndex = flatNodes.findIndex((node) =>
-						node.path.startsWith(childPath),
-					);
-
-					if (childIndex >= 0) {
-						listRef.current?.scrollToItem(childIndex, "center");
-						return;
-					}
-				}
-
-				if (nodeIndex >= 0 && listRef.current) {
-					listRef.current.scrollToItem(nodeIndex, "center");
-				}
-			},
-			[setFocus, flatNodes],
-		);
-
-		useLayoutEffect(() => {
-			if (revealPosition?.nodeId && currentGraph) {
-				const entityIndex = currentGraph.entities.findIndex(
-					(e) => e.id === revealPosition.nodeId,
-				);
-
-				if (entityIndex >= 0) {
-					const entityPath = `.entities.${entityIndex}`;
-
-					// Раскрываем родительские пути
-					const pathParts = entityPath.split(".").filter(Boolean);
-					let currentPath = "";
-					for (const part of pathParts) {
-						currentPath = currentPath ? `${currentPath}.${part}` : part;
-						setExpanded(currentPath, true);
-					}
-				}
+					focusPath(entityPath);
+				}, 100);
 			}
-		}, [isNeedReveal, revealPosition, currentGraph, setExpanded]);
+		}
+	}, [isNeedReveal, revealPosition, currentGraph, focusPath]);
 
-		useLayoutEffect(() => {
-			if (isNeedReveal("editor") && revealPosition?.nodeId && currentGraph) {
-				const entityIndex = currentGraph.entities.findIndex(
-					(e) => e.id === revealPosition.nodeId,
-				);
+	const _highlightPath = useCallback(
+		(path: string) => {
+			addHighlight(path);
+		},
+		[addHighlight],
+	);
 
-				if (entityIndex >= 0) {
-					const entityPath = `.entities.${entityIndex}`;
+	const _unhighlightPath = useCallback(
+		(path: string) => {
+			removeHighlight(path);
+		},
+		[removeHighlight],
+	);
 
-					// Добавляем небольшую задержку, чтобы узел успел развернуться
-					setTimeout(() => {
-						focusPath(entityPath);
-					}, 100);
-				}
-			}
-		}, [isNeedReveal, revealPosition, currentGraph, focusPath]);
+	const _clearAllHighlights = useCallback(() => {
+		clearHighlights();
+	}, [clearHighlights]);
 
-		const highlightPath = useCallback(
-			(path: string) => {
-				addHighlight(path);
-			},
-			[addHighlight],
-		);
+	const lineNumberMap = useMemo(() => {
+		const map = new Map<string, number>();
+		flatNodes.forEach((node, index) => {
+			map.set(node.path, index + 1);
+		});
+		return map;
+	}, [flatNodes]);
 
-		const unhighlightPath = useCallback(
-			(path: string) => {
-				removeHighlight(path);
-			},
-			[removeHighlight],
-		);
+	const renderRow = useCallback(
+		({ index, style }: { index: number; style: React.CSSProperties }) => {
+			const node = flatNodes[index];
+			if (!node) return null;
 
-		const clearAllHighlights = useCallback(() => {
-			clearHighlights();
-		}, [clearHighlights]);
+			const isHighlighted = Boolean(highlightedPaths[node.path]);
+			const isFocused = focusedPath === node.path;
+			const lineNumber = lineNumberMap.get(node.path) || index + 1;
 
-		const importFromFile = useCallback(() => {
-			const input = document.createElement("input");
-			input.type = "file";
-			input.accept = ".json";
-			input.onchange = (event) => {
-				const file = (event.target as HTMLInputElement).files?.[0];
-				if (file) {
-					const reader = new FileReader();
-					reader.onload = (e) => {
-						try {
-							const content = e.target?.result as string;
-							const parsedData = JSON.parse(content);
-							setJsonData(parsedData);
-							expandAll(parsedData);
-							onChange?.(parsedData);
-						} catch (error) {
-							console.error("Ошибка при парсинге JSON:", error);
-							alert("Ошибка при загрузке файла. Проверьте формат JSON.");
-						}
-					};
-					reader.readAsText(file);
-				}
-			};
-			input.click();
-		}, [setJsonData, expandAll, onChange]);
+			return (
+				<div style={style} data-test-id={`json-row-${index}`}>
+					<JsonNodeComponent
+						node={node}
+						lineNumber={lineNumber}
+						onUpdate={updateValue}
+						onToggleExpand={toggleExpanded}
+						isHighlighted={isHighlighted}
+						isFocused={isFocused}
+						onNodeClick={handleNodeClick}
+						isDark={mode === "dark"}
+						selectedNodes={selectedNodes}
+						currentGraph={currentGraph}
+						changedPaths={changedPaths}
+					/>
+				</div>
+			);
+		},
+		[
+			flatNodes,
+			highlightedPaths,
+			focusedPath,
+			updateValue,
+			toggleExpanded,
+			handleNodeClick,
+			mode,
+			selectedNodes,
+			currentGraph,
+			lineNumberMap,
+			changedPaths,
+		],
+	);
 
-		const exportToFile = useCallback(() => {
-			const dataStr = JSON.stringify(jsonData, null, 2);
-			const dataBlob = new Blob([dataStr], { type: "application/json" });
-			const url = URL.createObjectURL(dataBlob);
-
-			const link = document.createElement("a");
-			link.href = url;
-			link.download = `json-export-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
-			URL.revokeObjectURL(url);
-		}, [jsonData]);
-
-		useImperativeHandle(
-			ref,
-			() => ({
-				focusPath,
-				highlightPath,
-				unhighlightPath,
-				clearAllHighlights,
-				getData: () => jsonData,
-				setData: setJsonData,
-				importFromFile,
-				exportToFile,
-			}),
-			[
-				focusPath,
-				highlightPath,
-				unhighlightPath,
-				clearAllHighlights,
-				jsonData,
-				importFromFile,
-				exportToFile,
-			],
-		);
-
-		const lineNumberMap = useMemo(() => {
-			const map = new Map<string, number>();
-			flatNodes.forEach((node, index) => {
-				map.set(node.path, index + 1);
-			});
-			return map;
-		}, [flatNodes]);
-
-		const renderRow = useCallback(
-			({ index, style }: { index: number; style: React.CSSProperties }) => {
-				const node = flatNodes[index];
-				if (!node) return null;
-
-				const isHighlighted = Boolean(highlightedPaths[node.path]);
-				const isFocused = focusedPath === node.path;
-				const lineNumber = lineNumberMap.get(node.path) || index + 1;
-
-				return (
-					<div style={style} data-test-id={`json-row-${index}`}>
-						<JsonNodeComponent
-							node={node}
-							lineNumber={lineNumber}
-							onUpdate={updateValue}
-							onToggleExpand={toggleExpanded}
-							isHighlighted={isHighlighted}
-							isFocused={isFocused}
-							onNodeClick={handleNodeClick}
-							isDark={mode === "dark"}
-							selectedNodes={selectedNodes}
-							currentGraph={currentGraph}
-							changedPaths={changedPaths}
-						/>
-					</div>
-				);
-			},
-			[
-				flatNodes,
-				highlightedPaths,
-				focusedPath,
-				updateValue,
-				toggleExpanded,
-				handleNodeClick,
-				mode,
-				selectedNodes,
-				currentGraph,
-				lineNumberMap,
-				changedPaths,
-			],
-		);
-
-		return (
-			<Container ref={containerRef} data-test-id="json-editor-container">
-				<JsonSearchBar data={jsonData} />
-				<List
-					ref={listRef}
-					height={700}
-					itemCount={flatNodes.length}
-					itemSize={32}
-					width="100%"
-					data-test-id="json-editor-list"
-				>
-					{renderRow}
-				</List>
-			</Container>
-		);
-	},
-);
+	return (
+		<Container ref={containerRef} data-test-id="json-editor-container">
+			<JsonSearchBar data={jsonData} />
+			<List
+				ref={listRef}
+				height={700}
+				itemCount={flatNodes.length}
+				itemSize={32}
+				width="100%"
+				data-test-id="json-editor-list"
+			>
+				{renderRow}
+			</List>
+		</Container>
+	);
+};

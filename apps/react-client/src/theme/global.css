@@ -482,6 +482,14 @@ body {
 	animation: slideDown 300ms ease-out;
 }
 
+.dark .react-flow__background {
+	background: #0c1017;
+}
+
+.light .react-flow__background {
+	background: white;
+}
+
 @keyframes slideDown {
 	from {
 		height: 0;

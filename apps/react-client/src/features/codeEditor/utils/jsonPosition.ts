@@ -1,9 +1,15 @@
 import type { DataLineageGraph } from "@react-client/types/dataLineage";
+import { fastStringify } from "@data-lineage/shared";
 
 export interface Position {
 	line: number;
 	column: number;
 }
+
+// Cache for position lookups to avoid expensive re-computations
+const positionCache = new Map<string, Position | null>();
+let lastJsonText = "";
+let lastGraphVersion = "";
 
 export function findNodePositionInJson(
 	jsonText: string,
@@ -12,32 +18,67 @@ export function findNodePositionInJson(
 ): Position | null {
 	if (!graph || !nodeId) return null;
 
-	const entity = graph.entities.find((e) => e.id === nodeId);
-	if (!entity) return null;
+	// Create a cache key based on graph content and nodeId
+	const graphVersion = fastStringify(
+		graph.entities.map((e) => ({ id: e.id, name: e.name })),
+	);
+	const cacheKey = `${nodeId}-${graphVersion}`;
 
+	// Clear cache if JSON text or graph has changed significantly
+	if (jsonText !== lastJsonText || graphVersion !== lastGraphVersion) {
+		positionCache.clear();
+		lastJsonText = jsonText;
+		lastGraphVersion = graphVersion;
+	}
+
+	// Return cached result if available
+	if (positionCache.has(cacheKey)) {
+		return positionCache.get(cacheKey) || null;
+	}
+
+	const entity = graph.entities.find((e) => e.id === nodeId);
+	if (!entity) {
+		positionCache.set(cacheKey, null);
+		return null;
+	}
+
+	// Use more efficient search with regex
+	const idPattern = new RegExp(
+		`"id"\\s*:\\s*"${nodeId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`,
+		"g",
+	);
 	const lines = jsonText.split("\n");
-	const _currentLine = 0;
 
 	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-
-		if (line.includes(`"id": "${nodeId}"`)) {
-			return { line: i + 1, column: 1 };
+		if (idPattern.test(lines[i])) {
+			const position = { line: i + 1, column: 1 };
+			positionCache.set(cacheKey, position);
+			return position;
 		}
+	}
 
-		if (line.includes(`"name": "${entity.name}"`)) {
+	// Fallback to name-based search with limited scope
+	const namePattern = new RegExp(
+		`"name"\\s*:\\s*"${entity?.name?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`,
+	);
+	for (let i = 0; i < lines.length; i++) {
+		if (namePattern.test(lines[i])) {
+			// Search in a smaller window around the name match
 			for (
-				let j = Math.max(0, i - 10);
-				j <= Math.min(lines.length - 1, i + 10);
+				let j = Math.max(0, i - 5);
+				j <= Math.min(lines.length - 1, i + 5);
 				j++
 			) {
-				if (lines[j].includes(`"id": "${nodeId}"`)) {
-					return { line: j + 1, column: 1 };
+				if (idPattern.test(lines[j])) {
+					const position = { line: j + 1, column: 1 };
+					positionCache.set(cacheKey, position);
+					return position;
 				}
 			}
 		}
 	}
 
+	positionCache.set(cacheKey, null);
 	return null;
 }
 

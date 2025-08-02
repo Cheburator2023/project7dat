@@ -10,7 +10,9 @@
 		"dev": {
 			"dependsOn": [],
 			"persistent": true,
-			"cache": false
+			"cache": false,
+			"passThroughEnv": ["NODE_ENV"],
+			"env": ["NODE_ENV"]
 		},
 		"build": {
 			"dependsOn": ["^build"],
