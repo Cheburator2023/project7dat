@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { DataLineageSchema } from "@data-lineage/shared-schemas";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
 
@@ -16,22 +17,25 @@ export const jsonCommitApi = axios.create({
 	},
 });
 
+// Use shared schema types
 export interface JsonDataItem {
 	id: string;
 	name: string;
-	data: Record<string, any>;
+	data: DataLineageSchema;
 	description?: string;
 	createdAt: string;
 	updatedAt: string;
 }
 
 export interface CreateJsonDataRequest {
-	data: Record<string, any>;
+	data: DataLineageSchema;
+	name?: string;
+	description?: string;
 }
 
 export interface UpdateJsonDataRequest {
 	name?: string;
-	data?: Record<string, any>;
+	data?: DataLineageSchema;
 	description?: string;
 }
 

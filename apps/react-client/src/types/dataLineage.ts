@@ -1,21 +1,28 @@
+// Re-export shared schema types for frontend usage
+export type {
+	DataLineageSchema,
+	DataLineageEntity,
+	DataLineageAttribute,
+	DataLineageMapping,
+	DataLineageDependency,
+	DataLineageAttributeMapping,
+	DataLineageAttributeDependency,
+	DataLineageAppDescription,
+	DataLineageLinkType,
+	DataLineageEntityType,
+} from "@data-lineage/shared-schemas";
+
+export {
+	dataLineageSchema,
+	dataLineageJsonSchema,
+	isDataLineageSchema,
+	isDataLineageEntity,
+} from "@data-lineage/shared-schemas";
+
+// Legacy interfaces - keeping for backward compatibility
 export interface DataLineageDescription {
 	appId: string;
 	appName: string;
-}
-
-export interface DataLineageAttribute {
-	name: string;
-	type: string;
-	comment?: string;
-}
-
-export interface DataLineageEntity {
-	id: string;
-	modified: boolean;
-	type: "table" | "view";
-	namespace?: string;
-	name: string;
-	attrSeq?: DataLineageAttribute[];
 }
 
 export interface AttributeMapping {
@@ -25,7 +32,7 @@ export interface AttributeMapping {
 
 export interface AttributeDependency {
 	attr: string;
-	linktypes?: ("window" | "join" | "where" | "groupby")[];
+	linkTypes?: ("window" | "join" | "where" | "groupby")[];
 }
 
 export interface EntityDependency {
@@ -34,22 +41,15 @@ export interface EntityDependency {
 	atrDeps?: AttributeDependency[];
 }
 
-export interface DataLineageMapping {
-	id: number;
-	entityId: string;
-	deps?: EntityDependency[];
-	unmatched?: unknown[];
-}
+// Import the shared schema types
+import type { DataLineageSchema } from "@data-lineage/shared-schemas";
 
-export interface DataLineageGraph {
-	desc: DataLineageDescription;
-	entities: DataLineageEntity[];
-	mappings: DataLineageMapping[];
-}
+// Frontend-specific graph interface that extends the shared schema
+export interface DataLineageGraph extends DataLineageSchema {}
 
 export interface DataLineageNode {
 	id: string;
-	name: string;
+	name: string | null;
 	type:
 		| "source"
 		| "transformation"
@@ -120,22 +120,6 @@ export interface ForeignKey {
 	fields: string[];
 	referencedTable: string;
 	referencedFields: string[];
-}
-
-export interface LegacyDataLineageGraph {
-	id: string;
-	name: string;
-	description?: string;
-	version: string;
-	created: string;
-	updated: string;
-	nodes: DataLineageNode[];
-	edges: DataLineageEdge[];
-	metadata: {
-		author: string;
-		environment: "development" | "staging" | "production";
-		tags: string[];
-	};
 }
 
 export interface DataLineageFilter {

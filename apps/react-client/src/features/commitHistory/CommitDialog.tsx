@@ -12,6 +12,7 @@ import {
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Spacer } from "@react-client/common/primitives/Spacer";
+import { fastStringify } from "@data-lineage/shared";
 
 interface CommitDialogProps {
 	open: boolean;
@@ -55,8 +56,8 @@ export const CommitDialog: React.FC<CommitDialogProps> = ({
 					<>
 						<Box sx={{ maxHeight: 400, overflow: "auto" }}>
 							<ReactDiffViewer
-								oldValue={JSON.stringify(originalGraph, null, 2)}
-								newValue={JSON.stringify(currentGraph, null, 2)}
+								oldValue={fastStringify(originalGraph, { space: 2 })}
+								newValue={fastStringify(currentGraph, { space: 2 })}
 								splitView={true}
 								compareMethod={DiffMethod.CHARS}
 								useDarkTheme={mode === "dark"}
