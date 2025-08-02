@@ -1,21 +1,10 @@
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
-import {
-	FastifyAdapter,
-	NestFastifyApplication,
-} from "@nestjs/platform-fastify";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
-import { AppModule } from "./app.module";
-import { HttpExceptionFilter } from "./filters/http-exception.filter";
+import { AppModule } from "./app/app.module";
 
 async function bootstrap() {
-	const app = await NestFactory.create<NestFastifyApplication>(
-		AppModule,
-		new FastifyAdapter({
-			bodyLimit: 52428800, // 50MB
-			logger: true,
-		}),
-	);
+	const app = await NestFactory.create(AppModule.forRoot());
 
 	app.enableCors({
 		origin: "*",
@@ -38,8 +27,6 @@ async function bootstrap() {
 		}),
 	);
 
-	app.useGlobalFilters(new HttpExceptionFilter());
-
 	const config = new DocumentBuilder()
 		.setTitle("Data Lineage API")
 		.setDescription("API для управления графами линейности данных")
@@ -52,7 +39,7 @@ async function bootstrap() {
 	SwaggerModule.setup("api/docs", app as any, document);
 
 	const port = process.env.PORT || 3000;
-	await app.listen({ port: Number(port), host: "0.0.0.0" });
+	await app.listen(port);
 	console.log(`🚀 Сервер запущен на http://localhost:${port}`);
 	console.log("📚 API эндпоинты доступны по адресу /api/json-data");
 	console.log(

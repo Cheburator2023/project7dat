@@ -14,6 +14,10 @@ interface JsonDataRecord {
 export class MemoryStorageService {
 	private storage: Map<string, JsonDataRecord> = new Map();
 
+	clear(): void {
+		this.storage.clear();
+	}
+
 	async create(
 		name: string,
 		data: any,
@@ -69,13 +73,5 @@ export class MemoryStorageService {
 
 	async delete(id: string): Promise<boolean> {
 		return this.storage.delete(id);
-	}
-
-	async query(_sql: string, _params: any[] = []): Promise<any[]> {
-		return [];
-	}
-
-	async exec(_sql: string): Promise<void> {
-		return;
 	}
 }
