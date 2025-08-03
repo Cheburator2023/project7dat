@@ -5,34 +5,23 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JsonDataModule } from 'src/modules/json-data/json-data.module';
 import { SharedModule } from 'src/core/shared/shared.module';
+import databaseConfig from 'src/core/config/database.config';
 
 @Module({})
 export class AppModule {
 	static forRoot(): DynamicModule {
-		const configService = new ConfigService();
-		const isProduction = configService.get('NODE_ENV') === 'production';
-
 		const imports = [
 			SharedModule.forRoot(),
 			JsonDataModule.forRoot(),
 			ConfigModule.forRoot(),
 		];
 
-		if (isProduction) {
+		const configService = new ConfigService();
+		if (configService.get('app.isProduction')) {
 			imports.push(
 				TypeOrmModule.forRootAsync({
 					imports: [SharedModule],
-					useFactory: async () => ({
-						type: 'postgres',
-						host: configService.get('DB_HOST'),
-						port: configService.get('DB_PORT'),
-						username: configService.get('DB_USERNAME'),
-						password: configService.get('DB_PASSWORD'),
-						database: configService.get('DB_NAME'),
-						entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-						synchronize: configService.get('DB_SYNCHRONIZE') === 'true',
-						logging: configService.get('DB_LOGGING') === 'true',
-					}),
+					useFactory: async () => databaseConfig(),
 				})
 			);
 		}
