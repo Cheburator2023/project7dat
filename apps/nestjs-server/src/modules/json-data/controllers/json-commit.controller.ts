@@ -27,85 +27,6 @@ export class JsonCommitController {
 		private readonly jsonCommitService: JsonCommitService,
 	) {}
 
-	private extractUserFromHeaders(headers: Record<string, string>) {
-		const userId = headers["x-user-id"];
-		const userName = headers["x-user-name"];
-		const userEmail = headers["x-user-email"];
-
-		if (userId && userName && userEmail) {
-			return {
-				id: userId,
-				username: userName,
-				email: userEmail,
-			};
-		}
-
-		// Fallback to fake user for development
-		return {
-			id: "system-user",
-			username: "system",
-			email: "system@localhost",
-		};
-	}
-
-	private extractDiffSlices(
-		diff: Record<string, any>,
-		_fullData: Record<string, any>,
-	): { left: Record<string, any>; right: Record<string, any> } {
-		if (diff._type === "initial") {
-			return {
-				left: {},
-				right: diff.data,
-			};
-		}
-
-		const left: Record<string, any> = {};
-		const right: Record<string, any> = {};
-
-		const extractFromDiff = (diffObj: any, path: string[] = []) => {
-			for (const [key, value] of Object.entries(diffObj)) {
-				const currentPath = [...path, key];
-
-				if (Array.isArray(value) && value.length === 2) {
-					this.setNestedValue(left, currentPath, value[0]);
-					this.setNestedValue(right, currentPath, value[1]);
-				} else if (Array.isArray(value) && value.length === 1) {
-					this.setNestedValue(right, currentPath, value[0]);
-				} else if (
-					Array.isArray(value) &&
-					value.length === 3 &&
-					value[2] === 0
-				) {
-					this.setNestedValue(left, currentPath, value[0]);
-				} else if (
-					typeof value === "object" &&
-					value !== null &&
-					!Array.isArray(value)
-				) {
-					extractFromDiff(value, currentPath);
-				}
-			}
-		};
-
-		extractFromDiff(diff);
-		return { left, right };
-	}
-
-	private setNestedValue(
-		obj: Record<string, any>,
-		path: string[],
-		value: any,
-	): void {
-		let current = obj;
-		for (let i = 0; i < path.length - 1; i++) {
-			if (!(path[i] in current)) {
-				current[path[i]] = {};
-			}
-			current = current[path[i]];
-		}
-		current[path[path.length - 1]] = value;
-	}
-
 	@Post("initialize")
 	@ApiOperation({
 		summary: "Инициализировать новый график с данными",
@@ -428,5 +349,84 @@ export class JsonCommitController {
 				right,
 			},
 		};
+	}
+
+	private extractUserFromHeaders(headers: Record<string, string>) {
+		const userId = headers["x-user-id"];
+		const userName = headers["x-user-name"];
+		const userEmail = headers["x-user-email"];
+
+		if (userId && userName && userEmail) {
+			return {
+				id: userId,
+				username: userName,
+				email: userEmail,
+			};
+		}
+
+		// Fallback to fake user for development
+		return {
+			id: "system-user",
+			username: "system",
+			email: "system@localhost",
+		};
+	}
+
+	private extractDiffSlices(
+		diff: Record<string, any>,
+		_fullData: Record<string, any>,
+	): { left: Record<string, any>; right: Record<string, any> } {
+		if (diff._type === "initial") {
+			return {
+				left: {},
+				right: diff.data,
+			};
+		}
+
+		const left: Record<string, any> = {};
+		const right: Record<string, any> = {};
+
+		const extractFromDiff = (diffObj: any, path: string[] = []) => {
+			for (const [key, value] of Object.entries(diffObj)) {
+				const currentPath = [...path, key];
+
+				if (Array.isArray(value) && value.length === 2) {
+					this.setNestedValue(left, currentPath, value[0]);
+					this.setNestedValue(right, currentPath, value[1]);
+				} else if (Array.isArray(value) && value.length === 1) {
+					this.setNestedValue(right, currentPath, value[0]);
+				} else if (
+					Array.isArray(value) &&
+					value.length === 3 &&
+					value[2] === 0
+				) {
+					this.setNestedValue(left, currentPath, value[0]);
+				} else if (
+					typeof value === "object" &&
+					value !== null &&
+					!Array.isArray(value)
+				) {
+					extractFromDiff(value, currentPath);
+				}
+			}
+		};
+
+		extractFromDiff(diff);
+		return { left, right };
+	}
+
+	private setNestedValue(
+		obj: Record<string, any>,
+		path: string[],
+		value: any,
+	): void {
+		let current = obj;
+		for (let i = 0; i < path.length - 1; i++) {
+			if (!(path[i] in current)) {
+				current[path[i]] = {};
+			}
+			current = current[path[i]];
+		}
+		current[path[path.length - 1]] = value;
 	}
 }
