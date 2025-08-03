@@ -1,23 +1,46 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
-import { Response } from 'express';
+import {
+    ExceptionFilter,
+    Catch,
+    ArgumentsHost,
+    HttpException,
+    HttpStatus,
+} from "@nestjs/common";
+import { FastifyRequest, FastifyReply } from "fastify";
 
-@Catch(HttpException)
+@Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-    catch(exception: HttpException, host: ArgumentsHost) {
+    catch(exception: unknown, host: ArgumentsHost) {
         const ctx = host.switchToHttp();
-        const response = ctx.getResponse<Response>();
-        const request = ctx.getRequest();
-        const status = exception.getStatus();
+        const response = ctx.getResponse<FastifyReply>();
+        const request = ctx.getRequest<FastifyRequest>();
 
-        const expressResponse = response as unknown as {
-            status(code: number): { json: (data: any) => void };
-        };
+        let status: number;
+        let message: string | object;
 
-        expressResponse.status(exception.getStatus()).json({
-            statusCode: exception.getStatus(),
+        if (exception instanceof HttpException) {
+            status = exception.getStatus();
+            message = exception.getResponse();
+        } else {
+            // Handle unknown errors
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+            message = "Internal server error";
+        }
+
+        // Log the error for debugging
+        console.error("Exception caught:", {
+            status,
+            message,
+            path: request.url,
+            method: request.method,
+            timestamp: new Date().toISOString(),
+        });
+
+        response.status(status).send({
+            statusCode: status,
+            message,
             timestamp: new Date().toISOString(),
             path: request.url,
-            message: exception.message,
+            method: request.method,
         });
     }
 }
