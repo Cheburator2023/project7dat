@@ -11,7 +11,7 @@ import { fastStringify, jsonCompare } from "@data-lineage/shared";
 
 @Injectable()
 export class JsonCommitService {
-	private isProduction: boolean;
+	private isProduction?: boolean;
 	private memoryCommits: Map<string, any[]> = new Map();
 	private differ: any;
 	private jsondiffpatch: any;
@@ -25,7 +25,7 @@ export class JsonCommitService {
 		private readonly jsonDataRepository: Repository<JsonDataEntity>,
 		private readonly configService: ConfigService,
 	) {
-		this.isProduction = this.configService.get("NODE_ENV") === "production";
+		this.isProduction = this.configService.get<boolean>('app.isProduction');
 		this.initializeJsonDiffPatch();
 	}
 

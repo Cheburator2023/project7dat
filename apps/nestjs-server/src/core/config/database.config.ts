@@ -1,4 +1,4 @@
-import { registerAs } from '@nestjs/config';
+import {ConfigService, registerAs} from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { DataSourceOptions } from 'typeorm';
 import * as Joi from 'joi';
@@ -29,7 +29,8 @@ export const databaseValidationSchema = {
 };
 
 export default registerAs('database', (): DatabaseConfig => {
-	const isProduction = process.env.NODE_ENV === 'production';
+	const configService = new ConfigService();
+	const isProduction = configService.get('app.isProduction');
 	const devDbType = process.env.DEV_DB_TYPE || 'sqlite';
 
 	const commonOptions: Partial<DatabaseConfig> = {
