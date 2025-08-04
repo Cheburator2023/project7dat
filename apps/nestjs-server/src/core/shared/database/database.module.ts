@@ -11,7 +11,7 @@ export class DatabaseModule {
         const databaseProvider: Provider = {
             provide: 'DATABASE_PROVIDER',
             useFactory: (configService: ConfigService, memoryStorageService: MemoryStorageService): IDatabaseProvider => {
-                return configService.get('NODE_ENV') === 'production'
+                return configService.get('app.isProduction')
                     ? new DatabaseProvider(configService)
                     : new MemoryStorageProvider(memoryStorageService);
             },

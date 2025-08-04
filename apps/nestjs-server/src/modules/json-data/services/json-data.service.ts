@@ -14,7 +14,7 @@ import { JsonCommitService } from "./json-commit.service";
 
 @Injectable()
 export class JsonDataService {
-	private isProduction: boolean;
+	private isProduction?: boolean;
 
 	constructor(
 		@Optional()
@@ -24,7 +24,7 @@ export class JsonDataService {
 		private readonly memoryStorageService: MemoryStorageService,
 		private readonly jsonCommitService: JsonCommitService,
 	) {
-		this.isProduction = this.configService.get("NODE_ENV") === "production";
+		this.isProduction = this.configService.get<boolean>('app.isProduction');
 	}
 
 	async createGraphData(input: CreateJsonDataInput): Promise<any> {
