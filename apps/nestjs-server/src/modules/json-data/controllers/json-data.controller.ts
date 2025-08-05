@@ -16,6 +16,7 @@ import {
 	ApiParam,
 	ApiQuery,
 	ApiBody,
+    ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JsonDataService } from "../services/json-data.service";
 import {
@@ -23,13 +24,17 @@ import {
 	UpdateJsonDataInput,
 	GetJsonDataListSchema,
 } from "../schemas/json-data.schema";
+import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
+import { Permission } from "src/core/auth/permissions";
 
+@ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Данные")
 @Controller("api/json-data")
 export class JsonDataController {
 	constructor(private readonly jsonDataService: JsonDataService) {}
 
 	@Post("create")
+	@RealmRole(Permission.DL_CREATE_JSON_DATA)
 	@ApiOperation({
 		summary: "Создать новый JSON документ",
 		description: "Создает новый JSON документ в системе",
@@ -82,6 +87,7 @@ export class JsonDataController {
 	}
 
 	@Get("list")
+	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
 		summary: "Получить список JSON документов",
 		description:
@@ -174,6 +180,7 @@ export class JsonDataController {
 	}
 
 	@Get("current")
+	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
 		summary: "Получить последний JSON документ",
 		description: "Возвращает самый последний созданный JSON документ",
@@ -202,6 +209,7 @@ export class JsonDataController {
 	}
 
 	@Get(":id")
+	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
 		summary: "Получить JSON документ по ID",
 		description: "Возвращает конкретный JSON документ по его идентификатору",
@@ -236,6 +244,7 @@ export class JsonDataController {
 	}
 
 	@Put("update/:id")
+	@RealmRole(Permission.DL_UPDATE_JSON_DATA)
 	@ApiOperation({
 		summary: "Обновить JSON документ",
 		description: "Обновляет существующий JSON документ по его идентификатору",
@@ -300,6 +309,7 @@ export class JsonDataController {
 	}
 
 	@Delete("delete/:id")
+	@RealmRole(Permission.DL_DELETE_JSON_DATA)
 	@ApiOperation({
 		summary: "Удалить JSON документ",
 		description: "Удаляет JSON документ по его идентификатору",
@@ -311,7 +321,7 @@ export class JsonDataController {
 		example: "uuid-string",
 	})
 	@ApiResponse({
-		status: 200,
+		status: 204,
 		description: "JSON документ успешно удален",
 		schema: {
 			type: "object",
