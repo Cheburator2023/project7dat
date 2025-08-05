@@ -13,9 +13,9 @@ import Joi from 'joi';
             envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
             load: [appConfig, databaseConfig, keycloakConfig],
             validationSchema: Joi.object({
-                ...appValidationSchema,
-                ...databaseValidationSchema,
-                ...keycloakValidationSchema
+                ...appValidationSchema.describe().keys,
+                ...databaseValidationSchema.describe().keys,
+                ...keycloakValidationSchema.describe().keys
             }),
             validationOptions: {
                 allowUnknown: true,
