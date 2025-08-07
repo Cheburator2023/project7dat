@@ -300,6 +300,140 @@ export class JsonCommitController {
 		};
 	}
 
+	@Get("commits/search/:id")
+	@ApiOperation({
+		summary: "Поиск коммитов по графику",
+		description: "Поиск коммитов с фильтрацией по дате, пользователю и тексту",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "ID графика для поиска коммитов",
+		example: "uuid-string",
+	})
+	@ApiQuery({
+		name: "dateFrom",
+		required: false,
+		type: String,
+		description: "Дата начала поиска (ISO формат)",
+		example: "2024-01-01T00:00:00.000Z",
+	})
+	@ApiQuery({
+		name: "dateTo",
+		required: false,
+		type: String,
+		description: "Дата окончания поиска (ISO формат)",
+		example: "2024-12-31T23:59:59.999Z",
+	})
+	@ApiQuery({
+		name: "user",
+		required: false,
+		type: String,
+		description: "Поиск по пользователю (имя или email)",
+		example: "john.doe",
+	})
+	@ApiQuery({
+		name: "query",
+		required: false,
+		type: String,
+		description: "Поисковый запрос (сообщение коммита, ID)",
+		example: "обновление",
+	})
+	@ApiQuery({
+		name: "page",
+		required: false,
+		type: Number,
+		description: "Номер страницы",
+		example: 1,
+	})
+	@ApiQuery({
+		name: "limit",
+		required: false,
+		type: Number,
+		description: "Количество элементов на странице",
+		example: 10,
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Результаты поиска коммитов",
+		schema: {
+			type: "object",
+			properties: {
+				data: {
+					type: "array",
+					items: {
+						type: "object",
+						properties: {
+							id: { type: "string", example: "uuid-string" },
+							short_id: { type: "string", example: "a1b2c3d4" },
+							message: { type: "string", example: "Обновлены узлы графа" },
+							diff: {
+								type: "object",
+								properties: {
+									left: { type: "object", description: "Original diff data" },
+									right: { type: "object", description: "Changed data" },
+								},
+							},
+							graphId: { type: "string", example: "uuid-string" },
+							author: {
+								type: "object",
+								properties: {
+									id: { type: "string" },
+									username: { type: "string" },
+									email: { type: "string" },
+								},
+							},
+							createdAt: { type: "string", format: "date-time" },
+						},
+					},
+				},
+				total: { type: "number", example: 100 },
+				page: { type: "number", example: 1 },
+				limit: { type: "number", example: 10 },
+			},
+		},
+	})
+	async searchCommits(@Param("id") graphId: string, @Query() query: any) {
+		const page = query.page ? Number.parseInt(query.page, 10) : 1;
+		const limit = query.limit ? Number.parseInt(query.limit, 10) : 10;
+
+		const searchParams = {
+			dateFrom: query.dateFrom,
+			dateTo: query.dateTo,
+			user: query.user,
+			query: query.query,
+			page,
+			limit,
+		};
+
+		const result = await this.jsonCommitService.searchCommits(
+			graphId,
+			searchParams,
+		);
+
+		const transformedData = result.data.map((commit) => {
+			const { left, right } = this.extractDiffSlices(
+				commit.diff,
+				commit.fullData,
+			);
+			const { fullData, ...commitWithoutFullData } = commit;
+			return {
+				...commitWithoutFullData,
+				diff: {
+					left,
+					right,
+				},
+			};
+		});
+
+		return {
+			...result,
+			data: transformedData,
+			page,
+			limit,
+		};
+	}
+
 	@Get("commits/:id")
 	@ApiOperation({
 		summary: "Получить коммит по ID",

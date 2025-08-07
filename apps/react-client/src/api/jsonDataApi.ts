@@ -114,4 +114,28 @@ export const jsonDataService = {
 
 	getCommitById: (id: string): Promise<JsonCommitItem> =>
 		jsonCommitApi.get(`/commits/${id}`).then((response) => response.data),
+
+	searchCommits: (
+		graphId: string,
+		params?: {
+			dateFrom?: string;
+			dateTo?: string;
+			user?: string;
+			query?: string;
+			page?: number;
+			limit?: number;
+		},
+	): Promise<CommitListResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params?.dateFrom) searchParams.append("dateFrom", params.dateFrom);
+		if (params?.dateTo) searchParams.append("dateTo", params.dateTo);
+		if (params?.user) searchParams.append("user", params.user);
+		if (params?.query) searchParams.append("query", params.query);
+		if (params?.page) searchParams.append("page", params.page.toString());
+		if (params?.limit) searchParams.append("limit", params.limit.toString());
+
+		return jsonCommitApi
+			.get(`/commits/search/${graphId}?${searchParams}`)
+			.then((response) => response.data);
+	},
 };

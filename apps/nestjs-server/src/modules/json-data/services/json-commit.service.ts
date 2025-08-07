@@ -8,6 +8,7 @@ import { JsonDataEntity } from "../entities/json-data.entity";
 import { GetCommitListInput } from "../schemas/json-commit.schema";
 import { createHash } from "crypto";
 import { fastStringify, jsonCompare } from "@data-lineage/shared";
+import * as fuzzysort from "fuzzysort";
 
 @Injectable()
 export class JsonCommitService {
@@ -378,6 +379,89 @@ export class JsonCommitService {
 		if (!reconstructedData) return false;
 
 		return jsonCompare(reconstructedData, expectedData);
+	}
+
+	async searchCommits(
+		graphId: string,
+		searchParams: {
+			dateFrom?: string;
+			dateTo?: string;
+			user?: string;
+			query?: string;
+			page?: number;
+			limit?: number;
+		},
+	): Promise<{ data: any[]; total: number }> {
+		const {
+			dateFrom,
+			dateTo,
+			user,
+			query,
+			page = 1,
+			limit = 10,
+		} = searchParams;
+
+		let commits = await this.getAllCommitsForGraph(graphId);
+		console.log(
+			"🐸 Pepe said >> JsonCommitService >> searchCommits >> commits:",
+			commits,
+		);
+
+		if (dateFrom) {
+			const fromDate = new Date(dateFrom);
+			commits = commits.filter(
+				(commit) => new Date(commit.createdAt) >= fromDate,
+			);
+		}
+
+		if (dateTo) {
+			const toDate = new Date(dateTo);
+			commits = commits.filter(
+				(commit) => new Date(commit.createdAt) <= toDate,
+			);
+		}
+
+		if (user) {
+			const userQuery = user.toLowerCase();
+			const userResults = fuzzysort.go(userQuery, commits, {
+				keys: ["author.username", "author.email"],
+				threshold: -10000,
+			});
+			commits = userResults.map((result) => result.obj);
+		}
+
+		if (query) {
+			const commitsWithStringifiedDiff = commits.map((commit) => ({
+				...commit,
+				diffString: fastStringify(commit.diff),
+			}));
+
+			const fuzzyResults = fuzzysort.go(query, commitsWithStringifiedDiff, {
+				keys: ["message", "id", "short_id", "diffString"],
+				threshold: -10000,
+				limit: 1000,
+			});
+			commits = fuzzyResults.map((result) => result.obj);
+		}
+
+		commits.sort(
+			(a, b) =>
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+		);
+
+		const total = commits.length;
+		const startIndex = (page - 1) * limit;
+		const endIndex = startIndex + limit;
+		const paginatedCommits = commits.slice(startIndex, endIndex);
+
+		const enrichedCommits = await Promise.all(
+			paginatedCommits.map((commit) => this.enrichCommitWithFullData(commit)),
+		);
+
+		return {
+			data: enrichedCommits,
+			total,
+		};
 	}
 
 	async getCommitChainInfo(graphId: string): Promise<{
