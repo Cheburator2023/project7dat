@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { DataSource, EntityTarget, Repository, ObjectLiteral } from "typeorm";
 import { IDatabaseProvider } from "../interfaces/database.interface";
 import databaseConfig from "../../../config/database.config";
@@ -6,6 +7,7 @@ import databaseConfig from "../../../config/database.config";
 @Injectable()
 export class DatabaseProvider implements IDatabaseProvider {
 	private dataSource: DataSource;
+	constructor(private readonly configService: ConfigService) {}
 
 	getConfig() {
 		return databaseConfig();
