@@ -15,20 +15,13 @@ export class KeycloakConfigService implements KeycloakConnectOptionsFactory {
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         }
 
-        const authServerUrl = this.getRequiredConfig('keycloak.url');
-        const realm = this.getRequiredConfig('keycloak.realm');
-        const clientId = this.getRequiredConfig('keycloak.clientId');
-        const secret = this.getRequiredConfig('keycloak.secret');
-        const tokenValidation = this.configService.get<TokenValidation>('keycloak.tokenValidation') || TokenValidation.OFFLINE;
-        const bearerOnly = this.configService.get<boolean>('keycloak.bearerOnly') ?? true;
-
         return {
-            authServerUrl,
-            realm,
-            clientId,
-            secret,
-            tokenValidation,
-            bearerOnly,
+            authServerUrl: this.getRequiredConfig('keycloak.url'),
+            realm: this.getRequiredConfig('keycloak.realm'),
+            clientId: this.getRequiredConfig('keycloak.clientId'),
+            secret: this.getRequiredConfig('keycloak.secret'),
+            tokenValidation: this.configService.get<TokenValidation>('keycloak.tokenValidation') || TokenValidation.OFFLINE,
+            bearerOnly: this.configService.get<boolean>('keycloak.bearerOnly') ?? true,
         };
     }
 
