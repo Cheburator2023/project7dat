@@ -7,12 +7,15 @@ import {
 	Chip,
 	CircularProgress,
 	useColorScheme,
+	styled,
+	TextField,
 } from "@mui/material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useCommitList } from "@react-client/api/hooks";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { fastStringify } from "@data-lineage/shared";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 
 const CommitItem = memo(({ commit }: { commit: any }) => {
 	const theme = useColorScheme();
@@ -27,7 +30,7 @@ const CommitItem = memo(({ commit }: { commit: any }) => {
 	);
 
 	return (
-		<ListItem key={commit.id} sx={{ px: 0 }}>
+		<ListItem key={commit.id} sx={{ px: 0, p: 0 }}>
 			<Card
 				sx={{ width: "100%", p: 2 }}
 				zoom={0.7}
@@ -46,6 +49,7 @@ const CommitItem = memo(({ commit }: { commit: any }) => {
 				<Typography variant="body1" gutterBottom>
 					{commit.message}
 				</Typography>
+
 				{commit.diff &&
 					commit.diff.left &&
 					Object.keys(commit.diff.left).length > 0 && (
@@ -142,10 +146,27 @@ export const CommitHistory: React.FC = memo(() => {
 	}
 
 	return (
-		<List>
-			{commitData.data.map((commit) => (
-				<CommitItem key={commit.id} commit={commit} />
-			))}
-		</List>
+		<Wrapper>
+			<SearchField
+				placeholder="Поиск в истории..."
+				// value={searchQuery}
+				// onChange={handleSearchChange}
+				variant="outlined"
+				size="small"
+			/>
+
+			<Spacer space={8} />
+
+			<List sx={{ p: 0 }}>
+				{commitData.data.map((commit) => (
+					<CommitItem key={commit.id} commit={commit} />
+				))}
+			</List>
+		</Wrapper>
 	);
+});
+
+const SearchField = styled(TextField)({});
+const Wrapper = styled("div")({
+	padding: "10px",
 });
