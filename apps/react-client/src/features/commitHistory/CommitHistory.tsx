@@ -8,11 +8,8 @@ import {
 	useColorScheme,
 	styled,
 	TextField,
-	IconButton,
-	Stack,
+	Button,
 } from "@mui/material";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { Clear as ClearIcon } from "@mui/icons-material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useCommitList, useCommitSearch } from "@react-client/api/hooks";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
@@ -20,6 +17,11 @@ import { Card } from "@react-client/common/muiCustom/Card";
 import { fastStringify } from "@data-lineage/shared";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+	DateRangePicker,
+	type DateRange,
+} from "@react-client/common/muiCustom/DateRangePicker";
+import { Flex } from "@react-client/common/primitives/Flex";
 
 const CommitItem = memo(({ commit }: { commit: any }) => {
 	const theme = useColorScheme();
@@ -114,12 +116,15 @@ export const CommitHistory: React.FC = memo(() => {
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [userFilter, setUserFilter] = useState("");
-	const [dateFrom, setDateFrom] = useState<Date | null>(null);
-	const [dateTo, setDateTo] = useState<Date | null>(null);
+	const [dateRange, setDateRange] = useState<DateRange>({
+		from: null,
+		to: null,
+	});
 	const [prevHasUnsavedChanges, setPrevHasUnsavedChanges] =
 		useState(hasUnsavedChanges);
 
-	const hasActiveFilters = searchQuery || userFilter || dateFrom || dateTo;
+	const hasActiveFilters =
+		searchQuery || userFilter || dateRange.from || dateRange.to;
 
 	useEffect(() => {
 		if (prevHasUnsavedChanges && !hasUnsavedChanges && currentGraphId) {
@@ -134,22 +139,22 @@ export const CommitHistory: React.FC = memo(() => {
 	}, [hasUnsavedChanges, prevHasUnsavedChanges, currentGraphId, queryClient]);
 
 	const hasNonEmptyFilters = Boolean(
-		searchQuery.trim() || userFilter.trim() || dateFrom || dateTo,
+		searchQuery.trim() || userFilter.trim() || dateRange.from || dateRange.to,
 	);
 
 	const searchParams = useMemo(
 		() => ({
 			query: searchQuery.trim() || undefined,
 			user: userFilter.trim() || undefined,
-			dateFrom: dateFrom?.toISOString(),
-			dateTo: dateTo?.toISOString(),
+			dateFrom: dateRange.from?.toISOString(),
+			dateTo: dateRange.to?.toISOString(),
 			enabled: Boolean(hasActiveFilters && currentGraphId),
 		}),
 		[
 			searchQuery,
 			userFilter,
-			dateFrom,
-			dateTo,
+			dateRange.from,
+			dateRange.to,
 			hasActiveFilters,
 			currentGraphId,
 		],
@@ -173,8 +178,7 @@ export const CommitHistory: React.FC = memo(() => {
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
 		setUserFilter("");
-		setDateFrom(null);
-		setDateTo(null);
+		setDateRange({ from: null, to: null });
 	}, []);
 
 	const error = hasNonEmptyFilters ? searchError : listError;
@@ -192,72 +196,43 @@ export const CommitHistory: React.FC = memo(() => {
 
 	return (
 		<Wrapper>
-			<SearchContainer>
-				<Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-					<Box sx={{ minWidth: 200, flex: 1 }}>
-						<TextField
-							placeholder="Поиск коммитов"
-							value={searchQuery}
-							onChange={(e) => {
-								console.log("🐸 Pepe said >> e:", e);
+			<Flex gap={4} wrap="wrap">
+				<TextField
+					placeholder="Включает текст"
+					value={searchQuery}
+					onChange={(e) => {
+						console.log("🐸 Pepe said >> e:", e);
 
-								return setSearchQuery(e.target.value);
-							}}
-							variant="outlined"
-							size="small"
-							fullWidth
-						/>
-					</Box>
-					<Box sx={{ minWidth: 150, flex: 1 }}>
-						<TextField
-							placeholder="Пользователь"
-							value={userFilter}
-							onChange={(e) => setUserFilter(e.target.value)}
-							variant="outlined"
-							size="small"
-							fullWidth
-						/>
-					</Box>
-					<Box sx={{ minWidth: 150 }}>
-						<DatePicker
-							label="Дата от"
-							value={dateFrom}
-							onChange={(newValue) => setDateFrom(newValue)}
-							slotProps={{
-								textField: {
-									fullWidth: true,
-									size: "small",
-								},
-							}}
-						/>
-					</Box>
-					<Box sx={{ minWidth: 150 }}>
-						<DatePicker
-							label="Дата до"
-							value={dateTo}
-							onChange={(newValue) => setDateTo(newValue)}
-							slotProps={{
-								textField: {
-									fullWidth: true,
-									size: "small",
-								},
-							}}
-						/>
-					</Box>
-					{hasActiveFilters && (
-						<Box>
-							<IconButton
-								size="small"
-								onClick={handleClearSearch}
-								title="Очистить фильтры"
-								color="primary"
-							>
-								<ClearIcon />
-							</IconButton>
-						</Box>
-					)}
-				</Stack>
-			</SearchContainer>
+						return setSearchQuery(e.target.value);
+					}}
+					variant="outlined"
+					size="small"
+					fullWidth
+				/>
+
+				<TextField
+					placeholder="Пользователь"
+					value={userFilter}
+					onChange={(e) => setUserFilter(e.target.value)}
+					variant="outlined"
+					size="small"
+					fullWidth
+				/>
+
+				<DateRangePicker
+					value={dateRange}
+					onChange={setDateRange}
+					placeholder="Выберите период дата/время"
+					size="small"
+					fullWidth
+				/>
+
+				{hasActiveFilters && (
+					<Button size="small" onClick={handleClearSearch} variant="contained">
+						Очистить фильтры
+					</Button>
+				)}
+			</Flex>
 
 			<Spacer space={16} />
 
@@ -280,9 +255,6 @@ export const CommitHistory: React.FC = memo(() => {
 	);
 });
 
-const SearchContainer = styled(Box)({
-	marginBottom: "16px",
-});
 const Wrapper = styled("div")({
 	padding: "10px",
 });
