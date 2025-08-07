@@ -9,7 +9,9 @@ import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "../../../routing/routes";
 
-const mainListItems = Object.values(routes).map((route) => route);
+const mainListItems = Object.values(routes)
+	.filter((route) => route.showInNavbar)
+	.map((route) => route);
 
 const secondaryListItems = [
 	{
