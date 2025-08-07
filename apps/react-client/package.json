@@ -11,8 +11,9 @@
 		"biome:fix": "npx @biomejs/biome check --log-level=error --diagnostic-level=error --fix --unsafe $(pwd)/src"
 	},
 	"dependencies": {
-		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
-		"@data-lineage/shared": "file:../../packages/shared"
+		"@dagrejs/dagre": "^1.1.5",
+		"@data-lineage/shared": "file:../../packages/shared",
+		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas"
 	},
 	"devDependencies": {
 		"@originjs/vite-plugin-federation": "^1.4.1",

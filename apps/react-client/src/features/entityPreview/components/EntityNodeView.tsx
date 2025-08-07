@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { styled, Box, Typography } from "@mui/material";
+import React, { useMemo, useState } from "react";
+import { styled, Box, Typography, Button, ButtonGroup } from "@mui/material";
 import {
 	ReactFlow,
 	ReactFlowProvider,
@@ -12,6 +12,7 @@ import type {
 } from "@react-client/types/dataLineage";
 import { DataLineageNodeComponent } from "../../nodeGraph/DataLineageNode";
 import type { DataLineageNode } from "@react-client/types/dataLineage";
+import { getLayoutedElements } from "../utils/dagreLayout";
 
 interface EntityNodeViewProps {
 	entity: DataLineageEntity | null;
@@ -24,6 +25,8 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 	mappings,
 	onEntitiesCalculated,
 }) => {
+	const [layoutDirection, setLayoutDirection] = useState<"TB" | "LR">("TB");
+
 	if (!entity) {
 		return (
 			<Container>
@@ -75,13 +78,9 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 			};
 		});
 
-		// Create nodes with proper positioning
-		const nodes = allEntitiesArray.map((ent, index) => {
+		// Create nodes with initial positioning (will be overridden by Dagre)
+		const initialNodes = allEntitiesArray.map((ent) => {
 			const isMainEntity = ent.id === entity.id;
-			const angle = (index / allEntitiesArray.length) * 2 * Math.PI;
-			const radius = isMainEntity ? 0 : 250;
-			const x = isMainEntity ? 400 : 400 + radius * Math.cos(angle);
-			const y = isMainEntity ? 200 : 200 + radius * Math.sin(angle);
 
 			const node: DataLineageNode = {
 				id: ent.id,
@@ -93,14 +92,14 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 					updated: new Date().toISOString(),
 					tags: ent.attrSeq?.map((attr) => `${attr.name}: ${attr.type}`) || [],
 				},
-				position: { x, y },
+				position: { x: 0, y: 0 }, // Initial position, will be set by Dagre
 				status: ent.modified ? "active" : "inactive",
 			};
 
 			return {
 				id: ent.id,
 				type: "dataLineageNode",
-				position: { x, y },
+				position: { x: 0, y: 0 }, // Initial position, will be set by Dagre
 				data: {
 					node,
 					selected: isMainEntity,
@@ -114,7 +113,7 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 		});
 
 		// Create edges based on mappings
-		const edges = relevantMappings.flatMap(
+		const initialEdges = relevantMappings.flatMap(
 			(mapping) =>
 				mapping.deps?.map((dep) => ({
 					id: `${dep.entityId}-${mapping.entityId}`,
@@ -132,12 +131,19 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 				})) || [],
 		);
 
+		// Apply Dagre layout
+		const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+			initialNodes,
+			initialEdges,
+			layoutDirection,
+		);
+
 		return {
-			flowNodes: nodes,
-			flowEdges: edges,
+			flowNodes: layoutedNodes,
+			flowEdges: layoutedEdges,
 			allEntities: allEntitiesArray,
 		};
-	}, [entity, mappings]);
+	}, [entity, mappings, layoutDirection]);
 
 	// Call the callback with calculated entities
 	React.useEffect(() => {
@@ -148,6 +154,25 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 
 	return (
 		<Container>
+			<ControlsHeader>
+				<Typography variant="h6" component="h2">
+					Граф зависимостей
+				</Typography>
+				<ButtonGroup size="small" variant="outlined">
+					<Button
+						onClick={() => setLayoutDirection("TB")}
+						variant={layoutDirection === "TB" ? "contained" : "outlined"}
+					>
+						Сверху вниз
+					</Button>
+					<Button
+						onClick={() => setLayoutDirection("LR")}
+						variant={layoutDirection === "LR" ? "contained" : "outlined"}
+					>
+						Слева направо
+					</Button>
+				</ButtonGroup>
+			</ControlsHeader>
 			<NodeVisualization>
 				<ReactFlowProvider>
 					<ReactFlow
@@ -157,12 +182,6 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 						fitView
 						fitViewOptions={{ padding: 0.1 }}
 						zoomOnScroll={true}
-						zoomOnPinch={true}
-						panOnDrag={true}
-						nodesDraggable={true}
-						nodesConnectable={false}
-						elementsSelectable={true}
-						proOptions={{ hideAttribution: true }}
 					>
 						<Background />
 						<Controls />
@@ -180,14 +199,18 @@ const Container = styled(Box)(({ theme }) => ({
 	padding: theme.spacing(2),
 }));
 
+const ControlsHeader = styled(Box)(({ theme }) => ({
+	display: "flex",
+	justifyContent: "space-between",
+	alignItems: "center",
+	marginBottom: theme.spacing(2),
+}));
+
 const NodeVisualization = styled(Box)(({ theme }) => ({
 	height: "100%",
 	border: `1px solid ${theme.palette.divider}`,
 	borderRadius: theme.shape.borderRadius,
 	overflow: "hidden",
-	"& .react-flow__viewport": {
-		backgroundColor: theme.palette.background.paper,
-	},
 }));
 
 const nodeTypes = {
