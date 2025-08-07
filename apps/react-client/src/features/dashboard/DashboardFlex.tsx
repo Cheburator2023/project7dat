@@ -33,6 +33,7 @@ import { useShallow } from "zustand/react/shallow";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 import { DataLineageGraph } from "@react-client/types/dataLineage";
 import { DataMart } from "@react-client/features/dataMart/DataMart";
+import { EntityPreviewNavigationButton } from "@react-client/features/entityPreview/EntityPreviewNavigationButton";
 import { dataLineageExampleData } from "@react-client/examples/dataLineageExampleData";
 
 type LayoutType = "grid" | "force" | "hierarchical" | "circular" | "random";
@@ -412,6 +413,8 @@ export const DashboardFlex = () => {
 				>
 					{isInitializing ? "Инициализация..." : "Создать граф"}
 				</Button>
+
+				<EntityPreviewNavigationButton />
 
 				<IconButton
 					onClick={handleImport}

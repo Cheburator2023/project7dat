@@ -5,6 +5,8 @@ import { styled } from "@mui/material/styles";
 import { camelCase } from "lodash-es";
 import { useLocation } from "react-router";
 import { routes } from "../../../routing/routes";
+import { useDataLineageStore } from "../../../stores/dataLineageStore";
+import { useMemo } from "react";
 
 const StyledBreadcrumbs = styled(Breadcrumbs)(({ theme }) => ({
 	margin: theme.spacing(1, 0),
@@ -19,11 +21,50 @@ const StyledBreadcrumbs = styled(Breadcrumbs)(({ theme }) => ({
 
 export function NavbarBreadcrumbs() {
 	const location = useLocation();
+	const { currentGraph } = useDataLineageStore();
 
-	const path = camelCase(location.pathname.split("/", 3).join(" "));
+	const breadcrumbInfo = useMemo(() => {
+		const pathname = location.pathname;
 
-	const pathName = routes[path as keyof typeof routes]?.name;
-	const crumb = pathName ? pathName : !path ? routes.home.name : "???";
+		// Handle entity preview route
+		if (pathname.startsWith("/entity/")) {
+			const encodedEntityId = pathname.split("/entity/")[1];
+			if (encodedEntityId) {
+				const entityId = decodeURIComponent(encodedEntityId);
+
+				// Try to find the entity in the current graph
+				const entity = currentGraph?.entities?.find((e) => e.id === entityId);
+
+				if (entity) {
+					const entityName = entity.namespace
+						? `${entity.namespace}.${entity.name}`
+						: entity.name;
+					return {
+						breadcrumbs: [
+							{ name: routes.entityPreview.name, isLink: false },
+							{ name: entityName, isLink: false },
+						],
+					};
+				} else {
+					return {
+						breadcrumbs: [
+							{ name: routes.entityPreview.name, isLink: false },
+							{ name: entityId, isLink: false },
+						],
+					};
+				}
+			}
+		}
+
+		// Handle other routes using the existing logic
+		const path = camelCase(pathname.split("/", 3).join(" "));
+		const pathName = routes[path as keyof typeof routes]?.name;
+		const crumb = pathName ? pathName : !path ? routes.home.name : "???";
+
+		return {
+			breadcrumbs: [{ name: crumb, isLink: false }],
+		};
+	}, [location.pathname, currentGraph]);
 
 	return (
 		<StyledBreadcrumbs
@@ -36,13 +77,23 @@ export function NavbarBreadcrumbs() {
 			}
 			data-test-id="navbar-breadcrumbs--StyledBreadcrumbs-0"
 		>
-			<Typography
-				variant="body1"
-				sx={{ color: "text.primary", fontWeight: 600 }}
-				data-test-id="navbar-breadcrumbs--Typography-0"
-			>
-				{crumb}
-			</Typography>
+			{breadcrumbInfo.breadcrumbs.map((breadcrumb, index) => (
+				<Typography
+					key={index}
+					variant="body1"
+					sx={{
+						color:
+							index === breadcrumbInfo.breadcrumbs.length - 1
+								? "text.primary"
+								: "text.secondary",
+						fontWeight:
+							index === breadcrumbInfo.breadcrumbs.length - 1 ? 600 : 400,
+					}}
+					data-test-id={`navbar-breadcrumbs--Typography-${index}`}
+				>
+					{breadcrumb.name}
+				</Typography>
+			))}
 		</StyledBreadcrumbs>
 	);
 }

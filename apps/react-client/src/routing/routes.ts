@@ -3,6 +3,7 @@ export const routes = {
 		rootPath: "/",
 		name: "Главная",
 		disabled: false,
+		showInNavbar: true,
 		subRoutes: {},
 	},
 	// graph: {
@@ -15,17 +16,26 @@ export const routes = {
 		rootPath: "/playground",
 		devOnly: true,
 		disabled: false,
+		showInNavbar: true,
 	},
 	debug: {
 		name: "Отладка",
 		rootPath: "/debug",
 		devOnly: true,
 		disabled: false,
+		showInNavbar: true,
 	},
 	swagger: {
 		name: "API Документация",
 		rootPath: "/swagger",
 		devOnly: true,
 		disabled: false,
+		showInNavbar: true,
+	},
+	entityPreview: {
+		name: "Просмотр сущности",
+		rootPath: "/entity/:entityId",
+		disabled: false,
+		showInNavbar: false,
 	},
 };

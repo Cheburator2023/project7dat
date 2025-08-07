@@ -9,6 +9,7 @@ import { Toaster } from "sonner";
 
 import { MainLayout } from "@react-client/common/layouts/MainLayout";
 import { NotificationDrawer } from "./features/notification/NotificationDrawer";
+
 import { setupApiInterceptors } from "./api/apiInterceptor";
 import { MfeBridge } from "./common/mfe/MfeBridge";
 
