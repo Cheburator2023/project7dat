@@ -1,11 +1,23 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { KeycloakConnectModule } from 'nest-keycloak-connect';
 import { KeycloakConfigService } from './keycloak-config.service';
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { AuthGuard, ResourceGuard, RoleGuard } from 'nest-keycloak-connect';
 import { GodModeGuard } from './god-mode.guard';
 
+/**
+ * Модуль для работы с KeyCloak
+ *
+ * @description
+ * Предоставляет интеграцию с KeyCloak для аутентификации и авторизации.
+ *
+ * @features
+ * - Поддержка offline и online валидации токенов
+ * - Гибкая конфигурация через .env
+ * - Режим "бога" (NO_ROLES=true) для разработки
+ * - Три уровня защиты: Auth, Resource, Role
+ */
 @Module({})
 export class KeycloakModule {
     static forRoot(): DynamicModule {
@@ -15,6 +27,7 @@ export class KeycloakModule {
                 ConfigModule.forRoot(),
                 KeycloakConnectModule.registerAsync({
                     useClass: KeycloakConfigService,
+                    imports: [ConfigModule],
                 }),
             ],
             providers: [
