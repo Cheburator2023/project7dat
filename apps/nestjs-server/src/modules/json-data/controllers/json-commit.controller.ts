@@ -488,6 +488,63 @@ export class JsonCommitController {
 		};
 	}
 
+	@Get("commits/:id/cumulative")
+	@ApiOperation({
+		summary: "Получить кумулятивные данные до указанного коммита",
+		description:
+			"Возвращает полные данные, восстановленные до указанного коммита включительно, со всеми предыдущими коммитами",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "Уникальный идентификатор коммита",
+		example: "uuid-string",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Кумулятивные данные успешно получены",
+		schema: {
+			type: "object",
+			properties: {
+				fullData: {
+					type: "object",
+					description: "Полные данные на момент коммита",
+				},
+				commits: {
+					type: "array",
+					items: {
+						type: "object",
+						properties: {
+							id: { type: "string", example: "uuid-string" },
+							short_id: { type: "string", example: "a1b2c3d4" },
+							message: { type: "string", example: "Обновлены узлы графа" },
+							diff: { type: "object", description: "Diff данные коммита" },
+							graphId: { type: "string", example: "uuid-string" },
+							createdAt: { type: "string", format: "date-time" },
+						},
+					},
+				},
+				targetCommit: {
+					type: "object",
+					properties: {
+						id: { type: "string", example: "uuid-string" },
+						short_id: { type: "string", example: "a1b2c3d4" },
+						message: { type: "string", example: "Обновлены узлы графа" },
+						graphId: { type: "string", example: "uuid-string" },
+						createdAt: { type: "string", format: "date-time" },
+					},
+				},
+			},
+		},
+	})
+	@ApiResponse({
+		status: 404,
+		description: "Коммит не найден",
+	})
+	async getCumulativeDataAtCommit(@Param("id") id: string) {
+		return await this.jsonCommitService.getCumulativeDataAtCommit(id);
+	}
+
 	private extractUserFromHeaders(headers: Record<string, string>) {
 		const userId = headers["x-user-id"];
 		const userName = headers["x-user-name"];

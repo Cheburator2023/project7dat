@@ -9,6 +9,7 @@ export { useUpdateJsonData } from "./useUpdateJsonData";
 export { useDeleteJsonData } from "./useDeleteJsonData";
 export { useCommitList } from "./useCommitList";
 export { useCommitSearch } from "./useCommitSearch";
+export { useCumulativeCommitData } from "./useCumulativeCommitData";
 export { useInitializeJsonGraph } from "./useInitializeJsonGraph";
 export {
 	useDataLineageGraphs,
