@@ -59,6 +59,12 @@ export interface JsonCommitItem {
 	createdAt: string;
 }
 
+export interface CumulativeCommitData {
+	fullData: Record<string, any>;
+	commits: JsonCommitItem[];
+	targetCommit: JsonCommitItem;
+}
+
 export interface CommitListResponse {
 	data: JsonCommitItem[];
 	total: number;
@@ -114,6 +120,11 @@ export const jsonDataService = {
 
 	getCommitById: (id: string): Promise<JsonCommitItem> =>
 		jsonCommitApi.get(`/commits/${id}`).then((response) => response.data),
+
+	getCumulativeDataAtCommit: (id: string): Promise<CumulativeCommitData> =>
+		jsonCommitApi
+			.get(`/commits/${id}/cumulative`)
+			.then((response) => response.data),
 
 	searchCommits: (
 		graphId: string,

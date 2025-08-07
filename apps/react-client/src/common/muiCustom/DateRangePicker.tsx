@@ -53,7 +53,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = memo(
 		fullWidth = false,
 		disabled = false,
 	}) => {
-		const theme = useTheme();
+		const _theme = useTheme();
 		const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 		const [tempRange, setTempRange] = useState<DateRange>(value);
 

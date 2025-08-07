@@ -88,11 +88,20 @@ export class JsonCommitService {
 
 		for (const commit of commits) {
 			if (commit.diff._type === "initial") {
-				reconstructedData = commit.diff.data;
+				reconstructedData = JSON.parse(JSON.stringify(commit.diff.data));
 			} else {
-				reconstructedData =
-					this.differ.patch(reconstructedData, commit.diff) ||
-					reconstructedData;
+				try {
+					const clonedData = JSON.parse(JSON.stringify(reconstructedData));
+					const patchResult = this.differ.patch(clonedData, commit.diff);
+					if (patchResult !== undefined && patchResult !== null) {
+						reconstructedData = patchResult;
+					}
+				} catch (error) {
+					console.error(
+						`[JsonCommitService] Ошибка применения патча для коммита ${commit.id}:`,
+						error,
+					);
+				}
 			}
 		}
 
@@ -261,26 +270,6 @@ export class JsonCommitService {
 		};
 	}
 
-	private async enrichCommitsWithFullData(commits: any[]): Promise<any[]> {
-		const graphDataCache = new Map<string, Record<string, any> | null>();
-		const enrichedCommits: any[] = [];
-
-		for (const commit of commits) {
-			let fullData = graphDataCache.get(commit.graphId);
-			if (fullData === undefined) {
-				fullData = await this.reconstructDataFromCommits(commit.graphId);
-				graphDataCache.set(commit.graphId, fullData);
-			}
-
-			enrichedCommits.push({
-				...commit,
-				fullData: fullData || {},
-				short_id: this.generateShortId(commit.id),
-			});
-		}
-		return enrichedCommits;
-	}
-
 	async getCommitsWithPagination(
 		input: GetCommitListInput,
 	): Promise<{ data: any[]; total: number }> {
@@ -302,7 +291,10 @@ export class JsonCommitService {
 
 			console.log(`[JsonCommitService] Найдено коммитов в БД: ${total}`);
 
-			const enrichedData = await this.enrichCommitsWithFullData(data);
+			const enrichedData = data.map((commit) => ({
+				...commit,
+				short_id: this.generateShortId(commit.id),
+			}));
 			return { data: enrichedData, total };
 		}
 
@@ -339,7 +331,10 @@ export class JsonCommitService {
 		console.log(
 			`[JsonCommitService] Возвращаем коммитов: ${data.length} из ${total}`,
 		);
-		const enrichedData = await this.enrichCommitsWithFullData(data);
+		const enrichedData = data.map((commit) => ({
+			...commit,
+			short_id: this.generateShortId(commit.id),
+		}));
 		return { data: enrichedData, total };
 	}
 
@@ -454,9 +449,10 @@ export class JsonCommitService {
 		const endIndex = startIndex + limit;
 		const paginatedCommits = commits.slice(startIndex, endIndex);
 
-		const enrichedCommits = await Promise.all(
-			paginatedCommits.map((commit) => this.enrichCommitWithFullData(commit)),
-		);
+		const enrichedCommits = paginatedCommits.map((commit) => ({
+			...commit,
+			short_id: this.generateShortId(commit.id),
+		}));
 
 		return {
 			data: enrichedCommits,
@@ -478,6 +474,108 @@ export class JsonCommitService {
 			firstCommit: commits.length > 0 ? commits[0] : null,
 			lastCommit: commits.length > 0 ? commits[commits.length - 1] : null,
 			chainSize,
+		};
+	}
+
+	async getCumulativeDataAtCommit(commitId: string): Promise<{
+		fullData: Record<string, any>;
+		commits: any[];
+		targetCommit: any;
+	}> {
+		let targetCommit: any = null;
+		let graphId = "";
+
+		if (this.isProduction) {
+			targetCommit = await this.commitRepository.findOne({
+				where: { id: commitId },
+			});
+			if (!targetCommit) {
+				throw new NotFoundException(`Коммит с ID ${commitId} не найден`);
+			}
+			graphId = targetCommit.graphId;
+		} else {
+			for (const commits of this.memoryCommits.values()) {
+				const commit = commits.find((c) => c.id === commitId);
+				if (commit) {
+					targetCommit = commit;
+					graphId = commit.graphId;
+					break;
+				}
+			}
+			if (!targetCommit) {
+				throw new NotFoundException(`Коммит с ID ${commitId} не найден`);
+			}
+		}
+
+		const allCommits = await this.getAllCommitsForGraph(graphId);
+		const targetCommitIndex = allCommits.findIndex((c) => c.id === commitId);
+
+		if (targetCommitIndex === -1) {
+			throw new NotFoundException(
+				`Коммит с ID ${commitId} не найден в цепочке`,
+			);
+		}
+
+		const commitsUpToTarget = allCommits.slice(0, targetCommitIndex + 1);
+
+		await this.ensureDifferInitialized();
+		let reconstructedData: Record<string, any> = {};
+
+		console.log(
+			`[JsonCommitService] Применение ${commitsUpToTarget.length} коммитов для восстановления данных до коммита ${commitId}`,
+		);
+
+		for (let i = 0; i < commitsUpToTarget.length; i++) {
+			const commit = commitsUpToTarget[i];
+			console.log(
+				`[JsonCommitService] Применение коммита ${i + 1}/${commitsUpToTarget.length}: ${commit.id} (${commit.message})`,
+			);
+
+			if (commit.diff._type === "initial") {
+				reconstructedData = JSON.parse(JSON.stringify(commit.diff.data));
+				console.log(
+					`[JsonCommitService] Установлены начальные данные из коммита ${commit.id}`,
+				);
+			} else {
+				try {
+					const clonedData = JSON.parse(JSON.stringify(reconstructedData));
+					const patchResult = this.differ.patch(clonedData, commit.diff);
+					if (patchResult !== undefined && patchResult !== null) {
+						reconstructedData = patchResult;
+						console.log(
+							`[JsonCommitService] Успешно применен патч для коммита ${commit.id}`,
+						);
+					} else {
+						console.warn(
+							`[JsonCommitService] Патч для коммита ${commit.id} вернул ${patchResult}, данные не изменены`,
+						);
+					}
+				} catch (error) {
+					console.error(
+						`[JsonCommitService] Ошибка применения патча для коммита ${commit.id}:`,
+						error,
+					);
+				}
+			}
+		}
+
+		console.log(
+			`[JsonCommitService] Восстановление завершено. Финальные данные:`,
+			Object.keys(reconstructedData),
+		);
+
+		const enrichedCommits = commitsUpToTarget.map((commit) => ({
+			...commit,
+			short_id: this.generateShortId(commit.id),
+		}));
+
+		return {
+			fullData: reconstructedData,
+			commits: enrichedCommits,
+			targetCommit: {
+				...targetCommit,
+				short_id: this.generateShortId(targetCommit.id),
+			},
 		};
 	}
 }
