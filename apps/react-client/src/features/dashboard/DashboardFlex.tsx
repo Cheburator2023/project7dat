@@ -515,8 +515,9 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 			// @ts-ignore
 			fontFamily: theme.vars?.font.inherit,
 			borderRadius: "8px",
-			border: "1px solid #6873896b",
+			border: "1px solid #a5aaba90",
 			margin: "4px",
+			zoom: 0.8,
 			backgroundColor: theme.vars?.palette?.background.paper,
 		},
 		"& .flexlayout__splitter": {
