@@ -13,9 +13,6 @@ export class JsonCommitEntity {
 	@PrimaryGeneratedColumn("uuid")
 	id: string;
 
-	@Column({ type: "varchar", length: 64, unique: true })
-	hash: string;
-
 	@Column({ type: "varchar", length: 500 })
 	message: string;
 

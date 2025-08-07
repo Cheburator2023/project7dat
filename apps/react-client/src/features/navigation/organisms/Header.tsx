@@ -31,7 +31,7 @@ export function Header({
 		<>
 			<div
 				style={{
-					padding: "0 3px",
+					padding: "0 0px",
 				}}
 			>
 				<Card
@@ -105,7 +105,7 @@ export function Header({
 					</Flex>
 				</Card>
 			</div>
-			<Spacer height={2} data-test-id="anketa-create-page--Spacer-1" />
+			<Spacer height={8} data-test-id="anketa-create-page--Spacer-1" />
 		</>
 	);
 }

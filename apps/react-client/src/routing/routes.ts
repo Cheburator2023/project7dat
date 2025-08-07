@@ -22,4 +22,10 @@ export const routes = {
 		devOnly: true,
 		disabled: false,
 	},
+	swagger: {
+		name: "API Документация",
+		rootPath: "/swagger",
+		devOnly: true,
+		disabled: false,
+	},
 };

@@ -25,7 +25,7 @@ export class JsonCommitService {
 		private readonly jsonDataRepository: Repository<JsonDataEntity>,
 		private readonly configService: ConfigService,
 	) {
-		this.isProduction = this.configService.get<boolean>('app.isProduction');
+		this.isProduction = this.configService.get<boolean>("app.isProduction");
 		this.initializeJsonDiffPatch();
 	}
 
@@ -48,17 +48,19 @@ export class JsonCommitService {
 		}
 	}
 
-	private generateUniqueCommitHash(
+	private generateCommitId(
+		graphId: string,
 		message: string,
-		diff: Record<string, any>,
 		timestamp: Date,
 	): string {
-		const content = fastStringify({
-			message,
-			diff,
-			timestamp: timestamp.toISOString(),
-		});
-		return createHash("sha256").update(content).digest("hex").substring(0, 8);
+		// Generate a deterministic hash-based ID for commits
+		const content = `${graphId}-${message}-${timestamp.toISOString()}`;
+		return createHash("sha256").update(content).digest("hex");
+	}
+
+	private generateShortId(id: string): string {
+		// Generate a short ID from the full hash for display purposes
+		return id.substring(0, 8);
 	}
 
 	private async getLastCommit(graphId: string): Promise<any | null> {
@@ -72,20 +74,6 @@ export class JsonCommitService {
 		const commits = this.memoryCommits.get(graphId) || [];
 		if (commits.length === 0) return null;
 		return commits[commits.length - 1];
-	}
-
-	private async calculateDiffFromPrevious(
-		previousData: Record<string, any> | null,
-		newData: Record<string, any>,
-	): Promise<Record<string, any> | null> {
-		if (!previousData) {
-			// First commit - store full data as diff
-			return { _type: "initial", data: newData };
-		}
-
-		await this.ensureDifferInitialized();
-		const delta = this.differ.diff(previousData, newData);
-		return delta || null;
 	}
 
 	async reconstructDataFromCommits(
@@ -137,7 +125,6 @@ export class JsonCommitService {
 
 		// Create initial commit with full data
 		const diff = { _type: "initial", data: initialData };
-		const hash = this.generateUniqueCommitHash(message, diff, timestamp);
 
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({
@@ -148,7 +135,6 @@ export class JsonCommitService {
 			}
 
 			const commit = this.commitRepository.create({
-				hash,
 				message,
 				diff,
 				graphId,
@@ -160,16 +146,19 @@ export class JsonCommitService {
 				`[JsonCommitService] Начальный коммит сохранен в БД:`,
 				savedCommit.id,
 			);
-			return savedCommit;
+			return {
+				...savedCommit,
+				short_id: this.generateShortId(savedCommit.id),
+			};
 		}
 
 		if (!this.memoryCommits.has(graphId)) {
 			this.memoryCommits.set(graphId, []);
 		}
 
+		const commitId = this.generateCommitId(graphId, message, timestamp);
 		const commit = {
-			id: `commit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-			hash,
+			id: commitId,
 			message,
 			diff,
 			graphId,
@@ -181,7 +170,10 @@ export class JsonCommitService {
 			`[JsonCommitService] Начальный коммит добавлен в память:`,
 			commit.id,
 		);
-		return commit;
+		return {
+			...commit,
+			short_id: this.generateShortId(commit.id),
+		};
 	}
 
 	async createNewCommit(
@@ -203,12 +195,13 @@ export class JsonCommitService {
 		const previousData = await this.reconstructDataFromCommits(graphId);
 
 		// Calculate proper diff from previous commit
-		const diff = await this.calculateDiffFromPrevious(previousData, newData);
+		await this.ensureDifferInitialized();
+		const diff = this.differ.diff(previousData, newData);
+
 		if (!diff) {
+			console.log(`[JsonCommitService] Нет изменений для создания коммита`);
 			throw new Error("Нет изменений для создания коммита");
 		}
-
-		const hash = this.generateUniqueCommitHash(message, diff, timestamp);
 
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({
@@ -219,7 +212,6 @@ export class JsonCommitService {
 			}
 
 			const commit = this.commitRepository.create({
-				hash,
 				message,
 				diff,
 				graphId,
@@ -228,16 +220,19 @@ export class JsonCommitService {
 
 			const savedCommit = await this.commitRepository.save(commit);
 			console.log(`[JsonCommitService] Коммит сохранен в БД:`, savedCommit.id);
-			return savedCommit;
+			return {
+				...savedCommit,
+				short_id: this.generateShortId(savedCommit.id),
+			};
 		}
 
 		if (!this.memoryCommits.has(graphId)) {
 			this.memoryCommits.set(graphId, []);
 		}
 
+		const commitId = this.generateCommitId(graphId, message, timestamp);
 		const commit = {
-			id: `commit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-			hash,
+			id: commitId,
 			message,
 			diff,
 			graphId,
@@ -250,7 +245,10 @@ export class JsonCommitService {
 			`[JsonCommitService] Всего коммитов для graphId ${graphId}:`,
 			this.memoryCommits.get(graphId)!.length,
 		);
-		return commit;
+		return {
+			...commit,
+			short_id: this.generateShortId(commit.id),
+		};
 	}
 
 	private async enrichCommitWithFullData(commit: any): Promise<any> {
@@ -258,6 +256,7 @@ export class JsonCommitService {
 		return {
 			...commit,
 			fullData: fullData || {},
+			short_id: this.generateShortId(commit.id),
 		};
 	}
 
@@ -275,6 +274,7 @@ export class JsonCommitService {
 			enrichedCommits.push({
 				...commit,
 				fullData: fullData || {},
+				short_id: this.generateShortId(commit.id),
 			});
 		}
 		return enrichedCommits;
@@ -300,6 +300,7 @@ export class JsonCommitService {
 			});
 
 			console.log(`[JsonCommitService] Найдено коммитов в БД: ${total}`);
+
 			const enrichedData = await this.enrichCommitsWithFullData(data);
 			return { data: enrichedData, total };
 		}
