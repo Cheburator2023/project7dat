@@ -18,6 +18,8 @@ import {
 import { JsonCommitService } from "../services/json-commit.service";
 import { JsonDataService } from "../services/json-data.service";
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
+import { CreateJsonDataInput } from "../schemas/json-data.schema";
+import { JsonDataEntity } from "../entities/json-data.entity";
 
 @ApiTags("JSON Коммиты")
 @Controller("api/json-commits")
@@ -72,9 +74,8 @@ export class JsonCommitController {
 		},
 	})
 	async initializeGraph(
-		@Body()
-		body: any,
-	) {
+		@Body() body: CreateJsonDataInput,
+	): Promise<JsonDataEntity> {
 		return await this.jsonDataService.initializeGraphWithData(body);
 	}
 
@@ -226,7 +227,7 @@ export class JsonCommitController {
 						type: "object",
 						properties: {
 							id: { type: "string", example: "uuid-string" },
-							hash: { type: "string", example: "a1b2c3d4" },
+							short_id: { type: "string", example: "a1b2c3d4" },
 							message: { type: "string", example: "Обновлены узлы графа" },
 							diff: {
 								type: "object",
@@ -317,16 +318,15 @@ export class JsonCommitController {
 			type: "object",
 			properties: {
 				id: { type: "string", example: "uuid-string" },
-				hash: { type: "string", example: "a1b2c3d4" },
+				short_id: { type: "string", example: "a1b2c3d4" },
 				message: { type: "string", example: "Обновлены узлы графа" },
 				diff: {
 					type: "object",
 					properties: {
 						left: { type: "object", description: "Original diff data" },
-						right: { type: "object", description: "Full data after changes" },
+						right: { type: "object", description: "Changed data" },
 					},
 				},
-				fullData: { type: "object", example: {} },
 				graphId: { type: "string", example: "uuid-string" },
 				createdAt: { type: "string", format: "date-time" },
 			},
@@ -342,8 +342,11 @@ export class JsonCommitController {
 			commit.diff,
 			commit.fullData,
 		);
+
+		// Return only diff data, not fullData to reduce response size
+		const { fullData, ...commitWithoutFullData } = commit;
 		return {
-			...commit,
+			...commitWithoutFullData,
 			diff: {
 				left,
 				right,

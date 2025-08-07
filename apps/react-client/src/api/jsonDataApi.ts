@@ -46,11 +46,16 @@ export interface CommitJsonDataRequest {
 
 export interface JsonCommitItem {
 	id: string;
-	hash: string;
+	short_id: string;
 	message: string;
 	diff: Record<string, any>;
-	fullData: Record<string, any>;
+	fullData?: Record<string, any>; // Optional since individual commits don't include fullData
 	graphId: string;
+	author?: {
+		id: string;
+		username: string;
+		email: string;
+	};
 	createdAt: string;
 }
 

@@ -491,7 +491,7 @@ body {
 }
 
 [class*="react-diff-"][class*="-diff-container"] {
-    zoom: 0.8;
+	zoom: 0.8;
 }
 
 @keyframes slideDown {

@@ -66,7 +66,7 @@ export const DebugPage = () => {
 	const commitColumns: ColDef[] = useMemo(
 		() => [
 			{ field: "id", headerName: "ID", width: 280 },
-			{ field: "hash", headerName: "Хеш", width: 200 },
+			{ field: "short_id", headerName: "Хеш", width: 200 },
 			{ field: "message", headerName: "Сообщение", width: 300 },
 			{ field: "graphId", headerName: "ID графа", width: 280 },
 			{

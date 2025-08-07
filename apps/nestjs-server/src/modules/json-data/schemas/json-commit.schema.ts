@@ -15,7 +15,7 @@ export const CreateCommitSchema = z.object({
 
 export const JsonCommitResponseSchema = z.object({
 	id: z.string(),
-	hash: z.string(),
+	short_id: z.string(),
 	message: z.string(),
 	diff: z.record(z.any()), // Keep as any for diff data
 	graphId: z.string(),
@@ -31,7 +31,7 @@ export const JsonCommitResponseSchema = z.object({
 
 export const JsonCommitWithFullDataResponseSchema = z.object({
 	id: z.string(),
-	hash: z.string(),
+	short_id: z.string(),
 	message: z.string(),
 	diff: z.record(z.any()), // Keep as any for diff data
 	fullData: DataLineageZodSchema,

@@ -37,11 +37,7 @@ const CommitItem = memo(({ commit }: { commit: any }) => {
 				uuid={"card_commit_hist_" + commit.id}
 			>
 				<Box display="flex" alignItems="center" gap={1} mb={1}>
-					<Chip
-						label={commit.hash.substring(0, 8)}
-						size="small"
-						variant="outlined"
-					/>
+					<Chip label={commit.short_id} size="small" variant="outlined" />
 					<Typography variant="caption" color="text.secondary">
 						{new Date(commit.createdAt).toLocaleString("ru-RU")}
 					</Typography>

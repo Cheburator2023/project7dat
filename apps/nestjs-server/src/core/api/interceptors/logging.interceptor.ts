@@ -1,19 +1,23 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+	Injectable,
+	NestInterceptor,
+	ExecutionContext,
+	CallHandler,
+} from "@nestjs/common";
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-    intercept(context: ExecutionContext, next: CallHandler) {
-        console.log('Before...');
-        const now = Date.now();
+	intercept(_context: ExecutionContext, next: CallHandler) {
+		console.log("Before...");
+		const now = Date.now();
 
-        const result = next.handle();
+		const result = next.handle();
 
-        if (result && typeof result.subscribe === 'function') {
-            result.subscribe({
-                complete: () => console.log(`After... ${Date.now() - now}ms`)
-            });
-        }
+		// Simple logging without subscribing to avoid duplication
+		setTimeout(() => {
+			console.log(`After... ${Date.now() - now}ms`);
+		}, 0);
 
-        return result;
-    }
+		return result;
+	}
 }

@@ -24,7 +24,7 @@ export class JsonDataService {
 		private readonly memoryStorageService: MemoryStorageService,
 		private readonly jsonCommitService: JsonCommitService,
 	) {
-		this.isProduction = this.configService.get<boolean>('app.isProduction');
+		this.isProduction = this.configService.get<boolean>("app.isProduction");
 	}
 
 	async createGraphData(input: CreateJsonDataInput): Promise<any> {
@@ -149,12 +149,17 @@ export class JsonDataService {
 	}
 
 	async initializeGraphWithData(input: CreateJsonDataInput): Promise<any> {
+		console.log(`[JsonDataService] initializeGraphWithData called`);
 		const graphData = await this.createGraphData(input);
+		console.log(`[JsonDataService] Graph created with ID: ${graphData.id}`);
 
 		await this.jsonCommitService.createInitialCommit(
 			graphData.id,
 			"Initial commit",
 			input.data,
+		);
+		console.log(
+			`[JsonDataService] Initial commit created for graph: ${graphData.id}`,
 		);
 
 		return graphData;
@@ -163,6 +168,9 @@ export class JsonDataService {
 	async createCommitForCurrentGraph(
 		commitInput: CommitJsonDataInput,
 	): Promise<any> {
+		console.log(
+			`[JsonDataService] createCommitForCurrentGraph called with message: ${commitInput.message}`,
+		);
 		let currentData = await this.getLatestGraphData();
 
 		if (!currentData) {
