@@ -1332,7 +1332,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 				(node) => node.path === currentPath,
 			);
 			if (nodeIndex >= 0 && listRef.current) {
-				listRef.current.scrollToItem(nodeIndex, "center");
+				listRef.current.scrollToItem(nodeIndex, "start");
 			}
 		}
 	}, [searchResults, currentSearchIndex, flatNodes]);
@@ -1464,13 +1464,13 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 				);
 
 				if (childIndex >= 0) {
-					listRef.current?.scrollToItem(childIndex, "center");
+					listRef.current?.scrollToItem(childIndex, "start");
 					return;
 				}
 			}
 
 			if (nodeIndex >= 0 && listRef.current) {
-				listRef.current.scrollToItem(nodeIndex, "center");
+				listRef.current.scrollToItem(nodeIndex, "start");
 			}
 		},
 		[setFocus, flatNodes],

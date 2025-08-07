@@ -490,6 +490,10 @@ body {
 	background: white;
 }
 
+[class*="react-diff-"][class*="-diff-container"] {
+    zoom: 0.8;
+}
+
 @keyframes slideDown {
 	from {
 		height: 0;

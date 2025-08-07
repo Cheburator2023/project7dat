@@ -29,77 +29,83 @@ export function Header({
 
 	return (
 		<>
-			<Card
-				data-test-id="header--Card-0"
-				zoom={0.8}
-				uuid="header_uuid"
-				style={{ overflow: "visible", padding: "4px" }}
+			<div
+				style={{
+					padding: "0 3px",
+				}}
 			>
-				<Flex
-					width="fill-available"
-					gap={16}
-					alignItems="center"
-					justifyContent="space-between"
-					position="relative"
-					zIndex={1000}
-					data-test-id="header--Flex-0"
+				<Card
+					data-test-id="header--Card-0"
+					zoom={0.7}
+					uuid="header_uuid"
+					style={{ overflow: "visible", padding: "4px" }}
 				>
 					<Flex
-						flexDirection="row"
-						gap={8}
-						alignItems="center"
-						flexShrink={0}
-						data-test-id="header--Flex-1"
-					>
-						<MenuButton
-							aria-label="menu"
-							onClick={() => toggleSideMenu()}
-							title={isSideMenuVisible ? "Закртыть меню" : "Открыть меню"}
-							data-test-id="header--MenuButton-0"
-						>
-							{!isSideMenuVisible ? (
-								<MenuRoundedIcon data-test-id="header--MenuRoundedIcon-0" />
-							) : (
-								<CloseRoundedIcon data-test-id="header--CloseRoundedIcon-0" />
-							)}
-						</MenuButton>
-						{!!history.state.idx && (
-							<IconButton
-								size="small"
-								onClick={() => navigate(-1)}
-								title="Вернуться назад"
-							>
-								<ArrowBackIcon />
-							</IconButton>
-						)}
-						{title ? (
-							<b>{title}</b>
-						) : (
-							<NavbarBreadcrumbs data-test-id="header--NavbarBreadcrumbs-0" />
-						)}
-						{calcId ||
-							((id1 || id2) && (
-								<Typography data-test-id="header--Typography-0">
-									- {calcId || `${id1} / ${id2}`}
-								</Typography>
-							))}
-					</Flex>
-					<Flex
-						flexDirection="row"
-						gap={6}
-						alignItems="center"
-						justifyContent="flex-end"
 						width="fill-available"
-						data-test-id="header--Flex-2"
+						gap={16}
+						alignItems="center"
+						justifyContent="space-between"
+						position="relative"
+						zIndex={1000}
+						data-test-id="header--Flex-0"
 					>
-						{children}
+						<Flex
+							flexDirection="row"
+							gap={8}
+							alignItems="center"
+							flexShrink={0}
+							data-test-id="header--Flex-1"
+						>
+							<MenuButton
+								aria-label="menu"
+								onClick={() => toggleSideMenu()}
+								title={isSideMenuVisible ? "Закртыть меню" : "Открыть меню"}
+								data-test-id="header--MenuButton-0"
+							>
+								{!isSideMenuVisible ? (
+									<MenuRoundedIcon data-test-id="header--MenuRoundedIcon-0" />
+								) : (
+									<CloseRoundedIcon data-test-id="header--CloseRoundedIcon-0" />
+								)}
+							</MenuButton>
+							{!!history.state.idx && (
+								<IconButton
+									size="small"
+									onClick={() => navigate(-1)}
+									title="Вернуться назад"
+								>
+									<ArrowBackIcon />
+								</IconButton>
+							)}
+							{title ? (
+								<b>{title}</b>
+							) : (
+								<NavbarBreadcrumbs data-test-id="header--NavbarBreadcrumbs-0" />
+							)}
+							{calcId ||
+								((id1 || id2) && (
+									<Typography data-test-id="header--Typography-0">
+										- {calcId || `${id1} / ${id2}`}
+									</Typography>
+								))}
+						</Flex>
+						<Flex
+							flexDirection="row"
+							gap={6}
+							alignItems="center"
+							justifyContent="flex-end"
+							width="fill-available"
+							data-test-id="header--Flex-2"
+						>
+							{children}
 
-						<NotificationButton />
-						<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
+							<NotificationButton />
+							<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
+						</Flex>
 					</Flex>
-				</Flex>
-			</Card>
-			<Spacer height={6} data-test-id="anketa-create-page--Spacer-1" />
+				</Card>
+			</div>
+			<Spacer height={2} data-test-id="anketa-create-page--Spacer-1" />
 		</>
 	);
 }
