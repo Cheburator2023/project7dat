@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JsonDataModule } from 'src/modules/json-data/json-data.module';
 import { SharedModule } from 'src/core/shared/shared.module';
 import databaseConfig from 'src/core/config/database.config';
+import { KeycloakModule } from 'src/core/auth/keycloak/keycloak.module';
 
 @Module({})
 export class AppModule {
@@ -14,6 +15,7 @@ export class AppModule {
 			SharedModule.forRoot(),
 			JsonDataModule.forRoot(),
 			ConfigModule.forRoot(),
+			KeycloakModule.forRoot(),
 		];
 
 		const configService = new ConfigService();
