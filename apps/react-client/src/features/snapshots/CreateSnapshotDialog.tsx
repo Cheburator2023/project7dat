@@ -7,8 +7,10 @@ import {
 	Button,
 	TextField,
 	Box,
+	CircularProgress,
 } from "@mui/material";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useCreateSnapshot } from "@react-client/api/hooks";
 import { toast } from "sonner";
 
 interface CreateSnapshotDialogProps {
@@ -26,7 +28,7 @@ export function CreateSnapshotDialog({
 	const [metadata, setMetadata] = useState("");
 
 	const { currentGraphId } = useDataLineageStore();
-	// const createSnapshotMutation = useCreateSnapshotFromCurrent();
+	const createSnapshotMutation = useCreateSnapshot();
 
 	const handleSubmit = async () => {
 		if (!name.trim() || !version.trim()) {
@@ -40,28 +42,29 @@ export function CreateSnapshotDialog({
 		}
 
 		try {
-			let _parsedMetadata = {};
+			let parsedMetadata = {};
 			if (metadata.trim()) {
 				try {
-					_parsedMetadata = JSON.parse(metadata);
+					parsedMetadata = JSON.parse(metadata);
 				} catch {
 					toast.error("Неверный формат метаданных (должен быть JSON)");
 					return;
 				}
 			}
 
-			// await createSnapshotMutation.mutateAsync({
-			// 	name: name.trim(),
-			// 	description: description.trim() || undefined,
-			// 	version: version.trim(),
-			// 	metadata:
-			// 		Object.keys(parsedMetadata).length > 0 ? parsedMetadata : undefined,
-			// });
+			await createSnapshotMutation.mutateAsync({
+				name: name.trim(),
+				description: description.trim() || undefined,
+				version: version.trim(),
+				metadata:
+					Object.keys(parsedMetadata).length > 0 ? parsedMetadata : undefined,
+			});
 
 			toast.success("Снимок успешно создан");
 			handleClose();
 		} catch (error) {
 			console.error("Error creating snapshot:", error);
+			toast.error("Ошибка при создании снимка");
 		}
 	};
 
@@ -116,21 +119,21 @@ export function CreateSnapshotDialog({
 			<DialogActions>
 				<Button
 					onClick={handleClose}
-					// disabled={createSnapshotMutation.isPending}
+					disabled={createSnapshotMutation.isPending}
 				>
 					Отмена
 				</Button>
 				<Button
 					onClick={handleSubmit}
 					variant="contained"
-					// disabled={
-					// 	createSnapshotMutation.isPending || !name.trim() || !version.trim()
-					// }
-					// startIcon={
-					// 	createSnapshotMutation.isPending ? (
-					// 		<CircularProgress size={16} />
-					// 	) : null
-					// }
+					disabled={
+						createSnapshotMutation.isPending || !name.trim() || !version.trim()
+					}
+					startIcon={
+						createSnapshotMutation.isPending ? (
+							<CircularProgress size={16} />
+						) : null
+					}
 				>
 					Создать
 				</Button>
