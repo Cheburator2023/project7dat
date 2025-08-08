@@ -8,7 +8,7 @@ import {
 	Button,
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import { JsonEditor } from "json-edit-react";
+import { ReadOnlyJsonViewer } from "@react-client/common/jsonViewers/ReadOnlyJsonViewer";
 
 interface JsonViewerCellProps {
 	value: any;
@@ -52,7 +52,7 @@ export const JsonViewerCell = ({
 			>
 				<DialogTitle>JSON Данные</DialogTitle>
 				<DialogContent>
-					<JsonEditor data={value} setData={() => {}} restrictEdit />
+					<ReadOnlyJsonViewer data={value} />
 				</DialogContent>
 				<DialogActions>
 					<Button onClick={() => setOpen(false)}>Закрыть</Button>

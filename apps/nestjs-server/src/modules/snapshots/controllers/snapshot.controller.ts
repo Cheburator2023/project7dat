@@ -21,7 +21,7 @@ import {
 	GetSnapshotListSchema,
 } from "../schemas/snapshot.schema";
 
-@ApiTags("Снимки")
+@ApiTags("Снепшоты")
 @Controller("api/snapshots")
 export class SnapshotController {
 	constructor(private readonly snapshotService: SnapshotService) {}

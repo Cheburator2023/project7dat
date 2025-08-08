@@ -21,15 +21,16 @@ import {
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
 import { useSnapshotList } from "@react-client/api/hooks";
-import { JsonViewerCell } from "@react-client/features/debug/JsonViewerCell";
+import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { Header } from "@react-client/features/navigation/organisms/Header";
-import { CreateSnapshotDialog } from "./CreateSnapshotDialog";
+import { Flex } from "@react-client/common/primitives/Flex";
+import { styled } from "@mui/system";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 export const SnapshotsPage = () => {
 	const { mode } = useColorScheme();
-	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+	const [_isCreateDialogOpen, _setIsCreateDialogOpen] = useState(false);
 
 	const {
 		data: snapshotsData,
@@ -131,29 +132,29 @@ export const SnapshotsPage = () => {
 		<Box>
 			<Header />
 
-			<>
-				<div style={{ height: 600, width: "100%", zoom: 0.8 }}>
-					<AgGridReact
-						rowData={snapshotsData?.data || []}
-						columnDefs={snapshotColumns}
-						defaultColDef={{
-							resizable: true,
-							sortable: true,
-							filter: true,
-						}}
-						pagination={true}
-						paginationPageSize={20}
-						theme={
-							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
-						}
-					/>
-				</div>
-			</>
-
-			<CreateSnapshotDialog
-				open={isCreateDialogOpen}
-				onClose={() => setIsCreateDialogOpen(false)}
-			/>
+			<GridWrapper height="-webkit-fill-available">
+				<AgGridReact
+					rowData={snapshotsData?.data || []}
+					columnDefs={snapshotColumns}
+					defaultColDef={{
+						resizable: true,
+						sortable: true,
+						filter: true,
+					}}
+					pagination={true}
+					paginationPageSize={20}
+					theme={
+						mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
+					}
+				/>
+			</GridWrapper>
 		</Box>
 	);
 };
+
+const GridWrapper = styled(Flex)`
+	zoom: 0.8;
+	& > div {
+		width: 100%;
+	}
+`;

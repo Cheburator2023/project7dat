@@ -71,7 +71,7 @@ const flexLayoutJson = {
 				children: [
 					{
 						type: "tab",
-						name: "Граф узлов",
+						name: "Граф",
 						component: "node-graph",
 						id: "node-graph-tab",
 					},
@@ -411,7 +411,7 @@ export const DashboardFlex = () => {
 					disabled={isInitializing}
 					title="Инициализация графа"
 				>
-					{isInitializing ? "Инициализация..." : "Создать граф"}
+					{isInitializing ? "Инициализация..." : "Инициализировать новый json"}
 				</Button>
 
 				<EntityPreviewNavigationButton />

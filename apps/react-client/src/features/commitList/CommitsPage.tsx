@@ -1,0 +1,206 @@
+import React, { useState, useMemo } from "react";
+import { Box, Typography, Button, Alert } from "@mui/material";
+import { styled, useColorScheme } from "@mui/material/styles";
+import { AgGridReact } from "ag-grid-react";
+import { ColDef } from "ag-grid-community";
+import {
+	agGridCustomMUITheme,
+	agGridCustomMUIThemeDark,
+} from "@react-client/theme/ag-grid/agGridCustomTheme";
+import { useCommitList } from "@react-client/api/hooks/useCommitList";
+import { JsonViewer } from "@react-client/common/jsonViewers/JsonViewer";
+import type { JsonCommitItem } from "@react-client/api/jsonDataApi";
+import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Flex } from "@react-client/common/primitives/Flex";
+
+const JsonViewerCell: React.FC<{ value: any }> = ({ value }) => {
+	if (!value) return <span>—</span>;
+
+	return (
+		<Box sx={{ width: "100%", height: "100%" }}>
+			<JsonViewer data={value} height={200} showSearch={false} />
+		</Box>
+	);
+};
+
+export const CommitsPage: React.FC = () => {
+	const { mode } = useColorScheme();
+	const [_refreshKey, setRefreshKey] = useState(0);
+
+	const {
+		data: commitsResponse,
+		isLoading,
+		error,
+		refetch,
+	} = useCommitList({
+		page: 1,
+		limit: 1000,
+	});
+
+	const commitsList = commitsResponse?.data || [];
+
+	const handleRefresh = () => {
+		setRefreshKey((prev) => prev + 1);
+		refetch();
+	};
+
+	const columnDefs: ColDef<JsonCommitItem>[] = useMemo(
+		() => [
+			{
+				headerName: "ID",
+				field: "short_id",
+				width: 100,
+				pinned: "left",
+				sortable: true,
+				filter: true,
+			},
+			{
+				headerName: "Сообщение",
+				field: "message",
+				width: 300,
+				sortable: true,
+				filter: true,
+				cellRenderer: (params: any) => (
+					<Box sx={{ padding: 1 }}>
+						<Typography variant="body2" noWrap>
+							{params.value || "—"}
+						</Typography>
+					</Box>
+				),
+			},
+			{
+				headerName: "Автор",
+				field: "author",
+				width: 150,
+				sortable: true,
+				filter: true,
+				cellRenderer: (params: any) => {
+					if (!params.value) return "—";
+					return (
+						params.value.username ||
+						params.value.email ||
+						params.value.id ||
+						"—"
+					);
+				},
+			},
+			{
+				headerName: "График ID",
+				field: "graphId",
+				width: 120,
+				sortable: true,
+				filter: true,
+			},
+			{
+				headerName: "Создан",
+				field: "createdAt",
+				width: 180,
+				sortable: true,
+				filter: true,
+				cellRenderer: (params: any) => {
+					if (!params.value) return "—";
+					return new Date(params.value).toLocaleString("ru-RU");
+				},
+			},
+			{
+				headerName: "Diff",
+				field: "diff",
+				width: 400,
+				cellRenderer: JsonViewerCell,
+				autoHeight: true,
+			},
+			{
+				headerName: "Полные данные",
+				field: "fullData",
+				width: 400,
+				cellRenderer: JsonViewerCell,
+				autoHeight: true,
+			},
+		],
+		[],
+	);
+
+	const defaultColDef = useMemo(
+		() => ({
+			resizable: true,
+			sortable: true,
+			filter: true,
+		}),
+		[],
+	);
+
+	if (error) {
+		return (
+			<Box sx={{ padding: 3 }}>
+				<Alert
+					severity="error"
+					action={
+						<Button color="inherit" size="small" onClick={handleRefresh}>
+							Повторить
+						</Button>
+					}
+				>
+					Ошибка загрузки коммитов: {error.message}
+				</Alert>
+			</Box>
+		);
+	}
+
+	return (
+		<Box>
+			<Header />
+
+			<GridWrapper height="-webkit-fill-available">
+				<AgGridReact<JsonCommitItem>
+					rowData={commitsList}
+					columnDefs={columnDefs}
+					defaultColDef={defaultColDef}
+					pagination={true}
+					paginationPageSize={20}
+					paginationPageSizeSelector={[10, 20, 50, 100]}
+					loading={isLoading}
+					theme={
+						mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
+					}
+					loadingOverlayComponent={() => (
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								height: "100%",
+							}}
+						>
+							<Typography>Загрузка коммитов...</Typography>
+						</div>
+					)}
+					noRowsOverlayComponent={() => (
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								height: "100%",
+							}}
+						>
+							<Typography color="text.secondary">Коммиты не найдены</Typography>
+						</div>
+					)}
+					suppressRowClickSelection={true}
+					rowSelection="multiple"
+					animateRows={true}
+					enableCellTextSelection={true}
+					ensureDomOrder={true}
+					maintainColumnOrder={true}
+				/>
+			</GridWrapper>
+		</Box>
+	);
+};
+
+const GridWrapper = styled(Flex)`
+	zoom: 0.8;
+	& > div {
+		width: 100%;
+	}
+`;
