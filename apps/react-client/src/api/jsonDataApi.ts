@@ -149,4 +149,25 @@ export const jsonDataService = {
 			.get(`/commits/search/${graphId}?${searchParams}`)
 			.then((response) => response.data);
 	},
+
+	getAllCommitsFromAllGraphs: (params?: {
+		page?: number;
+		limit?: number;
+		dateFrom?: string;
+		dateTo?: string;
+		user?: string;
+		query?: string;
+	}): Promise<CommitListResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params?.page) searchParams.append("page", params.page.toString());
+		if (params?.limit) searchParams.append("limit", params.limit.toString());
+		if (params?.dateFrom) searchParams.append("dateFrom", params.dateFrom);
+		if (params?.dateTo) searchParams.append("dateTo", params.dateTo);
+		if (params?.user) searchParams.append("user", params.user);
+		if (params?.query) searchParams.append("query", params.query);
+
+		return jsonCommitApi
+			.get(`/commits/all?${searchParams}`)
+			.then((response) => response.data);
+	},
 };

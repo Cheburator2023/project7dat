@@ -24,12 +24,11 @@ export const routes = {
 		disabled: false,
 		showInNavbar: true,
 	},
-	commits: {
-		name: "Коммиты",
-		rootPath: "/commits",
+	allCommits: {
+		name: "Все коммиты",
+		rootPath: "/all-commits",
 		disabled: false,
 		showInNavbar: true,
-		subRoutes: {},
 	},
 	// dev
 	playground: {

@@ -578,4 +578,101 @@ export class JsonCommitService {
 			},
 		};
 	}
+
+	async getAllCommitsFromAllGraphs(params?: {
+		page?: number;
+		limit?: number;
+		dateFrom?: string;
+		dateTo?: string;
+		user?: string;
+		query?: string;
+	}): Promise<{ data: any[]; total: number; page: number; limit: number }> {
+		const {
+			page = 1,
+			limit = 10,
+			dateFrom,
+			dateTo,
+			user,
+			query,
+		} = params || {};
+
+		let allCommits: any[] = [];
+
+		if (this.isProduction) {
+			allCommits = await this.commitRepository.find({
+				order: { createdAt: "DESC" },
+			});
+		} else {
+			for (const [graphId, commits] of this.memoryCommits.entries()) {
+				const commitsWithGraphId = commits.map((commit) => ({
+					...commit,
+					graphId,
+				}));
+				allCommits.push(...commitsWithGraphId);
+			}
+			allCommits.sort(
+				(a, b) =>
+					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+			);
+		}
+
+		if (dateFrom) {
+			const fromDate = new Date(dateFrom);
+			allCommits = allCommits.filter(
+				(commit) => new Date(commit.createdAt) >= fromDate,
+			);
+		}
+
+		if (dateTo) {
+			const toDate = new Date(dateTo);
+			allCommits = allCommits.filter(
+				(commit) => new Date(commit.createdAt) <= toDate,
+			);
+		}
+
+		if (user) {
+			const userQuery = user.toLowerCase();
+			const userResults = fuzzysort.go(userQuery, allCommits, {
+				keys: ["author.username", "author.email"],
+				threshold: -10000,
+			});
+			allCommits = userResults.map((result) => result.obj);
+		}
+
+		if (query) {
+			const commitsWithStringifiedDiff = allCommits.map((commit) => ({
+				...commit,
+				diffString: fastStringify(commit.diff),
+			}));
+
+			const fuzzyResults = fuzzysort.go(query, commitsWithStringifiedDiff, {
+				keys: ["message", "id", "short_id", "diffString"],
+				threshold: -10000,
+				limit: 1000,
+			});
+			allCommits = fuzzyResults.map((result) => result.obj);
+		}
+
+		const total = allCommits.length;
+		const skip = (page - 1) * limit;
+		const paginatedCommits = allCommits.slice(skip, skip + limit);
+
+		const enrichedCommits = await Promise.all(
+			paginatedCommits.map(async (commit) => {
+				const fullData = await this.reconstructDataFromCommits(commit.graphId);
+				return {
+					...commit,
+					fullData: fullData || {},
+					short_id: this.generateShortId(commit.id),
+				};
+			}),
+		);
+
+		return {
+			data: enrichedCommits,
+			total,
+			page,
+			limit,
+		};
+	}
 }

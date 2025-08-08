@@ -7,7 +7,7 @@ import { DashboardPageFlex } from "@react-client/features/dashboard/DashboardPag
 import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPreviewPage";
 import { SnapshotsPage } from "@react-client/features/snapshotsList/SnapshotsPage";
 import { JsonDataPage } from "@react-client/features/jsonDataList/JsonDataPage";
-import { CommitsPage } from "@react-client/features/commitList/CommitsPage";
+import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
 
 export const Routing = () => (
 	<Routes>
@@ -17,7 +17,7 @@ export const Routing = () => (
 		<Route path={routes.swagger.rootPath} element={<SwaggerPage />} />
 		<Route path={routes.snapshots.rootPath} element={<SnapshotsPage />} />
 		<Route path={routes.jsonData.rootPath} element={<JsonDataPage />} />
-		<Route path={routes.commits.rootPath} element={<CommitsPage />} />
+		<Route path={routes.allCommits.rootPath} element={<AllCommitsPage />} />
 		<Route
 			path={routes.entityPreview.rootPath}
 			element={<EntityPreviewPage />}
