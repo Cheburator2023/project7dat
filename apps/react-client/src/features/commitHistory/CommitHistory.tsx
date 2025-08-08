@@ -9,18 +9,12 @@ import {
 	styled,
 	TextField,
 	Button,
-	Dialog,
-	DialogTitle,
-	DialogContent,
-	DialogActions,
-	IconButton,
 } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import {
 	useCommitList,
 	useCommitSearch,
-	useCumulativeCommitData,
+	useSnapshotList,
 } from "@react-client/api/hooks";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Card } from "@react-client/common/muiCustom/Card";
@@ -32,6 +26,7 @@ import {
 	type DateRange,
 } from "@react-client/common/muiCustom/DateRangePicker";
 import { Flex } from "@react-client/common/primitives/Flex";
+import { CommitDetailsDialog } from "./CommitDetailsDialog";
 
 const CommitItem = memo(
 	({
@@ -141,7 +136,6 @@ export const CommitHistory: React.FC = memo(() => {
 	const { currentGraphId, hasUnsavedChanges, currentGraph } =
 		useDataLineageStore();
 	const queryClient = useQueryClient();
-	const { mode } = useColorScheme();
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [userFilter, setUserFilter] = useState("");
@@ -206,14 +200,6 @@ export const CommitHistory: React.FC = memo(() => {
 		error: searchError,
 	} = useCommitSearch(currentGraphId || "", searchParams);
 
-	const {
-		data: cumulativeData,
-		isLoading: isLoadingCumulative,
-		error: cumulativeError,
-	} = useCumulativeCommitData(selectedCommitId || "", {
-		enabled: Boolean(selectedCommitId),
-	});
-
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
 		setUserFilter("");
@@ -233,6 +219,13 @@ export const CommitHistory: React.FC = memo(() => {
 	const error = hasNonEmptyFilters ? searchError : listError;
 	const data = hasNonEmptyFilters ? searchData : commitData;
 
+	const { data: snapshotsData } = useSnapshotList({
+		page: 1,
+		limit: 10,
+	});
+
+	const latestSnapshot = snapshotsData?.data[0].data;
+
 	if (error) {
 		return (
 			<Box p={2}>
@@ -242,19 +235,6 @@ export const CommitHistory: React.FC = memo(() => {
 			</Box>
 		);
 	}
-
-	const oldValue = useMemo(
-		() => (currentGraph ? fastStringify(currentGraph, { space: 2 }) : ""),
-		[currentGraph],
-	);
-
-	const newValue = useMemo(
-		() =>
-			cumulativeData?.fullData
-				? fastStringify(cumulativeData.fullData, { space: 2 })
-				: "",
-		[cumulativeData],
-	);
 
 	return (
 		<Wrapper>
@@ -316,122 +296,12 @@ export const CommitHistory: React.FC = memo(() => {
 				)}
 			</List>
 
-			<Dialog
+			<CommitDetailsDialog
 				open={isDialogOpen}
 				onClose={handleCloseDialog}
-				maxWidth="lg"
-				fullWidth
-				PaperProps={{
-					sx: { height: "90vh" },
-				}}
-			>
-				<DialogTitle>
-					<Box
-						display="flex"
-						justifyContent="space-between"
-						alignItems="center"
-					>
-						<Typography variant="h6">
-							Полные данные на коммите {cumulativeData?.targetCommit?.short_id}
-						</Typography>
-						<IconButton onClick={handleCloseDialog}>
-							<CloseIcon />
-						</IconButton>
-					</Box>
-				</DialogTitle>
-				<DialogContent dividers>
-					{isLoadingCumulative && <Typography>Загрузка...</Typography>}
-					{cumulativeError && (
-						<Typography color="error">
-							Ошибка загрузки данных: {cumulativeError.message}
-						</Typography>
-					)}
-					{cumulativeData && (
-						<Box>
-							<Typography variant="h6" gutterBottom>
-								Полные данные:
-							</Typography>
-							<Box sx={{ mb: 3, maxHeight: "300px", overflow: "auto" }}>
-								<ReactDiffViewer
-									oldValue={oldValue}
-									newValue={newValue}
-									splitView={true}
-									compareMethod={DiffMethod.CHARS}
-									useDarkTheme={mode === "dark"}
-									showDiffOnly
-									leftTitle="Исходная версия"
-									rightTitle="Текущая версия"
-								/>
-							</Box>
-
-							<Typography variant="h6" gutterBottom>
-								История изменений ({cumulativeData.commits.length} коммитов):
-							</Typography>
-							<Box sx={{ maxHeight: "400px", overflow: "auto" }}>
-								{cumulativeData.commits.map((commit, _index) => (
-									<Box
-										key={commit.id}
-										sx={{ mb: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}
-									>
-										<Box
-											sx={{
-												p: 1,
-												backgroundColor: "#f9f9f9",
-												borderBottom: "1px solid #e0e0e0",
-											}}
-										>
-											<Typography variant="subtitle2">
-												{commit.short_id} - {commit.message}
-											</Typography>
-											<Typography variant="caption" color="text.secondary">
-												{new Date(commit.createdAt).toLocaleString()}
-											</Typography>
-										</Box>
-										{commit.diff && (
-											<Box sx={{ fontSize: "12px" }}>
-												<ReactDiffViewer
-													oldValue={fastStringify(commit.diff.left, {
-														space: 2,
-													})}
-													newValue={fastStringify(commit.diff.right, {
-														space: 2,
-													})}
-													splitView={true}
-													compareMethod={DiffMethod.WORDS}
-													hideLineNumbers={false}
-													showDiffOnly={false}
-													styles={{
-														variables: {
-															light: {
-																diffViewerBackground: "#fff",
-																addedBackground: "#e6ffed",
-																addedColor: "#24292e",
-																removedBackground: "#ffeef0",
-																removedColor: "#24292e",
-																wordAddedBackground: "#acf2bd",
-																wordRemovedBackground: "#fdb8c0",
-																addedGutterBackground: "#cdffd8",
-																removedGutterBackground: "#fdbdbe",
-																gutterBackground: "#f7f7f7",
-																gutterBackgroundDark: "#f7f7f7",
-																highlightBackground: "#fffbdd",
-																highlightGutterBackground: "#fff5b4",
-															},
-														},
-													}}
-												/>
-											</Box>
-										)}
-									</Box>
-								))}
-							</Box>
-						</Box>
-					)}
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={handleCloseDialog}>Закрыть</Button>
-				</DialogActions>
-			</Dialog>
+				selectedCommitId={selectedCommitId}
+				currentGraph={latestSnapshot}
+			/>
 		</Wrapper>
 	);
 });

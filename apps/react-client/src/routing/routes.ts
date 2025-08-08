@@ -6,21 +6,35 @@ export const routes = {
 		showInNavbar: true,
 		subRoutes: {},
 	},
-	// graph: {
-	// 	name: "Граф",
-	// 	rootPath: "/graph",
-	// 	devOnly: true,
-	// },
-	playground: {
-		name: "Песочница",
-		rootPath: "/playground",
-		devOnly: true,
+	entityPreview: {
+		name: "Просмотр сущности",
+		rootPath: "/entity/:entityId",
+		disabled: false,
+		showInNavbar: false,
+	},
+	snapshots: {
+		name: "Снепшоты",
+		rootPath: "/snapshots",
 		disabled: false,
 		showInNavbar: true,
 	},
-	debug: {
-		name: "Отладка",
-		rootPath: "/debug",
+	jsonData: {
+		name: "JSON Данные",
+		rootPath: "/json-data",
+		disabled: false,
+		showInNavbar: true,
+	},
+	commits: {
+		name: "Коммиты",
+		rootPath: "/commits",
+		disabled: false,
+		showInNavbar: true,
+		subRoutes: {},
+	},
+	// dev
+	playground: {
+		name: "Песочница",
+		rootPath: "/playground",
 		devOnly: true,
 		disabled: false,
 		showInNavbar: true,
@@ -29,18 +43,6 @@ export const routes = {
 		name: "API Документация",
 		rootPath: "/swagger",
 		devOnly: true,
-		disabled: false,
-		showInNavbar: true,
-	},
-	entityPreview: {
-		name: "Просмотр сущности",
-		rootPath: "/entity/:entityId",
-		disabled: false,
-		showInNavbar: false,
-	},
-	snapshots: {
-		name: "Снимки",
-		rootPath: "/snapshots",
 		disabled: false,
 		showInNavbar: true,
 	},

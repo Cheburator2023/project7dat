@@ -14,7 +14,7 @@ import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
 import { NotificationButton } from "../../notification/NotificationButton";
-import { CreateSnapshotDialog } from "../../snapshots/CreateSnapshotDialog";
+import { CreateSnapshotDialog } from "../../snapshotsList/CreateSnapshotDialog";
 
 export function Header({
 	children,

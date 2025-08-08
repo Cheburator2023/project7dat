@@ -1,21 +1,23 @@
 import { Route, Routes } from "react-router";
 import { routes } from "./routes";
 import { PlaygroundPage } from "@react-client/features/playground/PlaygroundPage";
-import { DebugPage } from "@react-client/features/debug/DebugPage";
-import { SwaggerPage } from "@react-client/features/debug/SwaggerPage";
+import { SwaggerPage } from "@react-client/features/swagger/SwaggerPage";
 import { Page404 } from "./Page404";
 import { DashboardPageFlex } from "@react-client/features/dashboard/DashboardPageFlex";
 import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPreviewPage";
-import { SnapshotsPage } from "@react-client/features/snapshots/SnapshotsPage";
+import { SnapshotsPage } from "@react-client/features/snapshotsList/SnapshotsPage";
+import { JsonDataPage } from "@react-client/features/jsonDataList/JsonDataPage";
+import { CommitsPage } from "@react-client/features/commitList/CommitsPage";
 
 export const Routing = () => (
 	<Routes>
 		<Route index element={<DashboardPageFlex />} />
 
 		<Route path={routes.playground.rootPath} element={<PlaygroundPage />} />
-		<Route path={routes.debug.rootPath} element={<DebugPage />} />
 		<Route path={routes.swagger.rootPath} element={<SwaggerPage />} />
 		<Route path={routes.snapshots.rootPath} element={<SnapshotsPage />} />
+		<Route path={routes.jsonData.rootPath} element={<JsonDataPage />} />
+		<Route path={routes.commits.rootPath} element={<CommitsPage />} />
 		<Route
 			path={routes.entityPreview.rootPath}
 			element={<EntityPreviewPage />}
