@@ -37,6 +37,7 @@ export class SnapshotService {
 		const name = input.name || `Снимок ${new Date().toLocaleString("ru-RU")}`;
 		const description =
 			input.description || "Снимок текущего состояния JSON данных";
+		const version = input.version || "1.0.0";
 
 		if (this.isProduction) {
 			const snapshot = this.snapshotRepository.create({
@@ -44,6 +45,7 @@ export class SnapshotService {
 				data: currentData.data,
 				description,
 				sourceDataId: currentData.id,
+				version,
 			});
 			return this.snapshotRepository.save(snapshot);
 		}
@@ -53,6 +55,7 @@ export class SnapshotService {
 			currentData.data,
 			currentData.id,
 			description,
+			version,
 		);
 	}
 
