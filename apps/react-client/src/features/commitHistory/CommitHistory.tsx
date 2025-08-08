@@ -138,8 +138,10 @@ const CommitItem = memo(
 );
 
 export const CommitHistory: React.FC = memo(() => {
-	const { currentGraphId, hasUnsavedChanges } = useDataLineageStore();
+	const { currentGraphId, hasUnsavedChanges, currentGraph } =
+		useDataLineageStore();
 	const queryClient = useQueryClient();
+	const { mode } = useColorScheme();
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [userFilter, setUserFilter] = useState("");
@@ -241,6 +243,19 @@ export const CommitHistory: React.FC = memo(() => {
 		);
 	}
 
+	const oldValue = useMemo(
+		() => (currentGraph ? fastStringify(currentGraph, { space: 2 }) : ""),
+		[currentGraph],
+	);
+
+	const newValue = useMemo(
+		() =>
+			cumulativeData?.fullData
+				? fastStringify(cumulativeData.fullData, { space: 2 })
+				: "",
+		[cumulativeData],
+	);
+
 	return (
 		<Wrapper>
 			<Flex gap={4} wrap="wrap">
@@ -248,8 +263,6 @@ export const CommitHistory: React.FC = memo(() => {
 					placeholder="Включает текст"
 					value={searchQuery}
 					onChange={(e) => {
-						console.log("🐸 Pepe said >> e:", e);
-
 						return setSearchQuery(e.target.value);
 					}}
 					variant="outlined"
@@ -339,17 +352,16 @@ export const CommitHistory: React.FC = memo(() => {
 								Полные данные:
 							</Typography>
 							<Box sx={{ mb: 3, maxHeight: "300px", overflow: "auto" }}>
-								<pre
-									style={{
-										backgroundColor: "#f5f5f5",
-										padding: "16px",
-										borderRadius: "4px",
-										fontSize: "12px",
-										lineHeight: "1.4",
-									}}
-								>
-									{fastStringify(cumulativeData.fullData, { space: 2 })}
-								</pre>
+								<ReactDiffViewer
+									oldValue={oldValue}
+									newValue={newValue}
+									splitView={true}
+									compareMethod={DiffMethod.CHARS}
+									useDarkTheme={mode === "dark"}
+									showDiffOnly
+									leftTitle="Исходная версия"
+									rightTitle="Текущая версия"
+								/>
 							</Box>
 
 							<Typography variant="h6" gutterBottom>

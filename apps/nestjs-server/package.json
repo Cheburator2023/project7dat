@@ -25,6 +25,7 @@
 		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
 		"@data-lineage/shared": "file:../../packages/shared",
 		"@electric-sql/pglite": "^0.3.5",
+		"typeorm-pglite": "0.3.2",
 		"@fastify/cors": "^11.0.0",
 		"@nestjs/cli": "11.0.5",
 		"@nestjs/common": "^11.1.5",
