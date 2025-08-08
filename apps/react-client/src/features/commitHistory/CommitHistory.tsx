@@ -224,7 +224,7 @@ export const CommitHistory: React.FC = memo(() => {
 		limit: 10,
 	});
 
-	const latestSnapshot = snapshotsData?.data[0].data;
+	const latestSnapshot = snapshotsData?.data[0]?.data;
 
 	if (error) {
 		return (

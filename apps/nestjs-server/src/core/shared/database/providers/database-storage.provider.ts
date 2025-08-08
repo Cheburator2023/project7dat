@@ -46,4 +46,11 @@ export class DatabaseProvider implements IDatabaseProvider {
 		}
 		return this.dataSource.transaction(operation);
 	}
+
+	getDataSource(): DataSource {
+		if (!this.dataSource) {
+			throw new Error("Database not connected");
+		}
+		return this.dataSource;
+	}
 }

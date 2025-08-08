@@ -362,7 +362,13 @@ export const DataMart = () => {
 	};
 
 	return (
-		<Box sx={{ p: 2, "& .MuiDataGrid-footerContainer": { display: "none" } }}>
+		<Box
+			sx={{
+				p: 2,
+				zoom: 0.8,
+				"& .MuiDataGrid-footerContainer": { display: "none" },
+			}}
+		>
 			{dataMarts.length > 0 && (
 				<Card sx={{ mb: 2 }} variant="outlined">
 					<CardHeader
