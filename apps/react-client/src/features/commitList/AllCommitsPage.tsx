@@ -1,5 +1,12 @@
 import React, { useState, useMemo } from "react";
-import { Box, Typography, Button, Alert } from "@mui/material";
+import {
+	Box,
+	Typography,
+	Button,
+	Alert,
+	Switch,
+	FormControlLabel,
+} from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
@@ -8,35 +15,61 @@ import {
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
 import { useCommitList } from "@react-client/api/hooks/useCommitList";
+import { useAllCommitsFromAllGraphs } from "@react-client/api/hooks/useAllCommitsFromAllGraphs";
 import type { JsonCommitItem } from "@react-client/api/jsonDataApi";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 
-export const CommitsPage: React.FC = () => {
+export const AllCommitsPage: React.FC = () => {
 	const { mode } = useColorScheme();
 	const [_refreshKey, setRefreshKey] = useState(0);
+	const [showAllGraphs, setShowAllGraphs] = useState(false);
 
 	const {
-		data: commitsResponse,
-		isLoading,
-		error,
-		refetch,
+		data: singleGraphCommitsResponse,
+		isLoading: isLoadingSingle,
+		error: errorSingle,
+		refetch: refetchSingle,
 	} = useCommitList({
 		page: 1,
-		enabled: true,
+		enabled: !showAllGraphs,
 		limit: 100,
 	});
 
-	const commitsList = commitsResponse?.data || [];
+	const {
+		data: allGraphsCommitsResponse,
+		isLoading: isLoadingAll,
+		error: errorAll,
+		refetch: refetchAll,
+	} = useAllCommitsFromAllGraphs({
+		page: 1,
+		enabled: showAllGraphs,
+		limit: 100,
+	});
+
+	const commitsList = showAllGraphs
+		? allGraphsCommitsResponse?.data || []
+		: singleGraphCommitsResponse?.data || [];
+
+	const isLoading = showAllGraphs ? isLoadingAll : isLoadingSingle;
+	const error = showAllGraphs ? errorAll : errorSingle;
 
 	const handleRefresh = () => {
 		setRefreshKey((prev) => prev + 1);
-		refetch();
+		if (showAllGraphs) {
+			refetchAll();
+		} else {
+			refetchSingle();
+		}
 	};
 
-	const columnDefs: ColDef<JsonCommitItem>[] = useMemo(
-		() => [
+	const handleToggleView = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setShowAllGraphs(event.target.checked);
+	};
+
+	const columnDefs: ColDef<JsonCommitItem>[] = useMemo(() => {
+		const baseColumns: ColDef<JsonCommitItem>[] = [
 			{
 				headerName: "ID",
 				field: "short_id",
@@ -81,6 +114,13 @@ export const CommitsPage: React.FC = () => {
 				width: 120,
 				sortable: true,
 				filter: true,
+				cellRenderer: (params: any) => (
+					<Box sx={{ padding: 1 }}>
+						<Typography variant="body2" noWrap fontFamily="monospace">
+							{params.value ? params.value.substring(0, 8) : "—"}
+						</Typography>
+					</Box>
+				),
 			},
 			{
 				headerName: "Создан",
@@ -95,13 +135,27 @@ export const CommitsPage: React.FC = () => {
 			},
 			{
 				field: "diff",
-				headerName: "Данные",
+				headerName: "Изменения",
 				width: 300,
+				sortable: true,
+				filter: true,
 				cellRenderer: (params: any) => <JsonViewerCell value={params.value} />,
 			},
-		],
-		[],
-	);
+		];
+
+		if (showAllGraphs) {
+			baseColumns.push({
+				field: "fullData" as keyof JsonCommitItem,
+				headerName: "Полные данные",
+				width: 300,
+				sortable: true,
+				filter: true,
+				cellRenderer: (params: any) => <JsonViewerCell value={params.value} />,
+			});
+		}
+
+		return baseColumns;
+	}, [showAllGraphs]);
 
 	const defaultColDef = useMemo(
 		() => ({
@@ -132,6 +186,36 @@ export const CommitsPage: React.FC = () => {
 	return (
 		<Box>
 			<Header />
+
+			<Box sx={{ padding: 2, borderBottom: 1, borderColor: "divider" }}>
+				<Flex alignItems="center" justifyContent="space-between">
+					<Typography variant="h5" component="h1">
+						{showAllGraphs
+							? "Все коммиты из всех графиков"
+							: "Коммиты текущего графика"}
+					</Typography>
+					<Flex alignItems="center" gap={2}>
+						<FormControlLabel
+							control={
+								<Switch
+									checked={showAllGraphs}
+									onChange={handleToggleView}
+									color="primary"
+								/>
+							}
+							label="Показать все графики"
+						/>
+						<Button variant="outlined" onClick={handleRefresh}>
+							Обновить
+						</Button>
+					</Flex>
+				</Flex>
+				<Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+					{showAllGraphs
+						? "Отображаются коммиты из всех JSON данных с полными метаданными, версиями и информацией о пользователях"
+						: "Отображаются коммиты только из текущего активного графика"}
+				</Typography>
+			</Box>
 
 			<GridWrapper height="-webkit-fill-available">
 				<AgGridReact<JsonCommitItem>
@@ -166,7 +250,11 @@ export const CommitsPage: React.FC = () => {
 								height: "100%",
 							}}
 						>
-							<Typography color="text.secondary">Коммиты не найдены</Typography>
+							<Typography color="text.secondary">
+								{showAllGraphs
+									? "Коммиты не найдены во всех графиках"
+									: "Коммиты не найдены в текущем графике"}
+							</Typography>
 						</div>
 					)}
 					animateRows={true}

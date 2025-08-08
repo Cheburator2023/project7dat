@@ -300,6 +300,143 @@ export class JsonCommitController {
 		};
 	}
 
+	@Get("commits/all")
+	@ApiOperation({
+		summary: "Получить все коммиты из всех JSON данных",
+		description:
+			"Возвращает пагинированный список всех коммитов из всех графиков с полными метаданными",
+	})
+	@ApiQuery({
+		name: "page",
+		required: false,
+		type: Number,
+		description: "Номер страницы (по умолчанию 1)",
+		example: 1,
+	})
+	@ApiQuery({
+		name: "limit",
+		required: false,
+		type: Number,
+		description:
+			"Количество элементов на странице (по умолчанию 10, максимум 100)",
+		example: 10,
+	})
+	@ApiQuery({
+		name: "dateFrom",
+		required: false,
+		type: String,
+		description: "Дата начала поиска (ISO формат)",
+		example: "2024-01-01T00:00:00.000Z",
+	})
+	@ApiQuery({
+		name: "dateTo",
+		required: false,
+		type: String,
+		description: "Дата окончания поиска (ISO формат)",
+		example: "2024-12-31T23:59:59.999Z",
+	})
+	@ApiQuery({
+		name: "user",
+		required: false,
+		type: String,
+		description: "Поиск по пользователю (имя или email)",
+		example: "john.doe",
+	})
+	@ApiQuery({
+		name: "query",
+		required: false,
+		type: String,
+		description: "Поисковый запрос (сообщение коммита, ID)",
+		example: "обновление",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Список всех коммитов успешно получен",
+		schema: {
+			type: "object",
+			properties: {
+				data: {
+					type: "array",
+					items: {
+						type: "object",
+						properties: {
+							id: { type: "string", example: "uuid-string" },
+							short_id: { type: "string", example: "a1b2c3d4" },
+							message: { type: "string", example: "Обновлены узлы графа" },
+							diff: {
+								type: "object",
+								properties: {
+									left: { type: "object", description: "Original diff data" },
+									right: {
+										type: "object",
+										description: "Full data after changes",
+									},
+								},
+							},
+							fullData: { type: "object", example: {} },
+							graphId: { type: "string", example: "uuid-string" },
+							author: {
+								type: "object",
+								properties: {
+									id: { type: "string" },
+									username: { type: "string" },
+									email: { type: "string" },
+								},
+							},
+							createdAt: { type: "string", format: "date-time" },
+						},
+					},
+				},
+				total: { type: "number", example: 100 },
+				page: { type: "number", example: 1 },
+				limit: { type: "number", example: 10 },
+			},
+		},
+	})
+	async getAllCommitsFromAllGraphs(@Query() query: any) {
+		console.log(
+			`[JsonCommitController] getAllCommitsFromAllGraphs вызван с параметрами:`,
+			query,
+		);
+
+		const page = query.page ? Number.parseInt(query.page, 10) : 1;
+		const limit = query.limit ? Number.parseInt(query.limit, 10) : 10;
+
+		const params = {
+			page,
+			limit,
+			dateFrom: query.dateFrom,
+			dateTo: query.dateTo,
+			user: query.user,
+			query: query.query,
+		};
+
+		const result =
+			await this.jsonCommitService.getAllCommitsFromAllGraphs(params);
+
+		const transformedData = result.data.map((commit) => {
+			const { left, right } = this.extractDiffSlices(
+				commit.diff,
+				commit.fullData,
+			);
+			return {
+				...commit,
+				diff: {
+					left,
+					right,
+				},
+			};
+		});
+
+		console.log(
+			`[JsonCommitController] Возвращено коммитов: ${transformedData.length} из ${result.total}`,
+		);
+		return {
+			...result,
+			data: transformedData,
+		};
+	}
+
 	@Get("commits/search/:id")
 	@ApiOperation({
 		summary: "Поиск коммитов по графику",
