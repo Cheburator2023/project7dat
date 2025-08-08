@@ -85,6 +85,41 @@ export const DebugPage = () => {
 		[],
 	);
 
+	const snapshotColumns: ColDef[] = useMemo(
+		() => [
+			{ field: "id", headerName: "ID", width: 280 },
+			{ field: "name", headerName: "Название", width: 200 },
+			{ field: "description", headerName: "Описание", width: 300 },
+			{ field: "version", headerName: "Версия", width: 120 },
+			{ field: "graphId", headerName: "ID графа", width: 280 },
+			{
+				field: "createdAt",
+				headerName: "Создано",
+				width: 180,
+				valueFormatter: (params) => new Date(params.value).toLocaleString(),
+			},
+			{
+				field: "updatedAt",
+				headerName: "Обновлено",
+				width: 180,
+				valueFormatter: (params) => new Date(params.value).toLocaleString(),
+			},
+			{
+				field: "data",
+				headerName: "Данные",
+				width: 400,
+				cellRenderer: (params: any) => <JsonViewerCell value={params.value} />,
+			},
+			{
+				field: "metadata",
+				headerName: "Метаданные",
+				width: 300,
+				cellRenderer: (params: any) => <JsonViewerCell value={params.value} />,
+			},
+		],
+		[],
+	);
+
 	if (isLoading) {
 		return (
 			<Box
@@ -163,6 +198,9 @@ export const DebugPage = () => {
 						Коммитов: {debugData?.commits?.length || 0}
 					</Typography>
 					<Typography variant="body1">
+						Снимков: {debugData?.snapshots?.length || 0}
+					</Typography>
+					<Typography variant="body1">
 						Статус: {debugData?.dbStatus || "неизвестно"}
 					</Typography>
 				</Stack>
@@ -197,6 +235,26 @@ export const DebugPage = () => {
 						<AgGridReact
 							rowData={debugData?.commits || []}
 							columnDefs={commitColumns}
+							defaultColDef={{
+								resizable: true,
+								sortable: true,
+								filter: true,
+							}}
+							pagination={true}
+							paginationPageSize={10}
+							theme={agGridCustomMUITheme}
+						/>
+					</div>
+				</Paper>
+
+				<Paper>
+					<Typography variant="h5" sx={{ p: 2 }}>
+						Снимки ({debugData?.snapshots?.length || 0})
+					</Typography>
+					<div style={{ height: 400, width: "100%" }}>
+						<AgGridReact
+							rowData={debugData?.snapshots || []}
+							columnDefs={snapshotColumns}
 							defaultColDef={{
 								resizable: true,
 								sortable: true,

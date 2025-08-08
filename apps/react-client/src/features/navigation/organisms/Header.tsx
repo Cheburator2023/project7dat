@@ -1,16 +1,20 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import { IconButton, Typography } from "@mui/material";
+import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import { IconButton, Typography, Button } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useNavigate } from "react-router";
+import { useState } from "react";
 import { Flex } from "../../../common/primitives/Flex";
 import { useGlobalSettingsStore } from "../../../common/store/globalSettingsStore";
+import { useDataLineageStore } from "../../../stores/dataLineageStore";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
 import { NotificationButton } from "../../notification/NotificationButton";
+import { CreateSnapshotDialog } from "../../snapshots/CreateSnapshotDialog";
 
 export function Header({
 	children,
@@ -22,7 +26,9 @@ export function Header({
 	title?: string;
 }) {
 	const { toggleSideMenu, isSideMenuVisible } = useGlobalSettingsStore();
+	const { currentGraphId } = useDataLineageStore();
 	const navigate = useNavigate();
+	const [isSnapshotDialogOpen, setIsSnapshotDialogOpen] = useState(false);
 
 	const id1 = new URLSearchParams(window.location.search).get("id1");
 	const id2 = new URLSearchParams(window.location.search).get("id2");
@@ -99,6 +105,18 @@ export function Header({
 						>
 							{children}
 
+							{currentGraphId && (
+								<Button
+									variant="outlined"
+									size="small"
+									startIcon={<CameraAltIcon />}
+									onClick={() => setIsSnapshotDialogOpen(true)}
+									title="Создать снимок текущих данных"
+								>
+									Снимок
+								</Button>
+							)}
+
 							<NotificationButton />
 							<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
 						</Flex>
@@ -106,6 +124,11 @@ export function Header({
 				</Card>
 			</div>
 			<Spacer height={8} data-test-id="anketa-create-page--Spacer-1" />
+
+			<CreateSnapshotDialog
+				open={isSnapshotDialogOpen}
+				onClose={() => setIsSnapshotDialogOpen(false)}
+			/>
 		</>
 	);
 }

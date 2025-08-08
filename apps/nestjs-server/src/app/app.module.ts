@@ -4,6 +4,7 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JsonDataModule } from "src/modules/json-data/json-data.module";
+import { SnapshotsModule } from "src/modules/snapshots/snapshots.module";
 import { SharedModule } from "src/core/shared/shared.module";
 import databaseConfig from "src/core/config/database.config";
 
@@ -13,6 +14,7 @@ export class AppModule {
 		const imports = [
 			SharedModule.forRoot(),
 			JsonDataModule.forRoot(),
+			SnapshotsModule.forRoot(),
 			ConfigModule.forRoot(),
 		];
 
