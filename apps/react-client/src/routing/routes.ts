@@ -38,4 +38,10 @@ export const routes = {
 		disabled: false,
 		showInNavbar: false,
 	},
+	snapshots: {
+		name: "Снимки",
+		rootPath: "/snapshots",
+		disabled: false,
+		showInNavbar: true,
+	},
 };

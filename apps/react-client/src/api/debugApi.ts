@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { JsonDataItem, JsonCommitItem } from "./jsonDataApi";
+import type { SnapshotItem } from "./snapshotApi";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
 
@@ -17,9 +18,17 @@ export const jsonCommitApi = axios.create({
 	},
 });
 
+export const snapshotApi = axios.create({
+	baseURL: `${API_BASE_URL}/api/snapshots`,
+	headers: {
+		"Content-Type": "application/json",
+	},
+});
+
 export interface DebugDataResponse {
 	jsonData: JsonDataItem[];
 	commits: JsonCommitItem[];
+	snapshots: SnapshotItem[];
 	dbStatus: string;
 	totalRecords: number;
 }
@@ -35,17 +44,23 @@ export const debugService = {
 			const commitsResponse = await jsonCommitApi.get("/commits?limit=100");
 			const commits = commitsResponse.data.data || [];
 
+			// Fetch all snapshots
+			const snapshotsResponse = await snapshotApi.get("/list?limit=100");
+			const snapshots = snapshotsResponse.data.data || [];
+
 			return {
 				jsonData,
 				commits,
+				snapshots,
 				dbStatus: "connected",
-				totalRecords: jsonData.length + commits.length,
+				totalRecords: jsonData.length + commits.length + snapshots.length,
 			};
 		} catch (error) {
 			console.error("Error fetching debug data:", error);
 			return {
 				jsonData: [],
 				commits: [],
+				snapshots: [],
 				dbStatus: "error",
 				totalRecords: 0,
 			};
