@@ -13,12 +13,15 @@ import {
 	ApiResponse,
 	ApiParam,
 	ApiQuery,
-	ApiBody,
+	ApiBody, ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JsonCommitService } from "../services/json-commit.service";
 import { JsonDataService } from "../services/json-data.service";
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
+import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
+import { Permission } from "src/core/auth/permissions";
 
+@ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Коммиты")
 @Controller("api/json-commits")
 export class JsonCommitController {
@@ -28,6 +31,7 @@ export class JsonCommitController {
 	) {}
 
 	@Post("initialize")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Инициализировать новый график с данными",
 		description: "Создает новый график и создает начальный коммит с данными",
@@ -57,7 +61,7 @@ export class JsonCommitController {
 		},
 	})
 	@ApiResponse({
-		status: 200,
+		status: 201,
 		description: "График успешно инициализирован",
 		schema: {
 			type: "object",
@@ -79,6 +83,7 @@ export class JsonCommitController {
 	}
 
 	@Post("commit")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Коммит текущего графика",
 		description: "Создает коммит для текущего активного JSON документа",
@@ -103,7 +108,7 @@ export class JsonCommitController {
 		},
 	})
 	@ApiResponse({
-		status: 200,
+		status: 201,
 		description: "Коммит успешно создан",
 		schema: {
 			type: "object",
@@ -128,6 +133,7 @@ export class JsonCommitController {
 	}
 
 	@Post("commit/:id")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Обновить JSON с коммитом",
 		description: "Обновляет JSON документ с сохранением истории изменений",
@@ -188,6 +194,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить список коммитов",
 		description: "Возвращает пагинированный список коммитов",
@@ -300,6 +307,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits/:id")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить коммит по ID",
 		description: "Возвращает конкретный коммит по его идентификатору",

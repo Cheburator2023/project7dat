@@ -5,7 +5,7 @@ import * as Joi from 'joi';
 
 export type DatabaseConfig = TypeOrmModuleOptions & DataSourceOptions;
 
-export const databaseValidationSchema = {
+export const databaseValidationSchema = Joi.object({
 	DB_HOST: Joi.string().default('localhost'),
 	DB_PORT: Joi.number().default(5432),
 	DB_USERNAME: Joi.string().default('postgres'),
@@ -26,7 +26,7 @@ export const databaseValidationSchema = {
 		otherwise: Joi.optional(),
 	}),
 	DEV_DB_NAME: Joi.string().default('data_lineage_dev'),
-};
+});
 
 export default registerAs('database', (): DatabaseConfig => {
 	const configService = new ConfigService();
