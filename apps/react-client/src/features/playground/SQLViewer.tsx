@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
 	ReactFlow,
 	Node,
@@ -15,13 +15,15 @@ import {
 	Connection,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useDatabaseSchema } from "@react-client/api/hooks/useDatabaseSchema";
+import { useTableData } from "@react-client/api/hooks/useTableData";
+import type { TableInfo } from "@react-client/api/databaseSchemaApi";
 
 // MUI v7 imports
 import {
 	AppBar,
 	Toolbar,
 	Typography,
-	Button,
 	Box,
 	Paper,
 	List,
@@ -45,6 +47,7 @@ import {
 	Stack,
 	Alert,
 	Tooltip,
+	CircularProgress,
 } from "@mui/material";
 import {
 	Storage as DatabaseIcon,
@@ -54,141 +57,6 @@ import {
 	AccountTree as DiagramIcon,
 	CheckCircle as ConnectedIcon,
 } from "@mui/icons-material";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
-
-// Create MUI theme
-const theme = createTheme({
-	palette: {
-		primary: {
-			main: "#1976d2",
-		},
-		secondary: {
-			main: "#dc004e",
-		},
-		background: {
-			default: "#f5f5f5",
-			paper: "#ffffff",
-		},
-	},
-	components: {
-		MuiPaper: {
-			styleOverrides: {
-				root: {
-					borderRadius: 12,
-				},
-			},
-		},
-		MuiCard: {
-			styleOverrides: {
-				root: {
-					borderRadius: 16,
-					boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-				},
-			},
-		},
-	},
-});
-
-// Mock SQLite connection
-const mockDatabase = {
-	users: {
-		columns: [
-			{ name: "id", type: "INTEGER", primaryKey: true },
-			{ name: "username", type: "TEXT", nullable: false },
-			{ name: "email", type: "TEXT", nullable: false },
-			{ name: "created_at", type: "DATETIME", nullable: true },
-		],
-		data: [
-			{
-				id: 1,
-				username: "john_doe",
-				email: "john@example.com",
-				created_at: "2024-01-01 10:00:00",
-			},
-			{
-				id: 2,
-				username: "jane_smith",
-				email: "jane@example.com",
-				created_at: "2024-01-02 11:30:00",
-			},
-		],
-		foreignKeys: [],
-	},
-	posts: {
-		columns: [
-			{ name: "id", type: "INTEGER", primaryKey: true },
-			{ name: "user_id", type: "INTEGER", nullable: false },
-			{ name: "title", type: "TEXT", nullable: false },
-			{ name: "content", type: "TEXT", nullable: true },
-			{ name: "created_at", type: "DATETIME", nullable: true },
-		],
-		data: [
-			{
-				id: 1,
-				user_id: 1,
-				title: "My First Post",
-				content: "Hello world!",
-				created_at: "2024-01-03 09:00:00",
-			},
-			{
-				id: 2,
-				user_id: 2,
-				title: "React Tips",
-				content: "Some useful React tips...",
-				created_at: "2024-01-04 14:20:00",
-			},
-		],
-		foreignKeys: [{ column: "user_id", references: "users.id" }],
-	},
-	comments: {
-		columns: [
-			{ name: "id", type: "INTEGER", primaryKey: true },
-			{ name: "post_id", type: "INTEGER", nullable: false },
-			{ name: "user_id", type: "INTEGER", nullable: false },
-			{ name: "content", type: "TEXT", nullable: false },
-			{ name: "created_at", type: "DATETIME", nullable: true },
-		],
-		data: [
-			{
-				id: 1,
-				post_id: 1,
-				user_id: 2,
-				content: "Great post!",
-				created_at: "2024-01-05 16:45:00",
-			},
-		],
-		foreignKeys: [
-			{ column: "post_id", references: "posts.id" },
-			{ column: "user_id", references: "users.id" },
-		],
-	},
-	categories: {
-		columns: [
-			{ name: "id", type: "INTEGER", primaryKey: true },
-			{ name: "name", type: "TEXT", nullable: false },
-			{ name: "description", type: "TEXT", nullable: true },
-		],
-		data: [
-			{ id: 1, name: "Technology", description: "Tech-related posts" },
-			{ id: 2, name: "Lifestyle", description: "Lifestyle content" },
-		],
-		foreignKeys: [],
-	},
-	post_categories: {
-		columns: [
-			{ name: "post_id", type: "INTEGER", primaryKey: true },
-			{ name: "category_id", type: "INTEGER", primaryKey: true },
-		],
-		data: [
-			{ post_id: 1, category_id: 1 },
-			{ post_id: 2, category_id: 1 },
-		],
-		foreignKeys: [
-			{ column: "post_id", references: "posts.id" },
-			{ column: "category_id", references: "categories.id" },
-		],
-	},
-};
 
 // Custom Table Node Component with MUI styling
 const TableNode: React.FC<any> = ({ data, selected }) => {
@@ -327,76 +195,88 @@ const nodeTypes = {
 
 const SQLiteViewer: React.FC = () => {
 	const [selectedTable, setSelectedTable] = useState<string | null>(null);
-	const [tables, setTables] = useState<any>({});
-	const [connected, setConnected] = useState(false);
 	const [activeTab, setActiveTab] = useState<number>(0);
 	const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-	const connectToDatabase = () => {
-		setTables(mockDatabase);
-		setConnected(true);
-		generateFlowDiagram(mockDatabase);
-	};
+	const {
+		data: schemaData,
+		isLoading: isSchemaLoading,
+		error: schemaError,
+	} = useDatabaseSchema();
+	const { data: tableData, isLoading: isTableDataLoading } = useTableData(
+		selectedTable || "",
+		{
+			limit: 100,
+			offset: 0,
+			enabled: !!selectedTable,
+		},
+	);
 
-	const generateFlowDiagram = (database: any) => {
-		const tableNames = Object.keys(database);
-		const newNodes: Node[] = [];
-		const newEdges: Edge[] = [];
+	const generateFlowDiagram = useCallback(
+		(tables: TableInfo[]) => {
+			const newNodes: Node[] = [];
+			const newEdges: Edge[] = [];
 
-		tableNames.forEach((tableName, index) => {
-			const table = database[tableName];
-			const row = Math.floor(index / 3);
-			const col = index % 3;
+			tables.forEach((table, index) => {
+				const row = Math.floor(index / 3);
+				const col = index % 3;
 
-			newNodes.push({
-				id: tableName,
-				type: "tableNode",
-				position: {
-					x: col * 350 + (row % 2) * 100,
-					y: row * 350,
-				},
-				data: {
-					tableName,
-					columns: table.columns,
-					foreignKeys: table.foreignKeys,
-				},
-			});
-		});
-
-		tableNames.forEach((tableName) => {
-			const table = database[tableName];
-			table.foreignKeys?.forEach((fk: any, index: number) => {
-				const [refTable] = fk.references.split(".");
-				newEdges.push({
-					id: `${tableName}-${refTable}-${index}`,
-					source: tableName,
-					target: refTable,
-					type: "smoothstep",
-					animated: true,
-					style: {
-						stroke: "#1976d2",
-						strokeWidth: 2,
+				newNodes.push({
+					id: table.name,
+					type: "tableNode",
+					position: {
+						x: col * 350 + (row % 2) * 100,
+						y: row * 350,
 					},
-					markerEnd: {
-						type: MarkerType.ArrowClosed,
-						color: "#1976d2",
-						width: 20,
-						height: 20,
-					},
-					label: fk.column,
-					labelStyle: {
-						fontSize: 12,
-						fill: "#1976d2",
-						fontWeight: "bold",
+					data: {
+						tableName: table.name,
+						columns: table.columns,
+						foreignKeys: table.foreignKeys,
 					},
 				});
 			});
-		});
 
-		setNodes(newNodes);
-		setEdges(newEdges);
-	};
+			tables.forEach((table) => {
+				table.foreignKeys?.forEach((fk, index) => {
+					const [refTable] = fk.references.split(".");
+					newEdges.push({
+						id: `${table.name}-${refTable}-${index}`,
+						source: table.name,
+						target: refTable,
+						type: "smoothstep",
+						animated: true,
+						style: {
+							stroke: "#1976d2",
+							strokeWidth: 2,
+						},
+						markerEnd: {
+							type: MarkerType.ArrowClosed,
+							color: "#1976d2",
+							width: 20,
+							height: 20,
+						},
+						label: fk.column,
+						labelStyle: {
+							fontSize: 12,
+							fill: "#1976d2",
+							fontWeight: "bold",
+						},
+					});
+				});
+			});
+
+			setNodes(newNodes);
+			setEdges(newEdges);
+		},
+		[setNodes, setEdges],
+	);
+
+	useEffect(() => {
+		if (schemaData?.tables) {
+			generateFlowDiagram(schemaData.tables);
+		}
+	}, [schemaData, generateFlowDiagram]);
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -407,9 +287,14 @@ const SQLiteViewer: React.FC = () => {
 		setActiveTab(newValue);
 	};
 
-	const TableView: React.FC<{ table: any; tableName: string }> = ({
+	const getSelectedTableInfo = () => {
+		if (!selectedTable || !schemaData?.tables) return null;
+		return schemaData.tables.find((table) => table.name === selectedTable);
+	};
+
+	const TableView: React.FC<{ table: TableInfo; tableData?: any[] }> = ({
 		table,
-		tableName,
+		tableData: data = [],
 	}) => (
 		<Stack spacing={3}>
 			<Card>
@@ -421,24 +306,24 @@ const SQLiteViewer: React.FC = () => {
 					}
 					title={
 						<Typography variant="h4" component="h1">
-							{tableName}
+							{table.name}
 						</Typography>
 					}
 					action={
 						<Stack direction="row" spacing={1}>
 							<Chip
-								label={`${table.data.length} rows`}
+								label={`${table.rowCount} строк`}
 								color="primary"
 								variant="outlined"
 							/>
 							<Chip
-								label={`${table.columns.length} columns`}
+								label={`${table.columns.length} колонок`}
 								color="success"
 								variant="outlined"
 							/>
 							{table.foreignKeys?.length > 0 && (
 								<Chip
-									label={`${table.foreignKeys.length} foreign keys`}
+									label={`${table.foreignKeys.length} внешних ключей`}
 									color="secondary"
 									variant="outlined"
 								/>
@@ -448,10 +333,9 @@ const SQLiteViewer: React.FC = () => {
 				/>
 			</Card>
 
-			{/* Schema */}
 			<Card>
 				<CardHeader
-					title="Schema"
+					title="Схема"
 					avatar={<Avatar sx={{ bgcolor: "info.main" }}>📋</Avatar>}
 				/>
 				<CardContent>
@@ -459,20 +343,20 @@ const SQLiteViewer: React.FC = () => {
 						<Table>
 							<TableHead>
 								<TableRow>
-									<TableCell>Column</TableCell>
-									<TableCell>Type</TableCell>
-									<TableCell>Constraints</TableCell>
+									<TableCell>Колонка</TableCell>
+									<TableCell>Тип</TableCell>
+									<TableCell>Ограничения</TableCell>
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{table.columns.map((column: any, index: number) => (
+								{table.columns.map((column, index) => (
 									<TableRow key={index} hover>
 										<TableCell>
 											<Box
 												sx={{ display: "flex", alignItems: "center", gap: 1 }}
 											>
 												{column.primaryKey && (
-													<Tooltip title="Primary Key">
+													<Tooltip title="Первичный ключ">
 														<KeyIcon
 															sx={{ color: "warning.main", fontSize: 20 }}
 														/>
@@ -499,13 +383,13 @@ const SQLiteViewer: React.FC = () => {
 											<Stack direction="row" spacing={1}>
 												{column.primaryKey && (
 													<Chip
-														label="PRIMARY KEY"
+														label="ПЕРВИЧНЫЙ КЛЮЧ"
 														color="warning"
 														size="small"
 													/>
 												)}
 												{!column.nullable && (
-													<Chip label="NOT NULL" color="error" size="small" />
+													<Chip label="НЕ NULL" color="error" size="small" />
 												)}
 											</Stack>
 										</TableCell>
@@ -517,11 +401,10 @@ const SQLiteViewer: React.FC = () => {
 				</CardContent>
 			</Card>
 
-			{/* Foreign Keys */}
 			{table.foreignKeys?.length > 0 && (
 				<Card>
 					<CardHeader
-						title="Foreign Keys"
+						title="Внешние ключи"
 						avatar={
 							<Avatar sx={{ bgcolor: "secondary.main" }}>
 								<LinkIcon />
@@ -530,7 +413,7 @@ const SQLiteViewer: React.FC = () => {
 					/>
 					<CardContent>
 						<Stack spacing={2}>
-							{table.foreignKeys.map((fk: any, index: number) => (
+							{table.foreignKeys.map((fk, index) => (
 								<Alert
 									key={index}
 									severity="info"
@@ -547,7 +430,7 @@ const SQLiteViewer: React.FC = () => {
 										{fk.column}
 									</Typography>
 									<Typography component="span" sx={{ mx: 1 }}>
-										references
+										ссылается на
 									</Typography>
 									<Typography
 										component="span"
@@ -562,327 +445,293 @@ const SQLiteViewer: React.FC = () => {
 				</Card>
 			)}
 
-			{/* Data */}
 			<Card>
 				<CardHeader
-					title="Data Preview"
+					title="Предварительный просмотр данных"
 					avatar={<Avatar sx={{ bgcolor: "success.main" }}>📊</Avatar>}
 				/>
 				<CardContent>
-					<TableContainer sx={{ maxHeight: 400 }}>
-						<Table stickyHeader>
-							<TableHead>
-								<TableRow>
-									{table.columns.map((column: any, index: number) => (
-										<TableCell key={index} sx={{ fontWeight: "bold" }}>
-											{column.name}
-										</TableCell>
-									))}
-								</TableRow>
-							</TableHead>
-							<TableBody>
-								{table.data.map((row: any, rowIndex: number) => (
-									<TableRow key={rowIndex} hover>
-										{table.columns.map((column: any, colIndex: number) => (
-											<TableCell key={colIndex}>{row[column.name]}</TableCell>
+					{isTableDataLoading ? (
+						<Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+							<CircularProgress />
+						</Box>
+					) : (
+						<TableContainer sx={{ maxHeight: 400 }}>
+							<Table stickyHeader>
+								<TableHead>
+									<TableRow>
+										{table.columns.map((column, index) => (
+											<TableCell key={index} sx={{ fontWeight: "bold" }}>
+												{column.name}
+											</TableCell>
 										))}
 									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					</TableContainer>
+								</TableHead>
+								<TableBody>
+									{data.map((row, rowIndex) => (
+										<TableRow key={rowIndex} hover>
+											{table.columns.map((column, colIndex) => (
+												<TableCell key={colIndex}>{row[column.name]}</TableCell>
+											))}
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</TableContainer>
+					)}
 				</CardContent>
 			</Card>
 		</Stack>
 	);
 
-	return (
-		<ThemeProvider theme={theme}>
+	if (isSchemaLoading) {
+		return (
 			<Box
 				sx={{
 					height: "100vh",
 					display: "flex",
-					flexDirection: "column",
+					alignItems: "center",
+					justifyContent: "center",
 					bgcolor: "background.default",
 				}}
 			>
-				{/* Header */}
-				<AppBar position="static" elevation={1}>
-					<Toolbar>
-						<DatabaseIcon sx={{ mr: 2 }} />
-						<Box sx={{ flexGrow: 1 }}>
-							<Typography
-								variant="h5"
-								component="h1"
-								sx={{ fontWeight: "bold" }}
-							>
-								SQLite Database Viewer
-							</Typography>
-							<Typography variant="body2" sx={{ opacity: 0.8 }}>
-								Explore your database schema and relationships
-							</Typography>
-						</Box>
-						{!connected ? (
-							<Button
-								variant="contained"
-								color="secondary"
-								size="large"
-								onClick={connectToDatabase}
-								startIcon={<DatabaseIcon />}
-								sx={{
-									borderRadius: 3,
-									px: 3,
-								}}
-							>
-								Connect to Database
-							</Button>
-						) : (
-							<Chip
-								icon={<ConnectedIcon />}
-								label="Connected to Database"
-								color="success"
-								variant="filled"
-								sx={{
-									bgcolor: "success.main",
-									color: "white",
-									"& .MuiChip-icon": { color: "white" },
-								}}
-							/>
-						)}
-					</Toolbar>
-				</AppBar>
+				<Stack spacing={2} alignItems="center">
+					<CircularProgress size={60} />
+					<Typography variant="h6">Загрузка схемы базы данных...</Typography>
+				</Stack>
+			</Box>
+		);
+	}
 
-				{connected && (
+	if (schemaError) {
+		return (
+			<Box
+				sx={{
+					height: "100vh",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					bgcolor: "background.default",
+				}}
+			>
+				<Alert severity="error" sx={{ maxWidth: 600 }}>
+					<Typography variant="h6">
+						Ошибка загрузки схемы базы данных
+					</Typography>
+					<Typography>{schemaError.message}</Typography>
+				</Alert>
+			</Box>
+		);
+	}
+
+	const selectedTableInfo = getSelectedTableInfo();
+
+	return (
+		<Box
+			sx={{
+				height: "100vh",
+				display: "flex",
+				flexDirection: "column",
+				bgcolor: "background.default",
+			}}
+		>
+			<AppBar position="static" elevation={1}>
+				<Toolbar>
+					<DatabaseIcon sx={{ mr: 2 }} />
+					<Box sx={{ flexGrow: 1 }}>
+						<Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
+							Просмотрщик базы данных
+						</Typography>
+						<Typography variant="body2" sx={{ opacity: 0.8 }}>
+							Исследуйте схему базы данных и связи между таблицами
+						</Typography>
+					</Box>
+					<Chip
+						icon={<ConnectedIcon />}
+						label={`Подключено к ${schemaData?.databaseType || "базе данных"}`}
+						color="success"
+						variant="filled"
+						sx={{
+							bgcolor: "success.main",
+							color: "white",
+							"& .MuiChip-icon": { color: "white" },
+						}}
+					/>
+				</Toolbar>
+			</AppBar>
+
+			<Paper sx={{ borderRadius: 0 }}>
+				<Tabs
+					value={activeTab}
+					onChange={handleTabChange}
+					sx={{ px: 3 }}
+					textColor="primary"
+					indicatorColor="primary"
+				>
+					<Tab
+						icon={<TableIcon />}
+						label="Таблицы и данные"
+						iconPosition="start"
+					/>
+					<Tab
+						icon={<DiagramIcon />}
+						label="ER-диаграмма"
+						iconPosition="start"
+					/>
+				</Tabs>
+			</Paper>
+
+			<Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
+				{activeTab === 0 && (
 					<>
-						{/* Navigation Tabs */}
-						<Paper sx={{ borderRadius: 0 }}>
-							<Tabs
-								value={activeTab}
-								onChange={handleTabChange}
-								sx={{ px: 3 }}
-								textColor="primary"
-								indicatorColor="primary"
-							>
-								<Tab
-									icon={<TableIcon />}
-									label="Tables & Data"
-									iconPosition="start"
-								/>
-								<Tab
-									icon={<DiagramIcon />}
-									label="ER Diagram"
-									iconPosition="start"
-								/>
-							</Tabs>
+						<Paper
+							sx={{
+								width: 320,
+								borderRadius: 0,
+								borderRight: "1px solid",
+								borderColor: "divider",
+								overflow: "auto",
+							}}
+						>
+							<Box sx={{ p: 3 }}>
+								<Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+									Таблицы ({schemaData?.tables?.length || 0})
+								</Typography>
+								<List>
+									{schemaData?.tables?.map((table) => (
+										<ListItem key={table.name} disablePadding sx={{ mb: 1 }}>
+											<ListItemButton
+												selected={selectedTable === table.name}
+												onClick={() => setSelectedTable(table.name)}
+												sx={{
+													borderRadius: 2,
+													"&.Mui-selected": {
+														bgcolor: "primary.50",
+														borderLeft: "4px solid",
+														borderColor: "primary.main",
+													},
+												}}
+											>
+												<ListItemText
+													primary={
+														<Typography
+															variant="subtitle1"
+															sx={{ fontWeight: "bold" }}
+														>
+															{table.name}
+														</Typography>
+													}
+													secondary={
+														<Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+															<Chip
+																label={`${table.rowCount} строк`}
+																size="small"
+																variant="outlined"
+																color="primary"
+															/>
+															<Chip
+																label={`${table.columns.length} кол.`}
+																size="small"
+																variant="outlined"
+																color="success"
+															/>
+															{table.foreignKeys?.length > 0 && (
+																<Chip
+																	label={`${table.foreignKeys.length} ВК`}
+																	size="small"
+																	variant="outlined"
+																	color="secondary"
+																/>
+															)}
+														</Stack>
+													}
+												/>
+											</ListItemButton>
+										</ListItem>
+									))}
+								</List>
+							</Box>
 						</Paper>
 
-						<Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
-							{activeTab === 0 && (
-								<>
-									{/* Sidebar */}
-									<Paper
-										sx={{
-											width: 320,
-											borderRadius: 0,
-											borderRight: "1px solid",
-											borderColor: "divider",
-											overflow: "auto",
-										}}
-									>
-										<Box sx={{ p: 3 }}>
-											<Typography
-												variant="h6"
-												sx={{ mb: 2, fontWeight: "bold" }}
-											>
-												Tables ({Object.keys(tables).length})
-											</Typography>
-											<List>
-												{Object.keys(tables).map((tableName) => (
-													<ListItem
-														key={tableName}
-														disablePadding
-														sx={{ mb: 1 }}
-													>
-														<ListItemButton
-															selected={selectedTable === tableName}
-															onClick={() => setSelectedTable(tableName)}
-															sx={{
-																borderRadius: 2,
-																"&.Mui-selected": {
-																	bgcolor: "primary.50",
-																	borderLeft: "4px solid",
-																	borderColor: "primary.main",
-																},
-															}}
-														>
-															<ListItemText
-																primary={
-																	<Typography
-																		variant="subtitle1"
-																		sx={{ fontWeight: "bold" }}
-																	>
-																		{tableName}
-																	</Typography>
-																}
-																secondary={
-																	<Stack
-																		direction="row"
-																		spacing={1}
-																		sx={{ mt: 0.5 }}
-																	>
-																		<Chip
-																			label={`${tables[tableName].data.length} rows`}
-																			size="small"
-																			variant="outlined"
-																			color="primary"
-																		/>
-																		<Chip
-																			label={`${tables[tableName].columns.length} cols`}
-																			size="small"
-																			variant="outlined"
-																			color="success"
-																		/>
-																		{tables[tableName].foreignKeys?.length >
-																			0 && (
-																			<Chip
-																				label={`${tables[tableName].foreignKeys.length} FK`}
-																				size="small"
-																				variant="outlined"
-																				color="secondary"
-																			/>
-																		)}
-																	</Stack>
-																}
-															/>
-														</ListItemButton>
-													</ListItem>
-												))}
-											</List>
-										</Box>
-									</Paper>
-
-									{/* Main Content */}
-									<Box sx={{ flex: 1, overflow: "auto", p: 3 }}>
-										{selectedTable ? (
-											<TableView
-												table={tables[selectedTable]}
-												tableName={selectedTable}
-											/>
-										) : (
-											<Container maxWidth="sm">
-												<Box sx={{ textAlign: "center", py: 8 }}>
-													<Avatar
-														sx={{
-															width: 80,
-															height: 80,
-															mx: "auto",
-															mb: 3,
-															bgcolor: "grey.100",
-															color: "grey.400",
-														}}
-													>
-														<TableIcon sx={{ fontSize: 40 }} />
-													</Avatar>
-													<Typography
-														variant="h4"
-														sx={{
-															mb: 2,
-															fontWeight: "bold",
-															color: "text.primary",
-														}}
-													>
-														Select a table to explore
-													</Typography>
-													<Typography variant="body1" color="text.secondary">
-														Choose a table from the sidebar to view its detailed
-														schema, constraints, and data preview
-													</Typography>
-												</Box>
-											</Container>
-										)}
+						<Box sx={{ flex: 1, overflow: "auto", p: 3 }}>
+							{selectedTableInfo ? (
+								<TableView
+									table={selectedTableInfo}
+									tableData={tableData?.data}
+								/>
+							) : (
+								<Container maxWidth="sm">
+									<Box sx={{ textAlign: "center", py: 8 }}>
+										<Avatar
+											sx={{
+												width: 80,
+												height: 80,
+												mx: "auto",
+												mb: 3,
+												bgcolor: "grey.100",
+												color: "grey.400",
+											}}
+										>
+											<TableIcon sx={{ fontSize: 40 }} />
+										</Avatar>
+										<Typography
+											variant="h4"
+											sx={{
+												mb: 2,
+												fontWeight: "bold",
+												color: "text.primary",
+											}}
+										>
+											Выберите таблицу для исследования
+										</Typography>
+										<Typography variant="body1" color="text.secondary">
+											Выберите таблицу из боковой панели для просмотра её
+											детальной схемы, ограничений и предварительного просмотра
+											данных
+										</Typography>
 									</Box>
-								</>
-							)}
-
-							{activeTab === 1 && (
-								<Box sx={{ flex: 1, position: "relative" }}>
-									<ReactFlow
-										nodes={nodes}
-										edges={edges}
-										onNodesChange={onNodesChange}
-										onEdgesChange={onEdgesChange}
-										onConnect={onConnect}
-										nodeTypes={nodeTypes}
-										fitView
-										fitViewOptions={{ padding: 0.2 }}
-										defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-										minZoom={0.2}
-										maxZoom={1.5}
-									>
-										<Background color="#f0f0f0" size={1} />
-										<MiniMap
-											nodeColor={(node) =>
-												node.selected ? "#1976d2" : "#64748b"
-											}
-											style={{
-												backgroundColor: "white",
-												border: "1px solid #e0e0e0",
-												borderRadius: "8px",
-											}}
-										/>
-										<Controls
-											style={{
-												backgroundColor: "white",
-												border: "1px solid #e0e0e0",
-												borderRadius: "8px",
-											}}
-										/>
-									</ReactFlow>
-								</Box>
+								</Container>
 							)}
 						</Box>
 					</>
 				)}
 
-				{!connected && (
-					<Container maxWidth="md">
-						<Box
-							sx={{
-								display: "flex",
-								flexDirection: "column",
-								alignItems: "center",
-								justifyContent: "center",
-								minHeight: "60vh",
-								textAlign: "center",
-							}}
+				{activeTab === 1 && (
+					<Box sx={{ flex: 1, position: "relative" }}>
+						<ReactFlow
+							nodes={nodes}
+							edges={edges}
+							onNodesChange={onNodesChange}
+							onEdgesChange={onEdgesChange}
+							onConnect={onConnect}
+							nodeTypes={nodeTypes}
+							fitView
+							fitViewOptions={{ padding: 0.2 }}
+							defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+							minZoom={0.2}
+							maxZoom={1.5}
 						>
-							<Avatar
-								sx={{
-									width: 120,
-									height: 120,
-									mb: 4,
-									bgcolor: "primary.50",
-									color: "primary.main",
+							<Background color="#f0f0f0" size={1} />
+							<MiniMap
+								nodeColor={(node) => (node.selected ? "#1976d2" : "#64748b")}
+								style={{
+									backgroundColor: "white",
+									border: "1px solid #e0e0e0",
+									borderRadius: "8px",
 								}}
-							>
-								<DatabaseIcon sx={{ fontSize: 60 }} />
-							</Avatar>
-							<Typography variant="h3" sx={{ mb: 2, fontWeight: "bold" }}>
-								Connect to your SQLite database
-							</Typography>
-							<Typography
-								variant="h6"
-								color="text.secondary"
-								sx={{ mb: 4, maxWidth: 600 }}
-							>
-								Click the connect button to load a sample database with tables,
-								relationships, and data to explore the full functionality
-							</Typography>
-						</Box>
-					</Container>
+							/>
+							<Controls
+								style={{
+									backgroundColor: "white",
+									border: "1px solid #e0e0e0",
+									borderRadius: "8px",
+								}}
+							/>
+						</ReactFlow>
+					</Box>
 				)}
 			</Box>
-		</ThemeProvider>
+		</Box>
 	);
 };
 

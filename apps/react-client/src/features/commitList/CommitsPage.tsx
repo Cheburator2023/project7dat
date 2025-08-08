@@ -8,20 +8,10 @@ import {
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
 import { useCommitList } from "@react-client/api/hooks/useCommitList";
-import { JsonViewer } from "@react-client/common/jsonViewers/JsonViewer";
 import type { JsonCommitItem } from "@react-client/api/jsonDataApi";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
-
-const JsonViewerCell: React.FC<{ value: any }> = ({ value }) => {
-	if (!value) return <span>—</span>;
-
-	return (
-		<Box sx={{ width: "100%", height: "100%" }}>
-			<JsonViewer data={value} height={200} showSearch={false} />
-		</Box>
-	);
-};
+import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 
 export const CommitsPage: React.FC = () => {
 	const { mode } = useColorScheme();
@@ -34,7 +24,8 @@ export const CommitsPage: React.FC = () => {
 		refetch,
 	} = useCommitList({
 		page: 1,
-		limit: 1000,
+		enabled: true,
+		limit: 100,
 	});
 
 	const commitsList = commitsResponse?.data || [];
@@ -103,18 +94,10 @@ export const CommitsPage: React.FC = () => {
 				},
 			},
 			{
-				headerName: "Diff",
 				field: "diff",
-				width: 400,
-				cellRenderer: JsonViewerCell,
-				autoHeight: true,
-			},
-			{
-				headerName: "Полные данные",
-				field: "fullData",
-				width: 400,
-				cellRenderer: JsonViewerCell,
-				autoHeight: true,
+				headerName: "Данные",
+				width: 300,
+				cellRenderer: (params: any) => <JsonViewerCell value={params.value} />,
 			},
 		],
 		[],
@@ -186,8 +169,6 @@ export const CommitsPage: React.FC = () => {
 							<Typography color="text.secondary">Коммиты не найдены</Typography>
 						</div>
 					)}
-					suppressRowClickSelection={true}
-					rowSelection="multiple"
 					animateRows={true}
 					enableCellTextSelection={true}
 					ensureDomOrder={true}
