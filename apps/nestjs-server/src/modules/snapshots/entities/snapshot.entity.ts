@@ -22,6 +22,9 @@ export class SnapshotEntity {
 	@Column({ type: "varchar", length: 255 })
 	sourceDataId: string;
 
+	@Column({ type: "varchar", length: 50, default: "1.0.0" })
+	version: string;
+
 	@CreateDateColumn()
 	createdAt: Date;
 }

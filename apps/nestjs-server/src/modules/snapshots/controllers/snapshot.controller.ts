@@ -46,6 +46,12 @@ export class SnapshotController {
 					description: "Описание снимка (опционально)",
 					example: "Снимок перед важными изменениями",
 				},
+				version: {
+					type: "string",
+					description:
+						"Версия снимка в формате semver (опционально, по умолчанию 1.0.0)",
+					example: "2.12.33",
+				},
 			},
 		},
 	})
@@ -60,6 +66,7 @@ export class SnapshotController {
 				data: { type: "object", example: { key: "value" } },
 				description: { type: "string", example: "Описание снимка" },
 				sourceDataId: { type: "string", example: "source-uuid" },
+				version: { type: "string", example: "1.0.0" },
 				createdAt: { type: "string", format: "date-time" },
 			},
 		},
@@ -115,6 +122,7 @@ export class SnapshotController {
 							data: { type: "object", example: { key: "value" } },
 							description: { type: "string", example: "Описание снимка" },
 							sourceDataId: { type: "string", example: "source-uuid" },
+							version: { type: "string", example: "1.0.0" },
 							createdAt: { type: "string", format: "date-time" },
 						},
 					},
@@ -193,6 +201,7 @@ export class SnapshotController {
 				data: { type: "object", example: { key: "value" } },
 				description: { type: "string", example: "Описание снимка" },
 				sourceDataId: { type: "string", example: "source-uuid" },
+				version: { type: "string", example: "1.0.0" },
 				createdAt: { type: "string", format: "date-time" },
 			},
 		},

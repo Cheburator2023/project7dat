@@ -26,13 +26,51 @@ export function CreateSnapshotDialog({
 	const [description, setDescription] = useState("");
 	const [version, setVersion] = useState("");
 	const [metadata, setMetadata] = useState("");
+	const [versionError, setVersionError] = useState("");
 
 	const { currentGraphId } = useDataLineageStore();
 	const createSnapshotMutation = useCreateSnapshot();
 
+	const validateSemver = (value: string): boolean => {
+		const semverRegex =
+			/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+		return semverRegex.test(value);
+	};
+
+	const formatVersionInput = (value: string): string => {
+		const cleaned = value.replace(/[^0-9.]/g, "");
+		const parts = cleaned.split(".");
+
+		if (parts.length > 3) {
+			return parts.slice(0, 3).join(".");
+		}
+
+		return cleaned;
+	};
+
+	const handleVersionChange = (value: string) => {
+		const formatted = formatVersionInput(value);
+		setVersion(formatted);
+
+		if (formatted && !validateSemver(formatted)) {
+			setVersionError(
+				"Неверный формат версии. Используйте формат: MAJOR.MINOR.PATCH (например, 1.0.0)",
+			);
+		} else {
+			setVersionError("");
+		}
+	};
+
 	const handleSubmit = async () => {
 		if (!name.trim() || !version.trim()) {
 			toast.error("Название и версия обязательны");
+			return;
+		}
+
+		if (!validateSemver(version.trim())) {
+			toast.error(
+				"Неверный формат версии. Используйте формат: MAJOR.MINOR.PATCH (например, 1.0.0)",
+			);
 			return;
 		}
 
@@ -73,6 +111,7 @@ export function CreateSnapshotDialog({
 		setDescription("");
 		setVersion("");
 		setMetadata("");
+		setVersionError("");
 		onClose();
 	};
 
@@ -92,10 +131,18 @@ export function CreateSnapshotDialog({
 					<TextField
 						label="Версия"
 						value={version}
-						onChange={(e) => setVersion(e.target.value)}
+						onChange={(e) => handleVersionChange(e.target.value)}
 						fullWidth
 						required
 						placeholder="1.0.0"
+						error={!!versionError}
+						helperText={
+							versionError || "Формат: MAJOR.MINOR.PATCH (например, 1.0.0)"
+						}
+						inputProps={{
+							pattern: "[0-9]+\\.[0-9]+\\.[0-9]+",
+							maxLength: 20,
+						}}
 					/>
 					<TextField
 						label="Описание"
@@ -127,7 +174,10 @@ export function CreateSnapshotDialog({
 					onClick={handleSubmit}
 					variant="contained"
 					disabled={
-						createSnapshotMutation.isPending || !name.trim() || !version.trim()
+						createSnapshotMutation.isPending ||
+						!name.trim() ||
+						!version.trim() ||
+						!!versionError
 					}
 					startIcon={
 						createSnapshotMutation.isPending ? (

@@ -3,6 +3,7 @@ import { z } from "zod";
 export const CreateSnapshotSchema = z.object({
 	name: z.string().min(1).max(255).optional(),
 	description: z.string().optional(),
+	version: z.string().min(1).max(50).optional().default("1.0.0"),
 });
 
 export const GetSnapshotListSchema = z.object({
@@ -17,6 +18,7 @@ export const SnapshotResponseSchema = z.object({
 	data: z.record(z.any()),
 	description: z.string().optional(),
 	sourceDataId: z.string(),
+	version: z.string(),
 	createdAt: z.date(),
 });
 
