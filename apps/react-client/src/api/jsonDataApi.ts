@@ -23,6 +23,8 @@ export interface JsonDataItem {
 	name: string;
 	data: DataLineageSchema;
 	description?: string;
+	version: string;
+	isCurrent: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -37,6 +39,11 @@ export interface UpdateJsonDataRequest {
 	name?: string;
 	data?: DataLineageSchema;
 	description?: string;
+	version?: string;
+}
+
+export interface SetCurrentFromSnapshotRequest {
+	snapshotId: string;
 }
 
 export interface CommitJsonDataRequest {
@@ -169,5 +176,15 @@ export const jsonDataService = {
 		return jsonCommitApi
 			.get(`/commits/all?${searchParams}`)
 			.then((response) => response.data);
+	},
+
+	setCurrent: (id: string): Promise<{ success: boolean; message: string }> =>
+		jsonDataApi.post(`/set-current/${id}`).then((response) => response.data),
+
+	setCurrentFromSnapshot: async (request: SetCurrentFromSnapshotRequest) => {
+		const response = await jsonDataApi.post(
+			`/set-current-from-snapshot/${request.snapshotId}`,
+		);
+		return response.data;
 	},
 };

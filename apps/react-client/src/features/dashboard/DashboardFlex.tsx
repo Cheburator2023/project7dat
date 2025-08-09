@@ -112,6 +112,8 @@ const flexLayoutJson = {
 };
 
 export const DashboardFlex = () => {
+	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph();
+
 	const _theme = useColorScheme();
 	const { importFromFile, exportToFile } = useEditorStore();
 
@@ -131,7 +133,6 @@ export const DashboardFlex = () => {
 	});
 	const queryClient = useQueryClient();
 	const initializeGraphMutation = useInitializeJsonGraph();
-	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph();
 
 	const _saveGraphMutation = useSaveDataLineageGraph();
 
@@ -363,6 +364,7 @@ export const DashboardFlex = () => {
 	return (
 		<div>
 			<Header>
+				{currentGraphId && <span>Текущий граф: {currentGraphId}</span>}
 				{hasUnsavedChanges && (
 					<Flex gap={6}>
 						<Button

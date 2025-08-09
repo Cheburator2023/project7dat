@@ -28,3 +28,5 @@ export { useCreateSnapshot } from "./useCreateSnapshot";
 export { useUpdateSnapshot } from "./useUpdateSnapshot";
 export { useDeleteSnapshot } from "./useDeleteSnapshot";
 export { useRestoreSnapshot } from "./useRestoreSnapshot";
+export { useSetCurrentJsonData } from "./useSetCurrentJsonData";
+export { useSetCurrentFromSnapshot } from "./useSetCurrentFromSnapshot";

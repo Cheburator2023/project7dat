@@ -8,7 +8,7 @@ import {
 	Button,
 	useColorScheme,
 } from "@mui/material";
-import { RefreshRounded } from "@mui/icons-material";
+import { RefreshRounded, PlayArrow } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import {
 	AllCommunityModule,
@@ -20,7 +20,10 @@ import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
-import { useSnapshotList } from "@react-client/api/hooks";
+import {
+	useSnapshotList,
+	useSetCurrentFromSnapshot,
+} from "@react-client/api/hooks";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
@@ -42,13 +45,37 @@ export const SnapshotsPage = () => {
 		limit: 100,
 	});
 
+	const setCurrentFromSnapshotMutation = useSetCurrentFromSnapshot();
+
 	const snapshotColumns: ColDef[] = useMemo(
 		() => [
 			{ field: "id", headerName: "ID", width: 280 },
 			{ field: "name", headerName: "Название", width: 200 },
-			{ field: "description", headerName: "Описание", width: 300 },
+			{ field: "description", headerName: "Описание", width: 250 },
 			{ field: "version", headerName: "Версия", width: 120 },
 			{ field: "graphId", headerName: "ID графа", width: 280 },
+			{
+				field: "actions",
+				headerName: "Действия",
+				width: 180,
+				pinned: "left",
+				cellRenderer: (params: any) => (
+					<Button
+						size="small"
+						variant="contained"
+						color="primary"
+						onClick={() =>
+							setCurrentFromSnapshotMutation.mutate({
+								snapshotId: params.data.id,
+							})
+						}
+						disabled={setCurrentFromSnapshotMutation.isPending}
+						startIcon={<PlayArrow />}
+					>
+						Установить
+					</Button>
+				),
+			},
 			{
 				field: "createdAt",
 				headerName: "Создано",
@@ -74,7 +101,7 @@ export const SnapshotsPage = () => {
 				cellRenderer: (params: any) => <JsonViewerCell value={params.value} />,
 			},
 		],
-		[],
+		[setCurrentFromSnapshotMutation],
 	);
 
 	if (isLoading) {

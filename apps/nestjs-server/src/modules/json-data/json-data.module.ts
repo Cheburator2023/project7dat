@@ -1,4 +1,4 @@
-import { Module, DynamicModule } from "@nestjs/common";
+import { Module, DynamicModule, Global } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { JsonDataEntity } from "./entities/json-data.entity";
 import { JsonCommitEntity } from "./entities/json-commit.entity";
@@ -9,6 +9,7 @@ import { JsonCommitController } from "./controllers/json-commit.controller";
 
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
+@Global()
 @Module({})
 export class JsonDataModule {
 	static forRoot(): DynamicModule {

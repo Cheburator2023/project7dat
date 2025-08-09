@@ -6,6 +6,8 @@ interface JsonDataRecord {
 	name: string;
 	data: any;
 	description?: string;
+	version: string;
+	isCurrent: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -22,6 +24,7 @@ export class MemoryStorageService {
 		name: string,
 		data: any,
 		description?: string,
+		version = "1.0.0",
 	): Promise<JsonDataRecord> {
 		const id = uuidv4();
 		const now = new Date();
@@ -30,6 +33,8 @@ export class MemoryStorageService {
 			name,
 			data,
 			description,
+			version,
+			isCurrent: false,
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -54,7 +59,12 @@ export class MemoryStorageService {
 
 	async update(
 		id: string,
-		updates: Partial<Pick<JsonDataRecord, "name" | "data" | "description">>,
+		updates: Partial<
+			Pick<
+				JsonDataRecord,
+				"name" | "data" | "description" | "version" | "isCurrent"
+			>
+		>,
 	): Promise<JsonDataRecord | null> {
 		const record = this.storage.get(id);
 		if (!record) {
@@ -69,6 +79,41 @@ export class MemoryStorageService {
 
 		this.storage.set(id, updatedRecord);
 		return updatedRecord;
+	}
+
+	async setCurrentById(id: string): Promise<JsonDataRecord | null> {
+		const record = this.storage.get(id);
+		if (!record) {
+			return null;
+		}
+
+		for (const [key, value] of this.storage.entries()) {
+			if (value.isCurrent) {
+				this.storage.set(key, {
+					...value,
+					isCurrent: false,
+					updatedAt: new Date(),
+				});
+			}
+		}
+
+		const updatedRecord = {
+			...record,
+			isCurrent: true,
+			updatedAt: new Date(),
+		};
+
+		this.storage.set(id, updatedRecord);
+		return updatedRecord;
+	}
+
+	async getCurrentRecord(): Promise<JsonDataRecord | null> {
+		for (const record of this.storage.values()) {
+			if (record.isCurrent) {
+				return record;
+			}
+		}
+		return null;
 	}
 
 	async delete(id: string): Promise<boolean> {
