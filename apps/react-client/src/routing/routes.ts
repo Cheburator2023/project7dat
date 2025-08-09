@@ -13,19 +13,19 @@ export const routes = {
 		showInNavbar: false,
 	},
 	snapshots: {
-		name: "Снепшоты",
+		name: "Реестр снепшотов",
 		rootPath: "/snapshots",
 		disabled: false,
 		showInNavbar: true,
 	},
 	jsonData: {
-		name: "JSON Данные",
+		name: "JSON Реестр",
 		rootPath: "/json-data",
 		disabled: false,
 		showInNavbar: true,
 	},
 	allCommits: {
-		name: "Все коммиты",
+		name: "Реестр коммитов",
 		rootPath: "/all-commits",
 		disabled: false,
 		showInNavbar: true,
