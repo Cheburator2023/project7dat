@@ -1,12 +1,5 @@
 import React, { useState, useMemo } from "react";
-import {
-	Box,
-	Typography,
-	Button,
-	Alert,
-	Switch,
-	FormControlLabel,
-} from "@mui/material";
+import { Box, Typography, Button, Alert } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
@@ -64,7 +57,7 @@ export const AllCommitsPage: React.FC = () => {
 		}
 	};
 
-	const handleToggleView = (event: React.ChangeEvent<HTMLInputElement>) => {
+	const _handleToggleView = (event: React.ChangeEvent<HTMLInputElement>) => {
 		setShowAllGraphs(event.target.checked);
 	};
 
@@ -186,36 +179,6 @@ export const AllCommitsPage: React.FC = () => {
 	return (
 		<Box>
 			<Header />
-
-			<Box sx={{ padding: 2, borderBottom: 1, borderColor: "divider" }}>
-				<Flex alignItems="center" justifyContent="space-between">
-					<Typography variant="h5" component="h1">
-						{showAllGraphs
-							? "Все коммиты из всех графиков"
-							: "Коммиты текущего графика"}
-					</Typography>
-					<Flex alignItems="center" gap={2}>
-						<FormControlLabel
-							control={
-								<Switch
-									checked={showAllGraphs}
-									onChange={handleToggleView}
-									color="primary"
-								/>
-							}
-							label="Показать все графики"
-						/>
-						<Button variant="outlined" onClick={handleRefresh}>
-							Обновить
-						</Button>
-					</Flex>
-				</Flex>
-				<Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-					{showAllGraphs
-						? "Отображаются коммиты из всех JSON данных с полными метаданными, версиями и информацией о пользователях"
-						: "Отображаются коммиты только из текущего активного графика"}
-				</Typography>
-			</Box>
 
 			<GridWrapper height="-webkit-fill-available">
 				<AgGridReact<JsonCommitItem>
