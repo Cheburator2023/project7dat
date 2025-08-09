@@ -8,7 +8,9 @@ import {
 	Button,
 	styled,
 	useTheme,
+	InputAdornment,
 } from "@mui/material";
+import DateRangeIcon from "@mui/icons-material/DateRange";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 
 export interface DateRange {
@@ -137,6 +139,11 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = memo(
 					variant="outlined"
 					InputProps={{
 						readOnly: true,
+						startAdornment: (
+							<InputAdornment position="start">
+								<DateRangeIcon fontSize="small" />
+							</InputAdornment>
+						),
 						sx: {
 							cursor: disabled ? "default" : "pointer",
 							"& input": {
