@@ -9,7 +9,10 @@ import {
 	styled,
 	TextField,
 	Button,
+	InputAdornment,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import PersonIcon from "@mui/icons-material/Person";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import {
 	useCommitList,
@@ -25,7 +28,6 @@ import {
 	DateRangePicker,
 	type DateRange,
 } from "@react-client/common/muiCustom/DateRangePicker";
-import { Flex } from "@react-client/common/primitives/Flex";
 import { CommitDetailsDialog } from "./CommitDetailsDialog";
 
 const CommitItem = memo(
@@ -238,7 +240,18 @@ export const CommitHistory: React.FC = memo(() => {
 
 	return (
 		<Wrapper>
-			<Flex gap={4} wrap="wrap">
+			<Box
+				sx={{
+					display: "grid",
+					gridTemplateColumns: {
+						xs: "1fr",
+						sm: "1fr 1fr",
+						md: "1fr 1fr 1fr",
+					},
+					gap: 1,
+					mb: hasActiveFilters ? 2 : 0,
+				}}
+			>
 				<TextField
 					placeholder="Включает текст"
 					value={searchQuery}
@@ -248,6 +261,15 @@ export const CommitHistory: React.FC = memo(() => {
 					variant="outlined"
 					size="small"
 					fullWidth
+					slotProps={{
+						input: {
+							startAdornment: (
+								<InputAdornment position="start">
+									<SearchIcon fontSize="small" />
+								</InputAdornment>
+							),
+						},
+					}}
 				/>
 
 				<TextField
@@ -257,22 +279,43 @@ export const CommitHistory: React.FC = memo(() => {
 					variant="outlined"
 					size="small"
 					fullWidth
+					slotProps={{
+						input: {
+							startAdornment: (
+								<InputAdornment position="start">
+									<PersonIcon fontSize="small" />
+								</InputAdornment>
+							),
+						},
+					}}
 				/>
 
-				<DateRangePicker
-					value={dateRange}
-					onChange={setDateRange}
-					placeholder="Выберите период дата/время"
-					size="small"
-					fullWidth
-				/>
+				<Box
+					sx={{
+						gridColumn: {
+							xs: "1",
+							sm: "1 / -1",
+							md: "3",
+						},
+					}}
+				>
+					<DateRangePicker
+						value={dateRange}
+						onChange={setDateRange}
+						placeholder="Выберите период дата/время"
+						size="small"
+						fullWidth
+					/>
+				</Box>
+			</Box>
 
-				{hasActiveFilters && (
+			{hasActiveFilters && (
+				<Box sx={{ mb: 2 }}>
 					<Button size="small" onClick={handleClearSearch} variant="contained">
 						Очистить фильтры
 					</Button>
-				)}
-			</Flex>
+				</Box>
+			)}
 
 			<Spacer space={16} />
 
