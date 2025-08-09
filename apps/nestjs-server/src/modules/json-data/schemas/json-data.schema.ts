@@ -63,12 +63,14 @@ export const CreateJsonDataSchema = z.object({
 	data: DataLineageZodSchema,
 	name: z.string().min(1).max(255).optional(),
 	description: z.string().optional(),
+	version: z.string().min(1).max(50).optional().default("1.0.0"),
 });
 
 export const UpdateJsonDataSchema = z.object({
 	name: z.string().min(1).max(255).optional(),
 	data: DataLineageZodSchema.optional(),
 	description: z.string().optional(),
+	version: z.string().min(1).max(50).optional(),
 });
 
 export const JsonDataResponseSchema = z.object({
@@ -76,8 +78,14 @@ export const JsonDataResponseSchema = z.object({
 	name: z.string(),
 	data: DataLineageZodSchema,
 	description: z.string().optional(),
+	version: z.string(),
+	isCurrent: z.boolean(),
 	createdAt: z.date(),
 	updatedAt: z.date(),
+});
+
+export const SetCurrentJsonDataSchema = z.object({
+	id: z.string().uuid(),
 });
 
 export const GetJsonDataListSchema = z.object({
@@ -90,3 +98,4 @@ export type CreateJsonDataInput = z.infer<typeof CreateJsonDataSchema>;
 export type UpdateJsonDataInput = z.infer<typeof UpdateJsonDataSchema>;
 export type JsonDataResponse = z.infer<typeof JsonDataResponseSchema>;
 export type GetJsonDataListInput = z.infer<typeof GetJsonDataListSchema>;
+export type SetCurrentJsonDataInput = z.infer<typeof SetCurrentJsonDataSchema>;

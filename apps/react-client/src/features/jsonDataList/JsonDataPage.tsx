@@ -8,8 +8,9 @@ import {
 	Button,
 	useColorScheme,
 	styled,
+	Chip,
 } from "@mui/material";
-import { RefreshRounded } from "@mui/icons-material";
+import { RefreshRounded, CheckCircle } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import {
 	AllCommunityModule,
@@ -21,7 +22,10 @@ import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
-import { useJsonDataList } from "@react-client/api/hooks";
+import {
+	useJsonDataList,
+	useSetCurrentJsonData,
+} from "@react-client/api/hooks";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
@@ -32,12 +36,56 @@ export const JsonDataPage = () => {
 	const { mode } = useColorScheme();
 
 	const { data: jsonDataList, isLoading, error, refetch } = useJsonDataList();
+	const setCurrentMutation = useSetCurrentJsonData();
 
 	const jsonDataColumns: ColDef[] = useMemo(
 		() => [
 			{ field: "id", headerName: "ID", width: 280 },
 			{ field: "name", headerName: "Название", width: 200 },
-			{ field: "description", headerName: "Описание", width: 300 },
+			{ field: "description", headerName: "Описание", width: 250 },
+			{ field: "version", headerName: "Версия", width: 100 },
+			{
+				field: "isCurrent",
+				headerName: "Текущий",
+				width: 100,
+				cellRenderer: (params: any) => (
+					<Box display="flex" alignItems="center" height="100%">
+						{params.value ? (
+							<Chip
+								label="Текущий"
+								color="success"
+								size="small"
+								variant="filled"
+							/>
+						) : (
+							<Chip
+								label="Нет"
+								color="default"
+								size="small"
+								variant="outlined"
+							/>
+						)}
+					</Box>
+				),
+			},
+			{
+				headerName: "Действия",
+				field: "actions",
+				width: 180,
+				pinned: "left",
+				cellRenderer: (params: any) => (
+					<Button
+						size="small"
+						variant="contained"
+						color="primary"
+						onClick={() => setCurrentMutation.mutate(params.data.id)}
+						disabled={params.data.isCurrent || setCurrentMutation.isPending}
+						startIcon={<CheckCircle />}
+					>
+						Установить
+					</Button>
+				),
+			},
 			{
 				field: "createdAt",
 				headerName: "Создано",
@@ -57,7 +105,7 @@ export const JsonDataPage = () => {
 				cellRenderer: (params: any) => <JsonViewerCell value={params.value} />,
 			},
 		],
-		[],
+		[setCurrentMutation],
 	);
 
 	if (isLoading) {

@@ -20,14 +20,18 @@ import {
 import { JsonDataService } from "../services/json-data.service";
 import {
 	CreateJsonDataInput,
-	UpdateJsonDataInput,
 	GetJsonDataListSchema,
+	UpdateJsonDataInput,
 } from "../schemas/json-data.schema";
+import { SnapshotService } from "../../snapshots/services/snapshot.service";
 
 @ApiTags("JSON Данные")
 @Controller("api/json-data")
 export class JsonDataController {
-	constructor(private readonly jsonDataService: JsonDataService) {}
+	constructor(
+		private readonly jsonDataService: JsonDataService,
+		private readonly snapshotService: SnapshotService,
+	) {}
 
 	@Post("create")
 	@ApiOperation({
@@ -327,5 +331,88 @@ export class JsonDataController {
 	async remove(@Param("id") id: string) {
 		await this.jsonDataService.deleteGraphData(id);
 		return { success: true };
+	}
+
+	@Post("set-current/:id")
+	@ApiOperation({
+		summary: "Установить текущий JSON документ по ID",
+		description: "Устанавливает указанный JSON документ как текущий активный",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "Уникальный идентификатор JSON документа",
+		example: "uuid-string",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "JSON документ успешно установлен как текущий",
+		schema: {
+			type: "object",
+			properties: {
+				success: { type: "boolean", example: true },
+				message: {
+					type: "string",
+					example: "JSON документ установлен как текущий",
+				},
+			},
+		},
+	})
+	@ApiResponse({
+		status: 404,
+		description: "JSON документ не найден",
+	})
+	async setCurrent(@Param("id") id: string) {
+		await this.jsonDataService.setCurrentById(id);
+		return {
+			success: true,
+			message: "JSON документ установлен как текущий",
+		};
+	}
+
+	@Post("set-current-from-snapshot/:snapshotId")
+	@ApiOperation({
+		summary: "Установить текущий JSON документ из снимка",
+		description:
+			"Создает новый JSON документ из данных снимка и устанавливает его как текущий",
+	})
+	@ApiParam({
+		name: "snapshotId",
+		type: String,
+		description: "Уникальный идентификатор снимка",
+		example: "uuid-string",
+	})
+	@ApiResponse({
+		status: 201,
+		description:
+			"JSON документ успешно создан из снимка и установлен как текущий",
+		schema: {
+			type: "object",
+			properties: {
+				success: { type: "boolean", example: true },
+				message: {
+					type: "string",
+					example: "JSON документ создан из снимка и установлен как текущий",
+				},
+				id: { type: "string", example: "uuid-string" },
+			},
+		},
+	})
+	@ApiResponse({
+		status: 400,
+		description: "Неверные данные запроса",
+	})
+	@ApiResponse({
+		status: 404,
+		description: "Снимок не найден",
+	})
+	async setCurrentFromSnapshot(@Param("snapshotId") snapshotId: string) {
+		const snapshot = await this.snapshotService.getSnapshotById(snapshotId);
+		const result = await this.jsonDataService.setCurrentFromSnapshot(snapshot);
+		return {
+			success: true,
+			message: "JSON документ создан из снимка и установлен как текущий",
+			id: result.id,
+		};
 	}
 }

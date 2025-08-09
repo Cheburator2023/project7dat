@@ -5,8 +5,8 @@ import { ConfigService } from "@nestjs/config";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import {
 	CreateJsonDataInput,
-	UpdateJsonDataInput,
 	GetJsonDataListInput,
+	UpdateJsonDataInput,
 } from "../schemas/json-data.schema";
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { MemoryStorageService } from "../../../core/shared/database/service/memory-storage.service";
@@ -31,12 +31,15 @@ export class JsonDataService {
 		const name = input.name || `График ${new Date().toLocaleString("ru-RU")}`;
 		const description =
 			input.description || "Сохранённое состояние графика данных";
+		const version = input.version || "1.0.0";
 
 		if (this.isProduction) {
 			const jsonData = this.jsonDataRepository.create({
 				name,
 				data: input.data,
 				description,
+				version,
+				isCurrent: false,
 			});
 			return this.jsonDataRepository.save(jsonData);
 		}
@@ -45,6 +48,7 @@ export class JsonDataService {
 			name,
 			input.data,
 			description,
+			version,
 		);
 	}
 
@@ -115,6 +119,13 @@ export class JsonDataService {
 
 	async getLatestGraphData(): Promise<any> {
 		if (this.isProduction) {
+			const currentData = await this.jsonDataRepository.findOne({
+				where: { isCurrent: true },
+			});
+			if (currentData) {
+				return currentData;
+			}
+
 			const jsonData = await this.jsonDataRepository.findOne({
 				order: { createdAt: "DESC" },
 			});
@@ -122,6 +133,11 @@ export class JsonDataService {
 				return undefined;
 			}
 			return jsonData;
+		}
+
+		const currentResult = await this.memoryStorageService.getCurrentRecord();
+		if (currentResult) {
+			return currentResult;
 		}
 
 		const result = await this.memoryStorageService.findLatest();
@@ -230,6 +246,7 @@ export class JsonDataService {
 				name,
 				data: commitInput.data,
 				description,
+				version: "1.0.0",
 			});
 
 			console.log(
@@ -261,6 +278,38 @@ export class JsonDataService {
 		);
 
 		return updatedData;
+	}
+
+	async setCurrentById(id: string): Promise<any> {
+		if (this.isProduction) {
+			await this.jsonDataRepository.update({}, { isCurrent: false });
+
+			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
+			if (!jsonData) {
+				throw new NotFoundException(`График с ID ${id} не найден`);
+			}
+
+			jsonData.isCurrent = true;
+			return this.jsonDataRepository.save(jsonData);
+		}
+
+		const result = await this.memoryStorageService.setCurrentById(id);
+		if (!result) {
+			throw new NotFoundException(`График с ID ${id} не найден`);
+		}
+		return result;
+	}
+
+	async setCurrentFromSnapshot(snapshot: any): Promise<any> {
+		const newData = {
+			name: snapshot.name,
+			data: snapshot.data,
+			description: `Создано из снимка: ${snapshot.name}`,
+			version: snapshot.version || "1.0.0",
+		};
+
+		const created = await this.createGraphData(newData);
+		return await this.setCurrentById(created.id);
 	}
 
 	async deleteGraphData(id: string): Promise<void> {

@@ -20,6 +20,12 @@ export class JsonDataEntity {
 	@Column({ type: "text", nullable: true })
 	description?: string;
 
+	@Column({ type: "varchar", length: 50, default: "1.0.0" })
+	version: string;
+
+	@Column({ type: "boolean", default: false })
+	isCurrent: boolean;
+
 	@CreateDateColumn()
 	createdAt: Date;
 
