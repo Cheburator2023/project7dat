@@ -12,6 +12,7 @@ import {
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { MemoryStorageService } from "../../../core/shared/database/service/memory-storage.service";
 import { JsonCommitService } from "./json-commit.service";
+import { ChangelogService } from "../../changelog/services/changelog.service";
 
 @Injectable()
 export class JsonDataService {
@@ -24,6 +25,7 @@ export class JsonDataService {
 		private readonly configService: ConfigService,
 		private readonly memoryStorageService: MemoryStorageService,
 		private readonly jsonCommitService: JsonCommitService,
+		private readonly changelogService: ChangelogService,
 	) {
 		this.isProduction = this.configService.get<boolean>("app.isProduction");
 	}
@@ -33,6 +35,7 @@ export class JsonDataService {
 		const description = input.description || "Иннициализация json данных";
 		const version = input.version || "1.0.0";
 
+		let result: any;
 		if (this.isProduction) {
 			const jsonData = this.jsonDataRepository.create({
 				id: uuidv4(),
@@ -42,15 +45,18 @@ export class JsonDataService {
 				version,
 				isCurrent: false,
 			});
-			return this.jsonDataRepository.save(jsonData);
+			result = await this.jsonDataRepository.save(jsonData);
+		} else {
+			result = await this.memoryStorageService.create(
+				name,
+				input.data,
+				description,
+				version,
+			);
 		}
 
-		return await this.memoryStorageService.create(
-			name,
-			input.data,
-			description,
-			version,
-		);
+		await this.changelogService.logGraphCreated(result.id, result.name);
+		return result;
 	}
 
 	async createDataWithId(id: string, input: CreateJsonDataInput): Promise<any> {
@@ -309,6 +315,7 @@ export class JsonDataService {
 	}
 
 	async setCurrentById(id: string): Promise<any> {
+		let result: any;
 		if (this.isProduction) {
 			await this.jsonDataRepository.update({}, { isCurrent: false });
 
@@ -318,13 +325,15 @@ export class JsonDataService {
 			}
 
 			jsonData.isCurrent = true;
-			return this.jsonDataRepository.save(jsonData);
+			result = await this.jsonDataRepository.save(jsonData);
+		} else {
+			result = await this.memoryStorageService.setCurrentById(id);
+			if (!result) {
+				throw new NotFoundException(`JSON с ID ${id} не найден`);
+			}
 		}
 
-		const result = await this.memoryStorageService.setCurrentById(id);
-		if (!result) {
-			throw new NotFoundException(`JSON с ID ${id} не найден`);
-		}
+		await this.changelogService.logSetCurrent(result.id, result.name);
 		return result;
 	}
 

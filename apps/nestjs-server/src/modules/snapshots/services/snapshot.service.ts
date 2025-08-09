@@ -11,6 +11,7 @@ import {
 import { SnapshotMemoryStorageService } from "./snapshot-memory-storage.service";
 import { JsonDataService } from "../../json-data/services/json-data.service";
 import { JsonCommitService } from "../../json-data/services/json-commit.service";
+import { ChangelogService } from "../../changelog/services/changelog.service";
 
 @Injectable()
 export class SnapshotService {
@@ -24,6 +25,7 @@ export class SnapshotService {
 		private readonly snapshotMemoryStorageService: SnapshotMemoryStorageService,
 		private readonly jsonDataService: JsonDataService,
 		private readonly jsonCommitService: JsonCommitService,
+		private readonly changelogService: ChangelogService,
 	) {
 		this.isProduction = this.configService.get<boolean>("app.isProduction");
 	}
@@ -54,6 +56,8 @@ export class SnapshotService {
 
 		const relatedCommits = await this.getCommitsForGraphData(currentData.id);
 
+		let result: any;
+
 		if (this.isProduction) {
 			const snapshot = this.snapshotRepository.create({
 				name: snapshotName,
@@ -65,19 +69,28 @@ export class SnapshotService {
 				originalName: currentData.name,
 				originalDescription: currentData.description,
 			});
-			return this.snapshotRepository.save(snapshot);
+			result = await this.snapshotRepository.save(snapshot);
+		} else {
+			result = await this.snapshotMemoryStorageService.create(
+				snapshotName,
+				currentData.data,
+				currentData.id,
+				snapshotDescription,
+				version,
+				relatedCommits,
+				currentData.name,
+				currentData.description,
+			);
 		}
 
-		return await this.snapshotMemoryStorageService.create(
-			snapshotName,
-			currentData.data,
+		await this.changelogService.logSnapshotCreated(
 			currentData.id,
-			snapshotDescription,
-			version,
-			relatedCommits,
 			currentData.name,
-			currentData.description,
+			result.id,
+			snapshotName,
 		);
+
+		return result;
 	}
 
 	async getAllSnapshotsWithPagination(
@@ -146,6 +159,9 @@ export class SnapshotService {
 			snapshot.sourceDataId,
 		);
 
+		let result: any;
+		const graphName = snapshot.originalName || snapshot.name;
+
 		if (!existingData) {
 			const graphData = await this.jsonDataService.createDataWithId(
 				snapshot.sourceDataId,
@@ -165,7 +181,7 @@ export class SnapshotService {
 			}
 
 			await this.jsonDataService.setCurrentById(snapshot.sourceDataId);
-			return graphData;
+			result = graphData;
 		} else {
 			await this.jsonDataService.updateGraphData(snapshot.sourceDataId, {
 				name: snapshot.originalName || snapshot.name,
@@ -182,8 +198,17 @@ export class SnapshotService {
 			}
 
 			await this.jsonDataService.setCurrentById(snapshot.sourceDataId);
-			return existingData;
+			result = existingData;
 		}
+
+		await this.changelogService.logSnapshotApplied(
+			snapshot.sourceDataId,
+			graphName,
+			snapshot.id,
+			snapshot.name,
+		);
+
+		return result;
 	}
 
 	private async restoreCommitsFromSnapshot(

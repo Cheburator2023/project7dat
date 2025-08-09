@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JsonDataModule } from "src/modules/json-data/json-data.module";
 import { SnapshotsModule } from "src/modules/snapshots/snapshots.module";
 import { DatabaseSchemaModule } from "src/modules/database-schema/database-schema.module";
+import { ChangelogModule } from "src/modules/changelog/changelog.module";
 import { SharedModule } from "src/core/shared/shared.module";
 import databaseConfig from "src/core/config/database.config";
 
@@ -17,6 +18,7 @@ export class AppModule {
 			JsonDataModule.forRoot(),
 			SnapshotsModule.forRoot(),
 			DatabaseSchemaModule,
+			ChangelogModule,
 			ConfigModule.forRoot(),
 		];
 
