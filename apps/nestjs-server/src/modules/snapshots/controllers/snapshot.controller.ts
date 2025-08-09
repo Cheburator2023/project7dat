@@ -19,6 +19,7 @@ import { SnapshotService } from "../services/snapshot.service";
 import {
 	CreateSnapshotInput,
 	GetSnapshotListSchema,
+	ApplySnapshotInput,
 } from "../schemas/snapshot.schema";
 
 @ApiTags("Снепшоты")
@@ -212,5 +213,10 @@ export class SnapshotController {
 	})
 	async findOne(@Param("id") id: string) {
 		return await this.snapshotService.getSnapshotById(id);
+	}
+
+	@Post("apply")
+	async applySnapshot(@Body() input: ApplySnapshotInput) {
+		return this.snapshotService.applySnapshot(input);
 	}
 }

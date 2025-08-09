@@ -43,6 +43,11 @@ export interface SnapshotListResponse {
 	limit: number;
 }
 
+export interface ApplySnapshotRequest {
+	snapshotId: string;
+	message?: string;
+}
+
 export const snapshotService = {
 	getAll: (params?: {
 		page?: number;
@@ -73,4 +78,7 @@ export const snapshotService = {
 
 	restore: (id: string): Promise<void> =>
 		snapshotApi.post(`/${id}/restore`).then(() => undefined),
+
+	apply: (data: ApplySnapshotRequest): Promise<void> =>
+		snapshotApi.post("/apply", data).then(() => undefined),
 };

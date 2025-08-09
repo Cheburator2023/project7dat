@@ -364,7 +364,6 @@ export const DashboardFlex = () => {
 	return (
 		<div>
 			<Header>
-				{currentGraphId && <span>Текущий граф: {currentGraphId}</span>}
 				{hasUnsavedChanges && (
 					<Flex gap={6}>
 						<Button

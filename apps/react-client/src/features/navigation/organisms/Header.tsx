@@ -94,6 +94,9 @@ export function Header({
 										- {calcId || `${id1} / ${id2}`}
 									</Typography>
 								))}
+							{currentGraphId && (
+								<Typography>Текущий граф: {currentGraphId}</Typography>
+							)}
 						</Flex>
 						<Flex
 							flexDirection="row"
@@ -123,6 +126,7 @@ export function Header({
 					</Flex>
 				</Card>
 			</div>
+
 			<Spacer height={8} data-test-id="anketa-create-page--Spacer-1" />
 
 			<CreateSnapshotDialog

@@ -25,6 +25,15 @@ export class SnapshotEntity {
 	@Column({ type: "varchar", length: 50, default: "1.0.0" })
 	version: string;
 
+	@Column({ type: "jsonb", nullable: true })
+	commits?: any[];
+
+	@Column({ type: "varchar", length: 255, nullable: true })
+	originalName?: string;
+
+	@Column({ type: "text", nullable: true })
+	originalDescription?: string;
+
 	@CreateDateColumn()
 	createdAt: Date;
 }

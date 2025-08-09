@@ -675,4 +675,76 @@ export class JsonCommitService {
 			limit,
 		};
 	}
+
+	async getCommitsForGraph(graphId: string): Promise<any[]> {
+		return await this.getAllCommitsForGraph(graphId);
+	}
+
+	async createCommitFromSnapshot(
+		graphId: string,
+		commitData: any,
+	): Promise<any> {
+		console.log(
+			`[JsonCommitService] Восстановление коммита ${commitData.id} для графика ${graphId}`,
+		);
+
+		if (this.isProduction) {
+			const existingCommit = await this.commitRepository.findOne({
+				where: { id: commitData.id },
+			});
+
+			if (existingCommit) {
+				console.log(
+					`[JsonCommitService] Коммит ${commitData.id} уже существует`,
+				);
+				return existingCommit;
+			}
+
+			const commit = this.commitRepository.create({
+				id: commitData.id,
+				message: commitData.message,
+				diff: commitData.diff,
+				graphId,
+				createdAt: commitData.createdAt,
+			});
+
+			return await this.commitRepository.save(commit);
+		}
+
+		if (!this.memoryCommits.has(graphId)) {
+			this.memoryCommits.set(graphId, []);
+		}
+
+		const commits = this.memoryCommits.get(graphId)!;
+		const existingCommit = commits.find((c) => c.id === commitData.id);
+
+		if (existingCommit) {
+			console.log(
+				`[JsonCommitService] Коммит ${commitData.id} уже существует в памяти`,
+			);
+			return existingCommit;
+		}
+
+		const commit = {
+			id: commitData.id,
+			message: commitData.message,
+			diff: commitData.diff,
+			graphId,
+			createdAt: new Date(commitData.createdAt),
+		};
+
+		commits.push(commit);
+		commits.sort(
+			(a, b) =>
+				new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+		);
+
+		console.log(
+			`[JsonCommitService] Коммит ${commitData.id} восстановлен в память`,
+		);
+		return {
+			...commit,
+			short_id: this.generateShortId(commit.id),
+		};
+	}
 }

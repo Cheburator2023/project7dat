@@ -42,6 +42,28 @@ export class MemoryStorageService {
 		return record;
 	}
 
+	async createWithId(
+		id: string,
+		name: string,
+		data: any,
+		description?: string,
+		version = "1.0.0",
+	): Promise<JsonDataRecord> {
+		const now = new Date();
+		const record: JsonDataRecord = {
+			id,
+			name,
+			data,
+			description,
+			version,
+			isCurrent: false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		this.storage.set(id, record);
+		return record;
+	}
+
 	async findAll(): Promise<JsonDataRecord[]> {
 		return Array.from(this.storage.values()).sort(
 			(a, b) => b.createdAt.getTime() - a.createdAt.getTime(),

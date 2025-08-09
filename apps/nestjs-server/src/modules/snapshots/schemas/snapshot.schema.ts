@@ -19,9 +19,16 @@ export const SnapshotResponseSchema = z.object({
 	description: z.string().optional(),
 	sourceDataId: z.string(),
 	version: z.string(),
+	commits: z.array(z.any()).optional(),
 	createdAt: z.date(),
+});
+
+export const ApplySnapshotSchema = z.object({
+	snapshotId: z.string(),
+	message: z.string().optional().default("Применение снепшота"),
 });
 
 export type CreateSnapshotInput = z.infer<typeof CreateSnapshotSchema>;
 export type GetSnapshotListInput = z.infer<typeof GetSnapshotListSchema>;
 export type SnapshotResponse = z.infer<typeof SnapshotResponseSchema>;
+export type ApplySnapshotInput = z.infer<typeof ApplySnapshotSchema>;
