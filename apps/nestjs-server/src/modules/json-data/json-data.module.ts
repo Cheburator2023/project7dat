@@ -6,6 +6,7 @@ import { JsonDataService } from "./services/json-data.service";
 import { JsonCommitService } from "./services/json-commit.service";
 import { JsonDataController } from "./controllers/json-data.controller";
 import { JsonCommitController } from "./controllers/json-commit.controller";
+import { ChangelogModule } from "../changelog/changelog.module";
 
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
@@ -31,7 +32,7 @@ export class JsonDataModule {
 
 		return {
 			module: JsonDataModule,
-			imports: [...imports, ConfigModule.forRoot()],
+			imports: [...imports, ConfigModule.forRoot(), ChangelogModule],
 			controllers: [JsonDataController, JsonCommitController],
 			providers,
 			exports: [JsonDataService, JsonCommitService],

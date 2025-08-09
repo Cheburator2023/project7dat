@@ -30,6 +30,18 @@ export const routes = {
 		disabled: false,
 		showInNavbar: true,
 	},
+	changelog: {
+		name: "История изменений",
+		rootPath: "/changelog",
+		disabled: false,
+		showInNavbar: true,
+	},
+	graphChangelog: {
+		name: "История графика",
+		rootPath: "/changelog/:graphId",
+		disabled: false,
+		showInNavbar: false,
+	},
 	// dev
 	playground: {
 		name: "Песочница",

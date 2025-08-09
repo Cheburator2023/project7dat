@@ -95,7 +95,7 @@ export function Header({
 									</Typography>
 								))}
 							{currentGraphId && (
-								<Typography>Текущий граф: {currentGraphId}</Typography>
+								<Typography>Текущий json: {currentGraphId}</Typography>
 							)}
 						</Flex>
 						<Flex

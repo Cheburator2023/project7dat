@@ -8,6 +8,8 @@ import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPr
 import { SnapshotsPage } from "@react-client/features/snapshotsList/SnapshotsPage";
 import { JsonDataPage } from "@react-client/features/jsonDataList/JsonDataPage";
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
+import { ChangelogPage } from "@react-client/features/changelog/ChangelogPage";
+import { GraphChangelogPage } from "@react-client/features/changelog/GraphChangelogPage";
 
 export const Routing = () => (
 	<Routes>
@@ -18,6 +20,11 @@ export const Routing = () => (
 		<Route path={routes.snapshots.rootPath} element={<SnapshotsPage />} />
 		<Route path={routes.jsonData.rootPath} element={<JsonDataPage />} />
 		<Route path={routes.allCommits.rootPath} element={<AllCommitsPage />} />
+		<Route path={routes.changelog.rootPath} element={<ChangelogPage />} />
+		<Route
+			path={routes.graphChangelog.rootPath}
+			element={<GraphChangelogPage />}
+		/>
 		<Route
 			path={routes.entityPreview.rootPath}
 			element={<EntityPreviewPage />}

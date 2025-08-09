@@ -6,6 +6,7 @@ import { SnapshotController } from "./controllers/snapshot.controller";
 import { SnapshotService } from "./services/snapshot.service";
 import { SnapshotEntity } from "./entities/snapshot.entity";
 import { SnapshotMemoryStorageService } from "./services/snapshot-memory-storage.service";
+import { ChangelogModule } from "../changelog/changelog.module";
 
 @Global()
 @Module({})
@@ -20,7 +21,7 @@ export class SnapshotsModule {
 
 		return {
 			module: SnapshotsModule,
-			imports: [...imports, ConfigModule.forRoot()],
+			imports: [...imports, ConfigModule.forRoot(), ChangelogModule],
 			controllers: [SnapshotController],
 			providers,
 			exports: [SnapshotService, SnapshotMemoryStorageService],
