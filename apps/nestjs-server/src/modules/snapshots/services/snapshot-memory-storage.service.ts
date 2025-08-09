@@ -8,6 +8,9 @@ interface SnapshotRecord {
 	description?: string;
 	sourceDataId: string;
 	version: string;
+	commits?: any[];
+	originalName?: string;
+	originalDescription?: string;
 	createdAt: Date;
 }
 
@@ -25,6 +28,9 @@ export class SnapshotMemoryStorageService {
 		sourceDataId: string,
 		description?: string,
 		version = "1.0.0",
+		commits?: any[],
+		originalName?: string,
+		originalDescription?: string,
 	): Promise<SnapshotRecord> {
 		const id = uuidv4();
 		const now = new Date();
@@ -35,6 +41,9 @@ export class SnapshotMemoryStorageService {
 			description,
 			sourceDataId,
 			version,
+			commits,
+			originalName,
+			originalDescription,
 			createdAt: now,
 		};
 		this.storage.set(id, record);

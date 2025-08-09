@@ -50,6 +50,7 @@ export const SnapshotsPage = () => {
 	const snapshotColumns: ColDef[] = useMemo(
 		() => [
 			{ field: "id", headerName: "ID", width: 280 },
+			{ field: "sourceDataId", headerName: "ID источника", width: 280 },
 			{ field: "name", headerName: "Название", width: 200 },
 			{ field: "description", headerName: "Описание", width: 250 },
 			{ field: "version", headerName: "Версия", width: 120 },

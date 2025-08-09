@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Like } from "typeorm";
 import { ConfigService } from "@nestjs/config";
+import { v4 as uuidv4 } from "uuid";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import {
 	CreateJsonDataInput,
@@ -35,6 +36,7 @@ export class JsonDataService {
 
 		if (this.isProduction) {
 			const jsonData = this.jsonDataRepository.create({
+				id: uuidv4(),
 				name,
 				data: input.data,
 				description,
@@ -45,6 +47,33 @@ export class JsonDataService {
 		}
 
 		return await this.memoryStorageService.create(
+			name,
+			input.data,
+			description,
+			version,
+		);
+	}
+
+	async createDataWithId(id: string, input: CreateJsonDataInput): Promise<any> {
+		const name = input.name || `График ${new Date().toLocaleString("ru-RU")}`;
+		const description =
+			input.description || "Сохранённое состояние графика данных";
+		const version = input.version || "1.0.0";
+
+		if (this.isProduction) {
+			const jsonData = this.jsonDataRepository.create({
+				id,
+				name,
+				data: input.data,
+				description,
+				version,
+				isCurrent: false,
+			});
+			return this.jsonDataRepository.save(jsonData);
+		}
+
+		return await this.memoryStorageService.createWithId(
+			id,
 			name,
 			input.data,
 			description,
@@ -301,15 +330,27 @@ export class JsonDataService {
 	}
 
 	async setCurrentFromSnapshot(snapshot: any): Promise<any> {
-		const newData = {
+		const updateData = {
 			name: snapshot.name,
 			data: snapshot.data,
-			description: `Создано из снимка: ${snapshot.name}`,
+			description: `Восстановлено из снимка: ${snapshot.name}`,
 			version: snapshot.version || "1.0.0",
 		};
 
-		const created = await this.createGraphData(newData);
-		return await this.setCurrentById(created.id);
+		const existingData = await this.findGraphDataByIdOrNull(
+			snapshot.sourceDataId,
+		);
+
+		if (existingData) {
+			await this.updateGraphData(snapshot.sourceDataId, updateData);
+			return await this.setCurrentById(snapshot.sourceDataId);
+		} else {
+			const created = await this.createDataWithId(
+				snapshot.sourceDataId,
+				updateData,
+			);
+			return await this.setCurrentById(created.id);
+		}
 	}
 
 	async deleteGraphData(id: string): Promise<void> {

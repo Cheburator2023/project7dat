@@ -6,9 +6,11 @@ import { SnapshotEntity } from "../entities/snapshot.entity";
 import {
 	CreateSnapshotInput,
 	GetSnapshotListInput,
+	ApplySnapshotInput,
 } from "../schemas/snapshot.schema";
 import { SnapshotMemoryStorageService } from "./snapshot-memory-storage.service";
 import { JsonDataService } from "../../json-data/services/json-data.service";
+import { JsonCommitService } from "../../json-data/services/json-commit.service";
 
 @Injectable()
 export class SnapshotService {
@@ -21,8 +23,21 @@ export class SnapshotService {
 		private readonly configService: ConfigService,
 		private readonly snapshotMemoryStorageService: SnapshotMemoryStorageService,
 		private readonly jsonDataService: JsonDataService,
+		private readonly jsonCommitService: JsonCommitService,
 	) {
 		this.isProduction = this.configService.get<boolean>("app.isProduction");
+	}
+
+	private async getCommitsForGraphData(graphId: string): Promise<any[]> {
+		try {
+			return await this.jsonCommitService.getCommitsForGraph(graphId);
+		} catch (error) {
+			console.warn(
+				`Не удалось получить коммиты для графика ${graphId}:`,
+				error,
+			);
+			return [];
+		}
 	}
 
 	async createSnapshot(input: CreateSnapshotInput): Promise<any> {
@@ -34,28 +49,37 @@ export class SnapshotService {
 			);
 		}
 
-		const name = input.name || `Снимок ${new Date().toLocaleString("ru-RU")}`;
-		const description =
+		const snapshotName =
+			input.name || `Снимок ${new Date().toLocaleString("ru-RU")}`;
+		const snapshotDescription =
 			input.description || "Снимок текущего состояния JSON данных";
 		const version = input.version || "1.0.0";
 
+		const relatedCommits = await this.getCommitsForGraphData(currentData.id);
+
 		if (this.isProduction) {
 			const snapshot = this.snapshotRepository.create({
-				name,
+				name: snapshotName,
 				data: currentData.data,
-				description,
+				description: snapshotDescription,
 				sourceDataId: currentData.id,
 				version,
+				commits: relatedCommits,
+				originalName: currentData.name,
+				originalDescription: currentData.description,
 			});
 			return this.snapshotRepository.save(snapshot);
 		}
 
 		return await this.snapshotMemoryStorageService.create(
-			name,
+			snapshotName,
 			currentData.data,
 			currentData.id,
-			description,
+			snapshotDescription,
 			version,
+			relatedCommits,
+			currentData.name,
+			currentData.description,
 		);
 	}
 
@@ -112,5 +136,88 @@ export class SnapshotService {
 			throw new NotFoundException(`Снимок с ID ${id} не найден`);
 		}
 		return result;
+	}
+
+	async applySnapshot(input: ApplySnapshotInput): Promise<any> {
+		const snapshot = await this.getSnapshotById(input.snapshotId);
+
+		if (!snapshot) {
+			throw new NotFoundException(`Снепшот с ID ${input.snapshotId} не найден`);
+		}
+
+		const existingData = await this.jsonDataService.findGraphDataByIdOrNull(
+			snapshot.sourceDataId,
+		);
+
+		if (!existingData) {
+			const graphData = await this.jsonDataService.createDataWithId(
+				snapshot.sourceDataId,
+				{
+					name: snapshot.originalName || snapshot.name,
+					data: snapshot.data,
+					description: snapshot.originalDescription || snapshot.description,
+					version: snapshot.version,
+				},
+			);
+
+			if (snapshot.commits && snapshot.commits.length > 0) {
+				await this.restoreCommitsFromSnapshot(
+					snapshot.sourceDataId,
+					snapshot.commits,
+				);
+			}
+
+			await this.jsonDataService.setCurrentById(snapshot.sourceDataId);
+			return graphData;
+		} else {
+			await this.jsonDataService.updateGraphData(snapshot.sourceDataId, {
+				name: snapshot.originalName || snapshot.name,
+				data: snapshot.data,
+				description: snapshot.originalDescription || snapshot.description,
+				version: snapshot.version,
+			});
+
+			if (snapshot.commits && snapshot.commits.length > 0) {
+				await this.restoreCommitsFromSnapshot(
+					snapshot.sourceDataId,
+					snapshot.commits,
+				);
+			}
+
+			await this.jsonDataService.setCurrentById(snapshot.sourceDataId);
+			return existingData;
+		}
+	}
+
+	private async restoreCommitsFromSnapshot(
+		graphId: string,
+		commits: any[],
+	): Promise<void> {
+		console.log(
+			`Восстановление ${commits.length} коммитов для графика ${graphId}`,
+		);
+
+		for (const commit of commits) {
+			try {
+				if (this.isProduction) {
+					const existingCommit = await this.jsonCommitService.findCommitById(
+						commit.id,
+					);
+					if (!existingCommit) {
+						await this.jsonCommitService.createCommitFromSnapshot(
+							graphId,
+							commit,
+						);
+					}
+				} else {
+					await this.jsonCommitService.createCommitFromSnapshot(
+						graphId,
+						commit,
+					);
+				}
+			} catch (error) {
+				console.warn(`Не удалось восстановить коммит ${commit.id}:`, error);
+			}
+		}
 	}
 }
