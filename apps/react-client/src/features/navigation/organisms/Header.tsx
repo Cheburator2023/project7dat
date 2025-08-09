@@ -2,7 +2,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
-import { IconButton, Typography, Button } from "@mui/material";
+import { Divider, IconButton, Typography } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useNavigate } from "react-router";
@@ -108,16 +108,15 @@ export function Header({
 						>
 							{children}
 
+							<Divider orientation="vertical" variant="middle" flexItem />
+
 							{currentGraphId && (
-								<Button
-									variant="outlined"
-									size="small"
-									startIcon={<CameraAltIcon />}
+								<IconButton
 									onClick={() => setIsSnapshotDialogOpen(true)}
 									title="Создать снимок текущих данных"
 								>
-									Снимок
-								</Button>
+									<CameraAltIcon />
+								</IconButton>
 							)}
 
 							<NotificationButton />

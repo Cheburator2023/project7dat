@@ -178,10 +178,10 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 					isLoading: false,
 				});
 			} else {
-				set({ error: "График не найден", isLoading: false });
+				set({ error: "JSON не найден", isLoading: false });
 			}
 		} catch (error) {
-			set({ error: `Ошибка загрузки графика: ${error}`, isLoading: false });
+			set({ error: `Ошибка загрузки JSONа: ${error}`, isLoading: false });
 		}
 	},
 
@@ -203,10 +203,10 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 					isLoading: false,
 				});
 			} else {
-				set({ error: "График не найден", isLoading: false });
+				set({ error: "JSON не найден", isLoading: false });
 			}
 		} catch (error) {
-			set({ error: `Ошибка загрузки графика: ${error}`, isLoading: false });
+			set({ error: `Ошибка загрузки JSONа: ${error}`, isLoading: false });
 		}
 	},
 
@@ -436,7 +436,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 				}
 			}
 		} catch (error) {
-			set({ error: `Ошибка импорта графика: ${error}`, isLoading: false });
+			set({ error: `Ошибка импорта JSONа: ${error}`, isLoading: false });
 		}
 	},
 

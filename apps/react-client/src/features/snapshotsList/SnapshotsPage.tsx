@@ -49,12 +49,11 @@ export const SnapshotsPage = () => {
 
 	const snapshotColumns: ColDef[] = useMemo(
 		() => [
+			{ field: "name", headerName: "Название", width: 200 },
 			{ field: "id", headerName: "ID", width: 280 },
 			{ field: "sourceDataId", headerName: "ID источника", width: 280 },
-			{ field: "name", headerName: "Название", width: 200 },
 			{ field: "description", headerName: "Описание", width: 250 },
 			{ field: "version", headerName: "Версия", width: 120 },
-			{ field: "graphId", headerName: "ID графа", width: 280 },
 			{
 				field: "actions",
 				headerName: "Действия",
@@ -73,7 +72,7 @@ export const SnapshotsPage = () => {
 						disabled={setCurrentFromSnapshotMutation.isPending}
 						startIcon={<PlayArrow />}
 					>
-						Установить
+						Применить
 					</Button>
 				),
 			},

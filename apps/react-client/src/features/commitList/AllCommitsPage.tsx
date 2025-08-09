@@ -102,7 +102,7 @@ export const AllCommitsPage: React.FC = () => {
 				},
 			},
 			{
-				headerName: "График ID",
+				headerName: "JSON ID",
 				field: "graphId",
 				width: 120,
 				sortable: true,
@@ -215,8 +215,8 @@ export const AllCommitsPage: React.FC = () => {
 						>
 							<Typography color="text.secondary">
 								{showAllGraphs
-									? "Коммиты не найдены во всех графиках"
-									: "Коммиты не найдены в текущем графике"}
+									? "Коммиты не найдены во всех JSONах"
+									: "Коммиты не найдены в текущем JSONе"}
 							</Typography>
 						</div>
 					)}
