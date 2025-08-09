@@ -141,7 +141,7 @@ export class JsonCommitService {
 				where: { id: graphId },
 			});
 			if (!jsonData) {
-				throw new NotFoundException(`График с ID ${graphId} не найден`);
+				throw new NotFoundException(`JSON с ID ${graphId} не найден`);
 			}
 
 			const commit = this.commitRepository.create({
@@ -218,7 +218,7 @@ export class JsonCommitService {
 				where: { id: graphId },
 			});
 			if (!jsonData) {
-				throw new NotFoundException(`График с ID ${graphId} не найден`);
+				throw new NotFoundException(`JSON с ID ${graphId} не найден`);
 			}
 
 			const commit = this.commitRepository.create({
@@ -685,7 +685,7 @@ export class JsonCommitService {
 		commitData: any,
 	): Promise<any> {
 		console.log(
-			`[JsonCommitService] Восстановление коммита ${commitData.id} для графика ${graphId}`,
+			`[JsonCommitService] Восстановление коммита ${commitData.id} для JSONа ${graphId}`,
 		);
 
 		if (this.isProduction) {

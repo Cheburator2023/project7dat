@@ -31,8 +31,8 @@ export class JsonCommitController {
 
 	@Post("initialize")
 	@ApiOperation({
-		summary: "Инициализировать новый график с данными",
-		description: "Создает новый график и создает начальный коммит с данными",
+		summary: "Инициализировать новый JSON с данными",
+		description: "Создает новый JSON и создает начальный коммит с данными",
 	})
 	@ApiBody({
 		description: "Данные для инициализации",
@@ -41,8 +41,8 @@ export class JsonCommitController {
 			properties: {
 				name: {
 					type: "string",
-					example: "Мой график",
-					description: "Название графика",
+					example: "Мой JSON",
+					description: "Название JSONа",
 				},
 				data: {
 					type: "object",
@@ -51,8 +51,8 @@ export class JsonCommitController {
 				},
 				description: {
 					type: "string",
-					example: "Описание графика",
-					description: "Описание графика",
+					example: "Описание JSONа",
+					description: "Описание JSONа",
 				},
 			},
 			required: ["data"],
@@ -60,7 +60,7 @@ export class JsonCommitController {
 	})
 	@ApiResponse({
 		status: 200,
-		description: "График успешно инициализирован",
+		description: "JSON успешно инициализирован",
 		schema: {
 			type: "object",
 			properties: {
@@ -81,7 +81,7 @@ export class JsonCommitController {
 
 	@Post("commit")
 	@ApiOperation({
-		summary: "Коммит текущего графика",
+		summary: "Коммит текущего JSONа",
 		description: "Создает коммит для текущего активного JSON документа",
 	})
 	@ApiBody({
@@ -212,7 +212,7 @@ export class JsonCommitController {
 		name: "graphId",
 		required: false,
 		type: String,
-		description: "ID графика для фильтрации коммитов",
+		description: "ID JSONа для фильтрации коммитов",
 		example: "uuid-string",
 	})
 	@ApiResponse({
@@ -304,7 +304,7 @@ export class JsonCommitController {
 	@ApiOperation({
 		summary: "Получить все коммиты из всех JSON данных",
 		description:
-			"Возвращает пагинированный список всех коммитов из всех графиков с полными метаданными",
+			"Возвращает пагинированный список всех коммитов из всех JSONов с полными метаданными",
 	})
 	@ApiQuery({
 		name: "page",
@@ -439,13 +439,13 @@ export class JsonCommitController {
 
 	@Get("commits/search/:id")
 	@ApiOperation({
-		summary: "Поиск коммитов по графику",
+		summary: "Поиск коммитов по JSONу",
 		description: "Поиск коммитов с фильтрацией по дате, пользователю и тексту",
 	})
 	@ApiParam({
 		name: "id",
 		type: String,
-		description: "ID графика для поиска коммитов",
+		description: "ID JSONа для поиска коммитов",
 		example: "uuid-string",
 	})
 	@ApiQuery({

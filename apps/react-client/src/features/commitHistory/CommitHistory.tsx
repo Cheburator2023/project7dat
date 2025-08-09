@@ -10,6 +10,7 @@ import {
 	TextField,
 	Button,
 	InputAdornment,
+	CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
@@ -319,25 +320,31 @@ export const CommitHistory: React.FC = memo(() => {
 
 			<Spacer space={16} />
 
-			<List sx={{ p: 0 }}>
-				{data?.data?.length ? (
-					data.data.map((commit) => (
-						<CommitItem
-							key={commit.id}
-							commit={commit}
-							onCommitClick={handleCommitClick}
-						/>
-					))
-				) : (
-					<Box p={2}>
-						<Typography color="text.secondary">
-							{hasNonEmptyFilters
-								? "Коммиты не найдены"
-								: "История коммитов пуста"}
-						</Typography>
-					</Box>
-				)}
-			</List>
+			{isLoadingList || isLoadingSearch ? (
+				<Box sx={{ display: "flex", justifyContent: "center" }}>
+					<CircularProgress />
+				</Box>
+			) : (
+				<List sx={{ p: 0 }}>
+					{data?.data?.length ? (
+						data.data.map((commit) => (
+							<CommitItem
+								key={commit.id}
+								commit={commit}
+								onCommitClick={handleCommitClick}
+							/>
+						))
+					) : (
+						<Box p={2}>
+							<Typography color="text.secondary">
+								{hasNonEmptyFilters
+									? "Коммиты не найдены"
+									: "История коммитов пуста"}
+							</Typography>
+						</Box>
+					)}
+				</List>
+			)}
 
 			<CommitDetailsDialog
 				open={isDialogOpen}

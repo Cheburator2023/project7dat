@@ -32,10 +32,7 @@ export class SnapshotService {
 		try {
 			return await this.jsonCommitService.getCommitsForGraph(graphId);
 		} catch (error) {
-			console.warn(
-				`Не удалось получить коммиты для графика ${graphId}:`,
-				error,
-			);
+			console.warn(`Не удалось получить коммиты для JSONа ${graphId}:`, error);
 			return [];
 		}
 	}
@@ -194,7 +191,7 @@ export class SnapshotService {
 		commits: any[],
 	): Promise<void> {
 		console.log(
-			`Восстановление ${commits.length} коммитов для графика ${graphId}`,
+			`Восстановление ${commits.length} коммитов для JSONа ${graphId}`,
 		);
 
 		for (const commit of commits) {

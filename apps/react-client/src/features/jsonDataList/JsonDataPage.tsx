@@ -10,7 +10,7 @@ import {
 	styled,
 	Chip,
 } from "@mui/material";
-import { RefreshRounded, CheckCircle } from "@mui/icons-material";
+import { RefreshRounded, PlayArrow } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import {
 	AllCommunityModule,
@@ -80,9 +80,9 @@ export const JsonDataPage = () => {
 						color="primary"
 						onClick={() => setCurrentMutation.mutate(params.data.id)}
 						disabled={params.data.isCurrent || setCurrentMutation.isPending}
-						startIcon={<CheckCircle />}
+						startIcon={<PlayArrow />}
 					>
-						Установить
+						Применить
 					</Button>
 				),
 			},
