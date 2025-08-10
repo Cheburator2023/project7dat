@@ -9,6 +9,7 @@ import {
 	useColorScheme,
 	styled,
 	Chip,
+	Alert,
 } from "@mui/material";
 import { RefreshRounded, PlayArrow } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
@@ -138,37 +139,17 @@ export const JsonDataPage = () => {
 
 	if (error) {
 		return (
-			<Box
-				display="flex"
-				justifyContent="center"
-				alignItems="center"
-				minHeight="100vh"
-				width="100%"
-				p={2}
-			>
-				<Card sx={{ maxWidth: 500, width: "100%" }}>
-					<CardContent>
-						<Stack spacing={2} alignItems="center">
-							<Typography variant="h6" color="error" textAlign="center">
-								Ошибка загрузки JSON данных
-							</Typography>
-							<Typography
-								variant="body2"
-								color="text.secondary"
-								textAlign="center"
-							>
-								{error.message}
-							</Typography>
-							<Button
-								variant="contained"
-								startIcon={<RefreshRounded />}
-								onClick={() => refetch()}
-							>
-								Повторить
-							</Button>
-						</Stack>
-					</CardContent>
-				</Card>
+			<Box sx={{ padding: 3 }}>
+				<Alert
+					severity="error"
+					action={
+						<Button color="inherit" size="small" onClick={refetch as any}>
+							Повторить
+						</Button>
+					}
+				>
+					Ошибка загрузки данных: {error.message}
+				</Alert>
 			</Box>
 		);
 	}
