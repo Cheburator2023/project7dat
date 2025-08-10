@@ -29,8 +29,8 @@ function generateTestMapping() {
 }
 
 function generateComplexTestData() {
-  const entitiesCount = faker.number.int({ min: 5, max: 20 });
-  const mappingsCount = faker.number.int({ min: 3, max: 15 });
+  const entitiesCount = faker.number.int({ min: 200, max: 300 });
+  const mappingsCount = faker.number.int({ min: 50, max: 150 });
   
   const entities = Array.from({ length: entitiesCount }, generateTestEntity);
   const mappings = Array.from({ length: mappingsCount }, generateTestMapping);
