@@ -56,6 +56,19 @@ export function NavbarBreadcrumbs() {
 			}
 		}
 
+		// Handle changelog with graphId route
+		if (pathname.startsWith("/changelog/")) {
+			const graphId = pathname.split("/changelog/")[1];
+			if (graphId) {
+				return {
+					breadcrumbs: [
+						{ name: routes.changelog.name, isLink: false },
+						{ name: `График: ${graphId}`, isLink: false },
+					],
+				};
+			}
+		}
+
 		// Handle other routes using the existing logic
 		const path = camelCase(pathname.split("/", 3).join(" "));
 		const pathName = routes[path as keyof typeof routes]?.name;

@@ -14,18 +14,17 @@ import {
 	Pagination,
 	CircularProgress,
 	Alert,
-	IconButton,
 } from "@mui/material";
 import {
 	ExpandMore as ExpandMoreIcon,
 	History as HistoryIcon,
-	ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
 import { useChangelog } from "../../api/hooks/useChangelog";
 import {
 	type ChangelogEntry,
 	type ChangelogGroup,
 } from "../../api/changelogApi";
+import { Header } from "@react-client/features/navigation/organisms/Header";
 
 const getActionTypeColor = (actionType: string) => {
 	switch (actionType) {
@@ -172,7 +171,7 @@ export const GraphChangelogPage = () => {
 	const [authorFilter, setAuthorFilter] = useState("");
 	const [dateFromFilter, setDateFromFilter] = useState("");
 	const [dateToFilter, setDateToFilter] = useState("");
-	const [graphName, setGraphName] = useState("");
+	const [_graphName, setGraphName] = useState("");
 
 	const limit = 20;
 
@@ -215,7 +214,7 @@ export const GraphChangelogPage = () => {
 		loadChangelog();
 	};
 
-	const handleBack = () => {
+	const _handleBack = () => {
 		navigate(-1);
 	};
 
@@ -224,15 +223,8 @@ export const GraphChangelogPage = () => {
 	}
 
 	return (
-		<Box sx={{ p: 3 }}>
-			<Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-				<IconButton onClick={handleBack}>
-					<ArrowBackIcon />
-				</IconButton>
-				<Typography variant="h4">
-					История изменений: {graphName || graphId}
-				</Typography>
-			</Stack>
+		<Box>
+			<Header />
 
 			<Paper sx={{ p: 2, mb: 3 }}>
 				<Typography variant="h6" sx={{ mb: 2 }}>
