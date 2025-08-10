@@ -1,0 +1,25 @@
+{
+  "name": "data-lineage-artillery-tests",
+  "version": "1.0.0",
+  "description": "Нагрузочное тестирование API с помощью Artillery",
+  "scripts": {
+    "test:smoke": "artillery run smoke-test.yml",
+    "test:basic": "artillery run basic-load-test.yml",
+    "test:stress": "artillery run stress-test.yml",
+    "test:endurance": "artillery run endurance-test.yml",
+    "test:all": "npm run test:smoke && npm run test:basic && npm run test:stress",
+    "test:all:with-report": "npm run test:all && npm run report:combined",
+    "test:report": "artillery run basic-load-test.yml --output report.json && artillery report report.json",
+    "test:auto": "artillery run auto-generated-test.yml",
+    "generate": "node generate-from-openapi.js",
+    "generate:test": "npm run generate && npm run test:auto",
+    "report:combined": "node generate-combined-report.js",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.3.0"
+  },
+  "devDependencies": {
+    "artillery": "^2.0.21"
+  }
+}
