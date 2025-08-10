@@ -14,6 +14,7 @@ async function bootstrap() {
 		new FastifyAdapter({
 			bodyLimit: 52428800, // 50MB
 			logger: true,
+			ignoreTrailingSlash: true,
 		}),
 	);
 

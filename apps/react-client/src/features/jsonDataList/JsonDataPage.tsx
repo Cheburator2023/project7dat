@@ -29,6 +29,7 @@ import {
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
+import { ChangelogButton } from "@react-client/features/changelog/ChangelogButton";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -84,6 +85,19 @@ export const JsonDataPage = () => {
 					>
 						Применить
 					</Button>
+				),
+			},
+			{
+				headerName: "История",
+				field: "changelog",
+				width: 120,
+				pinned: "left",
+				cellRenderer: (params: any) => (
+					<ChangelogButton
+						graphId={params.data.id}
+						variant="icon"
+						size="small"
+					/>
 				),
 			},
 			{

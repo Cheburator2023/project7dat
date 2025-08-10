@@ -1,4 +1,4 @@
-import { Button, IconButton, Tooltip } from "@mui/material";
+import { Button } from "@mui/material";
 import { History as HistoryIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 
@@ -25,17 +25,15 @@ export const ChangelogButton = ({
 		}
 	};
 
-	const title = graphId
+	const _title = graphId
 		? "История изменений графика"
 		: "Общая история изменений";
 
 	if (variant === "icon") {
 		return (
-			<Tooltip title={title}>
-				<IconButton onClick={handleClick} size={size}>
-					<HistoryIcon />
-				</IconButton>
-			</Tooltip>
+			<Button onClick={handleClick} size={size} variant="contained" fullWidth>
+				Показать
+			</Button>
 		);
 	}
 

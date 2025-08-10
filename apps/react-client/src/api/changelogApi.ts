@@ -56,11 +56,9 @@ export const changelogApi = {
 		if (params.dateFrom) searchParams.append("dateFrom", params.dateFrom);
 		if (params.dateTo) searchParams.append("dateTo", params.dateTo);
 
-		// const response = await changelogApiInstance.get(
-		// 	`${searchParams.toString()}`,
-
-		// );
-		const response = await changelogApiInstance.get("");
+		const response = await changelogApiInstance.get(
+			`?${searchParams.toString()}`,
+		);
 		return response.data;
 	},
 
@@ -77,7 +75,7 @@ export const changelogApi = {
 		if (params.dateTo) searchParams.append("dateTo", params.dateTo);
 
 		const response = await changelogApiInstance.get(
-			`/${graphId}?${searchParams.toString()}`,
+			`/graph/${graphId}?${searchParams.toString()}`,
 		);
 		return response.data;
 	},
