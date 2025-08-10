@@ -4,7 +4,8 @@
 	"private": true,
 	"workspaces": [
 		"apps/*",
-		"packages/*"
+		"packages/*",
+		"aux/*"
 	],
 	"release_logs": {
 		"features": [],
@@ -30,7 +31,15 @@
 		"prepare": "husky",
 		"db:reset": "npm run db:reset:dev",
 		"db:reset:dev": "node ./apps/nestjs-server/scripts/reset-dev-db.js",
-		"db:reset:dev:restart": "npm run db:reset:dev && npm run dev"
+		"db:reset:dev:restart": "npm run db:reset:dev && npm run dev",
+		"test:load:smoke": "cd aux/artillery && npm run test:smoke",
+		"test:load:basic": "cd aux/artillery && npm run test:basic",
+		"test:load:stress": "cd aux/artillery && npm run test:stress",
+		"test:load:endurance": "cd aux/artillery && npm run test:endurance",
+		"test:load:all": "cd aux/artillery && npm run test:all",
+		"test:load:all:with-report": "cd aux/artillery && npm run test:all:with-report",
+		"test:load:report": "cd aux/artillery && npm run test:report",
+		"test:load:report:combined": "cd aux/artillery && npm run report:combined"
 	},
 	"lint-staged": {
 		"*.{ts,tsx}": [
@@ -49,7 +58,6 @@
 		"@types/papaparse": "^5.3.15",
 		"@types/react": "19.1.2",
 		"@types/react-dom": "19.1.2",
-		"artillery": "^2.0.21",
 		"browserslist-to-esbuild": "2.1.1",
 		"cross-env": "7.0.3",
 		"husky": "9.1.7",
