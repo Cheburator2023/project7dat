@@ -13,6 +13,7 @@ import type { JsonCommitItem } from "@react-client/api/jsonDataApi";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
+import { JsonDiffViewerCell } from "@react-client/common/grid/JsonDiffViewerCell";
 
 export const AllCommitsPage: React.FC = () => {
 	const { mode } = useColorScheme();
@@ -132,7 +133,15 @@ export const AllCommitsPage: React.FC = () => {
 				width: 300,
 				sortable: true,
 				filter: true,
-				cellRenderer: (params: any) => <JsonViewerCell value={params.value} />,
+				cellRenderer: (params: any) => {
+					return (
+						<JsonDiffViewerCell
+							diff={params.value}
+							leftTitle="До изменений"
+							rightTitle="После изменений"
+						/>
+					);
+				},
 			},
 		];
 
