@@ -25,9 +25,18 @@ export class JsonCommitEntity {
 	@Column({ type: "uuid" })
 	graphId: string;
 
+	@Column({ type: "varchar", length: 20 })
+	schemaVersion: string;
+
+	@Column({ type: "varchar", length: 50 })
+	status: string;
+
 	@ManyToOne(() => JsonDataEntity, { onDelete: "CASCADE" })
 	@JoinColumn({ name: "graphId" })
 	jsonData: JsonDataEntity;
+
+	@Column({ nullable: true })
+	authorName: string;
 
 	@CreateDateColumn()
 	createdAt: Date;

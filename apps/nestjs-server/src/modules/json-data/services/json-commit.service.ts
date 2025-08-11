@@ -1,5 +1,10 @@
 /** biome-ignore-all lint/security/noGlobalEval: <explanation> */
-import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import {
+	BadRequestException,
+	Injectable,
+	NotFoundException,
+	Optional,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
@@ -25,114 +30,30 @@ export class JsonCommitService {
 		private readonly jsonDataRepository: Repository<JsonDataEntity>,
 		private readonly configService: ConfigService,
 	) {
-		this.isProduction = this.configService.get<boolean>('app.isProduction');
+		this.isProduction = this.configService.get<boolean>("app.isProduction");
 		this.initializeJsonDiffPatch();
-	}
-
-	private async initializeJsonDiffPatch() {
-		const jsondiffpatchModule = await eval('import("jsondiffpatch")');
-
-		this.jsondiffpatch = jsondiffpatchModule.default || jsondiffpatchModule;
-		this.differ = this.jsondiffpatch.create({
-			objectHash: (obj: any) => obj.id || obj.name || fastStringify(obj),
-			arrays: {
-				detectMove: true,
-				includeValueOnMove: false,
-			},
-		});
-	}
-
-	private async ensureDifferInitialized() {
-		if (!this.differ) {
-			await this.initializeJsonDiffPatch();
+		if (!this.isProduction) {
+			console.log("[JsonCommitService] Работаем в memory-режиме");
+			console.log(
+				"Текущие коммиты в памяти:",
+				Array.from(this.memoryCommits.keys()),
+			);
 		}
-	}
-
-	private generateUniqueCommitHash(
-		message: string,
-		diff: Record<string, any>,
-		timestamp: Date,
-	): string {
-		const content = fastStringify({
-			message,
-			diff,
-			timestamp: timestamp.toISOString(),
-		});
-		return createHash("sha256").update(content).digest("hex").substring(0, 8);
-	}
-
-	private async getLastCommit(graphId: string): Promise<any | null> {
-		if (this.isProduction) {
-			return await this.commitRepository.findOne({
-				where: { graphId },
-				order: { createdAt: "DESC" },
-			});
-		}
-
-		const commits = this.memoryCommits.get(graphId) || [];
-		if (commits.length === 0) return null;
-		return commits[commits.length - 1];
-	}
-
-	private async calculateDiffFromPrevious(
-		previousData: Record<string, any> | null,
-		newData: Record<string, any>,
-	): Promise<Record<string, any> | null> {
-		if (!previousData) {
-			// First commit - store full data as diff
-			return { _type: "initial", data: newData };
-		}
-
-		await this.ensureDifferInitialized();
-		const delta = this.differ.diff(previousData, newData);
-		return delta || null;
-	}
-
-	async reconstructDataFromCommits(
-		graphId: string,
-	): Promise<Record<string, any> | null> {
-		const commits = await this.getAllCommitsForGraph(graphId);
-		if (commits.length === 0) return null;
-
-		await this.ensureDifferInitialized();
-		let reconstructedData: Record<string, any> = {};
-
-		for (const commit of commits) {
-			if (commit.diff._type === "initial") {
-				reconstructedData = commit.diff.data;
-			} else {
-				reconstructedData =
-					this.differ.patch(reconstructedData, commit.diff) ||
-					reconstructedData;
-			}
-		}
-
-		return reconstructedData;
-	}
-
-	private async getAllCommitsForGraph(graphId: string): Promise<any[]> {
-		if (this.isProduction) {
-			return await this.commitRepository.find({
-				where: { graphId },
-				order: { createdAt: "ASC" },
-			});
-		}
-
-		const commits = this.memoryCommits.get(graphId) || [];
-		return [...commits].sort(
-			(a, b) =>
-				new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-		);
 	}
 
 	async createInitialCommit(
 		graphId: string,
 		message: string,
 		initialData: Record<string, any>,
+		authorName?: string,
 	): Promise<any> {
 		console.log(
 			`[JsonCommitService] Создание начального коммита для graphId: ${graphId}`,
 		);
+		if (this.calculateDataSize(initialData) > 50 * 1024 * 1024) {
+			throw new BadRequestException("Размер данных превышает допустимый лимит");
+		}
+
 		const timestamp = new Date();
 
 		// Create initial commit with full data
@@ -152,7 +73,10 @@ export class JsonCommitService {
 				message,
 				diff,
 				graphId,
+				schemaVersion: jsonData.schemaVersion,
+				status: "LOADED_VALIDATED",
 				createdAt: timestamp,
+				authorName: authorName || "System",
 			});
 
 			const savedCommit = await this.commitRepository.save(commit);
@@ -174,6 +98,7 @@ export class JsonCommitService {
 			diff,
 			graphId,
 			createdAt: timestamp,
+			authorName: authorName || "System",
 		};
 
 		this.memoryCommits.get(graphId)!.push(commit);
@@ -188,11 +113,11 @@ export class JsonCommitService {
 		graphId: string,
 		message: string,
 		newData: Record<string, any>,
+		authorName?: string,
 	): Promise<any> {
 		console.log(`[JsonCommitService] Создание коммита для graphId: ${graphId}`);
 		const timestamp = new Date();
 
-		// Get the last commit to calculate diff from
 		const lastCommit = await this.getLastCommit(graphId);
 		if (!lastCommit) {
 			throw new Error(
@@ -202,10 +127,16 @@ export class JsonCommitService {
 
 		const previousData = await this.reconstructDataFromCommits(graphId);
 
-		// Calculate proper diff from previous commit
 		const diff = await this.calculateDiffFromPrevious(previousData, newData);
-		if (!diff) {
-			throw new Error("Нет изменений для создания коммита");
+
+		console.log("New data:", JSON.stringify(newData, null, 2));
+		console.log("Previous data:", JSON.stringify(previousData, null, 2));
+		console.log("Calculated diff:", diff);
+		if (!diff || (diff._t === "object" && Object.keys(diff).length === 0)) {
+			console.log("[JsonCommitService] Нет изменений для коммита");
+			throw new BadRequestException(
+				"No changes detected to create a new commit",
+			);
 		}
 
 		const hash = this.generateUniqueCommitHash(message, diff, timestamp);
@@ -223,7 +154,10 @@ export class JsonCommitService {
 				message,
 				diff,
 				graphId,
+				schemaVersion: jsonData.schemaVersion,
+				status: "LOADED_VALIDATED",
 				createdAt: timestamp,
+				authorName: authorName || "System",
 			});
 
 			const savedCommit = await this.commitRepository.save(commit);
@@ -241,43 +175,15 @@ export class JsonCommitService {
 			message,
 			diff,
 			graphId,
+			schemaVersion: "1.0.0",
+			status: "LOADED_VALIDATED",
 			createdAt: timestamp,
+			authorName: authorName || "System",
 		};
 
 		this.memoryCommits.get(graphId)!.push(commit);
 		console.log(`[JsonCommitService] Коммит добавлен в память:`, commit.id);
-		console.log(
-			`[JsonCommitService] Всего коммитов для graphId ${graphId}:`,
-			this.memoryCommits.get(graphId)!.length,
-		);
 		return commit;
-	}
-
-	private async enrichCommitWithFullData(commit: any): Promise<any> {
-		const fullData = await this.reconstructDataFromCommits(commit.graphId);
-		return {
-			...commit,
-			fullData: fullData || {},
-		};
-	}
-
-	private async enrichCommitsWithFullData(commits: any[]): Promise<any[]> {
-		const graphDataCache = new Map<string, Record<string, any> | null>();
-		const enrichedCommits: any[] = [];
-
-		for (const commit of commits) {
-			let fullData = graphDataCache.get(commit.graphId);
-			if (fullData === undefined) {
-				fullData = await this.reconstructDataFromCommits(commit.graphId);
-				graphDataCache.set(commit.graphId, fullData);
-			}
-
-			enrichedCommits.push({
-				...commit,
-				fullData: fullData || {},
-			});
-		}
-		return enrichedCommits;
 	}
 
 	async getCommitsWithPagination(
@@ -342,22 +248,66 @@ export class JsonCommitService {
 	}
 
 	async findCommitById(id: string): Promise<any> {
+		console.log(`[JsonCommitService] Поиск коммита по ID: ${id}`);
+
 		if (this.isProduction) {
-			const commit = await this.commitRepository.findOne({ where: { id } });
+			const commit = await this.commitRepository.findOne({
+				where: { id },
+				relations: ["jsonData"],
+			});
+
 			if (!commit) {
+				console.log(`[JsonCommitService] Коммит с ID ${id} не найден в БД`);
 				throw new NotFoundException(`Коммит с ID ${id} не найден`);
 			}
+
+			console.log(`[JsonCommitService] Коммит найден в БД:`, commit.id);
 			return await this.enrichCommitWithFullData(commit);
 		}
 
+		// Поиск в memory-хранилище
 		for (const commits of this.memoryCommits.values()) {
 			const commit = commits.find((c) => c.id === id);
 			if (commit) {
+				console.log(`[JsonCommitService] Коммит найден в памяти:`, commit.id);
 				return await this.enrichCommitWithFullData(commit);
 			}
 		}
 
+		console.log(`[JsonCommitService] Коммит с ID ${id} не найден в памяти`);
 		throw new NotFoundException(`Коммит с ID ${id} не найден`);
+	}
+
+	async updateCommitStatus(id: string, status: string): Promise<any> {
+		if (this.isProduction) {
+			await this.commitRepository.update(id, { status });
+			return this.commitRepository.findOne({ where: { id } });
+		}
+
+		const commits = Array.from(this.memoryCommits.values()).flat();
+		const commit = commits.find((c) => c.id === id);
+		if (commit) {
+			commit.status = status;
+			return commit;
+		}
+		throw new NotFoundException(`Commit with ID ${id} not found`);
+	}
+
+	async getCommitQueue(): Promise<any[]> {
+		if (this.isProduction) {
+			return this.commitRepository.find({
+				where: { status: "IN_PROGRESS" },
+				order: { createdAt: "ASC" },
+			});
+		}
+
+		return Array.from(this.memoryCommits.values())
+			.flat()
+			.filter((c) => c.status === "IN_PROGRESS")
+			.sort(
+				(a, b) =>
+					new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+			);
 	}
 
 	async getCurrentStateFromCommits(
@@ -394,5 +344,142 @@ export class JsonCommitService {
 			lastCommit: commits.length > 0 ? commits[commits.length - 1] : null,
 			chainSize,
 		};
+	}
+
+	private async initializeJsonDiffPatch() {
+		const jsondiffpatchModule = await eval('import("jsondiffpatch")');
+
+		this.jsondiffpatch = jsondiffpatchModule.default || jsondiffpatchModule;
+		this.differ = this.jsondiffpatch.create({
+			objectHash: (obj: any) => obj.id || obj.name || fastStringify(obj),
+			arrays: {
+				detectMove: true,
+				includeValueOnMove: false,
+			},
+		});
+	}
+
+	private calculateDataSize(data: any): number {
+		return Buffer.byteLength(JSON.stringify(data), "utf8");
+	}
+
+	private async ensureDifferInitialized() {
+		if (!this.differ) {
+			await this.initializeJsonDiffPatch();
+		}
+	}
+
+	private isValidUuid(id: string): boolean {
+		const uuidRegex =
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+		return uuidRegex.test(id);
+	}
+
+	private generateUniqueCommitHash(
+		message: string,
+		diff: Record<string, any>,
+		timestamp: Date,
+	): string {
+		const content = fastStringify({
+			message,
+			diff,
+			timestamp: timestamp.toISOString(),
+		});
+		return createHash("sha256").update(content).digest("hex").substring(0, 8);
+	}
+
+	private async getLastCommit(graphId: string): Promise<any | null> {
+		if (this.isProduction) {
+			return await this.commitRepository.findOne({
+				where: { graphId },
+				order: { createdAt: "DESC" },
+			});
+		}
+
+		const commits = this.memoryCommits.get(graphId) || [];
+		if (commits.length === 0) return null;
+		return commits[commits.length - 1];
+	}
+
+	private async calculateDiffFromPrevious(
+		previousData: Record<string, any> | null,
+		newData: Record<string, any>,
+	): Promise<Record<string, any> | null> {
+		if (!previousData) {
+			return { _type: "initial", data: newData };
+		}
+
+		await this.ensureDifferInitialized();
+
+		if (JSON.stringify(previousData) === JSON.stringify(newData)) {
+			return null;
+		}
+
+		const delta = this.differ.diff(previousData, newData);
+		return delta || null;
+	}
+
+	async reconstructDataFromCommits(
+		graphId: string,
+	): Promise<Record<string, any> | null> {
+		const commits = await this.getAllCommitsForGraph(graphId);
+		if (commits.length === 0) return null;
+
+		await this.ensureDifferInitialized();
+		let reconstructedData: Record<string, any> = {};
+
+		for (const commit of commits) {
+			if (commit.diff._type === "initial") {
+				reconstructedData = commit.diff.data;
+			} else {
+				reconstructedData =
+					this.differ.patch(reconstructedData, commit.diff) ||
+					reconstructedData;
+			}
+		}
+
+		return reconstructedData;
+	}
+
+	private async getAllCommitsForGraph(graphId: string): Promise<any[]> {
+		if (this.isProduction) {
+			return await this.commitRepository.find({
+				where: { graphId },
+				order: { createdAt: "ASC" },
+			});
+		}
+
+		const commits = this.memoryCommits.get(graphId) || [];
+		return [...commits].sort(
+			(a, b) =>
+				new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+		);
+	}
+
+	private async enrichCommitWithFullData(commit: any): Promise<any> {
+		const fullData = await this.reconstructDataFromCommits(commit.graphId);
+		return {
+			...commit,
+			fullData: fullData || {},
+		};
+	}
+
+	private async enrichCommitsWithFullData(commits: any[]): Promise<any[]> {
+		const graphDataCache = new Map<string, Record<string, any> | null>();
+		const enrichedCommits: any[] = [];
+
+		for (const commit of commits) {
+			let fullData = graphDataCache.get(commit.graphId);
+			if (fullData === undefined) {
+				fullData = await this.reconstructDataFromCommits(commit.graphId);
+				graphDataCache.set(commit.graphId, fullData);
+			}
+
+			enrichedCommits.push({
+				...commit,
+				fullData: fullData || {},
+			});
+		}
+		return enrichedCommits;
 	}
 }

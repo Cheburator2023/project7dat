@@ -13,7 +13,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 export class JsonDataModule {
 	static forRoot(): DynamicModule {
 		const configService = new ConfigService();
-		const isProduction = configService.get('app.isProduction');
+		const isProduction = configService.get("app.isProduction");
 
 		const imports = isProduction
 			? [TypeOrmModule.forFeature([JsonDataEntity, JsonCommitEntity])]
@@ -31,10 +31,7 @@ export class JsonDataModule {
 
 		return {
 			module: JsonDataModule,
-			imports: [
-				...imports,
-				ConfigModule.forRoot(),
-			],
+			imports: [...imports, ConfigModule.forRoot()],
 			controllers: [JsonDataController, JsonCommitController],
 			providers,
 			exports: [JsonDataService, JsonCommitService],

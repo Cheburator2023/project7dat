@@ -16,7 +16,7 @@ import {
 	ApiParam,
 	ApiQuery,
 	ApiBody,
-    ApiBearerAuth,
+	ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JsonDataService } from "../services/json-data.service";
 import {
@@ -26,6 +26,9 @@ import {
 } from "../schemas/json-data.schema";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
+import { VersionInfoDto } from "../dto/version-info.dto";
+import { JsonDataResponseDto } from "../dto/responses/json-data-response.dto";
+import { JsonCommitResponseDto } from "../dto/responses/json-commit-response.dto";
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Данные")
@@ -306,6 +309,67 @@ export class JsonDataController {
 		@Body() updateJsonDataDto: UpdateJsonDataInput,
 	) {
 		return await this.jsonDataService.updateGraphData(id, updateJsonDataDto);
+	}
+
+	@Put(":id/version")
+	@RealmRole(Permission.DL_UPDATE_JSON_DATA)
+	@ApiOperation({
+		summary: "Обновить информацию о версии JSON документа",
+		description: "Обновляет версию схемы и флаг устаревания",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "Уникальный идентификатор JSON документа",
+	})
+	@ApiBody({ type: VersionInfoDto })
+	@ApiResponse({
+		status: 200,
+		description: "Информация о версии успешно обновлена",
+		type: JsonDataResponseDto,
+	})
+	async updateVersionInfo(
+		@Param("id") id: string,
+		@Body() versionInfo: VersionInfoDto,
+	) {
+		return await this.jsonDataService.updateVersionInfo(id, versionInfo);
+	}
+
+	@Get(":id/history")
+	@RealmRole(Permission.DL_VIEW_JSON_DATA)
+	@ApiOperation({
+		summary: "Получить историю изменений документа",
+		description:
+			"Возвращает список версий документа с возможностью фильтрации по дате",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "Уникальный идентификатор JSON документа",
+	})
+	@ApiQuery({
+		name: "fromDate",
+		required: false,
+		type: String,
+		description: "Дата начала периода (формат YYYY-MM-DD)",
+	})
+	@ApiQuery({
+		name: "toDate",
+		required: false,
+		type: String,
+		description: "Дата окончания периода (формат YYYY-MM-DD)",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "История изменений успешно получена",
+		type: [JsonCommitResponseDto],
+	})
+	async getDocumentHistory(
+		@Param("id") id: string,
+		@Query("fromDate") fromDate?: string,
+		@Query("toDate") toDate?: string,
+	) {
+		return await this.jsonDataService.getDocumentHistory(id, fromDate, toDate);
 	}
 
 	@Delete("delete/:id")

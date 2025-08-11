@@ -1,11 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { v4 as uuidv4 } from "uuid";
 
-interface JsonDataRecord {
+export interface JsonDataRecord {
 	id: string;
 	name: string;
-	data: any;
+	data: Record<string, any>;
 	description?: string;
+	authorName?: string;
+	schemaVersion?: string;
+	deprecated?: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -22,6 +25,9 @@ export class MemoryStorageService {
 		name: string,
 		data: any,
 		description?: string,
+		authorName?: string,
+		schemaVersion?: string,
+		deprecated?: boolean,
 	): Promise<JsonDataRecord> {
 		const id = uuidv4();
 		const now = new Date();
@@ -30,6 +36,9 @@ export class MemoryStorageService {
 			name,
 			data,
 			description,
+			authorName: authorName,
+			schemaVersion: schemaVersion,
+			deprecated: deprecated,
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -55,6 +64,7 @@ export class MemoryStorageService {
 	async update(
 		id: string,
 		updates: Partial<Pick<JsonDataRecord, "name" | "data" | "description">>,
+		authorName?: string,
 	): Promise<JsonDataRecord | null> {
 		const record = this.storage.get(id);
 		if (!record) {
@@ -64,6 +74,7 @@ export class MemoryStorageService {
 		const updatedRecord = {
 			...record,
 			...updates,
+			authorName: authorName,
 			updatedAt: new Date(),
 		};
 

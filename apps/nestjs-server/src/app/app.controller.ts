@@ -1,5 +1,10 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiBearerAuth,
+} from "@nestjs/swagger";
 import { AppService } from "./app.service";
 import { CurrentUser } from "../core/auth/decorators/current-user.decorator";
 import { JwtPayload } from "../core/auth/interfaces/jwt-payload.interface";
@@ -14,7 +19,7 @@ export class AppController {
 	@ApiOperation({ summary: "Приветствие" })
 	@ApiResponse({ status: 200, description: "Приветственное сообщение" })
 	getHello(@CurrentUser() user: JwtPayload): string {
-		console.log('Authenticated user:', user.username);
+		console.log("Authenticated user:", user.username);
 		return this.appService.getHello();
 	}
 
@@ -26,10 +31,12 @@ export class AppController {
 			status: "ok",
 			timestamp: new Date().toISOString(),
 			service: "Data Lineage API",
-			user: user ? {
-				id: user.sub,
-				username: user.username
-			} : null
+			user: user
+				? {
+						id: user.sub,
+						username: user.username,
+					}
+				: null,
 		};
 	}
 }
