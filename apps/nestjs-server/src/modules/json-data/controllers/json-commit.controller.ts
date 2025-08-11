@@ -6,8 +6,8 @@ import {
 	Param,
 	Query,
 	Headers,
-    Put,
-    BadRequestException,
+	Put,
+	BadRequestException,
 } from "@nestjs/common";
 import {
 	ApiTags,
@@ -15,7 +15,8 @@ import {
 	ApiResponse,
 	ApiParam,
 	ApiQuery,
-	ApiBody, ApiBearerAuth,
+	ApiBody,
+	ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JsonCommitService } from "../services/json-commit.service";
 import { JsonDataService } from "../services/json-data.service";
@@ -133,7 +134,7 @@ export class JsonCommitController {
 	) {
 		try {
 			if (!body.data || Object.keys(body.data).length === 0) {
-				throw new BadRequestException('Commit data cannot be empty');
+				throw new BadRequestException("Commit data cannot be empty");
 			}
 			const author = this.extractUserFromHeaders(headers);
 			const commitData = { ...body, author };
@@ -143,8 +144,8 @@ export class JsonCommitController {
 				throw new BadRequestException({
 					status: 400,
 					message: error.message,
-					error: 'No Changes',
-					timestamp: new Date().toISOString()
+					error: "No Changes",
+					timestamp: new Date().toISOString(),
 				});
 			}
 			throw error;
@@ -172,7 +173,10 @@ export class JsonCommitController {
 		@Param("id") id: string,
 		@Body() statusDto: CommitStatusDto,
 	) {
-		return await this.jsonCommitService.updateCommitStatus(id, statusDto.status);
+		return await this.jsonCommitService.updateCommitStatus(
+			id,
+			statusDto.status,
+		);
 	}
 
 	@Get("queue")
@@ -374,7 +378,7 @@ export class JsonCommitController {
 		name: "id",
 		type: String,
 		description: "UUID коммита в формате xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-		example: "c058a9cb-a16d-4944-b316-885beeab4604"
+		example: "c058a9cb-a16d-4944-b316-885beeab4604",
 	})
 	@ApiResponse({
 		status: 200,
@@ -418,7 +422,10 @@ export class JsonCommitController {
 				},
 			};
 		} catch (error) {
-			console.error(`[JsonCommitController] Ошибка при получении коммита ${id}:`, error);
+			console.error(
+				`[JsonCommitController] Ошибка при получении коммита ${id}:`,
+				error,
+			);
 			throw error;
 		}
 	}

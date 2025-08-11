@@ -16,7 +16,7 @@ import {
 	ApiParam,
 	ApiQuery,
 	ApiBody,
-    ApiBearerAuth,
+	ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JsonDataService } from "../services/json-data.service";
 import {
@@ -339,7 +339,8 @@ export class JsonDataController {
 	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
 		summary: "Получить историю изменений документа",
-		description: "Возвращает список версий документа с возможностью фильтрации по дате",
+		description:
+			"Возвращает список версий документа с возможностью фильтрации по дате",
 	})
 	@ApiParam({
 		name: "id",

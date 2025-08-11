@@ -11,7 +11,7 @@ import {
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { MemoryStorageService } from "../../../core/shared/database/service/memory-storage.service";
 import { JsonCommitService } from "./json-commit.service";
-import {VersionInfoDto} from "../dto/version-info.dto";
+import { VersionInfoDto } from "../dto/version-info.dto";
 import { JsonCommitEntity } from "../entities/json-commit.entity";
 
 @Injectable()
@@ -30,11 +30,11 @@ export class JsonDataService {
 		private readonly memoryStorageService: MemoryStorageService,
 		private readonly jsonCommitService: JsonCommitService,
 	) {
-		this.isProduction = this.configService.get<boolean>('app.isProduction');
+		this.isProduction = this.configService.get<boolean>("app.isProduction");
 	}
 
 	async createGraphData(
-		input: CreateJsonDataInput & { authorName?: string }
+		input: CreateJsonDataInput & { authorName?: string },
 	): Promise<any> {
 		const name = input.name || `График ${new Date().toLocaleString("ru-RU")}`;
 		const description =
@@ -45,7 +45,7 @@ export class JsonDataService {
 			jsonData.name = name;
 			jsonData.data = input.data;
 			jsonData.description = description;
-			jsonData.authorName = input.authorName || 'System';
+			jsonData.authorName = input.authorName || "System";
 
 			return this.jsonDataRepository.save(jsonData);
 		}
@@ -54,7 +54,7 @@ export class JsonDataService {
 			name,
 			input.data,
 			description,
-			input.authorName || 'System'
+			input.authorName || "System",
 		);
 	}
 
@@ -143,7 +143,7 @@ export class JsonDataService {
 
 	async updateGraphData(
 		id: string,
-		input: UpdateJsonDataInput & { authorName?: string }
+		input: UpdateJsonDataInput & { authorName?: string },
 	): Promise<any> {
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
@@ -170,7 +170,7 @@ export class JsonDataService {
 	}
 
 	async initializeGraphWithData(
-		input: CreateJsonDataInput & { authorName?: string }
+		input: CreateJsonDataInput & { authorName?: string },
 	): Promise<any> {
 		const graphData = await this.createGraphData(input);
 
@@ -178,14 +178,14 @@ export class JsonDataService {
 			graphData.id,
 			"Initial commit",
 			input.data,
-			input.authorName
+			input.authorName,
 		);
 
 		return graphData;
 	}
 
 	async createCommitForCurrentGraph(
-		commitInput: CommitJsonDataInput & { authorName?: string }
+		commitInput: CommitJsonDataInput & { authorName?: string },
 	): Promise<any> {
 		let currentData = await this.getLatestGraphData();
 
@@ -197,7 +197,7 @@ export class JsonDataService {
 
 		const updateInput: UpdateJsonDataInput & { authorName?: string } = {
 			data: commitInput.data,
-			authorName: commitInput.authorName
+			authorName: commitInput.authorName,
 		};
 		currentData = await this.updateGraphData(currentData.id, updateInput);
 
@@ -215,7 +215,7 @@ export class JsonDataService {
 				currentData.id,
 				commitInput.message,
 				commitInput.data,
-				commitInput.authorName
+				commitInput.authorName,
 			);
 		} else {
 			// Commits exist, create new commit
@@ -223,7 +223,7 @@ export class JsonDataService {
 				currentData.id,
 				commitInput.message,
 				commitInput.data,
-				commitInput.authorName
+				commitInput.authorName,
 			);
 		}
 
@@ -232,7 +232,7 @@ export class JsonDataService {
 
 	async updateGraphWithCommit(
 		id: string,
-		commitInput: CommitJsonDataInput & { authorName?: string }
+		commitInput: CommitJsonDataInput & { authorName?: string },
 	): Promise<any> {
 		console.log(
 			`[JsonDataService] updateGraphWithCommit вызван для graphId: ${id}`,
@@ -249,7 +249,7 @@ export class JsonDataService {
 				name,
 				data: commitInput.data,
 				description,
-				authorName: commitInput.authorName
+				authorName: commitInput.authorName,
 			});
 
 			console.log(
@@ -259,7 +259,7 @@ export class JsonDataService {
 				newGraphData.id,
 				commitInput.message,
 				commitInput.data,
-				commitInput.authorName
+				commitInput.authorName,
 			);
 
 			return newGraphData;
@@ -268,7 +268,7 @@ export class JsonDataService {
 		console.log(`[JsonDataService] График с ID ${id} найден, обновляем`);
 		const updateInput: UpdateJsonDataInput & { authorName?: string } = {
 			data: commitInput.data,
-			authorName: commitInput.authorName
+			authorName: commitInput.authorName,
 		};
 
 		const updatedData = await this.updateGraphData(id, updateInput);
@@ -280,17 +280,20 @@ export class JsonDataService {
 			id,
 			commitInput.message,
 			commitInput.data,
-			commitInput.authorName
+			commitInput.authorName,
 		);
 
 		return updatedData;
 	}
 
-	async updateVersionInfo(id: string, versionInfo: VersionInfoDto): Promise<any> {
+	async updateVersionInfo(
+		id: string,
+		versionInfo: VersionInfoDto,
+	): Promise<any> {
 		if (this.isProduction) {
 			await this.jsonDataRepository.update(id, {
 				schemaVersion: versionInfo.schemaVersion,
-				deprecated: versionInfo.deprecated
+				deprecated: versionInfo.deprecated,
 			});
 			return this.jsonDataRepository.findOne({ where: { id } });
 		}
@@ -304,7 +307,11 @@ export class JsonDataService {
 		throw new NotFoundException(`Data with ID ${id} not found`);
 	}
 
-	async getDocumentHistory(id: string, fromDate?: string, toDate?: string): Promise<any[]> {
+	async getDocumentHistory(
+		id: string,
+		fromDate?: string,
+		toDate?: string,
+	): Promise<any[]> {
 		if (this.isProduction) {
 			const query: any = { graphId: id };
 
@@ -316,20 +323,23 @@ export class JsonDataService {
 
 			return this.commitRepository.find({
 				where: query,
-				order: { createdAt: 'DESC' }
+				order: { createdAt: "DESC" },
 			});
 		}
 
 		const commits = this.memoryCommits.get(id) || [];
 
 		return commits
-			.filter(commit => {
+			.filter((commit) => {
 				const commitDate = new Date(commit.createdAt);
 				const afterFrom = !fromDate || commitDate >= new Date(fromDate);
 				const beforeTo = !toDate || commitDate <= new Date(toDate);
 				return afterFrom && beforeTo;
 			})
-			.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+			.sort(
+				(a, b) =>
+					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+			);
 	}
 
 	async deleteGraphData(id: string): Promise<void> {

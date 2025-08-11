@@ -1,5 +1,10 @@
 /** biome-ignore-all lint/security/noGlobalEval: <explanation> */
-import {BadRequestException, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import {
+	BadRequestException,
+	Injectable,
+	NotFoundException,
+	Optional,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
@@ -25,11 +30,14 @@ export class JsonCommitService {
 		private readonly jsonDataRepository: Repository<JsonDataEntity>,
 		private readonly configService: ConfigService,
 	) {
-		this.isProduction = this.configService.get<boolean>('app.isProduction');
+		this.isProduction = this.configService.get<boolean>("app.isProduction");
 		this.initializeJsonDiffPatch();
 		if (!this.isProduction) {
-			console.log('[JsonCommitService] Работаем в memory-режиме');
-			console.log('Текущие коммиты в памяти:', Array.from(this.memoryCommits.keys()));
+			console.log("[JsonCommitService] Работаем в memory-режиме");
+			console.log(
+				"Текущие коммиты в памяти:",
+				Array.from(this.memoryCommits.keys()),
+			);
 		}
 	}
 
@@ -37,13 +45,13 @@ export class JsonCommitService {
 		graphId: string,
 		message: string,
 		initialData: Record<string, any>,
-		authorName?: string
+		authorName?: string,
 	): Promise<any> {
 		console.log(
 			`[JsonCommitService] Создание начального коммита для graphId: ${graphId}`,
 		);
 		if (this.calculateDataSize(initialData) > 50 * 1024 * 1024) {
-			throw new BadRequestException('Размер данных превышает допустимый лимит');
+			throw new BadRequestException("Размер данных превышает допустимый лимит");
 		}
 
 		const timestamp = new Date();
@@ -66,9 +74,9 @@ export class JsonCommitService {
 				diff,
 				graphId,
 				schemaVersion: jsonData.schemaVersion,
-				status: 'LOADED_VALIDATED',
+				status: "LOADED_VALIDATED",
 				createdAt: timestamp,
-				authorName: authorName || 'System'
+				authorName: authorName || "System",
 			});
 
 			const savedCommit = await this.commitRepository.save(commit);
@@ -90,7 +98,7 @@ export class JsonCommitService {
 			diff,
 			graphId,
 			createdAt: timestamp,
-			authorName: authorName || 'System'
+			authorName: authorName || "System",
 		};
 
 		this.memoryCommits.get(graphId)!.push(commit);
@@ -105,7 +113,7 @@ export class JsonCommitService {
 		graphId: string,
 		message: string,
 		newData: Record<string, any>,
-		authorName?: string
+		authorName?: string,
 	): Promise<any> {
 		console.log(`[JsonCommitService] Создание коммита для graphId: ${graphId}`);
 		const timestamp = new Date();
@@ -113,7 +121,7 @@ export class JsonCommitService {
 		const lastCommit = await this.getLastCommit(graphId);
 		if (!lastCommit) {
 			throw new Error(
-				'No previous commits found. Use createInitialCommit for the first commit.',
+				"No previous commits found. Use createInitialCommit for the first commit.",
 			);
 		}
 
@@ -121,12 +129,14 @@ export class JsonCommitService {
 
 		const diff = await this.calculateDiffFromPrevious(previousData, newData);
 
-		console.log('New data:', JSON.stringify(newData, null, 2));
-		console.log('Previous data:', JSON.stringify(previousData, null, 2));
-		console.log('Calculated diff:', diff);
-		if (!diff || (diff._t === 'object' && Object.keys(diff).length === 0)) {
-			console.log('[JsonCommitService] Нет изменений для коммита');
-			throw new BadRequestException('No changes detected to create a new commit');
+		console.log("New data:", JSON.stringify(newData, null, 2));
+		console.log("Previous data:", JSON.stringify(previousData, null, 2));
+		console.log("Calculated diff:", diff);
+		if (!diff || (diff._t === "object" && Object.keys(diff).length === 0)) {
+			console.log("[JsonCommitService] Нет изменений для коммита");
+			throw new BadRequestException(
+				"No changes detected to create a new commit",
+			);
 		}
 
 		const hash = this.generateUniqueCommitHash(message, diff, timestamp);
@@ -145,9 +155,9 @@ export class JsonCommitService {
 				diff,
 				graphId,
 				schemaVersion: jsonData.schemaVersion,
-				status: 'LOADED_VALIDATED',
+				status: "LOADED_VALIDATED",
 				createdAt: timestamp,
-				authorName: authorName || 'System'
+				authorName: authorName || "System",
 			});
 
 			const savedCommit = await this.commitRepository.save(commit);
@@ -165,10 +175,10 @@ export class JsonCommitService {
 			message,
 			diff,
 			graphId,
-			schemaVersion: '1.0.0',
-			status: 'LOADED_VALIDATED',
+			schemaVersion: "1.0.0",
+			status: "LOADED_VALIDATED",
 			createdAt: timestamp,
-			authorName: authorName || 'System'
+			authorName: authorName || "System",
 		};
 
 		this.memoryCommits.get(graphId)!.push(commit);
@@ -243,7 +253,7 @@ export class JsonCommitService {
 		if (this.isProduction) {
 			const commit = await this.commitRepository.findOne({
 				where: { id },
-				relations: ['jsonData']
+				relations: ["jsonData"],
 			});
 
 			if (!commit) {
@@ -257,7 +267,7 @@ export class JsonCommitService {
 
 		// Поиск в memory-хранилище
 		for (const commits of this.memoryCommits.values()) {
-			const commit = commits.find(c => c.id === id);
+			const commit = commits.find((c) => c.id === id);
 			if (commit) {
 				console.log(`[JsonCommitService] Коммит найден в памяти:`, commit.id);
 				return await this.enrichCommitWithFullData(commit);
@@ -275,7 +285,7 @@ export class JsonCommitService {
 		}
 
 		const commits = Array.from(this.memoryCommits.values()).flat();
-		const commit = commits.find(c => c.id === id);
+		const commit = commits.find((c) => c.id === id);
 		if (commit) {
 			commit.status = status;
 			return commit;
@@ -286,15 +296,18 @@ export class JsonCommitService {
 	async getCommitQueue(): Promise<any[]> {
 		if (this.isProduction) {
 			return this.commitRepository.find({
-				where: { status: 'IN_PROGRESS' },
-				order: { createdAt: 'ASC' }
+				where: { status: "IN_PROGRESS" },
+				order: { createdAt: "ASC" },
 			});
 		}
 
 		return Array.from(this.memoryCommits.values())
 			.flat()
-			.filter(c => c.status === 'IN_PROGRESS')
-			.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+			.filter((c) => c.status === "IN_PROGRESS")
+			.sort(
+				(a, b) =>
+					new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+			);
 	}
 
 	async getCurrentStateFromCommits(
@@ -347,7 +360,7 @@ export class JsonCommitService {
 	}
 
 	private calculateDataSize(data: any): number {
-		return Buffer.byteLength(JSON.stringify(data), 'utf8');
+		return Buffer.byteLength(JSON.stringify(data), "utf8");
 	}
 
 	private async ensureDifferInitialized() {
@@ -357,7 +370,8 @@ export class JsonCommitService {
 	}
 
 	private isValidUuid(id: string): boolean {
-		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+		const uuidRegex =
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 		return uuidRegex.test(id);
 	}
 
