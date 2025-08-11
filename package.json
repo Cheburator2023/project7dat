@@ -5,7 +5,7 @@
 	"workspaces": [
 		"apps/*",
 		"packages/*",
-		"aux/*"
+		"auxiliary/*"
 	],
 	"release_logs": {
 		"features": [],
