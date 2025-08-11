@@ -1,12 +1,12 @@
-import { Module, DynamicModule } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JsonDataModule } from 'src/modules/json-data/json-data.module';
-import { SharedModule } from 'src/core/shared/shared.module';
-import databaseConfig from 'src/core/config/database.config';
-import { KeycloakModule } from 'src/core/auth/keycloak/keycloak.module';
+import { Module, DynamicModule } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { JsonDataModule } from "src/modules/json-data/json-data.module";
+import { SharedModule } from "src/core/shared/shared.module";
+import databaseConfig from "src/core/config/database.config";
+import { KeycloakModule } from "src/core/auth/keycloak/keycloak.module";
 
 @Module({})
 export class AppModule {
@@ -19,12 +19,12 @@ export class AppModule {
 		];
 
 		const configService = new ConfigService();
-		if (configService.get('app.isProduction')) {
+		if (configService.get("app.isProduction")) {
 			imports.push(
 				TypeOrmModule.forRootAsync({
 					imports: [SharedModule],
 					useFactory: async () => databaseConfig(),
-				})
+				}),
 			);
 		}
 

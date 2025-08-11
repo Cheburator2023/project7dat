@@ -49,14 +49,14 @@ async function bootstrap() {
 		.addTag("JSON Коммиты", "Управление версиями JSON документов")
 		.addBearerAuth(
 			{
-				type: 'http',
-				scheme: 'bearer',
-				bearerFormat: 'JWT',
-				name: 'JWT',
-				description: 'Enter JWT token',
-				in: 'header',
+				type: "http",
+				scheme: "bearer",
+				bearerFormat: "JWT",
+				name: "JWT",
+				description: "Enter JWT token",
+				in: "header",
 			},
-			'JWT-auth',
+			"JWT-auth",
 		)
 		.build();
 

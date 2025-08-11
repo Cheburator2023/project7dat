@@ -27,7 +27,7 @@ export class MemoryStorageService {
 		description?: string,
 		authorName?: string,
 		schemaVersion?: string,
-	    deprecated?: boolean,
+		deprecated?: boolean,
 	): Promise<JsonDataRecord> {
 		const id = uuidv4();
 		const now = new Date();
