@@ -1,0 +1,41 @@
+import { Module, DynamicModule, Global } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { JsonDataEntity } from "./entities/json-data.entity";
+import { JsonCommitEntity } from "./entities/json-commit.entity";
+import { JsonDataService } from "./services/json-data.service";
+import { JsonCommitService } from "./services/json-commit.service";
+import { JsonDataController } from "./controllers/json-data.controller";
+import { JsonCommitController } from "./controllers/json-commit.controller";
+import { ChangelogModule } from "../changelog/changelog.module";
+
+import { ConfigModule, ConfigService } from "@nestjs/config";
+
+@Global()
+@Module({})
+export class JsonDataModule {
+	static forRoot(): DynamicModule {
+		const configService = new ConfigService();
+		const isProduction = configService.get("app.isProduction");
+
+		const imports = isProduction
+			? [TypeOrmModule.forFeature([JsonDataEntity, JsonCommitEntity])]
+			: [];
+
+		const providers = [
+			JsonDataService,
+			JsonCommitService,
+			{
+				provide: ConfigService,
+				useValue: new ConfigService(),
+			},
+		];
+
+		return {
+			module: JsonDataModule,
+			imports: [...imports, ConfigModule.forRoot(), ChangelogModule],
+			controllers: [JsonDataController, JsonCommitController],
+			providers,
+			exports: [JsonDataService, JsonCommitService],
+		};
+	}
+}

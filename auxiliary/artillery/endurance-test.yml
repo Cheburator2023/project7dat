@@ -1,0 +1,110 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 300  # 5 минут разогрев
+      arrivalRate: 5
+      name: "Разогрев"
+    - duration: 1800  # 30 минут основной тест
+      arrivalRate: 15
+      name: "Тест на выносливость"
+    - duration: 300  # 5 минут охлаждение
+      arrivalRate: 2
+      name: "Охлаждение"
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+  processor: './test-data-processor.js'
+  
+  # Настройки для длительного тестирования
+  http:
+    timeout: 60
+    pool: 25
+
+scenarios:
+  - name: "Постоянная работа с документами"
+    weight: 60
+    flow:
+      - function: "setTestDocument"
+      - post:
+          url: "/api/json-data/create"
+          json: "{{ testDocument }}"
+          capture:
+            - json: "$.id"
+              as: "endurance_doc_id"
+      
+      - think: 2  # Пауза 2 секунды
+      
+      - get:
+          url: "/api/json-data/{{ endurance_doc_id }}"
+      
+      - think: 1
+      
+      - get:
+          url: "/api/json-data/list"
+          qs:
+            limit: 10
+            page: "{{ $randomInt(1, 5) }}"
+      
+      - think: 3
+      
+      - put:
+          url: "/api/json-data/update/{{ endurance_doc_id }}"
+          json:
+            name: "Обновлен {{ $randomString() }}"
+            description: "Документ обновлен в рамках теста на выносливость"
+            data:
+              entities:
+                - id: "{{ $randomString() }}"
+                  name: "Выносливая сущность"
+                  type: "endurance"
+              mappings: []
+      
+      - think: 5
+      
+      - delete:
+          url: "/api/json-data/delete/{{ endurance_doc_id }}"
+
+  - name: "Периодические коммиты"
+    weight: 30
+    flow:
+      - function: "setComplexData"
+      - post:
+          url: "/api/json-commits/initialize"
+          json:
+            name: "Выносливый граф {{ $randomString() }}"
+            description: "Граф для теста на выносливость"
+            data: "{{ complexData }}"
+          capture:
+            - json: "$.id"
+              as: "endurance_graph_id"
+      
+      - think: 10
+      
+      - function: "setComplexData"
+      - post:
+          url: "/api/json-commits/commit"
+          json:
+            message: "Выносливый коммит {{ $randomString() }}"
+            data: "{{ complexData }}"
+      
+      - think: 15
+      
+      - get:
+          url: "/api/json-commits/commits"
+          qs:
+            graphId: "{{ endurance_graph_id }}"
+            limit: 5
+
+  - name: "Мониторинг состояния"
+    weight: 10
+    flow:
+      - get:
+          url: "/health"
+      - think: 30
+      - get:
+          url: "/api/json-data/current"
+      - think: 30
+      - get:
+          url: "/api/json-commits/commits/all"
+          qs:
+            limit: 5

@@ -1,0 +1,120 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Разогрев"
+    - duration: 120
+      arrivalRate: 10
+      name: "Основная нагрузка"
+    - duration: 60
+      arrivalRate: 2
+      name: "Охлаждение"
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+  processor: './test-data-processor.js'
+
+scenarios:
+  - name: "Базовые эндпоинты"
+    weight: 20
+    flow:
+      - get:
+          url: "/"
+          capture:
+            - json: "$"
+              as: "welcome_response"
+      - get:
+          url: "/health"
+          capture:
+            - json: "$"
+              as: "health_response"
+
+  - name: "JSON данные - создание и чтение"
+    weight: 40
+    flow:
+      - post:
+          url: "/api/json-data/create"
+          json:
+            name: "Тестовый документ {{ $randomString() }}"
+            description: "Автоматически созданный документ для нагрузочного тестирования"
+            data:
+              entities:
+                - id: "{{ $randomString() }}"
+                  name: "Тестовая сущность"
+                  type: "test"
+              mappings: []
+          capture:
+            - json: "$.id"
+              as: "created_document_id"
+      - get:
+          url: "/api/json-data/{{ created_document_id }}"
+          capture:
+            - json: "$"
+              as: "document_details"
+      - get:
+          url: "/api/json-data/list"
+          qs:
+            limit: 10
+            page: 1
+
+  - name: "JSON данные - обновление и удаление"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/json-data/create"
+          json:
+            name: "Документ для обновления {{ $randomString() }}"
+            description: "Документ который будет обновлен"
+            data:
+              entities: []
+              mappings: []
+          capture:
+            - json: "$.id"
+              as: "update_document_id"
+      - put:
+          url: "/api/json-data/update/{{ update_document_id }}"
+          json:
+            name: "Обновленный документ {{ $randomString() }}"
+            description: "Документ был обновлен"
+            data:
+              entities:
+                - id: "{{ $randomString() }}"
+                  name: "Обновленная сущность"
+                  type: "updated"
+              mappings: []
+      - delete:
+          url: "/api/json-data/delete/{{ update_document_id }}"
+
+  - name: "JSON коммиты"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/json-commits/initialize"
+          json:
+            name: "Граф для коммитов {{ $randomString() }}"
+            description: "Граф для тестирования коммитов"
+            data:
+              entities:
+                - id: "{{ $randomString() }}"
+                  name: "Начальная сущность"
+                  type: "initial"
+              mappings: []
+          capture:
+            - json: "$.id"
+              as: "graph_id"
+      - post:
+          url: "/api/json-commits/commit"
+          json:
+            message: "Тестовый коммит {{ $randomString() }}"
+            data:
+              entities:
+                - id: "{{ $randomString() }}"
+                  name: "Коммит сущность"
+                  type: "commit"
+              mappings: []
+      - get:
+          url: "/api/json-commits/commits"
+          qs:
+            limit: 5
+            page: 1

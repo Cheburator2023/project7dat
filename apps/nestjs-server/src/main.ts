@@ -5,15 +5,16 @@ import {
 	NestFastifyApplication,
 } from "@nestjs/platform-fastify";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
-import { AppModule } from "./app.module";
-import { HttpExceptionFilter } from "./filters/http-exception.filter";
+import { AppModule } from "./app/app.module";
+import { HttpExceptionFilter } from "./core/api/filters/http-exception.filter";
 
 async function bootstrap() {
 	const app = await NestFactory.create<NestFastifyApplication>(
-		AppModule,
+		AppModule.forRoot(),
 		new FastifyAdapter({
 			bodyLimit: 52428800, // 50MB
 			logger: true,
+			ignoreTrailingSlash: true,
 		}),
 	);
 

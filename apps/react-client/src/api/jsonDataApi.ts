@@ -23,6 +23,8 @@ export interface JsonDataItem {
 	name: string;
 	data: DataLineageSchema;
 	description?: string;
+	version: string;
+	isCurrent: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -37,6 +39,11 @@ export interface UpdateJsonDataRequest {
 	name?: string;
 	data?: DataLineageSchema;
 	description?: string;
+	version?: string;
+}
+
+export interface SetCurrentFromSnapshotRequest {
+	snapshotId: string;
 }
 
 export interface CommitJsonDataRequest {
@@ -46,12 +53,23 @@ export interface CommitJsonDataRequest {
 
 export interface JsonCommitItem {
 	id: string;
-	hash: string;
+	short_id: string;
 	message: string;
 	diff: Record<string, any>;
-	fullData: Record<string, any>;
+	fullData?: Record<string, any>; // Optional since individual commits don't include fullData
 	graphId: string;
+	author?: {
+		id: string;
+		username: string;
+		email: string;
+	};
 	createdAt: string;
+}
+
+export interface CumulativeCommitData {
+	fullData: Record<string, any>;
+	commits: JsonCommitItem[];
+	targetCommit: JsonCommitItem;
 }
 
 export interface CommitListResponse {
@@ -109,4 +127,64 @@ export const jsonDataService = {
 
 	getCommitById: (id: string): Promise<JsonCommitItem> =>
 		jsonCommitApi.get(`/commits/${id}`).then((response) => response.data),
+
+	getCumulativeDataAtCommit: (id: string): Promise<CumulativeCommitData> =>
+		jsonCommitApi
+			.get(`/commits/${id}/cumulative`)
+			.then((response) => response.data),
+
+	searchCommits: (
+		graphId: string,
+		params?: {
+			dateFrom?: string;
+			dateTo?: string;
+			user?: string;
+			query?: string;
+			page?: number;
+			limit?: number;
+		},
+	): Promise<CommitListResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params?.dateFrom) searchParams.append("dateFrom", params.dateFrom);
+		if (params?.dateTo) searchParams.append("dateTo", params.dateTo);
+		if (params?.user) searchParams.append("user", params.user);
+		if (params?.query) searchParams.append("query", params.query);
+		if (params?.page) searchParams.append("page", params.page.toString());
+		if (params?.limit) searchParams.append("limit", params.limit.toString());
+
+		return jsonCommitApi
+			.get(`/commits/search/${graphId}?${searchParams}`)
+			.then((response) => response.data);
+	},
+
+	getAllCommitsFromAllGraphs: (params?: {
+		page?: number;
+		limit?: number;
+		dateFrom?: string;
+		dateTo?: string;
+		user?: string;
+		query?: string;
+	}): Promise<CommitListResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params?.page) searchParams.append("page", params.page.toString());
+		if (params?.limit) searchParams.append("limit", params.limit.toString());
+		if (params?.dateFrom) searchParams.append("dateFrom", params.dateFrom);
+		if (params?.dateTo) searchParams.append("dateTo", params.dateTo);
+		if (params?.user) searchParams.append("user", params.user);
+		if (params?.query) searchParams.append("query", params.query);
+
+		return jsonCommitApi
+			.get(`/commits/all?${searchParams}`)
+			.then((response) => response.data);
+	},
+
+	setCurrent: (id: string): Promise<{ success: boolean; message: string }> =>
+		jsonDataApi.post(`/set-current/${id}`).then((response) => response.data),
+
+	setCurrentFromSnapshot: async (request: SetCurrentFromSnapshotRequest) => {
+		const response = await jsonDataApi.post(
+			`/set-current-from-snapshot/${request.snapshotId}`,
+		);
+		return response.data;
+	},
 };

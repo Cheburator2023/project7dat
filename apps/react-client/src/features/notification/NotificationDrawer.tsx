@@ -18,6 +18,7 @@ import {
 } from "@mui/icons-material";
 import { useNotificationStore } from "../../stores/notificationStore";
 import { formatDistanceToNow } from "date-fns";
+import { ru } from "date-fns/locale";
 import { Flex } from "@react-client/common/primitives/Flex";
 
 const DRAWER_WIDTH = 400;
@@ -40,6 +41,7 @@ export const NotificationDrawer = () => {
 	const formatTime = (timestamp: number) => {
 		return formatDistanceToNow(new Date(timestamp), {
 			addSuffix: true,
+			locale: ru,
 		});
 	};
 
