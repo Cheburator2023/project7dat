@@ -1,23 +1,34 @@
 import { Route, Routes } from "react-router";
 import { routes } from "./routes";
-
-import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { PlaygroundPage } from "@react-client/features/playground/PlaygroundPage";
-import { DebugPage } from "@react-client/features/debug/DebugPage";
+import { SwaggerPage } from "@react-client/features/swagger/SwaggerPage";
 import { Page404 } from "./Page404";
 import { DashboardPageFlex } from "@react-client/features/dashboard/DashboardPageFlex";
+import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPreviewPage";
+import { SnapshotsPage } from "@react-client/features/snapshotsList/SnapshotsPage";
+import { JsonDataPage } from "@react-client/features/jsonDataList/JsonDataPage";
+import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
+import { ChangelogPage } from "@react-client/features/changelog/ChangelogPage";
+import { GraphChangelogPage } from "@react-client/features/changelog/GraphChangelogPage";
 
 export const Routing = () => (
 	<Routes>
-		<Route index element={<DashboardPage />} />
-		<Route
-			index
-			path={routes.dashboard.rootPath}
-			element={<DashboardPageFlex />}
-		/>
+		<Route index element={<DashboardPageFlex />} />
 
 		<Route path={routes.playground.rootPath} element={<PlaygroundPage />} />
-		<Route path={routes.debug.rootPath} element={<DebugPage />} />
+		<Route path={routes.swagger.rootPath} element={<SwaggerPage />} />
+		<Route path={routes.snapshots.rootPath} element={<SnapshotsPage />} />
+		<Route path={routes.jsonData.rootPath} element={<JsonDataPage />} />
+		<Route path={routes.allCommits.rootPath} element={<AllCommitsPage />} />
+		<Route path={routes.changelog.rootPath} element={<ChangelogPage />} />
+		<Route
+			path={routes.graphChangelog.rootPath}
+			element={<GraphChangelogPage />}
+		/>
+		<Route
+			path={routes.entityPreview.rootPath}
+			element={<EntityPreviewPage />}
+		/>
 		<Route path="*" element={<Page404 />} />
 	</Routes>
 );

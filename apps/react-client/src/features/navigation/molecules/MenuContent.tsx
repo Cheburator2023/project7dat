@@ -1,5 +1,5 @@
 import CallMissedOutgoingIcon from "@mui/icons-material/CallMissedOutgoing";
-import { Button } from "@mui/material";
+import { Button, Divider } from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
@@ -9,7 +9,13 @@ import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "../../../routing/routes";
 
-const mainListItems = Object.values(routes).map((route) => route);
+const mainListItems = Object.values(routes)
+	.filter((route) => route.showInNavbar && !(route as any).devOnly)
+	.map((route) => route);
+
+const devOnlyItems = Object.values(routes)
+	.filter((route) => route.showInNavbar && (route as any).devOnly)
+	.map((route) => route);
 
 const secondaryListItems = [
 	{
@@ -64,6 +70,32 @@ export function MenuContent() {
 						</ListItemButton>
 					</ListItem>
 				))}
+				{devOnlyItems.length > 0 && (
+					<>
+						<Divider sx={{ my: 1 }} data-test-id="menu-content--Divider-0" />
+						{devOnlyItems.map((item, index) => (
+							<ListItem
+								key={`dev-${index}`}
+								disablePadding
+								sx={{ display: "block", mb: 0.2 }}
+								onClick={() => handler(item.rootPath.replace("/", ""))}
+								data-test-id="menu-content--ListItem-dev"
+							>
+								<ListItemButton
+									selected={
+										item.rootPath === location.pathname.replace("/", "")
+									}
+									data-test-id="menu-content--ListItemButton-dev"
+								>
+									<ListItemText
+										primary={item.name}
+										data-test-id="menu-content--ListItemText-dev"
+									/>
+								</ListItemButton>
+							</ListItem>
+						))}
+					</>
+				)}
 			</List>
 			<List data-test-id="menu-content--List-1">
 				{secondaryListItems.map((item, index) => (

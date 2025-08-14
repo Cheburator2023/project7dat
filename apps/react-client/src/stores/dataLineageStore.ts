@@ -42,8 +42,8 @@ interface DataLineageState {
 }
 
 interface DataLineageActions {
-	setCurrentGraph: (graph: DataLineageGraph) => void;
-	setCurrentGraphId: (id: string) => void;
+	setCurrentGraph: (graph: DataLineageGraph | null) => void;
+	setCurrentGraphId: (id: string | null) => void;
 	initializeGraph: (graph: DataLineageGraph) => void;
 	loadGraphFromApi: () => Promise<void>;
 	loadGraphFromApiWithId: (id: string) => Promise<void>;
@@ -112,7 +112,7 @@ const generateTimestamp = (): string => {
 export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 	...initialState,
 
-	setCurrentGraph: (graph: DataLineageGraph) => {
+	setCurrentGraph: (graph: DataLineageGraph | null) => {
 		console.log("[DEBUG] setCurrentGraph called", {
 			hasOriginalGraph: !!get().originalGraph,
 		});
@@ -145,7 +145,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 		}
 	},
 
-	setCurrentGraphId: (id: string) => {
+	setCurrentGraphId: (id: string | null) => {
 		set({ currentGraphId: id });
 	},
 
@@ -178,10 +178,10 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 					isLoading: false,
 				});
 			} else {
-				set({ error: "График не найден", isLoading: false });
+				set({ error: "JSON не найден", isLoading: false });
 			}
 		} catch (error) {
-			set({ error: `Ошибка загрузки графика: ${error}`, isLoading: false });
+			set({ error: `Ошибка загрузки JSONа: ${error}`, isLoading: false });
 		}
 	},
 
@@ -203,10 +203,10 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 					isLoading: false,
 				});
 			} else {
-				set({ error: "График не найден", isLoading: false });
+				set({ error: "JSON не найден", isLoading: false });
 			}
 		} catch (error) {
-			set({ error: `Ошибка загрузки графика: ${error}`, isLoading: false });
+			set({ error: `Ошибка загрузки JSONа: ${error}`, isLoading: false });
 		}
 	},
 
@@ -436,7 +436,7 @@ export const useDataLineageStore = create<DataLineageStore>()((set, get) => ({
 				}
 			}
 		} catch (error) {
-			set({ error: `Ошибка импорта графика: ${error}`, isLoading: false });
+			set({ error: `Ошибка импорта JSONа: ${error}`, isLoading: false });
 		}
 	},
 

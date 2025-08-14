@@ -64,7 +64,8 @@
 				"noBannedTypes": "off",
 				"noUselessFragments": "off",
 				"noForEach": "off",
-				"noUselessUndefinedInitialization": "off"
+				"noUselessUndefinedInitialization": "off",
+				"noStaticOnlyClass": "off"
 			},
 			"suspicious": {
 				"noExplicitAny": "off",

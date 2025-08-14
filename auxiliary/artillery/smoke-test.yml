@@ -1,0 +1,122 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 30
+      arrivalRate: 1
+      name: "Smoke тестирование"
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+  processor: './test-data-processor.js'
+
+scenarios:
+  - name: "Проверка всех эндпоинтов"
+    weight: 100
+    flow:
+      # Базовые эндпоинты
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+      # Создание документа
+      - function: "setTestDocument"
+      - post:
+          url: "/api/json-data/create"
+          json: "{{ testDocument }}"
+          expect:
+            - statusCode: 201
+          capture:
+            - json: "$.id"
+              as: "smoke_document_id"
+
+      # Получение документа по ID
+      - get:
+          url: "/api/json-data/{{ smoke_document_id }}"
+          expect:
+            - statusCode: 200
+
+      # Получение списка документов
+      - get:
+          url: "/api/json-data/list"
+          expect:
+            - statusCode: 200
+
+      # Получение последнего документа
+      - get:
+          url: "/api/json-data/current"
+          expect:
+            - statusCode: 200
+
+      # Обновление документа
+      - put:
+          url: "/api/json-data/update/{{ smoke_document_id }}"
+          json:
+            name: "Обновленный дымовой тест"
+            description: "Документ обновлен в рамках дымового тестирования"
+            data:
+              entities: []
+              mappings: []
+          expect:
+            - statusCode: 200
+
+      # Установка текущего документа
+      - post:
+          url: "/api/json-data/set-current/{{ smoke_document_id }}"
+          expect:
+            - statusCode: 200
+
+      # Инициализация графа для коммитов
+      - function: "setComplexData"
+      - post:
+          url: "/api/json-commits/initialize"
+          json:
+            name: "Дымовой граф"
+            description: "Граф для дымового тестирования"
+            data: "{{ complexData }}"
+          expect:
+            - statusCode: 200
+          capture:
+            - json: "$.id"
+              as: "smoke_graph_id"
+
+      # Создание коммита
+      - function: "setComplexData"
+      - post:
+          url: "/api/json-commits/commit"
+          json:
+            message: "Дымовой коммит"
+            data: "{{ complexData }}"
+          expect:
+            - statusCode: 200
+
+      # Получение списка коммитов
+      - get:
+          url: "/api/json-commits/commits"
+          expect:
+            - statusCode: 200
+
+      # Получение всех коммитов
+      - get:
+          url: "/api/json-commits/commits/all"
+          expect:
+            - statusCode: 200
+
+      # Поиск коммитов
+      - get:
+          url: "/api/json-commits/commits/search/{{ smoke_graph_id }}"
+          qs:
+            query: "дымовой"
+            limit: 5
+          expect:
+            - statusCode: 200
+
+      # Удаление документа (в конце)
+      - delete:
+          url: "/api/json-data/delete/{{ smoke_document_id }}"
+          expect:
+            - statusCode: 200

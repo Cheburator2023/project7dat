@@ -3,29 +3,58 @@ export const routes = {
 		rootPath: "/",
 		name: "Главная",
 		disabled: false,
+		showInNavbar: true,
 		subRoutes: {},
 	},
-	dashboard: {
-		rootPath: "/dashboard",
-		name: "Dasboard Flex Doc",
+	entityPreview: {
+		name: "Просмотр сущности",
+		rootPath: "/entity/:entityId",
 		disabled: false,
-		subRoutes: {},
+		showInNavbar: false,
 	},
-	// graph: {
-	// 	name: "Граф",
-	// 	rootPath: "/graph",
-	// 	devOnly: true,
-	// },
+	snapshots: {
+		name: "Реестр снепшотов",
+		rootPath: "/snapshots",
+		disabled: false,
+		showInNavbar: true,
+	},
+	jsonData: {
+		name: "JSON Реестр",
+		rootPath: "/json-data",
+		disabled: false,
+		showInNavbar: true,
+	},
+	allCommits: {
+		name: "Реестр коммитов",
+		rootPath: "/all-commits",
+		disabled: false,
+		showInNavbar: true,
+	},
+	changelog: {
+		name: "История изменений",
+		rootPath: "/changelog",
+		disabled: false,
+		showInNavbar: true,
+	},
+	graphChangelog: {
+		name: "История графика",
+		rootPath: "/changelog/:graphId",
+		disabled: false,
+		showInNavbar: false,
+	},
+	// dev
 	playground: {
 		name: "Песочница",
 		rootPath: "/playground",
 		devOnly: true,
 		disabled: false,
+		showInNavbar: true,
 	},
-	debug: {
-		name: "Отладка",
-		rootPath: "/debug",
+	swagger: {
+		name: "API Документация",
+		rootPath: "/swagger",
 		devOnly: true,
 		disabled: false,
+		showInNavbar: true,
 	},
 };

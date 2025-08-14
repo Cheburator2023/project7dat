@@ -112,8 +112,6 @@ export function useViewportChange(
 						setIsDragging(false);
 					}
 					setLastPan(viewport);
-					console.log("🚀 ~ viewport:", viewport);
-
 					onPanChange(viewport); // Use fast pan handler
 				}
 			} else {

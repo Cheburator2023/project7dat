@@ -14,6 +14,11 @@ export const datePickersCustomizations: PickersProComponents<Theme> &
 	PickerComponents<Theme> = {
 	MuiPickersPopper: {
 		styleOverrides: {
+			root: {
+				"&:before": {
+					backgroundColor: "transparent",
+				},
+			},
 			paper: ({ theme }) => ({
 				marginTop: 4,
 				borderRadius: theme.shape.borderRadius,

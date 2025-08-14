@@ -1,0 +1,80 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 30
+      arrivalRate: 10
+      name: "Разогрев"
+    - duration: 60
+      arrivalRate: 50
+      name: "Высокая нагрузка"
+    - duration: 120
+      arrivalRate: 100
+      name: "Пиковая нагрузка"
+    - duration: 60
+      arrivalRate: 20
+      name: "Снижение нагрузки"
+    - duration: 30
+      arrivalRate: 5
+      name: "Охлаждение"
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+  processor: './test-data-processor.js'
+  
+  # Настройки для стресс-тестирования
+  http:
+    timeout: 30
+    pool: 50
+
+scenarios:
+  - name: "Интенсивное создание документов"
+    weight: 50
+    flow:
+      - function: "setTestDocument"
+      - post:
+          url: "/api/json-data/create"
+          json: "{{ testDocument }}"
+          capture:
+            - json: "$.id"
+              as: "document_id"
+      - get:
+          url: "/api/json-data/{{ document_id }}"
+
+  - name: "Массовые запросы списков"
+    weight: 30
+    flow:
+      - loop:
+          - get:
+              url: "/api/json-data/list"
+              qs:
+                limit: "{{ $randomInt(5, 50) }}"
+                page: "{{ $randomInt(1, 10) }}"
+                search: "тест"
+        count: 3
+
+  - name: "Операции с коммитами"
+    weight: 20
+    flow:
+      - function: "setComplexData"
+      - post:
+          url: "/api/json-commits/initialize"
+          json:
+            name: "Стресс граф {{ $randomString() }}"
+            description: "Граф для стресс-тестирования"
+            data: "{{ complexData }}"
+          capture:
+            - json: "$.id"
+              as: "stress_graph_id"
+      - loop:
+          - function: "setComplexData"
+          - post:
+              url: "/api/json-commits/commit"
+              json:
+                message: "Стресс коммит {{ $randomString() }}"
+                data: "{{ complexData }}"
+        count: 2
+      - get:
+          url: "/api/json-commits/commits"
+          qs:
+            limit: 20
+            page: 1

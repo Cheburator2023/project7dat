@@ -1,0 +1,313 @@
+# Автоматически сгенерированный тест из OpenAPI спецификации
+# Сгенерировано: 2025-08-10T14:14:35.284Z
+
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Автоматически сгенерированный тест"
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+
+scenarios:
+  - name: "GET /"
+    weight: 3
+    flow:
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /health"
+    weight: 3
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+  - name: "POST /api/json-data/create"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/json-data/create"
+          json:
+            {
+                      "data": {
+                                "key": "value",
+                                "number": 123
+                      },
+                      "name": "Мой документ",
+                      "description": "Описание моего документа"
+            }
+          expect:
+            - statusCode: 201
+
+  - name: "GET /api/json-data/list"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/json-data/list"
+          qs:
+            search: "мой документ"
+            limit: "10"
+            page: "1"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/json-data/current"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/json-data/current"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/json-data/{id}"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/json-data/{{ id }}"
+          expect:
+            - statusCode: 200
+
+  - name: "PUT /api/json-data/update/{id}"
+    weight: 3
+    flow:
+      - put:
+          url: "/api/json-data/update/{{ id }}"
+          json:
+            {
+                      "name": "Обновленный документ",
+                      "data": {
+                                "updatedKey": "newValue",
+                                "number": 456
+                      },
+                      "description": "Обновленное описание"
+            }
+          expect:
+            - statusCode: 200
+
+  - name: "DELETE /api/json-data/delete/{id}"
+    weight: 3
+    flow:
+      - delete:
+          url: "/api/json-data/delete/{{ id }}"
+          expect:
+            - statusCode: 200
+
+  - name: "POST /api/json-data/set-current/{id}"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/json-data/set-current/{{ id }}"
+          expect:
+            - statusCode: 200
+
+  - name: "POST /api/json-data/set-current-from-snapshot/{snapshotId}"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/json-data/set-current-from-snapshot/{{ snapshotId }}"
+          expect:
+            - statusCode: 201
+
+  - name: "POST /api/json-commits/initialize"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/json-commits/initialize"
+          json:
+            {
+                      "name": "Мой JSON",
+                      "data": {
+                                "entities": [],
+                                "mappings": []
+                      },
+                      "description": "Описание JSONа"
+            }
+          expect:
+            - statusCode: 200
+
+  - name: "POST /api/json-commits/commit"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/json-commits/commit"
+          json:
+            {
+                      "message": "Обновлены узлы графа",
+                      "data": {
+                                "entities": [],
+                                "mappings": []
+                      }
+            }
+          expect:
+            - statusCode: 200
+
+  - name: "POST /api/json-commits/commit/{id}"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/json-commits/commit/{{ id }}"
+          json:
+            {
+                      "message": "Обновлены узлы графа",
+                      "data": {
+                                "entities": [],
+                                "mappings": []
+                      }
+            }
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/json-commits/commits"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/json-commits/commits"
+          qs:
+            graphId: "uuid-string"
+            limit: "10"
+            page: "1"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/json-commits/commits/all"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/json-commits/commits/all"
+          qs:
+            query: "обновление"
+            user: "john.doe"
+            dateTo: "2024-12-31T23:59:59.999Z"
+            dateFrom: "2024-01-01T00:00:00.000Z"
+            limit: "10"
+            page: "1"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/json-commits/commits/search/{id}"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/json-commits/commits/search/{{ id }}"
+          qs:
+            limit: "10"
+            page: "1"
+            query: "обновление"
+            user: "john.doe"
+            dateTo: "2024-12-31T23:59:59.999Z"
+            dateFrom: "2024-01-01T00:00:00.000Z"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/json-commits/commits/{id}"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/json-commits/commits/{{ id }}"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/json-commits/commits/{id}/cumulative"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/json-commits/commits/{{ id }}/cumulative"
+          expect:
+            - statusCode: 200
+
+  - name: "POST /api/snapshots/create"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/snapshots/create"
+          json:
+            {
+                      "name": "Снимок от 2024-01-15",
+                      "description": "Снимок перед важными изменениями",
+                      "version": "2.12.33"
+            }
+          expect:
+            - statusCode: 201
+
+  - name: "GET /api/snapshots/list"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/snapshots/list"
+          qs:
+            search: "важный снимок"
+            limit: "10"
+            page: "1"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/snapshots/{id}"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/snapshots/{{ id }}"
+          expect:
+            - statusCode: 200
+
+  - name: "POST /api/snapshots/apply"
+    weight: 3
+    flow:
+      - post:
+          url: "/api/snapshots/apply"
+          expect:
+            - statusCode: 201
+
+  - name: "GET /api/database-schema"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/database-schema"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/database-schema/tables/{tableName}/data"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/database-schema/tables/{{ tableName }}/data"
+          qs:
+            offset: "10"
+            limit: "10"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/changelog"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/changelog"
+          qs:
+            page: "10"
+            limit: "10"
+            actionType: "тест"
+            author: "тест"
+            dateFrom: "тест"
+            dateTo: "тест"
+          expect:
+            - statusCode: 200
+
+  - name: "GET /api/changelog/graph/{graphId}"
+    weight: 3
+    flow:
+      - get:
+          url: "/api/changelog/graph/{{ graphId }}"
+          qs:
+            page: "10"
+            limit: "10"
+            actionType: "тест"
+            author: "тест"
+            dateFrom: "тест"
+            dateTo: "тест"
+          expect:
+            - statusCode: 200
