@@ -14,15 +14,20 @@ import {
 	ApiParam,
 	ApiQuery,
 	ApiBody,
+	ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JsonCommitService } from "../services/json-commit.service";
 import { JsonDataService } from "../services/json-data.service";
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { CreateJsonDataInput } from "../schemas/json-data.schema";
 import { JsonDataEntity } from "../entities/json-data.entity";
+import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
+import { Permission } from "src/core/auth/permissions";
+import { CurrentUser } from "src/core/auth/decorators/current-user.decorator";
 
+@ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Коммиты")
-@Controller("api/json-commits")
+@Controller("json-commits")
 export class JsonCommitController {
 	constructor(
 		private readonly jsonDataService: JsonDataService,
@@ -30,6 +35,7 @@ export class JsonCommitController {
 	) {}
 
 	@Post("initialize")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Инициализировать новый JSON с данными",
 		description: "Создает новый JSON и создает начальный коммит с данными",
@@ -59,7 +65,7 @@ export class JsonCommitController {
 		},
 	})
 	@ApiResponse({
-		status: 200,
+		status: 201,
 		description: "JSON успешно инициализирован",
 		schema: {
 			type: "object",
@@ -75,11 +81,13 @@ export class JsonCommitController {
 	})
 	async initializeGraph(
 		@Body() body: CreateJsonDataInput,
+		@CurrentUser() user: any,
 	): Promise<JsonDataEntity> {
 		return await this.jsonDataService.initializeGraphWithData(body);
 	}
 
 	@Post("commit")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Коммит текущего JSONа",
 		description: "Создает коммит для текущего активного JSON документа",
@@ -104,7 +112,7 @@ export class JsonCommitController {
 		},
 	})
 	@ApiResponse({
-		status: 200,
+		status: 201,
 		description: "Коммит успешно создан",
 		schema: {
 			type: "object",
@@ -121,6 +129,7 @@ export class JsonCommitController {
 	async commitCurrent(
 		@Body()
 		body: CommitJsonDataInput,
+		@CurrentUser() user: any,
 		@Headers() headers: Record<string, string>,
 	) {
 		const author = this.extractUserFromHeaders(headers);
@@ -129,6 +138,7 @@ export class JsonCommitController {
 	}
 
 	@Post("commit/:id")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Обновить JSON с коммитом",
 		description: "Обновляет JSON документ с сохранением истории изменений",
@@ -181,6 +191,7 @@ export class JsonCommitController {
 		@Param("id") id: string,
 		@Body()
 		body: CommitJsonDataInput,
+		@CurrentUser() user: any,
 		@Headers() headers: Record<string, string>,
 	) {
 		const author = this.extractUserFromHeaders(headers);
@@ -189,6 +200,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить список коммитов",
 		description: "Возвращает пагинированный список коммитов",
@@ -254,6 +266,7 @@ export class JsonCommitController {
 	async getCommitList(
 		@Query()
 		query: any,
+		@CurrentUser() user: any,
 	) {
 		console.log(`[JsonCommitController] METHOD CALLED!`);
 		console.log(
@@ -301,6 +314,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits/all")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить все коммиты из всех JSON данных",
 		description:
@@ -393,7 +407,7 @@ export class JsonCommitController {
 			},
 		},
 	})
-	async getAllCommitsFromAllGraphs(@Query() query: any) {
+	async getAllCommitsFromAllGraphs(@Query() query: any, @CurrentUser() user: any,) {
 		console.log(
 			`[JsonCommitController] getAllCommitsFromAllGraphs вызван с параметрами:`,
 			query,
@@ -530,7 +544,7 @@ export class JsonCommitController {
 			},
 		},
 	})
-	async searchCommits(@Param("id") graphId: string, @Query() query: any) {
+	async searchCommits(@Param("id") graphId: string, @Query() query: any, @CurrentUser() user: any,) {
 		const page = query.page ? Number.parseInt(query.page, 10) : 1;
 		const limit = query.limit ? Number.parseInt(query.limit, 10) : 10;
 
@@ -572,6 +586,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits/:id")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить коммит по ID",
 		description: "Возвращает конкретный коммит по его идентификатору",
@@ -607,7 +622,7 @@ export class JsonCommitController {
 		status: 404,
 		description: "Коммит не найден",
 	})
-	async getCommit(@Param("id") id: string) {
+	async getCommit(@Param("id") id: string, @CurrentUser() user: any,) {
 		const commit = await this.jsonCommitService.findCommitById(id);
 		const { left, right } = this.extractDiffSlices(
 			commit.diff,
@@ -626,6 +641,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits/:id/cumulative")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить кумулятивные данные до указанного коммита",
 		description:
@@ -678,7 +694,7 @@ export class JsonCommitController {
 		status: 404,
 		description: "Коммит не найден",
 	})
-	async getCumulativeDataAtCommit(@Param("id") id: string) {
+	async getCumulativeDataAtCommit(@Param("id") id: string, @CurrentUser() user: any,) {
 		return await this.jsonCommitService.getCumulativeDataAtCommit(id);
 	}
 

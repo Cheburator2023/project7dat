@@ -26,7 +26,7 @@ import {
 import { SnapshotService } from "../../snapshots/services/snapshot.service";
 
 @ApiTags("JSON Данные")
-@Controller("api/json-data")
+@Controller("json-data")
 export class JsonDataController {
 	constructor(
 		private readonly jsonDataService: JsonDataService,
