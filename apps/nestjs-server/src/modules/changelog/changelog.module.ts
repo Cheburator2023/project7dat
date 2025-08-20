@@ -6,6 +6,6 @@ import { ChangelogMemoryStorageService } from "./services/changelog-memory-stora
 @Module({
 	controllers: [ChangelogController],
 	providers: [ChangelogService, ChangelogMemoryStorageService],
-	exports: [ChangelogService],
+	exports: [ChangelogService, ChangelogMemoryStorageService],
 })
 export class ChangelogModule {}
