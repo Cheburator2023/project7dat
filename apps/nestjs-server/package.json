@@ -22,10 +22,9 @@
 		"migration:generate": "typeorm-ts-node-commonjs migration:generate ./src/migrations/$npm_config_name -d src/core/config/ormconfig.ts"
 	},
 	"dependencies": {
-		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
 		"@data-lineage/shared": "file:../../packages/shared",
+		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
 		"@electric-sql/pglite": "^0.3.5",
-		"typeorm-pglite": "0.3.2",
 		"@fastify/cors": "^11.0.0",
 		"@nestjs/cli": "11.0.5",
 		"@nestjs/common": "^11.1.5",
@@ -42,12 +41,14 @@
 		"class-validator": "0.14.2",
 		"exceljs": "^4.4.0",
 		"express": "^5.0.1",
+		"express-rate-limit": "^8.0.1",
 		"fastify": "^5.2.1",
 		"jsondiffpatch": "^0.7.3",
 		"nest-keycloak-connect": "2.0.0-alpha.1",
 		"pg": "8.14.1",
 		"reflect-metadata": "0.2.2",
 		"typeorm": "0.3.21",
+		"typeorm-pglite": "0.3.2",
 		"uuid": "^11.1.0",
 		"zod": "^3.25.76"
 	},
