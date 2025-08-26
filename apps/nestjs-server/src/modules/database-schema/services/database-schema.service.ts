@@ -22,7 +22,7 @@ export class DatabaseSchemaService {
 		if (!this.dataSource) {
 			await this.databaseProvider.connect();
 			try {
-				this.dataSource = this.databaseProvider.getDataSource();
+				this.dataSource = this.databaseProvider.getConfig();
 			} catch (_error) {
 				throw new Error(
 					"Схема базы данных недоступна в режиме in-memory storage",

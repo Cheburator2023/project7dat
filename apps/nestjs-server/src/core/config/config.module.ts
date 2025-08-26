@@ -1,18 +1,22 @@
-import { Module } from "@nestjs/common";
+import { Global, Module } from "@nestjs/common";
 import { ConfigModule as NestConfigModule } from "@nestjs/config";
 import appConfig, { appValidationSchema } from "./app.config";
 import databaseConfig, { databaseValidationSchema } from "./database.config";
+import keycloakConfig, { keycloakValidationSchema } from "./keycloak.config";
 import Joi from "joi";
 
+@Global()
 @Module({
 	imports: [
 		NestConfigModule.forRoot({
 			isGlobal: true,
 			envFilePath: `.env.${process.env.NODE_ENV || "development"}`,
-			load: [appConfig, databaseConfig],
-			validationSchema: appValidationSchema.concat(
-				Joi.object(databaseValidationSchema),
-			),
+			load: [appConfig, databaseConfig, keycloakConfig],
+			validationSchema: Joi.object({
+				...appValidationSchema.describe().keys,
+				...databaseValidationSchema.describe().keys,
+				...keycloakValidationSchema.describe().keys,
+			}),
 			validationOptions: {
 				allowUnknown: true,
 				abortEarly: false,

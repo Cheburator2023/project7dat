@@ -23,7 +23,7 @@ import {
 } from "../schemas/snapshot.schema";
 
 @ApiTags("Снепшоты")
-@Controller("api/snapshots")
+@Controller("snapshots")
 export class SnapshotController {
 	constructor(private readonly snapshotService: SnapshotService) {}
 

@@ -13,7 +13,7 @@ import {
 } from "../schemas/database-schema.schema";
 
 @ApiTags("Схема базы данных")
-@Controller("api/database-schema")
+@Controller("database-schema")
 export class DatabaseSchemaController {
 	constructor(private readonly databaseSchemaService: DatabaseSchemaService) {}
 

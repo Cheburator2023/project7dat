@@ -7,6 +7,7 @@ interface JsonDataRecord {
 	data: any;
 	description?: string;
 	version: string;
+	authorName?: string;
 	isCurrent: boolean;
 	createdAt: Date;
 	updatedAt: Date;
@@ -25,6 +26,7 @@ export class MemoryStorageService {
 		data: any,
 		description?: string,
 		version = "1.0.0",
+		authorName?: string,
 	): Promise<JsonDataRecord> {
 		const id = uuidv4();
 		const now = new Date();
@@ -34,6 +36,7 @@ export class MemoryStorageService {
 			data,
 			description,
 			version,
+			authorName: authorName,
 			isCurrent: false,
 			createdAt: now,
 			updatedAt: now,
@@ -86,7 +89,7 @@ export class MemoryStorageService {
 				JsonDataRecord,
 				"name" | "data" | "description" | "version" | "isCurrent"
 			>
-		>,
+		>,authorName?: string,
 	): Promise<JsonDataRecord | null> {
 		const record = this.storage.get(id);
 		if (!record) {
@@ -96,6 +99,7 @@ export class MemoryStorageService {
 		const updatedRecord = {
 			...record,
 			...updates,
+			authorName: authorName,
 			updatedAt: new Date(),
 		};
 
