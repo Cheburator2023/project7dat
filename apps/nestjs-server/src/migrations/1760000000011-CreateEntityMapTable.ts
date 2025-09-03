@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityMapTable1760000000009 implements MigrationInterface {
+export class CreateEntityMapTable1760000000011 implements MigrationInterface {
     name = 'CreateEntityMapTable1760000000009';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
