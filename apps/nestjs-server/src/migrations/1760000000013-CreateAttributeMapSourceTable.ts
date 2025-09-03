@@ -1,6 +1,6 @@
 import {MigrationInterface, QueryRunner} from "typeorm";
 
-export class CreateAttributeMapSourceTable1760000000010 implements MigrationInterface {
+export class CreateAttributeMapSourceTable1760000000013 implements MigrationInterface {
     name = 'CreateAttributeMapSourceTable1760000000010';
 
     public async up(queryRunner: QueryRunner): Promise<void> {

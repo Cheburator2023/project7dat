@@ -1,7 +1,7 @@
 import {MigrationInterface, QueryRunner} from "typeorm";
 
-export class CreateAttributeTable1760000000007 implements MigrationInterface {
-    name = 'CreateAttributeTable1760000000007';
+export class CreateAttributeTable1760000000009 implements MigrationInterface {
+    name = 'CreateAttributeTable1760000000009';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`

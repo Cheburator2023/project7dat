@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import {MigrationInterface, QueryRunner} from "typeorm";
 
 export class CreateChangesTable1760000000001 implements MigrationInterface {
     name = 'CreateChangesTable1760000000001';
@@ -6,11 +6,11 @@ export class CreateChangesTable1760000000001 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
             CREATE TABLE changes (
-                change_id INTEGER PRIMARY KEY,
-                change_date DATE NOT NULL,
-                change_user VARCHAR NOT NULL,
-                change_name VARCHAR NOT NULL,
-                app_id VARCHAR,
+                change_id   SERIAL PRIMARY KEY,
+                change_date TIMESTAMP NOT NULL,
+                change_user VARCHAR   NOT NULL,
+                change_name VARCHAR   NOT NULL,
+                app_id      VARCHAR,
                 CONSTRAINT changes_change_id_unique UNIQUE (change_id)
             )
         `);
@@ -22,7 +22,7 @@ export class CreateChangesTable1760000000001 implements MigrationInterface {
             COMMENT ON COLUMN changes.change_id IS 'Идентификатор изменения'
         `);
         await queryRunner.query(`
-            COMMENT ON COLUMN changes.change_date IS 'Дата изменения (инкремента)'
+            COMMENT ON COLUMN changes.change_date IS 'Дата и время изменения (коммита)'
         `);
         await queryRunner.query(`
             COMMENT ON COLUMN changes.change_user IS 'Пользователь'

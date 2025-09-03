@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import {MigrationInterface, QueryRunner} from "typeorm";
 
 export class CreateEntityContainerTable1760000000005 implements MigrationInterface {
     name = 'CreateEntityContainerTable1760000000005';
@@ -6,14 +6,17 @@ export class CreateEntityContainerTable1760000000005 implements MigrationInterfa
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
             CREATE TABLE entity_container (
-                entity_container_id INTEGER PRIMARY KEY,
-                change_id INTEGER NOT NULL,
+                entity_container_id      SERIAL PRIMARY KEY,
+                change_id                INTEGER NOT NULL,
                 entity_container_type_id INTEGER NOT NULL,
-                description VARCHAR,
-                value VARCHAR NOT NULL,
-                system_id INTEGER,
-                CONSTRAINT fk_entity_container_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
-                CONSTRAINT fk_entity_container_type FOREIGN KEY (entity_container_type_id) REFERENCES entity_container_type(entity_container_type_id)
+                parent_container_id      INTEGER,
+                description              VARCHAR,
+                value                    VARCHAR NOT NULL,
+                system_id                INTEGER,
+                CONSTRAINT fk_entity_container_change FOREIGN KEY (change_id) REFERENCES changes (change_id),
+                CONSTRAINT fk_entity_container_type FOREIGN KEY (entity_container_type_id) REFERENCES entity_container_type (entity_container_type_id),
+                CONSTRAINT fk_entity_container_parent FOREIGN KEY (parent_container_id) REFERENCES entity_container (entity_container_id),
+                CONSTRAINT fk_entity_container_system FOREIGN KEY (system_id) REFERENCES systems (system_id)
             )
         `);
 
@@ -28,6 +31,9 @@ export class CreateEntityContainerTable1760000000005 implements MigrationInterfa
         `);
         await queryRunner.query(`
             COMMENT ON COLUMN entity_container.entity_container_type_id IS 'Тип контейнера'
+        `);
+        await queryRunner.query(`
+            COMMENT ON COLUMN entity_container.parent_container_id IS 'Идентификатор родительского контейнера'
         `);
         await queryRunner.query(`
             COMMENT ON COLUMN entity_container.description IS 'Описание БД'
