@@ -5,7 +5,7 @@ export class CreateAttributeMapTable1760000000012 implements MigrationInterface 
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE attribute_map (
+            CREATE TABLE IF NOT EXISTS attribute_map (
                 attribute_map_id INTEGER PRIMARY KEY,
                 entity_map_id INTEGER NOT NULL,
                 attribute_id INTEGER NOT NULL,

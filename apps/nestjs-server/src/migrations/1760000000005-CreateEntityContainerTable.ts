@@ -5,7 +5,7 @@ export class CreateEntityContainerTable1760000000005 implements MigrationInterfa
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE entity_container (
+            CREATE TABLE IF NOT EXISTS entity_container (
                 entity_container_id      SERIAL PRIMARY KEY,
                 change_id                INTEGER NOT NULL,
                 entity_container_type_id INTEGER NOT NULL,

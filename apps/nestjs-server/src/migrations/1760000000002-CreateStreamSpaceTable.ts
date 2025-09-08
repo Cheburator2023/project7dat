@@ -5,7 +5,7 @@ export class CreateStreamSpaceTable1760000000002 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE stream_space (
+            CREATE TABLE IF NOT EXISTS stream_space (
                 id SERIAL PRIMARY KEY,
                 name_space VARCHAR NOT NULL,
                 stream_name VARCHAR NOT NULL

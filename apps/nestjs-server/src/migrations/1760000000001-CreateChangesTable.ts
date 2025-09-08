@@ -5,7 +5,7 @@ export class CreateChangesTable1760000000001 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE changes (
+            CREATE TABLE IF NOT EXISTS changes (
                 change_id   SERIAL PRIMARY KEY,
                 change_date TIMESTAMP NOT NULL,
                 change_user VARCHAR   NOT NULL,

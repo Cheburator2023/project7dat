@@ -5,7 +5,7 @@ export class CreateEntityMapTable1760000000011 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE entity_map (
+            CREATE TABLE IF NOT EXISTS entity_map (
                 entity_map_id INTEGER PRIMARY KEY,
                 entity_id INTEGER NOT NULL,
                 description VARCHAR NOT NULL,

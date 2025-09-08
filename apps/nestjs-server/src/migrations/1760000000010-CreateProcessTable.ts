@@ -5,7 +5,7 @@ export class CreateProcessTable1760000000010 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE process (
+            CREATE TABLE IF NOT EXISTS process (
                 process_id   SERIAL PRIMARY KEY,
                 change_id    INTEGER NOT NULL,
                 process_type VARCHAR NOT NULL,

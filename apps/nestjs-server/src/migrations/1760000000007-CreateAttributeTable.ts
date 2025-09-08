@@ -5,7 +5,7 @@ export class CreateAttributeTable1760000000007 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE attribute (
+            CREATE TABLE IF NOT EXISTS attribute (
                 attribute_id SERIAL PRIMARY KEY,
                 change_id    INTEGER NOT NULL,
                 type_id      INTEGER NOT NULL,
@@ -20,7 +20,7 @@ export class CreateAttributeTable1760000000007 implements MigrationInterface {
         `);
 
         await queryRunner.query(`
-            CREATE INDEX idx_attribute_entity_id_name ON attribute (entity_id, name)
+            CREATE INDEX IF NOT EXISTS idx_attribute_entity_id_name ON attribute (entity_id, name)
         `);
 
         await queryRunner.query(`

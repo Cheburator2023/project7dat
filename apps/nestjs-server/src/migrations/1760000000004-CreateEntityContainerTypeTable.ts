@@ -5,7 +5,7 @@ export class CreateEntityContainerTypeTable1760000000004 implements MigrationInt
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE entity_container_type (
+            CREATE TABLE IF NOT EXISTS entity_container_type (
                 entity_container_type_id INTEGER PRIMARY KEY,
                 change_id INTEGER NOT NULL,
                 value VARCHAR NOT NULL,
