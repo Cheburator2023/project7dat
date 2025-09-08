@@ -5,7 +5,7 @@ export class CreateSystemsTable1760000000003 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE systems (
+            CREATE TABLE IF NOT EXISTS systems (
                 system_id SERIAL PRIMARY KEY,
                 code      VARCHAR NOT NULL,
                 name      VARCHAR NOT NULL

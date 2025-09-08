@@ -5,7 +5,7 @@ export class CreateEntityTable1760000000006 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE entity (
+            CREATE TABLE IF NOT EXISTS entity (
                 entity_id INTEGER PRIMARY KEY,
                 change_id INTEGER NOT NULL,
                 entity_type_id INTEGER NOT NULL,
@@ -23,7 +23,7 @@ export class CreateEntityTable1760000000006 implements MigrationInterface {
         `);
 
         await queryRunner.query(`
-            CREATE INDEX idx_entity_full_name ON entity(full_name)
+            CREATE INDEX IF NOT EXISTS idx_entity_full_name ON entity(full_name)
         `);
 
         await queryRunner.query(`

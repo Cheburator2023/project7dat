@@ -5,7 +5,7 @@ export class CreateAttributeMapSourceTable1760000000013 implements MigrationInte
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE attribute_map_source (
+            CREATE TABLE IF NOT EXISTS attribute_map_source (
                 attribute_map_id    INTEGER NOT NULL,
                 source_attribute_id INTEGER NOT NULL,
                 change_id           INTEGER NOT NULL,

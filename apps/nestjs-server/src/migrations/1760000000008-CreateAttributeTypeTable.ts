@@ -5,7 +5,7 @@ export class CreateAttributeTypeTable1760000000008 implements MigrationInterface
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            CREATE TABLE attribute_type (
+            CREATE TABLE IF NOT EXISTS attribute_type (
                 type_id     SERIAL PRIMARY KEY,
                 change_id   INTEGER NOT NULL,
                 name        VARCHAR NOT NULL,
