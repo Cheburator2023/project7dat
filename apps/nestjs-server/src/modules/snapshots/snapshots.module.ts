@@ -1,6 +1,6 @@
 import { DynamicModule, Module, Global } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 
 import { SnapshotController } from "./controllers/snapshot.controller";
 import { SnapshotService } from "./services/snapshot.service";
@@ -15,7 +15,10 @@ export class SnapshotsModule {
 		const imports: any[] = [];
 		const providers = [SnapshotService, SnapshotMemoryStorageService];
 
-		if (process.env.NODE_ENV === "production") {
+		const configService = new ConfigService();
+		const isProduction = configService.get("app.isProduction");
+
+		if (isProduction) {
 			imports.push(TypeOrmModule.forFeature([SnapshotEntity]));
 		}
 

@@ -2,6 +2,9 @@ import { ConfigService, registerAs } from "@nestjs/config";
 import { TypeOrmModuleOptions } from "@nestjs/typeorm";
 import { DataSourceOptions } from "typeorm";
 import * as Joi from "joi";
+import {SnapshotEntity} from "../../modules/snapshots/entities/snapshot.entity";
+import {JsonDataEntity} from "../../modules/json-data/entities/json-data.entity";
+import {JsonCommitEntity} from "../../modules/json-data/entities/json-commit.entity";
 
 export type DatabaseConfig = TypeOrmModuleOptions & DataSourceOptions;
 
@@ -36,7 +39,12 @@ export default registerAs("database", (): DatabaseConfig => {
 	const devDbType = process.env.DEV_DB_TYPE || "sqlite";
 
 	const commonOptions: Partial<DatabaseConfig> = {
-		entities: [__dirname + "/../../**/*.entity{.ts,.js}"],
+		entities: [
+			SnapshotEntity,
+			JsonDataEntity,
+			JsonCommitEntity,
+			__dirname + "/../../**/*.entity{.ts,.js}"
+		],
 		synchronize: process.env.DB_SYNCHRONIZE === "true" || !isProduction,
 		logging: process.env.DB_LOGGING === "true" || !isProduction,
 		migrations: [__dirname + "/../../migrations/*{.ts,.js}"],
