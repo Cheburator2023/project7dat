@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { KeycloakConnectModule } from "nest-keycloak-connect";
 import { KeycloakConfigService } from "./keycloak-config.service";
 import { APP_GUARD, Reflector } from "@nestjs/core";
@@ -21,17 +21,25 @@ import { GodModeGuard } from "./god-mode.guard";
 @Module({})
 export class KeycloakModule {
 	static forRoot(): DynamicModule {
-		return {
-			module: KeycloakModule,
-			imports: [
-				ConfigModule.forRoot(),
+		const isGodMode = process.env.NO_ROLES === "true";
+
+		const imports: any[] = [ConfigModule.forRoot()];
+
+		// Only register KeycloakConnectModule if not in god mode
+		if (!isGodMode) {
+			imports.push(
 				KeycloakConnectModule.registerAsync({
 					useClass: KeycloakConfigService,
 					imports: [ConfigModule],
 				}),
-			],
-			providers: [
-				KeycloakConfigService,
+			);
+		}
+
+		const providers: any[] = [KeycloakConfigService];
+
+		// Only add Keycloak guards when not in god mode
+		if (!isGodMode) {
+			providers.push(
 				// AuthGuard
 				{
 					provide: "DELEGATE_GUARD_AUTH",
@@ -39,9 +47,12 @@ export class KeycloakModule {
 				},
 				{
 					provide: APP_GUARD,
-					useFactory: (reflector: Reflector, delegateGuard: AuthGuard) =>
-						new GodModeGuard(reflector, delegateGuard),
-					inject: [Reflector, "DELEGATE_GUARD_AUTH"],
+					useFactory: (
+						reflector: Reflector,
+						configService: ConfigService,
+						delegateGuard: AuthGuard,
+					) => new GodModeGuard(reflector, configService, delegateGuard),
+					inject: [Reflector, ConfigService, "DELEGATE_GUARD_AUTH"],
 				},
 				// ResourceGuard
 				{
@@ -50,9 +61,12 @@ export class KeycloakModule {
 				},
 				{
 					provide: APP_GUARD,
-					useFactory: (reflector: Reflector, delegateGuard: ResourceGuard) =>
-						new GodModeGuard(reflector, delegateGuard),
-					inject: [Reflector, "DELEGATE_GUARD_RESOURCE"],
+					useFactory: (
+						reflector: Reflector,
+						configService: ConfigService,
+						delegateGuard: ResourceGuard,
+					) => new GodModeGuard(reflector, configService, delegateGuard),
+					inject: [Reflector, ConfigService, "DELEGATE_GUARD_RESOURCE"],
 				},
 				// RoleGuard
 				{
@@ -61,12 +75,31 @@ export class KeycloakModule {
 				},
 				{
 					provide: APP_GUARD,
-					useFactory: (reflector: Reflector, delegateGuard: RoleGuard) =>
-						new GodModeGuard(reflector, delegateGuard),
-					inject: [Reflector, "DELEGATE_GUARD_ROLE"],
+					useFactory: (
+						reflector: Reflector,
+						configService: ConfigService,
+						delegateGuard: RoleGuard,
+					) => new GodModeGuard(reflector, configService, delegateGuard),
+					inject: [Reflector, ConfigService, "DELEGATE_GUARD_ROLE"],
 				},
-			],
-			exports: [KeycloakConnectModule, KeycloakConfigService],
+			);
+		} else {
+			// In god mode, provide simple guards that always allow access
+			providers.push({
+				provide: APP_GUARD,
+				useFactory: (reflector: Reflector, configService: ConfigService) =>
+					new GodModeGuard(reflector, configService),
+				inject: [Reflector, ConfigService],
+			});
+		}
+
+		return {
+			module: KeycloakModule,
+			imports,
+			providers,
+			exports: isGodMode
+				? [KeycloakConfigService]
+				: [KeycloakConnectModule, KeycloakConfigService],
 		};
 	}
 }
