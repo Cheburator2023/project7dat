@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Like } from "typeorm";
 import { ConfigService } from "@nestjs/config";
-import { v4 as uuidv4 } from "uuid";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import {
 	CreateJsonDataInput,
@@ -13,15 +12,21 @@ import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { MemoryStorageService } from "../../../core/shared/database/service/memory-storage.service";
 import { JsonCommitService } from "./json-commit.service";
 import { ChangelogService } from "../../changelog/services/changelog.service";
+import { VersionInfoDto } from "../dto/version-info.dto";
+import { JsonCommitEntity } from "../entities/json-commit.entity";
 
 @Injectable()
 export class JsonDataService {
 	private isProduction?: boolean;
+	private memoryCommits: Map<string, any[]> = new Map();
 
 	constructor(
 		@Optional()
 		@InjectRepository(JsonDataEntity)
 		private readonly jsonDataRepository: Repository<JsonDataEntity>,
+		@Optional()
+		@InjectRepository(JsonCommitEntity)
+		private readonly commitRepository: Repository<JsonCommitEntity>,
 		private readonly configService: ConfigService,
 		private readonly memoryStorageService: MemoryStorageService,
 		private readonly jsonCommitService: JsonCommitService,
@@ -30,58 +35,28 @@ export class JsonDataService {
 		this.isProduction = this.configService.get<boolean>("app.isProduction");
 	}
 
-	async createGraphData(input: CreateJsonDataInput): Promise<any> {
-		const name = input.name || `JSON ${new Date().toLocaleString("ru-RU")}`;
-		const description = input.description || "Иннициализация json данных";
-		const version = input.version || "1.0.0";
-
-		let result: any;
-		if (this.isProduction) {
-			const jsonData = this.jsonDataRepository.create({
-				id: uuidv4(),
-				name,
-				data: input.data,
-				description,
-				version,
-				isCurrent: false,
-			});
-			result = await this.jsonDataRepository.save(jsonData);
-		} else {
-			result = await this.memoryStorageService.create(
-				name,
-				input.data,
-				description,
-				version,
-			);
-		}
-
-		await this.changelogService.logGraphCreated(result.id, result.name);
-		return result;
-	}
-
-	async createDataWithId(id: string, input: CreateJsonDataInput): Promise<any> {
-		const name = input.name || `JSON ${new Date().toLocaleString("ru-RU")}`;
-		const description = input.description || "Иннициализация json данных";
-		const version = input.version || "1.0.0";
+	async createGraphData(
+		input: CreateJsonDataInput & { authorName?: string },
+	): Promise<any> {
+		const name = input.name || `График ${new Date().toLocaleString("ru-RU")}`;
+		const description =
+			input.description || "Сохранённое состояние графика данных";
 
 		if (this.isProduction) {
-			const jsonData = this.jsonDataRepository.create({
-				id,
-				name,
-				data: input.data,
-				description,
-				version,
-				isCurrent: false,
-			});
+			const jsonData = new JsonDataEntity();
+			jsonData.name = name;
+			jsonData.data = input.data;
+			jsonData.description = description;
+			jsonData.authorName = input.authorName || "System";
+
 			return this.jsonDataRepository.save(jsonData);
 		}
 
-		return await this.memoryStorageService.createWithId(
-			id,
+		return await this.memoryStorageService.create(
 			name,
 			input.data,
 			description,
-			version,
+			input.authorName,
 		);
 	}
 
@@ -168,11 +143,6 @@ export class JsonDataService {
 			return jsonData;
 		}
 
-		const currentResult = await this.memoryStorageService.getCurrentRecord();
-		if (currentResult) {
-			return currentResult;
-		}
-
 		const result = await this.memoryStorageService.findLatest();
 		if (!result) {
 			return undefined;
@@ -180,25 +150,37 @@ export class JsonDataService {
 		return result;
 	}
 
-	async updateGraphData(id: string, input: UpdateJsonDataInput): Promise<any> {
+	async updateGraphData(
+		id: string,
+		input: UpdateJsonDataInput & { authorName?: string },
+	): Promise<any> {
 		if (this.isProduction) {
 			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
 			if (!jsonData) {
 				throw new NotFoundException(`JSON с ID ${id} не найден`);
 			}
-			Object.assign(jsonData, input);
+
+			if (input.data) jsonData.data = input.data;
+			if (input.name) jsonData.name = input.name;
+			if (input.description) jsonData.description = input.description;
+			if (input.authorName) jsonData.authorName = input.authorName;
+			jsonData.updatedAt = new Date();
+
 			return this.jsonDataRepository.save(jsonData);
 		}
 
-		const result = await this.memoryStorageService.update(id, input);
+		const result = await this.memoryStorageService.update(id, {
+			...input,
+		});
 		if (!result) {
 			throw new NotFoundException(`JSON с ID ${id} не найден`);
 		}
 		return result;
 	}
 
-	async initializeGraphWithData(input: CreateJsonDataInput): Promise<any> {
-		console.log(`[JsonDataService] initializeGraphWithData called`);
+	async initializeGraphWithData(
+		input: CreateJsonDataInput & { authorName?: string },
+	): Promise<any> {
 		const graphData = await this.createGraphData(input);
 		console.log(`[JsonDataService] Graph created with ID: ${graphData.id}`);
 
@@ -206,19 +188,19 @@ export class JsonDataService {
 			graphData.id,
 			"Initial commit",
 			input.data,
+			input.authorName,
 		);
 		console.log(
 			`[JsonDataService] Initial commit created for graph: ${graphData.id}`,
 		);
 
-		await this.setCurrentById(graphData.id);
-		console.log(`[JsonDataService] Graph ${graphData.id} set as current`);
+		console.log(`[JsonDataService] Graph ${graphData.id} created successfully`);
 
 		return graphData;
 	}
 
 	async createCommitForCurrentGraph(
-		commitInput: CommitJsonDataInput,
+		commitInput: CommitJsonDataInput & { authorName?: string },
 	): Promise<any> {
 		console.log(
 			`[JsonDataService] createCommitForCurrentGraph called with message: ${commitInput.message}`,
@@ -231,8 +213,9 @@ export class JsonDataService {
 			);
 		}
 
-		const updateInput: UpdateJsonDataInput = {
+		const updateInput: UpdateJsonDataInput & { authorName?: string } = {
 			data: commitInput.data,
+			authorName: commitInput.authorName,
 		};
 		currentData = await this.updateGraphData(currentData.id, updateInput);
 
@@ -250,6 +233,7 @@ export class JsonDataService {
 				currentData.id,
 				commitInput.message,
 				commitInput.data,
+				commitInput.authorName,
 			);
 		} else {
 			// Commits exist, create new commit
@@ -257,6 +241,7 @@ export class JsonDataService {
 				currentData.id,
 				commitInput.message,
 				commitInput.data,
+				commitInput.authorName,
 			);
 		}
 
@@ -265,7 +250,7 @@ export class JsonDataService {
 
 	async updateGraphWithCommit(
 		id: string,
-		commitInput: CommitJsonDataInput,
+		commitInput: CommitJsonDataInput & { authorName?: string },
 	): Promise<any> {
 		console.log(
 			`[JsonDataService] updateGraphWithCommit вызван для graphId: ${id}`,
@@ -281,6 +266,7 @@ export class JsonDataService {
 				data: commitInput.data,
 				description,
 				version: "1.0.0",
+				authorName: commitInput.authorName,
 			});
 
 			console.log(
@@ -290,14 +276,16 @@ export class JsonDataService {
 				newGraphData.id,
 				commitInput.message,
 				commitInput.data,
+				commitInput.authorName,
 			);
 
 			return newGraphData;
 		}
 
-		console.log(`[JsonDataService] JSON с ID ${id} найден, обновляем`);
-		const updateInput: UpdateJsonDataInput = {
+		console.log(`[JsonDataService] График с ID ${id} найден, обновляем`);
+		const updateInput: UpdateJsonDataInput & { authorName?: string } = {
 			data: commitInput.data,
+			authorName: commitInput.authorName,
 		};
 
 		const updatedData = await this.updateGraphData(id, updateInput);
@@ -309,56 +297,66 @@ export class JsonDataService {
 			id,
 			commitInput.message,
 			commitInput.data,
+			commitInput.authorName,
 		);
 
 		return updatedData;
 	}
 
-	async setCurrentById(id: string): Promise<any> {
-		let result: any;
+	async updateVersionInfo(
+		id: string,
+		versionInfo: VersionInfoDto,
+	): Promise<any> {
 		if (this.isProduction) {
-			await this.jsonDataRepository.update({}, { isCurrent: false });
-
-			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
-			if (!jsonData) {
-				throw new NotFoundException(`JSON с ID ${id} не найден`);
-			}
-
-			jsonData.isCurrent = true;
-			result = await this.jsonDataRepository.save(jsonData);
-		} else {
-			result = await this.memoryStorageService.setCurrentById(id);
-			if (!result) {
-				throw new NotFoundException(`JSON с ID ${id} не найден`);
-			}
+			await this.jsonDataRepository.update(id, {
+				schemaVersion: versionInfo.schemaVersion,
+				deprecated: versionInfo.deprecated,
+			});
+			return this.jsonDataRepository.findOne({ where: { id } });
 		}
 
-		await this.changelogService.logSetCurrent(result.id, result.name);
-		return result;
+		const data = await this.memoryStorageService.findById(id);
+		if (data) {
+			data.schemaVersion = versionInfo.schemaVersion;
+			data.deprecated = versionInfo.deprecated;
+			return data;
+		}
+		throw new NotFoundException(`Data with ID ${id} not found`);
 	}
 
-	async setCurrentFromSnapshot(snapshot: any): Promise<any> {
-		const updateData = {
-			name: snapshot.name,
-			data: snapshot.data,
-			description: `Восстановлено из снимка: ${snapshot.name}`,
-			version: snapshot.version || "1.0.0",
-		};
+	async getDocumentHistory(
+		id: string,
+		fromDate?: string,
+		toDate?: string,
+	): Promise<any[]> {
+		if (this.isProduction) {
+			const query: any = { graphId: id };
 
-		const existingData = await this.findGraphDataByIdOrNull(
-			snapshot.sourceDataId,
-		);
+			if (fromDate || toDate) {
+				query.createdAt = {};
+				if (fromDate) query.createdAt.$gte = new Date(fromDate);
+				if (toDate) query.createdAt.$lte = new Date(toDate);
+			}
 
-		if (existingData) {
-			await this.updateGraphData(snapshot.sourceDataId, updateData);
-			return await this.setCurrentById(snapshot.sourceDataId);
-		} else {
-			const created = await this.createDataWithId(
-				snapshot.sourceDataId,
-				updateData,
-			);
-			return await this.setCurrentById(created.id);
+			return this.commitRepository.find({
+				where: query,
+				order: { createdAt: "DESC" },
+			});
 		}
+
+		const commits = this.memoryCommits.get(id) || [];
+
+		return commits
+			.filter((commit) => {
+				const commitDate = new Date(commit.createdAt);
+				const afterFrom = !fromDate || commitDate >= new Date(fromDate);
+				const beforeTo = !toDate || commitDate <= new Date(toDate);
+				return afterFrom && beforeTo;
+			})
+			.sort(
+				(a, b) =>
+					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+			);
 	}
 
 	async deleteGraphData(id: string): Promise<void> {
@@ -373,6 +371,59 @@ export class JsonDataService {
 		const success = await this.memoryStorageService.delete(id);
 		if (!success) {
 			throw new NotFoundException(`JSON с ID ${id} не найден`);
+		}
+	}
+
+	async setCurrentById(id: string): Promise<any> {
+		if (this.isProduction) {
+			// Since we no longer use isCurrent field, just verify the record exists
+			const record = await this.jsonDataRepository.findOne({ where: { id } });
+			if (!record) {
+				throw new NotFoundException(`JSON с ID ${id} не найден`);
+			}
+			return record;
+		}
+
+		// For memory storage, verify the record exists
+		const record = await this.memoryStorageService.findById(id);
+		if (!record) {
+			throw new NotFoundException(`JSON с ID ${id} не найден`);
+		}
+
+		return record;
+	}
+
+	async setCurrentFromSnapshot(snapshot: any): Promise<any> {
+		// This method sets the current data from a snapshot
+		// Since we no longer use isCurrent field, we'll just return the snapshot data
+		return snapshot;
+	}
+
+	async createDataWithId(
+		id: string,
+		input: CreateJsonDataInput & { authorName?: string },
+	): Promise<any> {
+		// Create data with a specific ID (used for snapshots)
+		if (this.isProduction) {
+			const newRecord = this.jsonDataRepository.create({
+				id: id,
+				data: input.data,
+				name: input.name,
+				description: input.description,
+				authorName: input.authorName || "Unknown",
+				schemaVersion: "1.0",
+				deprecated: false,
+			});
+			return await this.jsonDataRepository.save(newRecord);
+		} else {
+			return await this.memoryStorageService.create(
+				input.name || "Untitled",
+				input.data,
+				input.description || "",
+				input.authorName || "Unknown",
+				"1.0",
+				false,
+			);
 		}
 	}
 }

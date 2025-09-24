@@ -3,7 +3,7 @@ import { IDatabaseProvider } from "../interfaces/database.interface";
 import { JsonDataEntity } from "../../../../modules/json-data/entities/json-data.entity";
 import { JsonCommitEntity } from "../../../../modules/json-data/entities/json-commit.entity";
 import { MemoryStorageService } from "../service/memory-storage.service";
-import { EntityTarget, ObjectLiteral, Repository, DataSource } from "typeorm";
+import { DataSource, EntityTarget, ObjectLiteral, Repository } from "typeorm";
 
 @Injectable()
 export class MemoryStorageProvider implements IDatabaseProvider {

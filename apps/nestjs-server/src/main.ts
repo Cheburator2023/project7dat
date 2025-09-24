@@ -47,6 +47,18 @@ async function bootstrap() {
 		.setVersion("1.0")
 		.addTag("Основное", "Основные эндпоинты приложения")
 		.addTag("JSON Данные", "CRUD операции для JSON документов")
+		.addTag("JSON Коммиты", "Управление версиями JSON документов")
+		.addBearerAuth(
+			{
+				type: "http",
+				scheme: "bearer",
+				bearerFormat: "JWT",
+				name: "JWT",
+				description: "Enter JWT token",
+				in: "header",
+			},
+			"JWT-auth",
+		)
 		.build();
 
 	const document = SwaggerModule.createDocument(app as any, config);

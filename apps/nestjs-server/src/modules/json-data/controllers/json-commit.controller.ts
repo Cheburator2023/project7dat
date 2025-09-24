@@ -6,6 +6,8 @@ import {
 	Param,
 	Query,
 	Headers,
+	Put,
+	BadRequestException,
 } from "@nestjs/common";
 import {
 	ApiTags,
@@ -14,13 +16,19 @@ import {
 	ApiParam,
 	ApiQuery,
 	ApiBody,
+	ApiBearerAuth,
 } from "@nestjs/swagger";
 import { JsonCommitService } from "../services/json-commit.service";
 import { JsonDataService } from "../services/json-data.service";
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { CreateJsonDataInput } from "../schemas/json-data.schema";
 import { JsonDataEntity } from "../entities/json-data.entity";
+import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
+import { Permission } from "src/core/auth/permissions";
+import { JsonCommitResponseDto } from "../dto/responses/json-commit-response.dto";
+import { CommitStatusDto } from "../dto/commit-status.dto";
 
+@ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Коммиты")
 @Controller("api/json-commits")
 export class JsonCommitController {
@@ -30,6 +38,7 @@ export class JsonCommitController {
 	) {}
 
 	@Post("initialize")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Инициализировать новый JSON с данными",
 		description: "Создает новый JSON и создает начальный коммит с данными",
@@ -59,8 +68,8 @@ export class JsonCommitController {
 		},
 	})
 	@ApiResponse({
-		status: 200,
-		description: "JSON успешно инициализирован",
+		status: 201,
+		description: "График успешно инициализирован",
 		schema: {
 			type: "object",
 			properties: {
@@ -80,6 +89,7 @@ export class JsonCommitController {
 	}
 
 	@Post("commit")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Коммит текущего JSONа",
 		description: "Создает коммит для текущего активного JSON документа",
@@ -104,7 +114,7 @@ export class JsonCommitController {
 		},
 	})
 	@ApiResponse({
-		status: 200,
+		status: 201,
 		description: "Коммит успешно создан",
 		schema: {
 			type: "object",
@@ -123,12 +133,70 @@ export class JsonCommitController {
 		body: CommitJsonDataInput,
 		@Headers() headers: Record<string, string>,
 	) {
-		const author = this.extractUserFromHeaders(headers);
-		const commitData = { ...body, author };
-		return await this.jsonDataService.createCommitForCurrentGraph(commitData);
+		try {
+			if (!body.data || Object.keys(body.data).length === 0) {
+				throw new BadRequestException("Commit data cannot be empty");
+			}
+			const author = this.extractUserFromHeaders(headers);
+			const commitData = { ...body, author };
+			return await this.jsonDataService.createCommitForCurrentGraph(commitData);
+		} catch (error) {
+			if (error instanceof BadRequestException) {
+				throw new BadRequestException({
+					status: 400,
+					message: error.message,
+					error: "No Changes",
+					timestamp: new Date().toISOString(),
+				});
+			}
+			throw error;
+		}
+	}
+
+	@Put(":id/status")
+	@RealmRole(Permission.DL_UPDATE_COMMITS)
+	@ApiOperation({
+		summary: "Обновить статус коммита",
+		description: "Изменяет статус коммита (например, при валидации)",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "Уникальный идентификатор коммита",
+	})
+	@ApiBody({ type: CommitStatusDto })
+	@ApiResponse({
+		status: 200,
+		description: "Статус коммита успешно обновлен",
+		type: JsonCommitResponseDto,
+	})
+	async updateCommitStatus(
+		@Param("id") id: string,
+		@Body() statusDto: CommitStatusDto,
+	) {
+		return await this.jsonCommitService.updateCommitStatus(
+			id,
+			statusDto.status,
+		);
+	}
+
+	@Get("queue")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
+	@ApiOperation({
+		summary: "Получить очередь коммитов",
+		description: "Возвращает текущее состояние очереди обработки коммитов",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Очередь коммитов успешно получена",
+		type: [JsonCommitResponseDto],
+	})
+	async getCommitQueue() {
+		return await this.jsonCommitService.getCommitQueue();
 	}
 
 	@Post("commit/:id")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
 		summary: "Обновить JSON с коммитом",
 		description: "Обновляет JSON документ с сохранением истории изменений",
@@ -189,6 +257,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить список коммитов",
 		description: "Возвращает пагинированный список коммитов",
@@ -572,6 +641,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits/:id")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить коммит по ID",
 		description: "Возвращает конкретный коммит по его идентификатору",
@@ -579,8 +649,8 @@ export class JsonCommitController {
 	@ApiParam({
 		name: "id",
 		type: String,
-		description: "Уникальный идентификатор коммита",
-		example: "uuid-string",
+		description: "UUID коммита в формате xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+		example: "c058a9cb-a16d-4944-b316-885beeab4604",
 	})
 	@ApiResponse({
 		status: 200,
@@ -608,21 +678,27 @@ export class JsonCommitController {
 		description: "Коммит не найден",
 	})
 	async getCommit(@Param("id") id: string) {
-		const commit = await this.jsonCommitService.findCommitById(id);
-		const { left, right } = this.extractDiffSlices(
-			commit.diff,
-			commit.fullData,
-		);
-
-		// Return only diff data, not fullData to reduce response size
-		const { fullData, ...commitWithoutFullData } = commit;
-		return {
-			...commitWithoutFullData,
-			diff: {
-				left,
-				right,
-			},
-		};
+		console.log(`[JsonCommitController] Запрос коммита с ID: ${id}`);
+		try {
+			const commit = await this.jsonCommitService.findCommitById(id);
+			const { left, right } = this.extractDiffSlices(
+				commit.diff,
+				commit.fullData,
+			);
+			return {
+				...commit,
+				diff: {
+					left,
+					right,
+				},
+			};
+		} catch (error) {
+			console.error(
+				`[JsonCommitController] Ошибка при получении коммита ${id}:`,
+				error,
+			);
+			throw error;
+		}
 	}
 
 	@Get("commits/:id/cumulative")

@@ -1,4 +1,3 @@
-/** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanation> */
 import { DynamicModule, Module, Provider } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { IDatabaseProvider } from "./interfaces/database.interface";
