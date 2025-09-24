@@ -4,6 +4,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "cross-env NODE_ENV=development vite serve",
+		"dev:god": "cross-env NODE_ENV=development NO_ROLES=true vite serve",
 		"build": "cross-env NODE_ENV=production vite build",
 		"start": "serve -s build",
 		"prod": "npm build && npm start",

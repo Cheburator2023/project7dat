@@ -8,7 +8,8 @@ import { SnapshotsModule } from "src/modules/snapshots/snapshots.module";
 import { DatabaseSchemaModule } from "src/modules/database-schema/database-schema.module";
 import { ChangelogModule } from "src/modules/changelog/changelog.module";
 import { SharedModule } from "src/core/shared/shared.module";
-import databaseConfig from "src/core/config/database.config";
+import { databaseConfig } from "src/core/config/database.config";
+import { KeycloakModule } from "src/core/auth/keycloak/keycloak.module";
 
 @Module({})
 export class AppModule {
@@ -20,6 +21,7 @@ export class AppModule {
 			DatabaseSchemaModule,
 			ChangelogModule,
 			ConfigModule.forRoot(),
+			KeycloakModule.forRoot(),
 		];
 
 		const configService = new ConfigService();
