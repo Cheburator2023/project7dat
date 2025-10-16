@@ -8,10 +8,12 @@ export class CreateProcessTable1760000000010 implements MigrationInterface {
             CREATE TABLE IF NOT EXISTS process (
                 process_id   SERIAL PRIMARY KEY,
                 change_id    INTEGER NOT NULL,
-                process_type VARCHAR NOT NULL,
+                process_type INTEGER NOT NULL,
                 name         VARCHAR NOT NULL,
                 group_id     INTEGER,
-                CONSTRAINT fk_process_change FOREIGN KEY (change_id) REFERENCES changes (change_id)
+                CONSTRAINT fk_process_change FOREIGN KEY (change_id) REFERENCES changes (change_id),
+                CONSTRAINT fk_process_type FOREIGN KEY (process_type) REFERENCES process_type (process_type_id),
+                CONSTRAINT process_id_unique UNIQUE (process_id)
             )
         `);
 
