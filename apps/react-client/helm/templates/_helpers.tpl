@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "data-lineage-api.name" -}}
+{{- define "data-lineage-frontend.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "data-lineage-api.fullname" -}}
+{{- define "data-lineage-frontend.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "data-lineage-api.chart" -}}
+{{- define "data-lineage-frontend.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "data-lineage-api.labels" -}}
-helm.sh/chart: {{ include "data-lineage-api.chart" . }}
-{{ include "data-lineage-api.selectorLabels" . }}
+{{- define "data-lineage-frontend.labels" -}}
+helm.sh/chart: {{ include "data-lineage-frontend.chart" . }}
+{{ include "data-lineage-frontend.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "data-lineage-api.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "data-lineage-api.name" . }}
+{{- define "data-lineage-frontend.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "data-lineage-frontend.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "data-lineage-api.serviceAccountName" -}}
+{{- define "data-lineage-frontend.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "data-lineage-api.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "data-lineage-frontend.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
