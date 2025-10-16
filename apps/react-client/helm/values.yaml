@@ -1,11 +1,11 @@
-# Default values for data-lineage-api.
+# Default values for data-lineage-frontend.
 
 pullSecret: ci-dos
 
 replicaCount: 1
 
 image:
-  repository: nexus-ci.corp.dev.vtb/sumd-docker-lib/data-lineage-api
+  repository: nexus-ci.corp.dev.vtb/sumd-docker-lib/data-lineage-frontend
   tag: v1.0.0
   pullPolicy: Always
 
@@ -15,7 +15,7 @@ resources:
     memory: "1000Mi"
   limits:
     cpu: "600m"
-    memory: "2000Mi"
+    memory: "1000Mi"
 
 secretName: ingress-tls
 
@@ -25,18 +25,18 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: data-lineage-api-ds1-lpad01-sumd-team-sumcore-system.apps.ds1-lpad01.corp.dev.vtb
+    - host: data-lineage-frontend-ds1-lpad01-sumd-team-sumcore-system.apps.ds1-lpad01.corp.dev.vtb
       paths:
         - pathType: ImplementationSpecific
           backend:
             service:
-              name: data-lineage-api
+              name: data-lineage-frontend
               port:
-                number: 3000
+                number: 8080
   tls:
     - secretName: ingress-tls
       hosts:
-        - data-lineage-api-ds1-lpad01-sumd-team-sumcore-system.apps.ds1-lpad01.corp.dev.vtb
+        - data-lineage-frontend-ds1-lpad01-sumd-team-sumcore-system.apps.ds1-lpad01.corp.dev.vtb
 
 
 ###Выбор worker ноды без GPU
@@ -58,23 +58,3 @@ autoscaling:
   # targetCPUAverageValue: 100m
   # targetMemoryUtilizationPercentage: 80
   # targetMemoryAverageValue: 200Mi
-
-secrets:
-  immutable:
-    enabled: false
-
-env:
- DB_HOST: d5sumd-pgc001lk.corp.dev.vtb
- DB_PORT: 5432
- DB_NAME: data_lineage
- NODE_ENV: production
- KEYCLOAK_URL: https://keycloak-sumd.sumd.dk1-sumd01.innodev.local/auth/
- KEYCLOAK_REALMS: cym
- KEYCLOAK_CLIENT: frontend
- NODE_TLS_REJECT_UNAUTHORIZED: 0
- PORT: 3000
-
-secret:
- DB_USERNAME: "data_lineage_admin"
- DB_PASSWORD: "sum_user_pass"
- SESSION_SECRET: "my-secret"
