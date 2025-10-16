@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityMapSourceTable1760000000016 implements MigrationInterface {
-    name = 'CreateEntityMapSourceTable1760000000016';
+export class CreateEntityMapSourceTable1760000000018 implements MigrationInterface {
+    name = 'CreateEntityMapSourceTable1760000000018';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
@@ -17,13 +17,13 @@ export class CreateEntityMapSourceTable1760000000016 implements MigrationInterfa
         `);
 
         await queryRunner.query(`
-            COMMENT ON TABLE entity_map_source IS 'Связь таргет витрины с витринами источниками'
+            COMMENT ON TABLE entity_map_source IS 'Связь маппинга сущности с сущностями-источниками'
         `);
         await queryRunner.query(`
-            COMMENT ON COLUMN entity_map_source.entity_map_id IS 'Идентификатор маппинга таргет витрины'
+            COMMENT ON COLUMN entity_map_source.entity_map_id IS 'Идентификатор маппинга таблицы'
         `);
         await queryRunner.query(`
-            COMMENT ON COLUMN entity_map_source.source_entity_id IS 'Идентификатор витрины источника'
+            COMMENT ON COLUMN entity_map_source.source_entity_id IS 'Идентификатор сущности-источника'
         `);
         await queryRunner.query(`
             COMMENT ON COLUMN entity_map_source.change_id IS 'Идентификатор изменения'

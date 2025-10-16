@@ -8,21 +8,22 @@ export class CreateStreamSpaceTable1760000000002 implements MigrationInterface {
             CREATE TABLE IF NOT EXISTS stream_space (
                 id SERIAL PRIMARY KEY,
                 name_space VARCHAR NOT NULL,
-                stream_name VARCHAR NOT NULL
+                stream_name VARCHAR NOT NULL,
+                CONSTRAINT stream_space_id_unique UNIQUE (id)
             )
         `);
 
         await queryRunner.query(`
-            COMMENT ON TABLE stream_space IS 'Справочник владельцев процессов'
+            COMMENT ON TABLE stream_space IS 'Справочник владельцев процессов.'
         `);
         await queryRunner.query(`
             COMMENT ON COLUMN stream_space.id IS 'Идентификатор записи'
         `);
         await queryRunner.query(`
-            COMMENT ON COLUMN stream_space.name_space IS 'Наименование схемы'
+            COMMENT ON COLUMN stream_space.name_space IS 'Наименование схемы (БД)'
         `);
         await queryRunner.query(`
-            COMMENT ON COLUMN stream_space.stream_name IS 'Наименование стрима - владельца процесса'
+            COMMENT ON COLUMN stream_space.stream_name IS 'Наименование стрима - владельца схемы'
         `);
     }
 
