@@ -6,12 +6,11 @@ export class CreateDependencyTypeTable1760000000017 implements MigrationInterfac
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS dependency_type (
-                deptype_id SERIAL PRIMARY KEY,
+                deptype_id VARCHAR PRIMARY KEY,
                 change_id INTEGER NOT NULL,
                 name VARCHAR NOT NULL,
                 description VARCHAR,
-                CONSTRAINT fk_dependency_type_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
-                CONSTRAINT dependency_type_id_unique UNIQUE (deptype_id)
+                CONSTRAINT fk_dependency_type_change FOREIGN KEY (change_id) REFERENCES changes(change_id)
             )
         `);
 
