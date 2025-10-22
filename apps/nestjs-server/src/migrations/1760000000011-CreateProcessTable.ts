@@ -1,7 +1,7 @@
 import {MigrationInterface, QueryRunner} from "typeorm";
 
-export class CreateProcessTable1760000000010 implements MigrationInterface {
-    name = 'CreateProcessTable1760000000010';
+export class CreateProcessTable1760000000011 implements MigrationInterface {
+    name = 'CreateProcessTable1760000000011';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
