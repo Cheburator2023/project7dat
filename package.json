@@ -27,7 +27,7 @@
 		"build": "turbo run build",
 		"lint": "turbo run lint",
 		"biome": "npx @biomejs/biome check",
-		"biome:fix": "npx @biomejs/biome@2.1.2 check --log-level=error --diagnostic-level=error --unsafe --fix ./apps/react-client/src ./apps/nestjs-server/src",
+		"biome:fix": "npx @biomejs/biome@2.3.2 check --log-level=error --diagnostic-level=error --unsafe --fix ./apps/react-client/src ./apps/nestjs-server/src",
 		"prepare": "husky",
 		"db:reset": "npm run db:reset:dev",
 		"db:reset:dev": "node ./apps/nestjs-server/scripts/reset-dev-db.js",
@@ -47,7 +47,7 @@
 		]
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.1.2",
+		"@biomejs/biome": "2.3.2",
 		"@commitlint/cli": "^19.8.0",
 		"@commitlint/config-conventional": "^19.8.0",
 		"@originjs/vite-plugin-federation": "^1.4.1",
@@ -129,7 +129,6 @@
 		"react": "^19.1.0",
 		"react-diff-viewer-continued": "3.4.0",
 		"react-dom": "^19.1.0",
-		"react-drag-drop-files": "^2.3.10",
 		"react-hook-form": "^7.53.0",
 		"react-resizable-panels": "^2.1.1",
 		"react-router": "^7.4.1",

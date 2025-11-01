@@ -23,7 +23,7 @@ export class JsonCommitEntity {
 	graphId: string;
 
 	@Column({ type: "varchar", length: 20 })
-	schemaVersion: string;
+	version: string;
 
 	@Column({ type: "varchar", length: 50 })
 	status: string;

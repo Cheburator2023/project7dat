@@ -1,25 +1,21 @@
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { Reflector } from "@nestjs/core";
 import { RequestWithUser } from "../interfaces/request-with-user.interface";
+import { ConfigService } from "@nestjs/config";
 import { Permission } from "../permissions";
 
 /**
- * Guard для режима "бога" (god mode)
+ * Guard для режима бога (god mode)
  *
  * @description
  * Позволяет отключать проверку прав в development режиме (NO_ROLES=true)
  * В production режиме делегирует проверку указанному guard'у
- *
- * В god mode создается пользователь с максимальными правами:
- * - Все разрешения из Permission enum
- * - Роль admin и god
- * - Специальный ID и email для идентификации
  */
+
 @Injectable()
 export class GodModeGuard implements CanActivate {
 	constructor(
-		private readonly reflector: Reflector,
+		readonly _reflector: Reflector,
 		private readonly configService: ConfigService,
 		private readonly delegateGuard?: CanActivate,
 	) {}

@@ -151,7 +151,7 @@ export class JsonCommitService {
 				message,
 				diff,
 				graphId,
-				schemaVersion: jsonData.schemaVersion,
+				version: jsonData.version,
 				status: "LOADED_VALIDATED",
 				createdAt: timestamp,
 				authorName: authorName || "System",
@@ -197,6 +197,7 @@ export class JsonCommitService {
 			graphName,
 			result.id,
 			message,
+			authorName || "System",
 		);
 
 		return result;
@@ -219,6 +220,7 @@ export class JsonCommitService {
 		}
 
 		const previousData = await this.reconstructDataFromCommits(graphId);
+		await this.ensureDifferInitialized();
 
 		const diff = await this.calculateDiffFromPrevious(previousData, newData);
 
@@ -248,7 +250,7 @@ export class JsonCommitService {
 				message,
 				diff,
 				graphId,
-				schemaVersion: jsonData.schemaVersion,
+				version: jsonData.version,
 				status: "LOADED_VALIDATED",
 				createdAt: timestamp,
 				authorName: authorName || "System",
@@ -292,6 +294,7 @@ export class JsonCommitService {
 			graphName,
 			result.id,
 			message,
+			authorName || "System",
 		);
 
 		return result;

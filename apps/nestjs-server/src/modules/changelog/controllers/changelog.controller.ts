@@ -13,7 +13,7 @@ import {
 } from "../schemas/changelog.schema";
 
 @ApiTags("changelog")
-@Controller("api/changelog")
+@Controller("changelog")
 export class ChangelogController {
 	constructor(private readonly changelogService: ChangelogService) {}
 

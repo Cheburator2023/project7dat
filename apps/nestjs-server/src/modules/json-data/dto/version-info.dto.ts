@@ -7,7 +7,7 @@ export class VersionInfoDto {
 		example: "1.0.0",
 	})
 	@IsString()
-	schemaVersion: string;
+	version: string;
 
 	@ApiProperty({
 		description: "Флаг устаревания данных",

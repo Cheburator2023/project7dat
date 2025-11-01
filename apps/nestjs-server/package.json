@@ -25,7 +25,6 @@
 		"@data-lineage/shared": "file:../../packages/shared",
 		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
 		"@electric-sql/pglite": "^0.3.5",
-		"typeorm-pglite": "0.3.2",
 		"@fastify/cors": "^11.0.0",
 		"@nestjs/cli": "11.0.5",
 		"@nestjs/common": "^11.1.5",
@@ -49,6 +48,7 @@
 		"pg": "8.14.1",
 		"reflect-metadata": "0.2.2",
 		"typeorm": "0.3.21",
+		"typeorm-pglite": "0.3.2",
 		"uuid": "^11.1.0",
 		"zod": "^3.25.76"
 	},
