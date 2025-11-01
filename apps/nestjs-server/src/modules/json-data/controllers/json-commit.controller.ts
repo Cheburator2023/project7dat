@@ -6,6 +6,8 @@ import {
 	Param,
 	Query,
 	Headers,
+	Put,
+	BadRequestException,
 } from "@nestjs/common";
 import {
 	ApiTags,
@@ -24,6 +26,8 @@ import { JsonDataEntity } from "../entities/json-data.entity";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
 import { CurrentUser } from "src/core/auth/decorators/current-user.decorator";
+import { JsonCommitResponseDto } from "../dto/responses/json-commit-response.dto";
+import { CommitStatusDto } from "../dto/commit-status.dto";
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Коммиты")
@@ -132,9 +136,66 @@ export class JsonCommitController {
 		@CurrentUser() user: any,
 		@Headers() headers: Record<string, string>,
 	) {
-		const author = this.extractUserFromHeaders(headers);
-		const commitData = { ...body, author };
-		return await this.jsonDataService.createCommitForCurrentGraph(commitData);
+		try {
+			if (!body.data || Object.keys(body.data).length === 0) {
+				throw new BadRequestException("Commit data cannot be empty");
+			}
+			const author = this.extractUserFromHeaders(headers);
+			const commitData = { ...body, author };
+			return await this.jsonDataService.createCommitForCurrentGraph(commitData);
+		} catch (error) {
+			if (error instanceof BadRequestException) {
+				throw new BadRequestException({
+					status: 400,
+					message: error.message,
+					error: "No Changes",
+					timestamp: new Date().toISOString(),
+				});
+			}
+			throw error;
+		}
+	}
+
+	@Put(":id/status")
+	@RealmRole(Permission.DL_UPDATE_COMMITS)
+	@ApiOperation({
+		summary: "Обновить статус коммита",
+		description: "Изменяет статус коммита (например, при валидации)",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "Уникальный идентификатор коммита",
+	})
+	@ApiBody({ type: CommitStatusDto })
+	@ApiResponse({
+		status: 200,
+		description: "Статус коммита успешно обновлен",
+		type: JsonCommitResponseDto,
+	})
+	async updateCommitStatus(
+		@Param("id") id: string,
+		@Body() statusDto: CommitStatusDto,
+	) {
+		return await this.jsonCommitService.updateCommitStatus(
+			id,
+			statusDto.status,
+		);
+	}
+
+	@Get("queue")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
+	@ApiOperation({
+		summary: "Получить очередь коммитов",
+		description: "Возвращает текущее состояние очереди обработки коммитов",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Очередь коммитов успешно получена",
+		type: [JsonCommitResponseDto],
+	})
+	async getCommitQueue() {
+		return await this.jsonCommitService.getCommitQueue();
 	}
 
 	@Post("commit/:id")
@@ -407,7 +468,10 @@ export class JsonCommitController {
 			},
 		},
 	})
-	async getAllCommitsFromAllGraphs(@Query() query: any, @CurrentUser() user: any,) {
+	async getAllCommitsFromAllGraphs(
+		@Query() query: any,
+		@CurrentUser() user: any,
+	) {
 		console.log(
 			`[JsonCommitController] getAllCommitsFromAllGraphs вызван с параметрами:`,
 			query,
@@ -544,7 +608,11 @@ export class JsonCommitController {
 			},
 		},
 	})
-	async searchCommits(@Param("id") graphId: string, @Query() query: any, @CurrentUser() user: any,) {
+	async searchCommits(
+		@Param("id") graphId: string,
+		@Query() query: any,
+		@CurrentUser() user: any,
+	) {
 		const page = query.page ? Number.parseInt(query.page, 10) : 1;
 		const limit = query.limit ? Number.parseInt(query.limit, 10) : 10;
 
@@ -594,8 +662,8 @@ export class JsonCommitController {
 	@ApiParam({
 		name: "id",
 		type: String,
-		description: "Уникальный идентификатор коммита",
-		example: "uuid-string",
+		description: "UUID коммита в формате xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+		example: "c058a9cb-a16d-4944-b316-885beeab4604",
 	})
 	@ApiResponse({
 		status: 200,
@@ -622,7 +690,7 @@ export class JsonCommitController {
 		status: 404,
 		description: "Коммит не найден",
 	})
-	async getCommit(@Param("id") id: string, @CurrentUser() user: any,) {
+	async getCommit(@Param("id") id: string, @CurrentUser() user: any) {
 		const commit = await this.jsonCommitService.findCommitById(id);
 		const { left, right } = this.extractDiffSlices(
 			commit.diff,
@@ -694,7 +762,10 @@ export class JsonCommitController {
 		status: 404,
 		description: "Коммит не найден",
 	})
-	async getCumulativeDataAtCommit(@Param("id") id: string, @CurrentUser() user: any,) {
+	async getCumulativeDataAtCommit(
+		@Param("id") id: string,
+		@CurrentUser() user: any,
+	) {
 		return await this.jsonCommitService.getCumulativeDataAtCommit(id);
 	}
 

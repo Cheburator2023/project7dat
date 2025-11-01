@@ -12,11 +12,9 @@ import Joi from "joi";
 			isGlobal: true,
 			envFilePath: `.env.${process.env.NODE_ENV || "development"}`,
 			load: [appConfig, databaseConfig, keycloakConfig],
-			validationSchema: Joi.object({
-				...appValidationSchema.describe().keys,
-				...databaseValidationSchema.describe().keys,
-				...keycloakValidationSchema.describe().keys,
-			}),
+			validationSchema: appValidationSchema
+				.concat(databaseValidationSchema)
+				.concat(keycloakValidationSchema),
 			validationOptions: {
 				allowUnknown: true,
 				abortEarly: false,

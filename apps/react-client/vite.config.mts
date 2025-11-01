@@ -13,10 +13,6 @@ import federation from "@originjs/vite-plugin-federation";
 const { STAGE } = process.env;
 const ROOT_DIR = path.resolve(__dirname, "./");
 const DIST_DIR = path.resolve(ROOT_DIR, "./dist");
-const EDITOR_WORKER_PATH = path.resolve(
-	ROOT_DIR,
-	"./src/features/json4u/lib/worker/worker.ts",
-);
 
 const proxyList = {
 	dev: "https://example.com",
@@ -97,7 +93,7 @@ export default defineConfig({
 	define: {
 		"process.env.MOCKED_REQUESTS": JSON.stringify(process.env.MOCKED_REQUESTS),
 		"process.env.GIT_REVISION": JSON.stringify(git_revision),
-		"process.env.EDITOR_WORKER_PATH": JSON.stringify(EDITOR_WORKER_PATH),
+		"process.env.NO_ROLES": JSON.stringify(process.env.NO_ROLES),
 	},
 
 	server: {
