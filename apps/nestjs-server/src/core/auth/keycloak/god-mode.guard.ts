@@ -1,11 +1,8 @@
-import {
-	CanActivate,
-	ExecutionContext,
-	Inject,
-	Injectable,
-} from "@nestjs/common";
+import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { RequestWithUser } from "../interfaces/request-with-user.interface";
+import { ConfigService } from "@nestjs/config";
+import { Permission } from "../permissions";
 
 /**
  * Guard для режима "бога" (god mode)
@@ -18,26 +15,51 @@ import { RequestWithUser } from "../interfaces/request-with-user.interface";
 export class GodModeGuard implements CanActivate {
 	constructor(
 		private readonly reflector: Reflector,
-		@Inject("DELEGATE_GUARD") private readonly delegateGuard: CanActivate,
+		private readonly configService: ConfigService,
+		private readonly delegateGuard?: CanActivate,
 	) {}
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
-		const isGodMode = [true, 'true', 1, '1'].includes(
-			process.env.NO_ROLES as any
-		);
+		const request = context.switchToHttp().getRequest<RequestWithUser>();
+		const isGodMode = this.configService.get<boolean>("app.godMode");
 
 		if (isGodMode) {
-			const request = context.switchToHttp().getRequest<RequestWithUser>();
+			// Create god user with all permissions
+			const allPermissions = Object.values(Permission);
+
 			request.user = {
-				sub: "dev-user-id",
-				username: "developer",
-				email: "dev@example.com",
-				roles: ["admin"],
+				sub: "god-user-00000000-0000-0000-0000-000000000000",
+				username: "god",
+				email: "god@datalineage.local",
+				roles: [
+					"admin",
+					"god",
+					"superuser",
+					...allPermissions, // Add all permissions as roles
+				],
+				iat: Math.floor(Date.now() / 1000),
+				exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours
 			};
-			console.warn("God mode is active - bypassing all guards");
+
+			console.warn(
+				"🔥 GOD MODE ACTIVE - All authentication and authorization bypassed",
+			);
+			console.warn(
+				`🔥 God user: ${request.user.username} (${request.user.email})`,
+			);
+			console.warn(`🔥 Permissions: ${allPermissions.join(", ")}`);
+
 			return true;
 		}
 
-		return this.delegateGuard.canActivate(context) as Promise<boolean>;
+		// Normal mode - delegate to the original guard
+		if (
+			this.delegateGuard &&
+			typeof this.delegateGuard.canActivate === "function"
+		) {
+			return this.delegateGuard.canActivate(context) as any;
+		}
+
+		return true;
 	}
 }

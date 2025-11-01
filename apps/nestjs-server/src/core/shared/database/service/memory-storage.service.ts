@@ -1,14 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { v4 as uuidv4 } from "uuid";
 
-interface JsonDataRecord {
+export interface JsonDataRecord {
 	id: string;
 	name: string;
-	data: any;
+	data: Record<string, any>;
 	description?: string;
-	version: string;
 	authorName?: string;
 	isCurrent: boolean;
+	version?: string;
+	deprecated?: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -27,6 +28,7 @@ export class MemoryStorageService {
 		description?: string,
 		version = "1.0.0",
 		authorName?: string,
+		deprecated?: boolean,
 	): Promise<JsonDataRecord> {
 		const id = uuidv4();
 		const now = new Date();
@@ -89,7 +91,8 @@ export class MemoryStorageService {
 				JsonDataRecord,
 				"name" | "data" | "description" | "version" | "isCurrent"
 			>
-		>,authorName?: string,
+		>,
+		authorName?: string,
 	): Promise<JsonDataRecord | null> {
 		const record = this.storage.get(id);
 		if (!record) {

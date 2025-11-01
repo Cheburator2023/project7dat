@@ -43,9 +43,12 @@ const transformKeycloakUser = (kcUser: KeycloakUserInfo) => ({
 	groups: kcUser.groups || [],
 });
 
+const NO_ROLES = process.env.NO_ROLES === "true";
+
 export const MfeBridge = ({ children }: MfeBridgeProps) => {
 	const {
 		initializeFakeAuth,
+		initializeGodMode,
 		setAccessToken,
 		setUserInfo,
 		setAuthenticated,
@@ -54,8 +57,13 @@ export const MfeBridge = ({ children }: MfeBridgeProps) => {
 	} = useAuthStore();
 
 	useEffect(() => {
-		// Initialize fake auth for development if no shell auth is available
-		if (!window.__SHELL_AUTH__) {
+		// Check for god mode first (highest priority)
+		const isGodMode = NO_ROLES;
+
+		if (isGodMode) {
+			initializeGodMode();
+		} else if (!window.__SHELL_AUTH__) {
+			// Initialize fake auth for development if no shell auth is available
 			initializeFakeAuth();
 		} else {
 			// Use auth data from shell app
