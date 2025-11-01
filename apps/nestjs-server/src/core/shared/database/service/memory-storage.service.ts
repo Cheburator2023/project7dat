@@ -7,7 +7,8 @@ export interface JsonDataRecord {
 	data: Record<string, any>;
 	description?: string;
 	authorName?: string;
-	schemaVersion?: string;
+	isCurrent: boolean;
+	version?: string;
 	deprecated?: boolean;
 	createdAt: Date;
 	updatedAt: Date;
@@ -25,8 +26,8 @@ export class MemoryStorageService {
 		name: string,
 		data: any,
 		description?: string,
+		version = "1.0.0",
 		authorName?: string,
-		schemaVersion?: string,
 		deprecated?: boolean,
 	): Promise<JsonDataRecord> {
 		const id = uuidv4();
@@ -36,9 +37,36 @@ export class MemoryStorageService {
 			name,
 			data,
 			description,
+			version,
 			authorName,
-			schemaVersion,
-			deprecated,
+			isCurrent: false,
+			deprecated: deprecated ?? false,
+			createdAt: now,
+			updatedAt: now,
+		};
+		this.storage.set(id, record);
+		return record;
+	}
+
+	async createWithId(
+		id: string,
+		name: string,
+		data: any,
+		description?: string,
+		version = "1.0.0",
+		authorName?: string,
+		deprecated?: boolean,
+	): Promise<JsonDataRecord> {
+		const now = new Date();
+		const record: JsonDataRecord = {
+			id,
+			name,
+			data,
+			description,
+			version,
+			authorName,
+			isCurrent: false,
+			deprecated: deprecated ?? false,
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -63,7 +91,12 @@ export class MemoryStorageService {
 
 	async update(
 		id: string,
-		updates: Partial<Pick<JsonDataRecord, "name" | "data" | "description">>,
+		updates: Partial<
+			Pick<
+				JsonDataRecord,
+				"name" | "data" | "description" | "version" | "isCurrent"
+			>
+		>,
 		authorName?: string,
 	): Promise<JsonDataRecord | null> {
 		const record = this.storage.get(id);

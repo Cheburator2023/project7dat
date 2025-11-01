@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noNonNullAssertedOptionalChain: <explanation> */
 import { type ClassValue, clsx } from "clsx";
 import { toast } from "sonner";
 
@@ -51,7 +52,7 @@ export function detectOS() {
 	}
 
 	const ua =
-		// @ts-ignore
+		// @ts-expect-error
 		navigator.userAgentData?.platform ??
 		(navigator.platform || navigator.userAgent);
 
@@ -113,11 +114,11 @@ export function initLogger() {
 		}
 	};
 
-	// @ts-ignore
+	// @ts-expect-error
 	console.rawInfo = console.info.bind(console);
 
 	console.l = function (...args: any[]) {
-		// @ts-ignore
+		// @ts-expect-error
 		log(this.rawInfo, ...args);
 	};
 }

@@ -3,7 +3,6 @@ import { ConfigModule as NestConfigModule } from "@nestjs/config";
 import appConfig, { appValidationSchema } from "./app.config";
 import { databaseValidationSchema, databaseConfig } from "./database.config";
 import keycloakConfig, { keycloakValidationSchema } from "./keycloak.config";
-import Joi from "joi";
 
 @Global()
 @Module({
@@ -12,8 +11,7 @@ import Joi from "joi";
 			isGlobal: true,
 			envFilePath: `.env.${process.env.NODE_ENV || "development"}`,
 			load: [appConfig, databaseConfig, keycloakConfig],
-			validationSchema: Joi.object()
-				.concat(appValidationSchema)
+			validationSchema: appValidationSchema
 				.concat(databaseValidationSchema)
 				.concat(keycloakValidationSchema),
 			validationOptions: {

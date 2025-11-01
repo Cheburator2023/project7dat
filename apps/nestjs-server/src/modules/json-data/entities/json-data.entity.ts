@@ -34,11 +34,9 @@ export class JsonDataEntity {
 
 	@Column({ type: "boolean", default: false })
 	isCurrent: boolean;
+
 	@Column({ nullable: true })
 	authorName: string;
-
-	@Column({ type: "varchar", length: 20, default: "1.0.0" })
-	schemaVersion: string;
 
 	@Column({ type: "boolean", default: false })
 	deprecated: boolean;

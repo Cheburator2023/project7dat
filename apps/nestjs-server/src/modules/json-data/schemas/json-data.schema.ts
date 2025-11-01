@@ -64,6 +64,7 @@ export const CreateJsonDataSchema = z.object({
 	name: z.string().min(1).max(255).optional(),
 	description: z.string().optional(),
 	version: z.string().min(1).max(50).optional().default("1.0.0"),
+	authorName: z.string().min(1).max(255).optional().default("System"),
 });
 
 export const UpdateJsonDataSchema = z.object({
@@ -71,6 +72,7 @@ export const UpdateJsonDataSchema = z.object({
 	data: DataLineageZodSchema.optional(),
 	description: z.string().optional(),
 	version: z.string().min(1).max(50).optional(),
+	authorName: z.string().min(1).max(255).optional(),
 });
 
 export const JsonDataResponseSchema = z.object({
