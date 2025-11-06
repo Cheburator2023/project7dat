@@ -1,7 +1,7 @@
 import {MigrationInterface, QueryRunner} from "typeorm";
 
-export class CreateEntityContainerTable1760000000005 implements MigrationInterface {
-    name = 'CreateEntityContainerTable1760000000005';
+export class CreateEntityContainerTable1760000000006 implements MigrationInterface {
+    name = 'CreateEntityContainerTable1760000000006';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
@@ -16,12 +16,13 @@ export class CreateEntityContainerTable1760000000005 implements MigrationInterfa
                 CONSTRAINT fk_entity_container_change FOREIGN KEY (change_id) REFERENCES changes (change_id),
                 CONSTRAINT fk_entity_container_type FOREIGN KEY (entity_container_type_id) REFERENCES entity_container_type (entity_container_type_id),
                 CONSTRAINT fk_entity_container_parent FOREIGN KEY (parent_container_id) REFERENCES entity_container (entity_container_id),
-                CONSTRAINT fk_entity_container_system FOREIGN KEY (system_id) REFERENCES systems (system_id)
-            )
+                CONSTRAINT fk_entity_container_system FOREIGN KEY (system_id) REFERENCES systems (system_id),
+                CONSTRAINT entity_container_id_unique UNIQUE (entity_container_id)
+                )
         `);
 
         await queryRunner.query(`
-            COMMENT ON TABLE entity_container IS 'Контейнер, верхнеуровневые сущности (модель, БД)'
+            COMMENT ON TABLE entity_container IS 'Контейнер, верхнеуровневые сущности (модель, БД) .'
         `);
         await queryRunner.query(`
             COMMENT ON COLUMN entity_container.entity_container_id IS 'Идентификатор записи'
