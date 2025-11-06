@@ -1,14 +1,14 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityMapTable1760000000011 implements MigrationInterface {
-    name = 'CreateEntityMapTable1760000000009';
+export class CreateEntityMapTable1760000000012 implements MigrationInterface {
+    name = 'CreateEntityMapTable1760000000012';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS entity_map (
                 entity_map_id INTEGER PRIMARY KEY,
                 entity_id INTEGER NOT NULL,
-                description VARCHAR NOT NULL,
+                description VARCHAR,
                 process_id INTEGER NOT NULL,
                 change_id INTEGER NOT NULL,
                 CONSTRAINT fk_entity_map_entity FOREIGN KEY (entity_id) REFERENCES entity(entity_id),
