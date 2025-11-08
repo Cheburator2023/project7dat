@@ -14,7 +14,6 @@ async function bootstrap() {
 		new FastifyAdapter({
 			bodyLimit: 52428800, // 50MB
 			logger: true,
-			ignoreTrailingSlash: true,
 		}),
 	);
 
@@ -41,6 +40,9 @@ async function bootstrap() {
 
 	app.useGlobalFilters(new HttpExceptionFilter());
 
+	app.setGlobalPrefix("api");
+	console.log("Global prefix set to: api");
+
 	const config = new DocumentBuilder()
 		.setTitle("Data Lineage API")
 		.setDescription("API для управления графами линейности данных")
@@ -61,11 +63,21 @@ async function bootstrap() {
 		)
 		.build();
 
-	const document = SwaggerModule.createDocument(app as any, config);
-	SwaggerModule.setup("api/docs", app as any, document);
+	const document = SwaggerModule.createDocument(app, config);
+
+	console.log("Swagger will be available at: /api/docs");
+
+	SwaggerModule.setup("docs", app, document, {
+		useGlobalPrefix: true, // Критически важно для Fastify!
+	});
 
 	const port = process.env.PORT || 3000;
 	await app.listen({ port: Number(port), host: "0.0.0.0" });
+	const appUrl = await app.getUrl();
+	console.log("✅ Проверьте доступность:");
+	console.log(`   - API: ${appUrl}/api/json-data/list`);
+	console.log(`   - Swagger: ${appUrl}/api/docs`);
+	console.log(`   - Health: ${appUrl}/api/health`);
 	console.log(`🚀 Сервер запущен на http://localhost:${port}`);
 	console.log("📚 API эндпоинты доступны по адресу /api/json-data");
 	console.log(

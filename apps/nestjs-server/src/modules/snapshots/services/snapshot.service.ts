@@ -170,6 +170,7 @@ export class SnapshotService {
 					data: snapshot.data,
 					description: snapshot.originalDescription || snapshot.description,
 					version: snapshot.version,
+					authorName: snapshot.authorName,
 				},
 			);
 

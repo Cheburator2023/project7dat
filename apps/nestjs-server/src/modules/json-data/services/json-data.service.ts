@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Like } from "typeorm";
 import { ConfigService } from "@nestjs/config";
+import { v4 as uuidv4 } from "uuid";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import {
 	CreateJsonDataInput,
@@ -38,17 +39,54 @@ export class JsonDataService {
 	async createGraphData(
 		input: CreateJsonDataInput & { authorName?: string },
 	): Promise<any> {
-		const name = input.name || `График ${new Date().toLocaleString("ru-RU")}`;
-		const description =
-			input.description || "Сохранённое состояние графика данных";
+		const name = input.name || `JSON ${new Date().toLocaleString("ru-RU")}`;
+		const description = input.description || "Инициализация json данных";
+		const version = input.version || "1.0.0";
+
+		let result: any;
+		if (this.isProduction) {
+			const jsonData = this.jsonDataRepository.create({
+				id: uuidv4(),
+				name,
+				data: input.data,
+				description,
+				version,
+				authorName: input.authorName || "System",
+				isCurrent: false,
+			});
+			result = await this.jsonDataRepository.save(jsonData);
+		} else {
+			result = await this.memoryStorageService.create(
+				name,
+				input.data,
+				description,
+				version,
+				input.authorName,
+			);
+		}
+
+		await this.changelogService.logGraphCreated(result.id, result.name);
+		return result;
+	}
+
+	async createDataWithId(
+		id: string,
+		input: CreateJsonDataInput & { authorName?: string },
+	): Promise<any> {
+		const name = input.name || `JSON ${new Date().toLocaleString("ru-RU")}`;
+		const description = input.description || "Инициализация json данных";
+		const version = input.version || "1.0.0";
 
 		if (this.isProduction) {
-			const jsonData = new JsonDataEntity();
-			jsonData.name = name;
-			jsonData.data = input.data;
-			jsonData.description = description;
-			jsonData.authorName = input.authorName || "System";
-
+			const jsonData = this.jsonDataRepository.create({
+				id,
+				name,
+				data: input.data,
+				description,
+				version,
+				authorName: input.authorName || "System",
+				isCurrent: false,
+			});
 			return this.jsonDataRepository.save(jsonData);
 		}
 
@@ -56,6 +94,7 @@ export class JsonDataService {
 			name,
 			input.data,
 			description,
+			version,
 			input.authorName,
 		);
 	}
@@ -266,7 +305,7 @@ export class JsonDataService {
 				data: commitInput.data,
 				description,
 				version: "1.0.0",
-				authorName: commitInput.authorName,
+				authorName: commitInput.authorName || "System",
 			});
 
 			console.log(
@@ -282,10 +321,10 @@ export class JsonDataService {
 			return newGraphData;
 		}
 
-		console.log(`[JsonDataService] График с ID ${id} найден, обновляем`);
+		console.log(`[JsonDataService] JSON с ID ${id} найден, обновляем`);
 		const updateInput: UpdateJsonDataInput & { authorName?: string } = {
 			data: commitInput.data,
-			authorName: commitInput.authorName,
+			authorName: commitInput.authorName || "System",
 		};
 
 		const updatedData = await this.updateGraphData(id, updateInput);
@@ -309,7 +348,7 @@ export class JsonDataService {
 	): Promise<any> {
 		if (this.isProduction) {
 			await this.jsonDataRepository.update(id, {
-				schemaVersion: versionInfo.schemaVersion,
+				version: versionInfo.version,
 				deprecated: versionInfo.deprecated,
 			});
 			return this.jsonDataRepository.findOne({ where: { id } });
@@ -317,7 +356,7 @@ export class JsonDataService {
 
 		const data = await this.memoryStorageService.findById(id);
 		if (data) {
-			data.schemaVersion = versionInfo.schemaVersion;
+			data.version = versionInfo.version;
 			data.deprecated = versionInfo.deprecated;
 			return data;
 		}
@@ -375,55 +414,50 @@ export class JsonDataService {
 	}
 
 	async setCurrentById(id: string): Promise<any> {
+		let result: any;
 		if (this.isProduction) {
-			// Since we no longer use isCurrent field, just verify the record exists
-			const record = await this.jsonDataRepository.findOne({ where: { id } });
+			await this.jsonDataRepository.update({}, { isCurrent: false });
+
+			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
+			if (!jsonData) {
+				throw new NotFoundException(`JSON с ID ${id} не найден`);
+			}
+
+			jsonData.isCurrent = true;
+			result = await this.jsonDataRepository.save(jsonData);
+		} else {
+			const record = await this.memoryStorageService.findById(id);
 			if (!record) {
 				throw new NotFoundException(`JSON с ID ${id} не найден`);
 			}
-			return record;
+			result = record;
 		}
 
-		// For memory storage, verify the record exists
-		const record = await this.memoryStorageService.findById(id);
-		if (!record) {
-			throw new NotFoundException(`JSON с ID ${id} не найден`);
-		}
-
-		return record;
+		await this.changelogService.logSetCurrent(result.id, result.name);
+		return result;
 	}
 
 	async setCurrentFromSnapshot(snapshot: any): Promise<any> {
-		// This method sets the current data from a snapshot
-		// Since we no longer use isCurrent field, we'll just return the snapshot data
-		return snapshot;
-	}
+		const updateData: CreateJsonDataInput & { authorName?: string } = {
+			name: snapshot.name,
+			data: snapshot.data,
+			description: `Восстановлено из снимка: ${snapshot.name}`,
+			version: snapshot.version || "1.0.0",
+			authorName: snapshot.authorName || "System",
+		};
 
-	async createDataWithId(
-		id: string,
-		input: CreateJsonDataInput & { authorName?: string },
-	): Promise<any> {
-		// Create data with a specific ID (used for snapshots)
-		if (this.isProduction) {
-			const newRecord = this.jsonDataRepository.create({
-				id: id,
-				data: input.data,
-				name: input.name,
-				description: input.description,
-				authorName: input.authorName || "Unknown",
-				schemaVersion: "1.0",
-				deprecated: false,
-			});
-			return await this.jsonDataRepository.save(newRecord);
-		} else {
-			return await this.memoryStorageService.create(
-				input.name || "Untitled",
-				input.data,
-				input.description || "",
-				input.authorName || "Unknown",
-				"1.0",
-				false,
-			);
+		const existingData = await this.findGraphDataByIdOrNull(
+			snapshot.sourceDataId,
+		);
+
+		if (existingData) {
+			await this.updateGraphData(snapshot.sourceDataId, updateData);
+			return await this.setCurrentById(snapshot.sourceDataId);
 		}
+		const created = await this.createDataWithId(
+			snapshot.sourceDataId,
+			updateData,
+		);
+		return await this.setCurrentById(created.id);
 	}
 }

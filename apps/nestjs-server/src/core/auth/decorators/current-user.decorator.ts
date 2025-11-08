@@ -14,7 +14,11 @@ export const CurrentUser = createParamDecorator(
 			(ctx.getContext().req as RequestWithUser) ||
 			context.switchToHttp().getRequest<RequestWithUser>();
 
-		if (process.env.NO_ROLES === "true") {
+		const isGodMode = [true, "true", 1, "1"].includes(
+			process.env.NO_ROLES as any,
+		);
+
+		if (isGodMode && !request.user) {
 			return {
 				sub: "dev-user-id",
 				username: "developer",
