@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityTable1760000000006 implements MigrationInterface {
-	name = "CreateEntityTable1760000000006";
+export class CreateEntityTable1760000000007 implements MigrationInterface {
+	name = "CreateEntityTable1760000000007";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
 		await queryRunner.query(`
@@ -11,15 +11,13 @@ export class CreateEntityTable1760000000006 implements MigrationInterface {
                 entity_type_id INTEGER NOT NULL,
                 entity_container_id INTEGER,
                 name VARCHAR NOT NULL,
-                name_space VARCHAR NOT NULL,
                 full_name VARCHAR NOT NULL,
-                modified BOOLEAN NOT NULL,
                 description VARCHAR,
                 CONSTRAINT fk_entity_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
                 CONSTRAINT fk_entity_type FOREIGN KEY (entity_type_id) REFERENCES entity_type(entity_type_id),
                 CONSTRAINT fk_entity_container FOREIGN KEY (entity_container_id) REFERENCES entity_container(entity_container_id),
                 CONSTRAINT entity_full_name_unique UNIQUE (full_name)
-            )
+                )
         `);
 
 		await queryRunner.query(`
@@ -27,7 +25,7 @@ export class CreateEntityTable1760000000006 implements MigrationInterface {
         `);
 
 		await queryRunner.query(`
-            COMMENT ON TABLE entity IS 'Сущность (таблица)'
+            COMMENT ON TABLE entity IS 'Сущность (таблица, представление)'
         `);
 		await queryRunner.query(`
             COMMENT ON COLUMN entity.entity_id IS 'Идентификатор записи'
@@ -45,13 +43,7 @@ export class CreateEntityTable1760000000006 implements MigrationInterface {
             COMMENT ON COLUMN entity.name IS 'Наименование витрины'
         `);
 		await queryRunner.query(`
-            COMMENT ON COLUMN entity.name_space IS 'Наименование схемы'
-        `);
-		await queryRunner.query(`
             COMMENT ON COLUMN entity.full_name IS 'Уникальное полное наименование витрины (схема + витрина)'
-        `);
-		await queryRunner.query(`
-            COMMENT ON COLUMN entity.modified IS 'Признак источник/target'
         `);
 		await queryRunner.query(`
             COMMENT ON COLUMN entity.description IS 'Описание витрины'
