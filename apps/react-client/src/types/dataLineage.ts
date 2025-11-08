@@ -1,9 +1,6 @@
-// Re-export shared schema types for frontend usage
+// Re-export shared schema types for frontend usage (excluding conflicting ones)
 export type {
-	DataLineageSchema,
-	DataLineageEntity,
-	DataLineageAttribute,
-	DataLineageMapping,
+	DataLineageEntity as BaseDataLineageEntity,
 	DataLineageDependency,
 	DataLineageAttributeMapping,
 	DataLineageAttributeDependency,
@@ -18,6 +15,55 @@ export {
 	isDataLineageSchema,
 	isDataLineageEntity,
 } from "@data-lineage/shared-schemas";
+
+// Frontend-specific data lineage types
+
+// Attribute type for data lineage entities
+export interface DataLineageAttribute {
+	name: string;
+	type: string;
+	comment?: string;
+}
+
+// Frontend-specific entity interface
+export interface DataLineageEntity {
+	id: string;
+	modified: boolean;
+	type: "table" | "view" | "rdd" | "unresolved";
+	namespace?: string;
+	name: string | null;
+	description?: string;
+	attrSeq?: DataLineageAttribute[];
+}
+
+// Mapping type for data lineage
+export interface DataLineageMapping {
+	id: number;
+	entityId: string;
+	deps?: Array<{
+		entityId: string;
+		attrMaps?: Array<{
+			src: string;
+			dst: string;
+		}>;
+		atrDeps?: Array<{
+			attr: string;
+			linkTypes?: Array<"window" | "join" | "where" | "groupby">;
+		}>;
+	}>;
+	unmatched?: Array<any>;
+}
+
+// Schema type for data lineage
+export interface DataLineageSchema {
+	desc: {
+		appId: string;
+		appName: string;
+	};
+	entities: DataLineageEntity[];
+	mappings: DataLineageMapping[];
+	failedMappings: DataLineageMapping[];
+}
 
 // Legacy interfaces - keeping for backward compatibility
 export interface DataLineageDescription {
@@ -40,9 +86,6 @@ export interface EntityDependency {
 	attrMaps?: AttributeMapping[];
 	atrDeps?: AttributeDependency[];
 }
-
-// Import the shared schema types
-import type { DataLineageSchema } from "@data-lineage/shared-schemas";
 
 // Frontend-specific graph interface that extends the shared schema
 export interface DataLineageGraph extends DataLineageSchema {}

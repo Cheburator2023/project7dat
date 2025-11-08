@@ -14,7 +14,9 @@
 	"dependencies": {
 		"@dagrejs/dagre": "^1.1.5",
 		"@data-lineage/shared": "file:../../packages/shared",
-		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas"
+		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
+		"@xyflow/react": "^12.8.6",
+		"jsondiffpatch": "^0.7.3"
 	},
 	"devDependencies": {
 		"@originjs/vite-plugin-federation": "^1.4.1",
