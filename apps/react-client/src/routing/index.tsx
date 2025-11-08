@@ -8,8 +8,14 @@ import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPr
 import { SnapshotsPage } from "@react-client/features/snapshotsList/SnapshotsPage";
 import { JsonDataPage } from "@react-client/features/jsonDataList/JsonDataPage";
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
+import { ObjectsPage } from "@react-client/features/objectsList/ObjectsPage";
+import { CommitQueuePage } from "@react-client/features/commitQueue/CommitQueuePage";
 import { ChangelogPage } from "@react-client/features/changelog/ChangelogPage";
+import { ChangelogTablePage } from "@react-client/features/changelog/pages/ChangelogTablePage";
 import { GraphChangelogPage } from "@react-client/features/changelog/GraphChangelogPage";
+import { ModelsPage } from "@react-client/features/models/ModelsPage";
+import { ProcessesPage } from "@react-client/pages/ProcessesPage";
+import { ProcessGraphPage } from "@react-client/pages/ProcessGraphPage";
 
 export const Routing = () => (
 	<Routes>
@@ -20,7 +26,14 @@ export const Routing = () => (
 		<Route path={routes.snapshots.rootPath} element={<SnapshotsPage />} />
 		<Route path={routes.jsonData.rootPath} element={<JsonDataPage />} />
 		<Route path={routes.allCommits.rootPath} element={<AllCommitsPage />} />
+		<Route path={routes.objects.rootPath} element={<ObjectsPage />} />
+		<Route path={routes.models.rootPath} element={<ModelsPage />} />
+		<Route path={routes.commitQueue.rootPath} element={<CommitQueuePage />} />
 		<Route path={routes.changelog.rootPath} element={<ChangelogPage />} />
+		<Route
+			path={routes.changelogTable.rootPath}
+			element={<ChangelogTablePage />}
+		/>
 		<Route
 			path={routes.graphChangelog.rootPath}
 			element={<GraphChangelogPage />}
@@ -29,6 +42,8 @@ export const Routing = () => (
 			path={routes.entityPreview.rootPath}
 			element={<EntityPreviewPage />}
 		/>
+		<Route path={routes.processes.rootPath} element={<ProcessesPage />} />
+		<Route path={routes.processGraph.rootPath} element={<ProcessGraphPage />} />
 		<Route path="*" element={<Page404 />} />
 	</Routes>
 );

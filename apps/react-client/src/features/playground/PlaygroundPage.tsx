@@ -1,9 +1,18 @@
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
+import AdvancedFilterForm from "@react-client/examples/AdvancedFilterForm";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import SQLiteViewer from "@react-client/features/playground/SQLViewer";
 
 const data: any = [
+	{
+		name: "AdvancedFilterForm",
+		Component: () => (
+			<div style={{ zoom: 0.8 }}>
+				<AdvancedFilterForm />
+			</div>
+		),
+	},
 	{
 		name: "SQLViewer",
 		Component: () => (
