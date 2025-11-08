@@ -33,7 +33,7 @@ import { JsonCommitResponseDto } from "../dto/responses/json-commit-response.dto
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Данные")
-@Controller("api/json-data")
+@Controller("json-data")
 export class JsonDataController {
 	constructor(
 		private readonly jsonDataService: JsonDataService,
@@ -154,8 +154,8 @@ export class JsonDataController {
 	})
 	async findAll(@Query() query: any) {
 		try {
-			const page = query.page ? Number.parseInt(query.page) : 1;
-			const limit = query.limit ? Number.parseInt(query.limit) : 10;
+			const page = query.page ? Number.parseInt(query.page, 10) : 1;
+			const limit = query.limit ? Number.parseInt(query.limit, 10) : 10;
 
 			if (Number.isNaN(page) || page < 1) {
 				throw new BadRequestException(

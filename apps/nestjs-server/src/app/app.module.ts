@@ -9,6 +9,7 @@ import { DatabaseSchemaModule } from "src/modules/database-schema/database-schem
 import { ChangelogModule } from "src/modules/changelog/changelog.module";
 import { SharedModule } from "src/core/shared/shared.module";
 import { databaseConfig } from "src/core/config/database.config";
+import { SnapshotEntity } from "src/modules/snapshots/entities/snapshot.entity";
 import { KeycloakModule } from "src/core/auth/keycloak/keycloak.module";
 
 @Module({})
@@ -25,13 +26,18 @@ export class AppModule {
 		];
 
 		const configService = new ConfigService();
-		if (configService.get("app.isProduction")) {
+		const isProduction = configService.get("app.isProduction");
+
+		if (isProduction) {
 			imports.push(
 				TypeOrmModule.forRootAsync({
-					imports: [SharedModule],
+					imports: [ConfigModule],
 					useFactory: async () => databaseConfig(),
+					inject: [ConfigService],
 				}),
 			);
+
+			imports.push(TypeOrmModule.forFeature([SnapshotEntity]));
 		}
 
 		return {

@@ -8,7 +8,6 @@ export class DatabaseProvider implements IDatabaseProvider {
 	private dataSource: DataSource;
 
 	getConfig() {
-		// TODO мб так return configService?
 		return databaseConfig();
 	}
 

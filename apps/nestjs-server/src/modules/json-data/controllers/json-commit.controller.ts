@@ -25,12 +25,13 @@ import { CreateJsonDataInput } from "../schemas/json-data.schema";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
+import { CurrentUser } from "src/core/auth/decorators/current-user.decorator";
 import { JsonCommitResponseDto } from "../dto/responses/json-commit-response.dto";
 import { CommitStatusDto } from "../dto/commit-status.dto";
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Коммиты")
-@Controller("api/json-commits")
+@Controller("json-commits")
 export class JsonCommitController {
 	constructor(
 		private readonly jsonDataService: JsonDataService,
@@ -69,7 +70,7 @@ export class JsonCommitController {
 	})
 	@ApiResponse({
 		status: 201,
-		description: "График успешно инициализирован",
+		description: "JSON успешно инициализирован",
 		schema: {
 			type: "object",
 			properties: {
@@ -84,6 +85,7 @@ export class JsonCommitController {
 	})
 	async initializeGraph(
 		@Body() body: CreateJsonDataInput,
+		@CurrentUser() _user: any,
 	): Promise<JsonDataEntity> {
 		return await this.jsonDataService.initializeGraphWithData(body);
 	}
@@ -131,6 +133,7 @@ export class JsonCommitController {
 	async commitCurrent(
 		@Body()
 		body: CommitJsonDataInput,
+		@CurrentUser() _user: any,
 		@Headers() headers: Record<string, string>,
 	) {
 		try {
@@ -249,6 +252,7 @@ export class JsonCommitController {
 		@Param("id") id: string,
 		@Body()
 		body: CommitJsonDataInput,
+		@CurrentUser() _user: any,
 		@Headers() headers: Record<string, string>,
 	) {
 		const author = this.extractUserFromHeaders(headers);
@@ -323,6 +327,7 @@ export class JsonCommitController {
 	async getCommitList(
 		@Query()
 		query: any,
+		@CurrentUser() _user: any,
 	) {
 		console.log(`[JsonCommitController] METHOD CALLED!`);
 		console.log(
@@ -370,6 +375,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits/all")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить все коммиты из всех JSON данных",
 		description:
@@ -462,7 +468,10 @@ export class JsonCommitController {
 			},
 		},
 	})
-	async getAllCommitsFromAllGraphs(@Query() query: any) {
+	async getAllCommitsFromAllGraphs(
+		@Query() query: any,
+		@CurrentUser() _user: any,
+	) {
 		console.log(
 			`[JsonCommitController] getAllCommitsFromAllGraphs вызван с параметрами:`,
 			query,
@@ -599,7 +608,11 @@ export class JsonCommitController {
 			},
 		},
 	})
-	async searchCommits(@Param("id") graphId: string, @Query() query: any) {
+	async searchCommits(
+		@Param("id") graphId: string,
+		@Query() query: any,
+		@CurrentUser() _user: any,
+	) {
 		const page = query.page ? Number.parseInt(query.page, 10) : 1;
 		const limit = query.limit ? Number.parseInt(query.limit, 10) : 10;
 
@@ -677,7 +690,7 @@ export class JsonCommitController {
 		status: 404,
 		description: "Коммит не найден",
 	})
-	async getCommit(@Param("id") id: string) {
+	async getCommit(@Param("id") id: string, @CurrentUser() _user: any) {
 		console.log(`[JsonCommitController] Запрос коммита с ID: ${id}`);
 		try {
 			const commit = await this.jsonCommitService.findCommitById(id);
@@ -685,8 +698,11 @@ export class JsonCommitController {
 				commit.diff,
 				commit.fullData,
 			);
+
+			// Return only diff data, not fullData to reduce response size
+			const { fullData, ...commitWithoutFullData } = commit;
 			return {
-				...commit,
+				...commitWithoutFullData,
 				diff: {
 					left,
 					right,
@@ -702,6 +718,7 @@ export class JsonCommitController {
 	}
 
 	@Get("commits/:id/cumulative")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
 		summary: "Получить кумулятивные данные до указанного коммита",
 		description:
@@ -754,7 +771,10 @@ export class JsonCommitController {
 		status: 404,
 		description: "Коммит не найден",
 	})
-	async getCumulativeDataAtCommit(@Param("id") id: string) {
+	async getCumulativeDataAtCommit(
+		@Param("id") id: string,
+		@CurrentUser() _user: any,
+	) {
 		return await this.jsonCommitService.getCumulativeDataAtCommit(id);
 	}
 

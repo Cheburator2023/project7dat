@@ -15,32 +15,14 @@ export default registerAs("keycloak", () => ({
 export const keycloakValidationSchema = Joi.object({
 	KEYCLOAK_URL: Joi.string()
 		.uri()
-		.when("NO_ROLES", {
-			is: true,
-			then: Joi.optional(),
-			otherwise: Joi.required(),
-		})
+		.required()
 		.description("URL сервера KeyCloak (включая /auth)"),
-	KEYCLOAK_REALM: Joi.string()
-		.when("NO_ROLES", {
-			is: true,
-			then: Joi.optional(),
-			otherwise: Joi.required(),
-		})
-		.description("Realm в KeyCloak"),
+	KEYCLOAK_REALM: Joi.string().required().description("Realm в KeyCloak"),
 	KEYCLOAK_CLIENT_ID: Joi.string()
-		.when("NO_ROLES", {
-			is: true,
-			then: Joi.optional(),
-			otherwise: Joi.required(),
-		})
+		.required()
 		.description("Client ID в KeyCloak"),
 	KEYCLOAK_SECRET: Joi.string()
-		.when("NO_ROLES", {
-			is: true,
-			then: Joi.optional(),
-			otherwise: Joi.required(),
-		})
+		.required()
 		.description("Client secret в KeyCloak"),
 	KEYCLOAK_BEARER_ONLY: Joi.boolean()
 		.default(true)
