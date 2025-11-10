@@ -1,10 +1,12 @@
-import {MigrationInterface, QueryRunner} from "typeorm";
+import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateAttributeMapSourceTable1760000000014 implements MigrationInterface {
-    name = 'CreateAttributeMapSourceTable1760000000014';
+export class CreateAttributeMapSourceTable1760000000014
+	implements MigrationInterface
+{
+	name = "CreateAttributeMapSourceTable1760000000014";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS attribute_map_source (
                 attribute_map_id    INTEGER NOT NULL,
                 source_attribute_id INTEGER NOT NULL,
@@ -15,21 +17,21 @@ export class CreateAttributeMapSourceTable1760000000014 implements MigrationInte
                 CONSTRAINT fk_attribute_map_source_attribute_map FOREIGN KEY (attribute_map_id) REFERENCES attribute_map (attribute_map_id)
             )
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE attribute_map_source IS 'Маппинг атрибута источника (источник + идентификатор его маппинга на target)'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute_map_source.attribute_map_id IS 'Идентификатор общего маппинга атрибута'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute_map_source.source_attribute_id IS 'Идентификатор атрибута источника'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute_map_source.change_id IS 'Идентификатор изменения'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE attribute_map_source`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP TABLE attribute_map_source`);
+	}
 }

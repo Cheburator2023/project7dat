@@ -435,25 +435,27 @@ const JsonLine = styled(Box, {
 	cursor: "pointer",
 }));
 
-const LineNumberColumn = styled(Box)<{ $isDark?: boolean }>(
-	({ theme, $isDark }) => ({
-		width: "60px",
-		backgroundColor: $isDark ? theme.palette.grey[900] : theme.palette.grey[50],
-		borderRight: `1px solid ${theme.palette.divider}`,
-		fontSize: "12px",
-		color: theme.palette.text.secondary,
-		userSelect: "none",
-		flexShrink: 0,
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "flex-end",
-		paddingRight: theme.spacing(1),
-		minHeight: "32px",
-		height: "32px",
-	}),
-);
+const LineNumberColumn = styled(Box, {
+	shouldForwardProp: (prop) => !prop.toString().startsWith("$"),
+})<{ $isDark?: boolean }>(({ theme, $isDark }) => ({
+	width: "60px",
+	backgroundColor: $isDark ? theme.palette.grey[900] : theme.palette.grey[50],
+	borderRight: `1px solid ${theme.palette.divider}`,
+	fontSize: "12px",
+	color: theme.palette.text.secondary,
+	userSelect: "none",
+	flexShrink: 0,
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "flex-end",
+	paddingRight: theme.spacing(1),
+	minHeight: "32px",
+	height: "32px",
+}));
 
-const ContentColumn = styled(Box)<{ $depth: number }>(({ theme, $depth }) => ({
+const ContentColumn = styled(Box, {
+	shouldForwardProp: (prop) => !prop.toString().startsWith("$"),
+})<{ $depth: number }>(({ theme, $depth }) => ({
 	flex: 1,
 	display: "flex",
 	alignItems: "center",

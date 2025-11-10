@@ -9,6 +9,8 @@ import { Toaster } from "sonner";
 
 import { MainLayout } from "@react-client/common/layouts/MainLayout";
 import { NotificationDrawer } from "./features/notification/NotificationDrawer";
+import { MergeGraphWindow } from "./features/merge/organisms/MergeGraphWindow";
+import { DiffWindow } from "./features/merge/organisms/DiffWindow";
 
 import { setupApiInterceptors } from "./api/apiInterceptor";
 import { MfeBridge } from "./common/mfe/MfeBridge";
@@ -59,6 +61,8 @@ export function App() {
 										<Routing />
 									</MainLayout>
 									<NotificationDrawer />
+									<MergeGraphWindow />
+									<DiffWindow />
 								</LocalizationProvider>
 							</Suspense>
 						</MfeBridge>

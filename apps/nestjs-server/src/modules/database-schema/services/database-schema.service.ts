@@ -168,7 +168,7 @@ export class DatabaseSchemaService {
 		try {
 			const countQuery = `SELECT COUNT(*) as count FROM "${tableName}"`;
 			const countResult = await queryRunner.query(countQuery);
-			const totalRows = Number.parseInt(countResult[0].count);
+			const totalRows = Number.parseInt(countResult[0].count, 10);
 
 			const dataQuery = `SELECT * FROM "${tableName}" LIMIT ${limit} OFFSET ${offset}`;
 			const data = await queryRunner.query(dataQuery);
@@ -383,7 +383,7 @@ export class DatabaseSchemaService {
 	): Promise<number> {
 		const countQuery = `SELECT COUNT(*) as count FROM "${tableName}"`;
 		const result = await queryRunner.query(countQuery);
-		return Number.parseInt(result[0].count);
+		return Number.parseInt(result[0].count, 10);
 	}
 
 	private getDatabaseName(): string {

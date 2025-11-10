@@ -1,10 +1,12 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateAttributeMapTable1760000000013 implements MigrationInterface {
-    name = 'CreateAttributeMapTable1760000000013';
+export class CreateAttributeMapTable1760000000013
+	implements MigrationInterface
+{
+	name = "CreateAttributeMapTable1760000000013";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS attribute_map (
                 attribute_map_id INTEGER PRIMARY KEY,
                 entity_map_id INTEGER NOT NULL,
@@ -16,24 +18,24 @@ export class CreateAttributeMapTable1760000000013 implements MigrationInterface 
             )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE attribute_map IS 'Общий маппинг атрибута (связка атрибут - его маппинг)'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute_map.attribute_map_id IS 'Идентификатор записи'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute_map.entity_map_id IS 'Идентификатор маппинга таблицы'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute_map.attribute_id IS 'Идентификатор атрибута'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute_map.change_id IS 'Идентификатор изменения'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE attribute_map`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP TABLE attribute_map`);
+	}
 }

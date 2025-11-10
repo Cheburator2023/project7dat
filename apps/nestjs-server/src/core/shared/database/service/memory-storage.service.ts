@@ -1,14 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { v4 as uuidv4 } from "uuid";
 
-interface JsonDataRecord {
+export interface JsonDataRecord {
 	id: string;
 	name: string;
-	data: any;
+	data: Record<string, any>;
 	description?: string;
-	version: string;
 	authorName?: string;
 	isCurrent: boolean;
+	version?: string;
+	deprecated?: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -27,6 +28,7 @@ export class MemoryStorageService {
 		description?: string,
 		version = "1.0.0",
 		authorName?: string,
+		deprecated?: boolean,
 	): Promise<JsonDataRecord> {
 		const id = uuidv4();
 		const now = new Date();
@@ -36,8 +38,9 @@ export class MemoryStorageService {
 			data,
 			description,
 			version,
-			authorName: authorName,
+			authorName,
 			isCurrent: false,
+			deprecated: deprecated ?? false,
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -51,6 +54,8 @@ export class MemoryStorageService {
 		data: any,
 		description?: string,
 		version = "1.0.0",
+		authorName?: string,
+		deprecated?: boolean,
 	): Promise<JsonDataRecord> {
 		const now = new Date();
 		const record: JsonDataRecord = {
@@ -59,7 +64,9 @@ export class MemoryStorageService {
 			data,
 			description,
 			version,
+			authorName,
 			isCurrent: false,
+			deprecated: deprecated ?? false,
 			createdAt: now,
 			updatedAt: now,
 		};
@@ -89,7 +96,8 @@ export class MemoryStorageService {
 				JsonDataRecord,
 				"name" | "data" | "description" | "version" | "isCurrent"
 			>
-		>,authorName?: string,
+		>,
+		authorName?: string,
 	): Promise<JsonDataRecord | null> {
 		const record = this.storage.get(id);
 		if (!record) {
@@ -105,41 +113,6 @@ export class MemoryStorageService {
 
 		this.storage.set(id, updatedRecord);
 		return updatedRecord;
-	}
-
-	async setCurrentById(id: string): Promise<JsonDataRecord | null> {
-		const record = this.storage.get(id);
-		if (!record) {
-			return null;
-		}
-
-		for (const [key, value] of this.storage.entries()) {
-			if (value.isCurrent) {
-				this.storage.set(key, {
-					...value,
-					isCurrent: false,
-					updatedAt: new Date(),
-				});
-			}
-		}
-
-		const updatedRecord = {
-			...record,
-			isCurrent: true,
-			updatedAt: new Date(),
-		};
-
-		this.storage.set(id, updatedRecord);
-		return updatedRecord;
-	}
-
-	async getCurrentRecord(): Promise<JsonDataRecord | null> {
-		for (const record of this.storage.values()) {
-			if (record.isCurrent) {
-				return record;
-			}
-		}
-		return null;
 	}
 
 	async delete(id: string): Promise<boolean> {

@@ -317,7 +317,7 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 			borderColor: theme.vars?.palette?.primary.main,
 		},
 		"& .flexlayout__tabset": {
-			// @ts-ignore
+			// @ts-expect-error
 			fontFamily: theme.vars?.font.inherit,
 			borderRadius: "8px",
 			border: "1px solid #a5aaba90",

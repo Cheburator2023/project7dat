@@ -1,4 +1,4 @@
-import {Module, DynamicModule, Provider,  Global} from "@nestjs/common";
+import { Module, DynamicModule, Provider, Global } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { JsonDataEntity } from "./entities/json-data.entity";
 import { JsonCommitEntity } from "./entities/json-commit.entity";
@@ -46,7 +46,7 @@ export class JsonDataModule {
 			EntityMapEntity,
 			AttributeMapEntity,
 			AttributeMapSourceEntity,
-			EntityAttributeMapEntity
+			EntityAttributeMapEntity,
 		];
 
 		const imports = [
@@ -70,12 +70,12 @@ export class JsonDataModule {
 			ChangelogMemoryStorageService,
 			ConfigService,
 			{
-				provide: 'DATA_SOURCE',
-				useFactory: (configService: ConfigService) => {
+				provide: "DATA_SOURCE",
+				useFactory: (_configService: ConfigService) => {
 					return null;
 				},
 				inject: [ConfigService],
-			}
+			},
 		];
 
 		return {
@@ -85,7 +85,7 @@ export class JsonDataModule {
 				JsonDataController,
 				JsonCommitController,
 				JsonImportController,
-				JsonValidationController
+				JsonValidationController,
 			],
 			providers,
 			exports: [
@@ -99,7 +99,7 @@ export class JsonDataModule {
 				JsonValidationService,
 				VersioningService,
 				ChangelogService,
-				ChangelogMemoryStorageService
+				ChangelogMemoryStorageService,
 			],
 		};
 	}

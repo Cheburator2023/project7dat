@@ -141,8 +141,8 @@ export class SnapshotController {
 	})
 	async findAll(@Query() query: any) {
 		try {
-			const page = query.page ? Number.parseInt(query.page) : 1;
-			const limit = query.limit ? Number.parseInt(query.limit) : 10;
+			const page = query.page ? Number.parseInt(query.page, 10) : 1;
+			const limit = query.limit ? Number.parseInt(query.limit, 10) : 10;
 
 			if (Number.isNaN(page) || page < 1) {
 				throw new BadRequestException(

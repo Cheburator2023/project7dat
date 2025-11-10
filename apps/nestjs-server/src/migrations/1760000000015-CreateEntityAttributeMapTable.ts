@@ -1,10 +1,12 @@
-import {MigrationInterface, QueryRunner} from "typeorm";
+import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityAttributeMapTable1760000000015 implements MigrationInterface {
-    name = 'CreateEntityAttributeMapTable1760000000015';
+export class CreateEntityAttributeMapTable1760000000015
+	implements MigrationInterface
+{
+	name = "CreateEntityAttributeMapTable1760000000015";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS entity_attribute_map (
                 entity_map_id       INTEGER NOT NULL,
                 source_attribute_id INTEGER NOT NULL,
@@ -17,24 +19,24 @@ export class CreateEntityAttributeMapTable1760000000015 implements MigrationInte
             )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE entity_attribute_map IS 'Маппинг функциональных атрибутов источника (функции join, where, group by etc.)'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_attribute_map.entity_map_id IS 'Идентификатор общего маппинга в таблице attribute_map'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_attribute_map.source_attribute_id IS 'Идентификатор атрибута источника'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_attribute_map.deptype_id IS 'Идентификатор функции'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_attribute_map.change_id IS 'Идентификатор изменения'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE entity_attribute_map`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP TABLE entity_attribute_map`);
+	}
 }

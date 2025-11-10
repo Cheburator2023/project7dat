@@ -4,6 +4,7 @@ import * as Joi from "joi";
 export default registerAs("app", () => {
 	const nodeEnv = process.env.NODE_ENV || "development";
 	const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
+	const noRoles = process.env.NO_ROLES === "true";
 
 	return {
 		nodeEnv,
@@ -12,6 +13,7 @@ export default registerAs("app", () => {
 		port: Number.isNaN(port) ? 3000 : port,
 		apiPrefix: process.env.API_PREFIX || "api",
 		fallbackLanguage: process.env.FALLBACK_LANGUAGE || "en",
+		godMode: noRoles,
 	};
 });
 
@@ -23,4 +25,5 @@ export const appValidationSchema = Joi.object({
 	APP_NAME: Joi.string().default("DataLineage"),
 	API_PREFIX: Joi.string().default("api"),
 	FALLBACK_LANGUAGE: Joi.string().default("en"),
+	NO_ROLES: Joi.boolean().default(false),
 });
