@@ -5,24 +5,24 @@ import { AttributeEntity } from "./attribute.entity";
 
 @Entity("attribute_map_source")
 export class AttributeMapSourceEntity {
-    @PrimaryColumn()
-    attribute_map_id: number;
+	@PrimaryColumn()
+	attribute_map_id: number;
 
-    @PrimaryColumn()
-    source_attribute_id: number;
+	@PrimaryColumn()
+	source_attribute_id: number;
 
-    @Column()
-    change_id: number;
+	@Column()
+	change_id: number;
 
-    @ManyToOne(() => ChangeEntity)
-    @JoinColumn({ name: "change_id" })
-    change: ChangeEntity;
+	@ManyToOne(() => ChangeEntity)
+	@JoinColumn({ name: "change_id" })
+	change: ChangeEntity;
 
-    @ManyToOne(() => AttributeMapEntity)
-    @JoinColumn({ name: "attribute_map_id" })
-    attribute_map: AttributeMapEntity;
+	@ManyToOne(() => AttributeMapEntity)
+	@JoinColumn({ name: "attribute_map_id" })
+	attribute_map: AttributeMapEntity;
 
-    @ManyToOne(() => AttributeEntity)
-    @JoinColumn({ name: "source_attribute_id" })
-    source_attribute: AttributeEntity;
+	@ManyToOne(() => AttributeEntity)
+	@JoinColumn({ name: "source_attribute_id" })
+	source_attribute: AttributeEntity;
 }

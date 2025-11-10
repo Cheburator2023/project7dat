@@ -15,7 +15,7 @@ export class DatabaseModule {
 				memoryStorageService: MemoryStorageService,
 			): IDatabaseProvider => {
 				return configService.get("app.isProduction")
-					? new DatabaseProvider(configService)
+					? new DatabaseProvider()
 					: new MemoryStorageProvider(memoryStorageService);
 			},
 			inject: [ConfigService, MemoryStorageService],

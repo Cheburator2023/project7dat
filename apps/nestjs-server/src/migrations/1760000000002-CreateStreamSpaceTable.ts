@@ -1,10 +1,10 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateStreamSpaceTable1760000000002 implements MigrationInterface {
-    name = 'CreateStreamSpaceTable1760000000002';
+	name = "CreateStreamSpaceTable1760000000002";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS stream_space (
                 id SERIAL PRIMARY KEY,
                 name_space VARCHAR NOT NULL,
@@ -13,21 +13,21 @@ export class CreateStreamSpaceTable1760000000002 implements MigrationInterface {
             )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE stream_space IS 'Справочник владельцев процессов.'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN stream_space.id IS 'Идентификатор записи'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN stream_space.name_space IS 'Наименование схемы (БД)'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN stream_space.stream_name IS 'Наименование стрима - владельца схемы'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE stream_space`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP TABLE stream_space`);
+	}
 }

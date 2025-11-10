@@ -1,10 +1,10 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateEntityTable1760000000007 implements MigrationInterface {
-    name = 'CreateEntityTable1760000000007';
+	name = "CreateEntityTable1760000000007";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS entity (
                 entity_id INTEGER PRIMARY KEY,
                 change_id INTEGER NOT NULL,
@@ -20,38 +20,38 @@ export class CreateEntityTable1760000000007 implements MigrationInterface {
                 )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             CREATE INDEX IF NOT EXISTS idx_entity_full_name ON entity(full_name)
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE entity IS 'Сущность (таблица, представление)'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity.entity_id IS 'Идентификатор записи'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity.change_id IS 'Идентификатор изменения'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity.entity_type_id IS 'Тип таблицы'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity.entity_container_id IS 'Идентификатор БД/Модели'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity.name IS 'Наименование витрины'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity.full_name IS 'Уникальное полное наименование витрины (схема + витрина)'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity.description IS 'Описание витрины'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP INDEX idx_entity_full_name`);
-        await queryRunner.query(`DROP TABLE entity`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP INDEX idx_entity_full_name`);
+		await queryRunner.query(`DROP TABLE entity`);
+	}
 }

@@ -187,4 +187,9 @@ export const jsonDataService = {
 		);
 		return response.data;
 	},
+
+	applyCommit: (commitId: string): Promise<CumulativeCommitData> =>
+		jsonCommitApi
+			.get(`/commits/${commitId}/cumulative`)
+			.then((response) => response.data),
 };

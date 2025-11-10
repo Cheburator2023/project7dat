@@ -103,8 +103,8 @@
 
 /* React Flow Attribution Removal */
 div.react-flow__panel.react-flow__attribution {
-	background: transparent !important;
-	display: none !important;
+	background: transparent;
+	display: none;
 }
 
 /* Minimap Node Styles */
@@ -125,15 +125,15 @@ div.react-flow__panel.react-flow__attribution {
 
 /* Leaflet Styles */
 .leaflet-zoom-button-group {
-	border: 1px solid var(--border) !important;
+	border: 1px solid var(--border);
 	box-shadow: none;
 }
 
 .leaflet-zoom-button {
-	height: 24px !important;
-	width: 24px !important;
-	background: hsl(var(--background)) !important;
-	line-height: 20px !important;
+	height: 24px;
+	width: 24px;
+	background: hsl(var(--background));
+	line-height: 20px;
 	color: hsl(var(--foreground));
 }
 
@@ -142,7 +142,7 @@ div.react-flow__panel.react-flow__attribution {
 }
 
 .leaflet-zoom-button:hover {
-	background: hsl(var(--muted)) !important;
+	background: hsl(var(--muted));
 }
 
 .leaflet-dark-tile {
@@ -170,7 +170,7 @@ body {
 
 .markdown-body {
 	box-sizing: border-box;
-	margin: 1.25rem auto !important;
+	margin: 1.25rem auto;
 
 	ul {
 		list-style-type: disc;
@@ -200,7 +200,7 @@ body {
 
 /* fix monaco 不能根据父容器改变大小的 bug：https://stackoverflow.com/questions/47017753/monaco-editor-dynamically-resizable */
 .monaco-editor {
-	position: absolute !important;
+	position: absolute;
 }
 
 .blank-hunk {
@@ -257,7 +257,7 @@ body {
 		width: 10px;
 		height: 10px;
 		border-radius: 9999px;
-		cursor: pointer !important;
+		cursor: pointer;
 	}
 }
 

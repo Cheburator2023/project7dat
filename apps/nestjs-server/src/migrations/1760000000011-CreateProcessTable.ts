@@ -1,10 +1,10 @@
-import {MigrationInterface, QueryRunner} from "typeorm";
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateProcessTable1760000000011 implements MigrationInterface {
-    name = 'CreateProcessTable1760000000011';
+	name = "CreateProcessTable1760000000011";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS process (
                 process_id   SERIAL PRIMARY KEY,
                 change_id    INTEGER NOT NULL,
@@ -17,27 +17,27 @@ export class CreateProcessTable1760000000011 implements MigrationInterface {
             )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE process IS 'Процессы обновления витрин (DAG) и моделей'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process.process_id IS 'Идентификатор записи'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process.change_id IS 'Идентификатор изменения'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process.process_type IS 'Тип процесса'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process.name IS 'Наименование процесса'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process.group_id IS 'Идентификатор группы (подразделение-владелец процесса)'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE process`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP TABLE process`);
+	}
 }

@@ -1,10 +1,10 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateProcessTypeTable1760000000010 implements MigrationInterface {
-    name = 'CreateProcessTypeTable1760000000010';
+	name = "CreateProcessTypeTable1760000000010";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS process_type (
                 process_type_id SERIAL PRIMARY KEY,
                 change_id INTEGER NOT NULL,
@@ -15,24 +15,24 @@ export class CreateProcessTypeTable1760000000010 implements MigrationInterface {
             )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE process_type IS 'Справочник типов процессов'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process_type.process_type_id IS 'Идентификатор записи'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process_type.change_id IS 'Идентификатор изменения'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process_type.name IS 'Наименование типа процесса'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN process_type.description IS 'Описание типа процесса'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE process_type`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP TABLE process_type`);
+	}
 }

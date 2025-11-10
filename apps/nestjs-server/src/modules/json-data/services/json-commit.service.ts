@@ -1,5 +1,10 @@
 /** biome-ignore-all lint/security/noGlobalEval: <explanation> */
-import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import {
+	BadRequestException,
+	Injectable,
+	NotFoundException,
+	Optional,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
@@ -30,24 +35,12 @@ export class JsonCommitService {
 	) {
 		this.isProduction = this.configService.get<boolean>("app.isProduction");
 		this.initializeJsonDiffPatch();
-	}
-
-	private async initializeJsonDiffPatch() {
-		const jsondiffpatchModule = await eval('import("jsondiffpatch")');
-
-		this.jsondiffpatch = jsondiffpatchModule.default || jsondiffpatchModule;
-		this.differ = this.jsondiffpatch.create({
-			objectHash: (obj: any) => obj.id || obj.name || fastStringify(obj),
-			arrays: {
-				detectMove: true,
-				includeValueOnMove: false,
-			},
-		});
-	}
-
-	private async ensureDifferInitialized() {
-		if (!this.differ) {
-			await this.initializeJsonDiffPatch();
+		if (!this.isProduction) {
+			console.log("[JsonCommitService] Работаем в memory-режиме");
+			console.log(
+				"Текущие коммиты в памяти:",
+				Array.from(this.memoryCommits.keys()),
+			);
 		}
 	}
 
@@ -129,10 +122,15 @@ export class JsonCommitService {
 		graphId: string,
 		message: string,
 		initialData: Record<string, any>,
+		authorName?: string,
 	): Promise<any> {
 		console.log(
 			`[JsonCommitService] Создание начального коммита для graphId: ${graphId}`,
 		);
+		if (this.calculateDataSize(initialData) > 50 * 1024 * 1024) {
+			throw new BadRequestException("Размер данных превышает допустимый лимит");
+		}
+
 		const timestamp = new Date();
 
 		// Create initial commit with full data
@@ -153,7 +151,10 @@ export class JsonCommitService {
 				message,
 				diff,
 				graphId,
+				version: jsonData.version,
+				status: "LOADED_VALIDATED",
 				createdAt: timestamp,
+				authorName: authorName || "System",
 			});
 
 			const savedCommit = await this.commitRepository.save(commit);
@@ -196,6 +197,7 @@ export class JsonCommitService {
 			graphName,
 			result.id,
 			message,
+			authorName || "System",
 		);
 
 		return result;
@@ -205,11 +207,11 @@ export class JsonCommitService {
 		graphId: string,
 		message: string,
 		newData: Record<string, any>,
+		authorName?: string,
 	): Promise<any> {
 		console.log(`[JsonCommitService] Создание коммита для graphId: ${graphId}`);
 		const timestamp = new Date();
 
-		// Get the last commit to calculate diff from
 		const lastCommit = await this.getLastCommit(graphId);
 		if (!lastCommit) {
 			throw new Error(
@@ -218,14 +220,18 @@ export class JsonCommitService {
 		}
 
 		const previousData = await this.reconstructDataFromCommits(graphId);
-
-		// Calculate proper diff from previous commit
 		await this.ensureDifferInitialized();
-		const diff = this.differ.diff(previousData, newData);
 
-		if (!diff) {
-			console.log(`[JsonCommitService] Нет изменений для создания коммита`);
-			throw new Error("Нет изменений для создания коммита");
+		const diff = await this.calculateDiffFromPrevious(previousData, newData);
+
+		console.log("New data:", JSON.stringify(newData, null, 2));
+		console.log("Previous data:", JSON.stringify(previousData, null, 2));
+		console.log("Calculated diff:", diff);
+		if (!diff || (diff._t === "object" && Object.keys(diff).length === 0)) {
+			console.log("[JsonCommitService] Нет изменений для коммита");
+			throw new BadRequestException(
+				"No changes detected to create a new commit",
+			);
 		}
 
 		let result: any;
@@ -244,7 +250,10 @@ export class JsonCommitService {
 				message,
 				diff,
 				graphId,
+				version: jsonData.version,
+				status: "LOADED_VALIDATED",
 				createdAt: timestamp,
+				authorName: authorName || "System",
 			});
 
 			const savedCommit = await this.commitRepository.save(commit);
@@ -285,6 +294,7 @@ export class JsonCommitService {
 			graphName,
 			result.id,
 			message,
+			authorName || "System",
 		);
 
 		return result;
@@ -368,22 +378,66 @@ export class JsonCommitService {
 	}
 
 	async findCommitById(id: string): Promise<any> {
+		console.log(`[JsonCommitService] Поиск коммита по ID: ${id}`);
+
 		if (this.isProduction) {
-			const commit = await this.commitRepository.findOne({ where: { id } });
+			const commit = await this.commitRepository.findOne({
+				where: { id },
+				relations: ["jsonData"],
+			});
+
 			if (!commit) {
+				console.log(`[JsonCommitService] Коммит с ID ${id} не найден в БД`);
 				throw new NotFoundException(`Коммит с ID ${id} не найден`);
 			}
+
+			console.log(`[JsonCommitService] Коммит найден в БД:`, commit.id);
 			return await this.enrichCommitWithFullData(commit);
 		}
 
+		// Поиск в memory-хранилище
 		for (const commits of this.memoryCommits.values()) {
 			const commit = commits.find((c) => c.id === id);
 			if (commit) {
+				console.log(`[JsonCommitService] Коммит найден в памяти:`, commit.id);
 				return await this.enrichCommitWithFullData(commit);
 			}
 		}
 
+		console.log(`[JsonCommitService] Коммит с ID ${id} не найден в памяти`);
 		throw new NotFoundException(`Коммит с ID ${id} не найден`);
+	}
+
+	async updateCommitStatus(id: string, status: string): Promise<any> {
+		if (this.isProduction) {
+			await this.commitRepository.update(id, { status });
+			return this.commitRepository.findOne({ where: { id } });
+		}
+
+		const commits = Array.from(this.memoryCommits.values()).flat();
+		const commit = commits.find((c) => c.id === id);
+		if (commit) {
+			commit.status = status;
+			return commit;
+		}
+		throw new NotFoundException(`Commit with ID ${id} not found`);
+	}
+
+	async getCommitQueue(): Promise<any[]> {
+		if (this.isProduction) {
+			return this.commitRepository.find({
+				where: { status: "IN_PROGRESS" },
+				order: { createdAt: "ASC" },
+			});
+		}
+
+		return Array.from(this.memoryCommits.values())
+			.flat()
+			.filter((c) => c.status === "IN_PROGRESS")
+			.sort(
+				(a, b) =>
+					new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+			);
 	}
 
 	async getCurrentStateFromCommits(
@@ -393,6 +447,59 @@ export class JsonCommitService {
 			`[JsonCommitService] Восстановление текущего состояния для graphId: ${graphId}`,
 		);
 		return await this.reconstructDataFromCommits(graphId);
+	}
+
+	async getCumulativeDataAtCommit(
+		commitId: string,
+	): Promise<Record<string, any> | null> {
+		// Get the target commit first to determine the graphId
+		const targetCommit = await this.findCommitById(commitId);
+		if (!targetCommit) {
+			throw new NotFoundException(`Commit with ID ${commitId} not found`);
+		}
+
+		const graphId = targetCommit.graphId;
+		console.log(
+			`[JsonCommitService] Восстановление данных на момент коммита ${commitId} для graphId: ${graphId}`,
+		);
+
+		const allCommits = await this.getAllCommitsForGraph(graphId);
+		if (allCommits.length === 0) return null;
+
+		// Find the target commit
+		const targetCommitIndex = allCommits.findIndex(
+			(commit) => commit.id === commitId,
+		);
+		if (targetCommitIndex === -1) {
+			throw new NotFoundException(`Коммит с ID ${commitId} не найден`);
+		}
+
+		// Get commits up to and including the target commit
+		const commitsUpToTarget = allCommits.slice(0, targetCommitIndex + 1);
+
+		await this.ensureDifferInitialized();
+		let reconstructedData: Record<string, any> = {};
+
+		for (const commit of commitsUpToTarget) {
+			if (commit.diff._type === "initial") {
+				reconstructedData = JSON.parse(JSON.stringify(commit.diff.data));
+			} else {
+				try {
+					const clonedData = JSON.parse(JSON.stringify(reconstructedData));
+					const patchResult = this.differ.patch(clonedData, commit.diff);
+					if (patchResult !== undefined && patchResult !== null) {
+						reconstructedData = patchResult;
+					}
+				} catch (error) {
+					console.error(
+						`[JsonCommitService] Ошибка применения патча для коммита ${commit.id}:`,
+						error,
+					);
+				}
+			}
+		}
+
+		return reconstructedData;
 	}
 
 	async verifyDataIntegrity(
@@ -506,106 +613,45 @@ export class JsonCommitService {
 		};
 	}
 
-	async getCumulativeDataAtCommit(commitId: string): Promise<{
-		fullData: Record<string, any>;
-		commits: any[];
-		targetCommit: any;
-	}> {
-		let targetCommit: any = null;
-		let graphId = "";
+	private async initializeJsonDiffPatch() {
+		const jsondiffpatchModule = await eval('import("jsondiffpatch")');
 
-		if (this.isProduction) {
-			targetCommit = await this.commitRepository.findOne({
-				where: { id: commitId },
-			});
-			if (!targetCommit) {
-				throw new NotFoundException(`Коммит с ID ${commitId} не найден`);
-			}
-			graphId = targetCommit.graphId;
-		} else {
-			for (const commits of this.memoryCommits.values()) {
-				const commit = commits.find((c) => c.id === commitId);
-				if (commit) {
-					targetCommit = commit;
-					graphId = commit.graphId;
-					break;
-				}
-			}
-			if (!targetCommit) {
-				throw new NotFoundException(`Коммит с ID ${commitId} не найден`);
-			}
+		this.jsondiffpatch = jsondiffpatchModule.default || jsondiffpatchModule;
+		this.differ = this.jsondiffpatch.create({
+			objectHash: (obj: any) => obj.id || obj.name || fastStringify(obj),
+			arrays: {
+				detectMove: true,
+				includeValueOnMove: false,
+			},
+		});
+	}
+
+	private calculateDataSize(data: any): number {
+		return Buffer.byteLength(JSON.stringify(data), "utf8");
+	}
+
+	private async ensureDifferInitialized() {
+		if (!this.differ) {
+			await this.initializeJsonDiffPatch();
 		}
+	}
 
-		const allCommits = await this.getAllCommitsForGraph(graphId);
-		const targetCommitIndex = allCommits.findIndex((c) => c.id === commitId);
-
-		if (targetCommitIndex === -1) {
-			throw new NotFoundException(
-				`Коммит с ID ${commitId} не найден в цепочке`,
-			);
+	private async calculateDiffFromPrevious(
+		previousData: Record<string, any> | null,
+		newData: Record<string, any>,
+	): Promise<Record<string, any> | null> {
+		if (!previousData) {
+			return { _type: "initial", data: newData };
 		}
-
-		const commitsUpToTarget = allCommits.slice(0, targetCommitIndex + 1);
 
 		await this.ensureDifferInitialized();
-		let reconstructedData: Record<string, any> = {};
 
-		console.log(
-			`[JsonCommitService] Применение ${commitsUpToTarget.length} коммитов для восстановления данных до коммита ${commitId}`,
-		);
-
-		for (let i = 0; i < commitsUpToTarget.length; i++) {
-			const commit = commitsUpToTarget[i];
-			console.log(
-				`[JsonCommitService] Применение коммита ${i + 1}/${commitsUpToTarget.length}: ${commit.id} (${commit.message})`,
-			);
-
-			if (commit.diff._type === "initial") {
-				reconstructedData = JSON.parse(JSON.stringify(commit.diff.data));
-				console.log(
-					`[JsonCommitService] Установлены начальные данные из коммита ${commit.id}`,
-				);
-			} else {
-				try {
-					const clonedData = JSON.parse(JSON.stringify(reconstructedData));
-					const patchResult = this.differ.patch(clonedData, commit.diff);
-					if (patchResult !== undefined && patchResult !== null) {
-						reconstructedData = patchResult;
-						console.log(
-							`[JsonCommitService] Успешно применен патч для коммита ${commit.id}`,
-						);
-					} else {
-						console.warn(
-							`[JsonCommitService] Патч для коммита ${commit.id} вернул ${patchResult}, данные не изменены`,
-						);
-					}
-				} catch (error) {
-					console.error(
-						`[JsonCommitService] Ошибка применения патча для коммита ${commit.id}:`,
-						error,
-					);
-				}
-			}
+		if (JSON.stringify(previousData) === JSON.stringify(newData)) {
+			return null;
 		}
 
-		console.log(
-			`[JsonCommitService] Восстановление завершено. Финальные данные:`,
-			Object.keys(reconstructedData),
-		);
-
-		const enrichedCommits = commitsUpToTarget.map((commit) => ({
-			...commit,
-			short_id: this.generateShortId(commit.id),
-		}));
-
-		return {
-			fullData: reconstructedData,
-			commits: enrichedCommits,
-			targetCommit: {
-				...targetCommit,
-				short_id: this.generateShortId(targetCommit.id),
-			},
-		};
+		const delta = this.differ.diff(previousData, newData);
+		return delta || null;
 	}
 
 	async getAllCommitsFromAllGraphs(params?: {

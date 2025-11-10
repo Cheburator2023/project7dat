@@ -1,10 +1,12 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateFailedMappingsTable1760000000022 implements MigrationInterface {
-    name = 'CreateFailedMappingsTable1760000000022';
+export class CreateFailedMappingsTable1760000000022
+	implements MigrationInterface
+{
+	name = "CreateFailedMappingsTable1760000000022";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS failed_mappings (
                 failed_mapping_id SERIAL PRIMARY KEY,
                 change_id INTEGER NOT NULL,
@@ -16,27 +18,27 @@ export class CreateFailedMappingsTable1760000000022 implements MigrationInterfac
             )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE failed_mappings IS 'Информация о маппингах, завершившихся с ошибкой'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN failed_mappings.failed_mapping_id IS 'Идентификатор записи'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN failed_mappings.change_id IS 'Идентификатор изменения'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN failed_mappings.entity_name IS 'Имя сущности с ошибкой'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN failed_mappings.error_description IS 'Описание ошибки'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN failed_mappings.unmatched_entities IS 'Сущности, которые не получилось сопоставить'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE failed_mappings`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP TABLE failed_mappings`);
+	}
 }

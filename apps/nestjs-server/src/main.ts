@@ -40,8 +40,8 @@ async function bootstrap() {
 
 	app.useGlobalFilters(new HttpExceptionFilter());
 
-	app.setGlobalPrefix('api');
-	console.log('Global prefix set to: api');
+	app.setGlobalPrefix("api");
+	console.log("Global prefix set to: api");
 
 	const config = new DocumentBuilder()
 		.setTitle("Data Lineage API")
@@ -65,7 +65,7 @@ async function bootstrap() {
 
 	const document = SwaggerModule.createDocument(app, config);
 
-	console.log('Swagger will be available at: /api/docs');
+	console.log("Swagger will be available at: /api/docs");
 
 	SwaggerModule.setup("docs", app, document, {
 		useGlobalPrefix: true, // Критически важно для Fastify!
@@ -74,7 +74,7 @@ async function bootstrap() {
 	const port = process.env.PORT || 3000;
 	await app.listen({ port: Number(port), host: "0.0.0.0" });
 	const appUrl = await app.getUrl();
-	console.log('✅ Проверьте доступность:');
+	console.log("✅ Проверьте доступность:");
 	console.log(`   - API: ${appUrl}/api/json-data/list`);
 	console.log(`   - Swagger: ${appUrl}/api/docs`);
 	console.log(`   - Health: ${appUrl}/api/health`);

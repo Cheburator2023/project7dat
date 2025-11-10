@@ -1,10 +1,10 @@
-import {MigrationInterface, QueryRunner} from "typeorm";
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateAttributeTable1760000000009 implements MigrationInterface {
-    name = 'CreateAttributeTable1760000000009';
+	name = "CreateAttributeTable1760000000009";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS attribute (
                 attribute_id SERIAL PRIMARY KEY,
                 change_id    INTEGER NOT NULL,
@@ -19,35 +19,35 @@ export class CreateAttributeTable1760000000009 implements MigrationInterface {
             )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             CREATE INDEX IF NOT EXISTS idx_attribute_entity_id_name ON attribute (entity_id, name)
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE attribute IS 'Атрибуты таблиц'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute.attribute_id IS 'Идентификатор записи'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute.change_id IS 'Идентификатор изменения'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute.type_id IS 'Тип атрибута'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute.name IS 'Наименование атрибута'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute.entity_id IS 'Идентификатор таблицы'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN attribute.description IS 'Описание атрибута'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP INDEX idx_attribute_entity_id_name`);
-        await queryRunner.query(`DROP TABLE attribute`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP INDEX idx_attribute_entity_id_name`);
+		await queryRunner.query(`DROP TABLE attribute`);
+	}
 }

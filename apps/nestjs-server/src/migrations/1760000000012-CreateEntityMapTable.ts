@@ -1,10 +1,10 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateEntityMapTable1760000000012 implements MigrationInterface {
-    name = 'CreateEntityMapTable1760000000012';
+	name = "CreateEntityMapTable1760000000012";
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+	public async up(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS entity_map (
                 entity_map_id INTEGER PRIMARY KEY,
                 entity_id INTEGER NOT NULL,
@@ -17,27 +17,27 @@ export class CreateEntityMapTable1760000000012 implements MigrationInterface {
             )
         `);
 
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON TABLE entity_map IS 'Общий маппинг таблицы. Связь сущности с процессом и маппингом'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_map.entity_map_id IS 'Идентификатор записи'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_map.entity_id IS 'Идентификатор таблицы'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_map.description IS 'Описание'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_map.process_id IS 'Идентификатор процесса'
         `);
-        await queryRunner.query(`
+		await queryRunner.query(`
             COMMENT ON COLUMN entity_map.change_id IS 'Идентификатор изменения'
         `);
-    }
+	}
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE entity_map`);
-    }
+	public async down(queryRunner: QueryRunner): Promise<void> {
+		await queryRunner.query(`DROP TABLE entity_map`);
+	}
 }
