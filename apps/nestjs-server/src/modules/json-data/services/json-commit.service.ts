@@ -7,19 +7,15 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { ConfigService } from "@nestjs/config";
 import { JsonCommitEntity } from "../entities/json-commit.entity";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import { GetCommitListInput } from "../schemas/json-commit.schema";
-import { createHash } from "crypto";
 import { fastStringify, jsonCompare } from "@data-lineage/shared";
 import * as fuzzysort from "fuzzysort";
 import { ChangelogService } from "../../changelog/services/changelog.service";
 
 @Injectable()
 export class JsonCommitService {
-	private isProduction?: boolean;
-	private memoryCommits: Map<string, any[]> = new Map();
 	private differ: any;
 	private jsondiffpatch: any;
 
@@ -30,28 +26,9 @@ export class JsonCommitService {
 		@Optional()
 		@InjectRepository(JsonDataEntity)
 		private readonly jsonDataRepository: Repository<JsonDataEntity>,
-		private readonly configService: ConfigService,
 		private readonly changelogService: ChangelogService,
 	) {
-		this.isProduction = this.configService.get<boolean>("app.isProduction");
 		this.initializeJsonDiffPatch();
-		if (!this.isProduction) {
-			console.log("[JsonCommitService] Работаем в memory-режиме");
-			console.log(
-				"Текущие коммиты в памяти:",
-				Array.from(this.memoryCommits.keys()),
-			);
-		}
-	}
-
-	private generateCommitId(
-		graphId: string,
-		message: string,
-		timestamp: Date,
-	): string {
-		// Generate a deterministic hash-based ID for commits
-		const content = `${graphId}-${message}-${timestamp.toISOString()}`;
-		return createHash("sha256").update(content).digest("hex");
 	}
 
 	private generateShortId(id: string): string {
@@ -60,16 +37,10 @@ export class JsonCommitService {
 	}
 
 	private async getLastCommit(graphId: string): Promise<any | null> {
-		if (this.isProduction) {
-			return await this.commitRepository.findOne({
-				where: { graphId },
-				order: { createdAt: "DESC" },
-			});
-		}
-
-		const commits = this.memoryCommits.get(graphId) || [];
-		if (commits.length === 0) return null;
-		return commits[commits.length - 1];
+		return await this.commitRepository.findOne({
+			where: { graphId },
+			order: { createdAt: "DESC" },
+		});
 	}
 
 	async reconstructDataFromCommits(
@@ -104,18 +75,10 @@ export class JsonCommitService {
 	}
 
 	private async getAllCommitsForGraph(graphId: string): Promise<any[]> {
-		if (this.isProduction) {
-			return await this.commitRepository.find({
-				where: { graphId },
-				order: { createdAt: "ASC" },
-			});
-		}
-
-		const commits = this.memoryCommits.get(graphId) || [];
-		return [...commits].sort(
-			(a, b) =>
-				new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-		);
+		return await this.commitRepository.find({
+			where: { graphId },
+			order: { createdAt: "ASC" },
+		});
 	}
 
 	async createInitialCommit(
@@ -138,59 +101,33 @@ export class JsonCommitService {
 		let result: any;
 		let graphName = "";
 
-		if (this.isProduction) {
-			const jsonData = await this.jsonDataRepository.findOne({
-				where: { id: graphId },
-			});
-			if (!jsonData) {
-				throw new NotFoundException(`JSON с ID ${graphId} не найден`);
-			}
-			graphName = jsonData.name;
-
-			const commit = this.commitRepository.create({
-				message,
-				diff,
-				graphId,
-				version: jsonData.version,
-				status: "LOADED_VALIDATED",
-				createdAt: timestamp,
-				authorName: authorName || "System",
-			});
-
-			const savedCommit = await this.commitRepository.save(commit);
-			console.log(
-				`[JsonCommitService] Начальный коммит сохранен в БД:`,
-				savedCommit.id,
-			);
-			result = {
-				...savedCommit,
-				short_id: this.generateShortId(savedCommit.id),
-			};
-		} else {
-			if (!this.memoryCommits.has(graphId)) {
-				this.memoryCommits.set(graphId, []);
-			}
-
-			const commitId = this.generateCommitId(graphId, message, timestamp);
-			const commit = {
-				id: commitId,
-				message,
-				diff,
-				graphId,
-				createdAt: timestamp,
-			};
-
-			this.memoryCommits.get(graphId)!.push(commit);
-			console.log(
-				`[JsonCommitService] Начальный коммит добавлен в память:`,
-				commit.id,
-			);
-			result = {
-				...commit,
-				short_id: this.generateShortId(commit.id),
-			};
-			graphName = `График ${graphId}`;
+		const jsonData = await this.jsonDataRepository.findOne({
+			where: { id: graphId },
+		});
+		if (!jsonData) {
+			throw new NotFoundException(`JSON с ID ${graphId} не найден`);
 		}
+		graphName = jsonData.name;
+
+		const commit = this.commitRepository.create({
+			message,
+			diff,
+			graphId,
+			version: jsonData.version,
+			status: "LOADED_VALIDATED",
+			createdAt: timestamp,
+			authorName: authorName || "System",
+		});
+
+		const savedCommit = await this.commitRepository.save(commit);
+		console.log(
+			`[JsonCommitService] Начальный коммит сохранен в БД:`,
+			savedCommit.id,
+		);
+		result = {
+			...savedCommit,
+			short_id: this.generateShortId(savedCommit.id),
+		};
 
 		await this.changelogService.logCommitCreated(
 			graphId,
@@ -237,57 +174,30 @@ export class JsonCommitService {
 		let result: any;
 		let graphName = "";
 
-		if (this.isProduction) {
-			const jsonData = await this.jsonDataRepository.findOne({
-				where: { id: graphId },
-			});
-			if (!jsonData) {
-				throw new NotFoundException(`JSON с ID ${graphId} не найден`);
-			}
-			graphName = jsonData.name;
-
-			const commit = this.commitRepository.create({
-				message,
-				diff,
-				graphId,
-				version: jsonData.version,
-				status: "LOADED_VALIDATED",
-				createdAt: timestamp,
-				authorName: authorName || "System",
-			});
-
-			const savedCommit = await this.commitRepository.save(commit);
-			console.log(`[JsonCommitService] Коммит сохранен в БД:`, savedCommit.id);
-			result = {
-				...savedCommit,
-				short_id: this.generateShortId(savedCommit.id),
-			};
-		} else {
-			if (!this.memoryCommits.has(graphId)) {
-				this.memoryCommits.set(graphId, []);
-			}
-
-			const commitId = this.generateCommitId(graphId, message, timestamp);
-			const commit = {
-				id: commitId,
-				message,
-				diff,
-				graphId,
-				createdAt: timestamp,
-			};
-
-			this.memoryCommits.get(graphId)!.push(commit);
-			console.log(`[JsonCommitService] Коммит добавлен в память:`, commit.id);
-			console.log(
-				`[JsonCommitService] Всего коммитов для graphId ${graphId}:`,
-				this.memoryCommits.get(graphId)!.length,
-			);
-			result = {
-				...commit,
-				short_id: this.generateShortId(commit.id),
-			};
-			graphName = `График ${graphId}`;
+		const jsonData = await this.jsonDataRepository.findOne({
+			where: { id: graphId },
+		});
+		if (!jsonData) {
+			throw new NotFoundException(`JSON с ID ${graphId} не найден`);
 		}
+		graphName = jsonData.name;
+
+		const commit = this.commitRepository.create({
+			message,
+			diff,
+			graphId,
+			version: jsonData.version,
+			status: "LOADED_VALIDATED",
+			createdAt: timestamp,
+			authorName: authorName || "System",
+		});
+
+		const savedCommit = await this.commitRepository.save(commit);
+		console.log(`[JsonCommitService] Коммит сохранен в БД:`, savedCommit.id);
+		result = {
+			...savedCommit,
+			short_id: this.generateShortId(savedCommit.id),
+		};
 
 		await this.changelogService.logCommitCreated(
 			graphId,
@@ -318,58 +228,17 @@ export class JsonCommitService {
 		);
 		const skip = (page - 1) * limit;
 
-		if (this.isProduction) {
-			const whereCondition = graphId ? { graphId: graphId } : {};
+		const whereCondition = graphId ? { graphId: graphId } : {};
 
-			const [data, total] = await this.commitRepository.findAndCount({
-				where: whereCondition,
-				skip,
-				take: limit,
-				order: { createdAt: "DESC" },
-			});
+		const [data, total] = await this.commitRepository.findAndCount({
+			where: whereCondition,
+			skip,
+			take: limit,
+			order: { createdAt: "DESC" },
+		});
 
-			console.log(`[JsonCommitService] Найдено коммитов в БД: ${total}`);
+		console.log(`[JsonCommitService] Найдено коммитов в БД: ${total}`);
 
-			const enrichedData = data.map((commit) => ({
-				...commit,
-				short_id: this.generateShortId(commit.id),
-			}));
-			return { data: enrichedData, total };
-		}
-
-		let allCommits: any[] = [];
-		if (graphId) {
-			allCommits = this.memoryCommits.get(graphId) || [];
-			console.log(
-				`[JsonCommitService] Коммиты для graphId ${graphId} из памяти:`,
-				allCommits.length,
-			);
-		} else {
-			for (const commits of this.memoryCommits.values()) {
-				allCommits.push(...commits);
-			}
-			console.log(
-				`[JsonCommitService] Все коммиты из памяти:`,
-				allCommits.length,
-			);
-		}
-
-		console.log(
-			`[JsonCommitService] Все ключи в memoryCommits:`,
-			Array.from(this.memoryCommits.keys()),
-		);
-
-		allCommits.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		);
-
-		const total = allCommits.length;
-		const data = allCommits.slice(skip, skip + limit);
-
-		console.log(
-			`[JsonCommitService] Возвращаем коммитов: ${data.length} из ${total}`,
-		);
 		const enrichedData = data.map((commit) => ({
 			...commit,
 			short_id: this.generateShortId(commit.id),
@@ -380,64 +249,30 @@ export class JsonCommitService {
 	async findCommitById(id: string): Promise<any> {
 		console.log(`[JsonCommitService] Поиск коммита по ID: ${id}`);
 
-		if (this.isProduction) {
-			const commit = await this.commitRepository.findOne({
-				where: { id },
-				relations: ["jsonData"],
-			});
+		const commit = await this.commitRepository.findOne({
+			where: { id },
+			relations: ["jsonData"],
+		});
 
-			if (!commit) {
-				console.log(`[JsonCommitService] Коммит с ID ${id} не найден в БД`);
-				throw new NotFoundException(`Коммит с ID ${id} не найден`);
-			}
-
-			console.log(`[JsonCommitService] Коммит найден в БД:`, commit.id);
-			return await this.enrichCommitWithFullData(commit);
+		if (!commit) {
+			console.log(`[JsonCommitService] Коммит с ID ${id} не найден в БД`);
+			throw new NotFoundException(`Коммит с ID ${id} не найден`);
 		}
 
-		// Поиск в memory-хранилище
-		for (const commits of this.memoryCommits.values()) {
-			const commit = commits.find((c) => c.id === id);
-			if (commit) {
-				console.log(`[JsonCommitService] Коммит найден в памяти:`, commit.id);
-				return await this.enrichCommitWithFullData(commit);
-			}
-		}
-
-		console.log(`[JsonCommitService] Коммит с ID ${id} не найден в памяти`);
-		throw new NotFoundException(`Коммит с ID ${id} не найден`);
+		console.log(`[JsonCommitService] Коммит найден в БД:`, commit.id);
+		return await this.enrichCommitWithFullData(commit);
 	}
 
 	async updateCommitStatus(id: string, status: string): Promise<any> {
-		if (this.isProduction) {
-			await this.commitRepository.update(id, { status });
-			return this.commitRepository.findOne({ where: { id } });
-		}
-
-		const commits = Array.from(this.memoryCommits.values()).flat();
-		const commit = commits.find((c) => c.id === id);
-		if (commit) {
-			commit.status = status;
-			return commit;
-		}
-		throw new NotFoundException(`Commit with ID ${id} not found`);
+		await this.commitRepository.update(id, { status });
+		return this.commitRepository.findOne({ where: { id } });
 	}
 
 	async getCommitQueue(): Promise<any[]> {
-		if (this.isProduction) {
-			return this.commitRepository.find({
-				where: { status: "IN_PROGRESS" },
-				order: { createdAt: "ASC" },
-			});
-		}
-
-		return Array.from(this.memoryCommits.values())
-			.flat()
-			.filter((c) => c.status === "IN_PROGRESS")
-			.sort(
-				(a, b) =>
-					new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-			);
+		return this.commitRepository.find({
+			where: { status: "IN_PROGRESS" },
+			order: { createdAt: "ASC" },
+		});
 	}
 
 	async getCurrentStateFromCommits(
@@ -671,25 +506,9 @@ export class JsonCommitService {
 			query,
 		} = params || {};
 
-		let allCommits: any[] = [];
-
-		if (this.isProduction) {
-			allCommits = await this.commitRepository.find({
-				order: { createdAt: "DESC" },
-			});
-		} else {
-			for (const [graphId, commits] of this.memoryCommits.entries()) {
-				const commitsWithGraphId = commits.map((commit) => ({
-					...commit,
-					graphId,
-				}));
-				allCommits.push(...commitsWithGraphId);
-			}
-			allCommits.sort(
-				(a, b) =>
-					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-			);
-		}
+		let allCommits: any[] = await this.commitRepository.find({
+			order: { createdAt: "DESC" },
+		});
 
 		if (dateFrom) {
 			const fromDate = new Date(dateFrom);
@@ -763,63 +582,23 @@ export class JsonCommitService {
 			`[JsonCommitService] Восстановление коммита ${commitData.id} для JSONа ${graphId}`,
 		);
 
-		if (this.isProduction) {
-			const existingCommit = await this.commitRepository.findOne({
-				where: { id: commitData.id },
-			});
-
-			if (existingCommit) {
-				console.log(
-					`[JsonCommitService] Коммит ${commitData.id} уже существует`,
-				);
-				return existingCommit;
-			}
-
-			const commit = this.commitRepository.create({
-				id: commitData.id,
-				message: commitData.message,
-				diff: commitData.diff,
-				graphId,
-				createdAt: commitData.createdAt,
-			});
-
-			return await this.commitRepository.save(commit);
-		}
-
-		if (!this.memoryCommits.has(graphId)) {
-			this.memoryCommits.set(graphId, []);
-		}
-
-		const commits = this.memoryCommits.get(graphId)!;
-		const existingCommit = commits.find((c) => c.id === commitData.id);
+		const existingCommit = await this.commitRepository.findOne({
+			where: { id: commitData.id },
+		});
 
 		if (existingCommit) {
-			console.log(
-				`[JsonCommitService] Коммит ${commitData.id} уже существует в памяти`,
-			);
+			console.log(`[JsonCommitService] Коммит ${commitData.id} уже существует`);
 			return existingCommit;
 		}
 
-		const commit = {
+		const commit = this.commitRepository.create({
 			id: commitData.id,
 			message: commitData.message,
 			diff: commitData.diff,
 			graphId,
-			createdAt: new Date(commitData.createdAt),
-		};
+			createdAt: commitData.createdAt,
+		});
 
-		commits.push(commit);
-		commits.sort(
-			(a, b) =>
-				new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-		);
-
-		console.log(
-			`[JsonCommitService] Коммит ${commitData.id} восстановлен в память`,
-		);
-		return {
-			...commit,
-			short_id: this.generateShortId(commit.id),
-		};
+		return await this.commitRepository.save(commit);
 	}
 }

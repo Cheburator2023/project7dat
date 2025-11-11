@@ -26,16 +26,15 @@ https://sfera.inno.local/sourcecode/projects/SUMD/repos/npm_deps_collection/code
 
 ## Description
 
-NestJS сервер с интеграцией PGLite для эмуляции PostgreSQL базы данных в файлах во время разработки.
+NestJS сервер для управления графами линейности данных. В режиме разработки и продакшене используется только PostgreSQL.
 
 ## Особенности
 
-- **Продакшн**: Использует настоящий PostgreSQL сервер
-- **Разработка**: Использует PGLite для хранения данных в файлах (`./dev-database`)
+- **Единая БД**: Во всех окружениях используется PostgreSQL
 - **Type-safe API**: Zod схемы для валидации данных
-- **JSONB поддержка**: Нативная поддержка JSONB типов в PGLite
+- **JSONB поддержка**: Нативная поддержка JSONB типов в PostgreSQL
 - **REST API**: CRUD операции для JSON документов
-- **Автоматическое переключение**: Сервис автоматически выбирает между TypeORM и PGLite
+- **Swagger**: Документация доступна по пути `/api/docs`
 
 ## API Endpoints
 
@@ -48,13 +47,28 @@ NestJS сервер с интеграцией PGLite для эмуляции Pos
 
 ## Переменные окружения
 
+Создайте файл `.env.development` в папке `apps/nestjs-server/` со следующими значениями для локальной разработки:
+
 ```env
-NODE_ENV=development|production
+# Общие
+NODE_ENV=development
+PORT=3000
+
+# База данных (PostgreSQL)
 DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
-DB_PASSWORD=password
+DB_PASSWORD=postgres
 DB_NAME=data_lineage
+
+# Настройки ORM
+DB_SYNCHRONIZE=true
+DB_LOGGING=true
+# Автозапуск миграций на старте (включайте по необходимости)
+DB_MIGRATIONS_RUN=false
+
+# God mode (отключает проверку ролей в dev)
+NO_ROLES=true
 ```
 
 ## Project setup
@@ -66,36 +80,37 @@ $ npm install
 ## Compile and run the project
 
 ```bash
-# development
-$ npm run start
+# Установка зависимостей (в корне монорепозитория)
+$ npm install
 
-# watch mode
-$ npm run start:dev
+# Запуск только NestJS сервера (в корне монорепозитория)
+$ npm run dev:server:nest
 
-# production mode
-$ npm run start:prod
+# Альтернатива: из папки приложения
+$ cd apps/nestjs-server
+$ npm run dev           # стандартный режим
+$ npm run dev:god       # dev с отключением ролей (NO_ROLES=true)
+
+# Production (после сборки)
+$ npm run prod
 ```
 
-## Database Management
+## Database Management (PostgreSQL)
 
 ```bash
-# Сброс базы данных разработки (удаляет папку ./dev-database)
-$ npm run db:reset
+# Из корня монорепозитория
+$ npm run db:reset              # сброс dev базы и данных (локально)
+$ npm run db:reset:dev:restart  # сброс dev базы и перезапуск dev серверов
 
-# Сброс базы данных разработки с автоматическим перезапуском сервера
-$ npm run db:reset:dev:restart
-
-# Запуск миграций (только для продакшена с PostgreSQL)
-$ npm run migration:run
-
-# Откат миграций
-$ npm run migration:revert
-
-# Генерация новой миграции
-$ npm run migration:generate --name=МояМиграция
+# Из папки apps/nestjs-server
+$ npm run migration:run         # запуск миграций (использует src/core/config/ormconfig.ts)
+$ npm run migration:revert      # откат миграций
+$ npm run migration:generate --name=InitialSchema
 ```
 
-**⚠️ Важно**: Команды `db:reset` работают только в режиме разработки и безопасно удаляют только папку `./dev-database`. В продакшене эти команды заблокированы.
+**⚠️ Важно**:
+- Используйте только локальный PostgreSQL для разработки. Никогда не указывайте переменные на удаленные БД для операций сброса/миграций.
+- `DB_SYNCHRONIZE=true` удобно для dev, но в продакшене рекомендуем `false` и использовать миграции.
 
 ## Run tests
 

@@ -4,6 +4,7 @@ import {
 	ConflictException,
 	BadRequestException,
 	Logger,
+	Optional,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, DataSource, In, QueryRunner } from "typeorm";
@@ -29,22 +30,31 @@ export class JsonMappingService {
 	private readonly logger = new Logger(JsonMappingService.name);
 
 	constructor(
+		@Optional()
 		@InjectRepository(ChangeEntity)
 		readonly _changeRepository: Repository<ChangeEntity>,
+		@Optional()
 		@InjectRepository(ProcessEntity)
 		private readonly processRepository: Repository<ProcessEntity>,
+		@Optional()
 		@InjectRepository(EntityEntity)
 		private readonly entityRepository: Repository<EntityEntity>,
+		@Optional()
 		@InjectRepository(AttributeEntity)
 		private readonly attributeRepository: Repository<AttributeEntity>,
+		@Optional()
 		@InjectRepository(EntityMapEntity)
 		private readonly entityMapRepository: Repository<EntityMapEntity>,
+		@Optional()
 		@InjectRepository(AttributeMapEntity)
 		private readonly attributeMapRepository: Repository<AttributeMapEntity>,
+		@Optional()
 		@InjectRepository(AttributeMapSourceEntity)
 		readonly _attributeMapSourceRepository: Repository<AttributeMapSourceEntity>,
+		@Optional()
 		@InjectRepository(EntityAttributeMapEntity)
 		readonly _entityAttributeMapRepository: Repository<EntityAttributeMapEntity>,
+		@Optional()
 		private readonly dataSource: DataSource,
 		private readonly entityTypeService: EntityTypeService,
 		private readonly attributeTypeService: AttributeTypeService,
