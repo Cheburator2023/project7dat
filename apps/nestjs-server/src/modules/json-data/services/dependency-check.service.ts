@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
 import { ConfigService } from "@nestjs/config";
@@ -8,10 +8,13 @@ import { EntityMapEntity } from "../entities/entity-map.entity";
 @Injectable()
 export class DependencyCheckService {
 	constructor(
+		@Optional()
 		@InjectRepository(EntityEntity)
 		private readonly entityRepository: Repository<EntityEntity>,
+		@Optional()
 		@InjectRepository(EntityMapEntity)
 		readonly _entityMapRepository: Repository<EntityMapEntity>,
+		@Optional()
 		private readonly dataSource: DataSource,
 		readonly _configService: ConfigService,
 	) {}

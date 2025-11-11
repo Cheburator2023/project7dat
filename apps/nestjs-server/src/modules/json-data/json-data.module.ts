@@ -26,7 +26,6 @@ import { JsonCommitController } from "./controllers/json-commit.controller";
 import { JsonImportController } from "./controllers/json-import.controller";
 import { JsonValidationController } from "./controllers/json-validation.controller";
 
-import { MemoryStorageService } from "../../core/shared/database/service/memory-storage.service";
 import { ChangelogModule } from "../changelog/changelog.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ChangelogService } from "../changelog/services/changelog.service";
@@ -65,17 +64,9 @@ export class JsonDataModule {
 			DependencyCheckService,
 			JsonValidationService,
 			VersioningService,
-			MemoryStorageService,
 			ChangelogService,
 			ChangelogMemoryStorageService,
 			ConfigService,
-			{
-				provide: "DATA_SOURCE",
-				useFactory: (_configService: ConfigService) => {
-					return null;
-				},
-				inject: [ConfigService],
-			},
 		];
 
 		return {

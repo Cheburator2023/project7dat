@@ -8,6 +8,7 @@ import {
 	Param,
 	Query,
 	BadRequestException,
+	NotFoundException,
 } from "@nestjs/common";
 import {
 	ApiTags,
@@ -212,7 +213,11 @@ export class JsonDataController {
 		description: "JSON документы не найдены",
 	})
 	async findLatest() {
-		return await this.jsonDataService.getLatestGraphData();
+		const latest = await this.jsonDataService.getLatestGraphData();
+		if (!latest) {
+			throw new NotFoundException("JSON документы не найдены");
+		}
+		return latest;
 	}
 
 	@Get(":id")
