@@ -3,7 +3,7 @@ FROM docker.repo-ci.sfera.inno.local/sumd-docker-lib/ubi8-base-data-lineage-ui:v
 
 # build react-client
 COPY . ./
-RUN npm run build:webpack
+RUN npm run build
 
 # Phase 2 - Get the Build and host on nginx
 FROM docker.repo-ci.sfera.inno.local/sumd-docker-lib/nginx:1.20.2
