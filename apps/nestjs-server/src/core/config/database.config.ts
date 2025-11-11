@@ -14,26 +14,11 @@ export const databaseValidationSchema = Joi.object({
 	DB_SYNCHRONIZE: Joi.boolean().default(true),
 	DB_LOGGING: Joi.boolean().default(true),
 	DB_MIGRATIONS_RUN: Joi.boolean().default(true),
-	DEV_DB_TYPE: Joi.string()
-		.valid("postgres", "sqlite", "memory")
-		.default("sqlite"),
-	DEV_DB_HOST: Joi.string().when("DEV_DB_TYPE", {
-		is: "postgres",
-		then: Joi.required(),
-		otherwise: Joi.optional(),
-	}),
-	DEV_DB_PORT: Joi.number().when("DEV_DB_TYPE", {
-		is: "postgres",
-		then: Joi.required(),
-		otherwise: Joi.optional(),
-	}),
-	DEV_DB_NAME: Joi.string().default("data_lineage_dev"),
 });
 
 export const databaseConfig = registerAs("database", (): DatabaseConfig => {
 	const configService = new ConfigService();
 	const isProduction = configService.get("app.isProduction");
-	const devDbType = process.env.DEV_DB_TYPE || "sqlite";
 
 	const commonOptions: Partial<DatabaseConfig> = {
 		entities: [__dirname + "/../../**/*.entity{.ts,.js}"],
@@ -43,33 +28,14 @@ export const databaseConfig = registerAs("database", (): DatabaseConfig => {
 		migrationsRun: process.env.DB_MIGRATIONS_RUN === "true",
 	};
 
-	if (isProduction) {
-		return {
-			type: "postgres",
-			host: process.env.DB_HOST || "localhost",
-			port: Number.parseInt(process.env.DB_PORT || "5432", 10),
-			username: process.env.DB_USERNAME || "postgres",
-			password: process.env.DB_PASSWORD || "password",
-			database: process.env.DB_NAME || "data_lineage",
-			...commonOptions,
-		} as DatabaseConfig;
-	}
-
-	if (devDbType === "postgres") {
-		return {
-			type: "postgres",
-			host: process.env.DEV_DB_HOST || "localhost",
-			port: Number.parseInt(process.env.DEV_DB_PORT || "5432", 10),
-			username: process.env.DEV_DB_USERNAME || "postgres",
-			password: process.env.DEV_DB_PASSWORD || "postgres",
-			database: process.env.DEV_DB_NAME || "data_lineage_dev",
-			...commonOptions,
-		} as DatabaseConfig;
-	}
-
+	// Always use Postgres for all environments; values are loaded from the active .env
 	return {
-		type: "sqlite",
-		database: process.env.DEV_DB_NAME || "./dev-database.sqlite",
+		type: "postgres",
+		host: process.env.DB_HOST || "localhost",
+		port: Number.parseInt(process.env.DB_PORT || "5432", 10),
+		username: process.env.DB_USERNAME || "postgres",
+		password: process.env.DB_PASSWORD || "password",
+		database: process.env.DB_NAME || "data_lineage",
 		...commonOptions,
 	} as DatabaseConfig;
 });

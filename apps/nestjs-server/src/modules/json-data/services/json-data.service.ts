@@ -10,7 +10,6 @@ import {
 	UpdateJsonDataInput,
 } from "../schemas/json-data.schema";
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
-import { MemoryStorageService } from "../../../core/shared/database/service/memory-storage.service";
 import { JsonCommitService } from "./json-commit.service";
 import { ChangelogService } from "../../changelog/services/changelog.service";
 import { VersionInfoDto } from "../dto/version-info.dto";
@@ -18,9 +17,6 @@ import { JsonCommitEntity } from "../entities/json-commit.entity";
 
 @Injectable()
 export class JsonDataService {
-	private isProduction?: boolean;
-	private memoryCommits: Map<string, any[]> = new Map();
-
 	constructor(
 		@Optional()
 		@InjectRepository(JsonDataEntity)
@@ -28,13 +24,10 @@ export class JsonDataService {
 		@Optional()
 		@InjectRepository(JsonCommitEntity)
 		private readonly commitRepository: Repository<JsonCommitEntity>,
-		private readonly configService: ConfigService,
-		private readonly memoryStorageService: MemoryStorageService,
+		readonly _configService: ConfigService,
 		private readonly jsonCommitService: JsonCommitService,
 		private readonly changelogService: ChangelogService,
-	) {
-		this.isProduction = this.configService.get<boolean>("app.isProduction");
-	}
+	) {}
 
 	async createGraphData(
 		input: CreateJsonDataInput & { authorName?: string },
@@ -43,27 +36,16 @@ export class JsonDataService {
 		const description = input.description || "Инициализация json данных";
 		const version = input.version || "1.0.0";
 
-		let result: any;
-		if (this.isProduction) {
-			const jsonData = this.jsonDataRepository.create({
-				id: uuidv4(),
-				name,
-				data: input.data,
-				description,
-				version,
-				authorName: input.authorName || "System",
-				isCurrent: false,
-			});
-			result = await this.jsonDataRepository.save(jsonData);
-		} else {
-			result = await this.memoryStorageService.create(
-				name,
-				input.data,
-				description,
-				version,
-				input.authorName,
-			);
-		}
+		const jsonData = this.jsonDataRepository.create({
+			id: uuidv4(),
+			name,
+			data: input.data,
+			description,
+			version,
+			authorName: input.authorName || "System",
+			isCurrent: false,
+		});
+		const result = await this.jsonDataRepository.save(jsonData);
 
 		await this.changelogService.logGraphCreated(result.id, result.name);
 		return result;
@@ -77,26 +59,16 @@ export class JsonDataService {
 		const description = input.description || "Инициализация json данных";
 		const version = input.version || "1.0.0";
 
-		if (this.isProduction) {
-			const jsonData = this.jsonDataRepository.create({
-				id,
-				name,
-				data: input.data,
-				description,
-				version,
-				authorName: input.authorName || "System",
-				isCurrent: false,
-			});
-			return this.jsonDataRepository.save(jsonData);
-		}
-
-		return await this.memoryStorageService.create(
+		const jsonData = this.jsonDataRepository.create({
+			id,
 			name,
-			input.data,
+			data: input.data,
 			description,
 			version,
-			input.authorName,
-		);
+			authorName: input.authorName || "System",
+			isCurrent: false,
+		});
+		return this.jsonDataRepository.save(jsonData);
 	}
 
 	async getAllGraphsWithPagination(
@@ -105,116 +77,64 @@ export class JsonDataService {
 		const { page, limit, search } = input;
 		const skip = (page - 1) * limit;
 
-		if (this.isProduction) {
-			const whereCondition = search
-				? [{ name: Like(`%${search}%`) }, { description: Like(`%${search}%`) }]
-				: {};
+		const whereCondition = search
+			? [{ name: Like(`%${search}%`) }, { description: Like(`%${search}%`) }]
+			: {};
 
-			const [data, total] = await this.jsonDataRepository.findAndCount({
-				where: whereCondition,
-				skip,
-				take: limit,
-				order: { createdAt: "DESC" },
-			});
-
-			return { data, total };
-		}
-
-		const allData = await this.memoryStorageService.findAll();
-
-		let filteredData = allData;
-		if (search) {
-			filteredData = allData.filter(
-				(item) =>
-					item.name.toLowerCase().includes(search.toLowerCase()) ||
-					(item.description &&
-						item.description.toLowerCase().includes(search.toLowerCase())),
-			);
-		}
-
-		const total = filteredData.length;
-		const data = filteredData.slice(skip, skip + limit);
+		const [data, total] = await this.jsonDataRepository.findAndCount({
+			where: whereCondition,
+			skip,
+			take: limit,
+			order: { createdAt: "DESC" },
+		});
 
 		return { data, total };
 	}
 
 	async getGraphDataById(id: string): Promise<any> {
-		if (this.isProduction) {
-			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
-			if (!jsonData) {
-				throw new NotFoundException(`JSON с ID ${id} не найден`);
-			}
-			return jsonData;
-		}
-
-		const result = await this.memoryStorageService.findById(id);
-		if (!result) {
+		const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
+		if (!jsonData) {
 			throw new NotFoundException(`JSON с ID ${id} не найден`);
 		}
-		return result;
+		return jsonData;
 	}
 
 	async findGraphDataByIdOrNull(id: string): Promise<any | null> {
-		if (this.isProduction) {
-			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
-			return jsonData || null;
-		}
-
-		const result = await this.memoryStorageService.findById(id);
-		return result || null;
+		const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
+		return jsonData || null;
 	}
 
 	async getLatestGraphData(): Promise<any> {
-		if (this.isProduction) {
-			const currentData = await this.jsonDataRepository.findOne({
-				where: { isCurrent: true },
-			});
-			if (currentData) {
-				return currentData;
-			}
-
-			const jsonData = await this.jsonDataRepository.findOne({
-				order: { createdAt: "DESC" },
-			});
-			if (!jsonData) {
-				return undefined;
-			}
-			return jsonData;
+		const currentData = await this.jsonDataRepository.findOne({
+			where: { isCurrent: true },
+		});
+		if (currentData) {
+			return currentData;
 		}
 
-		const result = await this.memoryStorageService.findLatest();
-		if (!result) {
-			return undefined;
-		}
-		return result;
+		const latestList = await this.jsonDataRepository.find({
+			order: { createdAt: "DESC" },
+			take: 1,
+		});
+		return latestList.length ? latestList[0] : undefined;
 	}
 
 	async updateGraphData(
 		id: string,
 		input: UpdateJsonDataInput & { authorName?: string },
 	): Promise<any> {
-		if (this.isProduction) {
-			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
-			if (!jsonData) {
-				throw new NotFoundException(`JSON с ID ${id} не найден`);
-			}
-
-			if (input.data) jsonData.data = input.data;
-			if (input.name) jsonData.name = input.name;
-			if (input.description) jsonData.description = input.description;
-			if (input.authorName) jsonData.authorName = input.authorName;
-			jsonData.updatedAt = new Date();
-
-			return this.jsonDataRepository.save(jsonData);
-		}
-
-		const result = await this.memoryStorageService.update(id, {
-			...input,
-		});
-		if (!result) {
+		const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
+		if (!jsonData) {
 			throw new NotFoundException(`JSON с ID ${id} не найден`);
 		}
-		return result;
+
+		if (input.data) jsonData.data = input.data;
+		if (input.name) jsonData.name = input.name;
+		if (input.description) jsonData.description = input.description;
+		if (input.authorName) jsonData.authorName = input.authorName;
+		jsonData.updatedAt = new Date();
+
+		return this.jsonDataRepository.save(jsonData);
 	}
 
 	async initializeGraphWithData(
@@ -346,21 +266,11 @@ export class JsonDataService {
 		id: string,
 		versionInfo: VersionInfoDto,
 	): Promise<any> {
-		if (this.isProduction) {
-			await this.jsonDataRepository.update(id, {
-				version: versionInfo.version,
-				deprecated: versionInfo.deprecated,
-			});
-			return this.jsonDataRepository.findOne({ where: { id } });
-		}
-
-		const data = await this.memoryStorageService.findById(id);
-		if (data) {
-			data.version = versionInfo.version;
-			data.deprecated = versionInfo.deprecated;
-			return data;
-		}
-		throw new NotFoundException(`Data with ID ${id} not found`);
+		await this.jsonDataRepository.update(id, {
+			version: versionInfo.version,
+			deprecated: versionInfo.deprecated,
+		});
+		return this.jsonDataRepository.findOne({ where: { id } });
 	}
 
 	async getDocumentHistory(
@@ -368,70 +278,38 @@ export class JsonDataService {
 		fromDate?: string,
 		toDate?: string,
 	): Promise<any[]> {
-		if (this.isProduction) {
-			const query: any = { graphId: id };
+		const query: any = { graphId: id };
 
-			if (fromDate || toDate) {
-				query.createdAt = {};
-				if (fromDate) query.createdAt.$gte = new Date(fromDate);
-				if (toDate) query.createdAt.$lte = new Date(toDate);
-			}
-
-			return this.commitRepository.find({
-				where: query,
-				order: { createdAt: "DESC" },
-			});
+		if (fromDate || toDate) {
+			query.createdAt = {};
+			if (fromDate) query.createdAt.$gte = new Date(fromDate);
+			if (toDate) query.createdAt.$lte = new Date(toDate);
 		}
 
-		const commits = this.memoryCommits.get(id) || [];
-
-		return commits
-			.filter((commit) => {
-				const commitDate = new Date(commit.createdAt);
-				const afterFrom = !fromDate || commitDate >= new Date(fromDate);
-				const beforeTo = !toDate || commitDate <= new Date(toDate);
-				return afterFrom && beforeTo;
-			})
-			.sort(
-				(a, b) =>
-					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-			);
+		return this.commitRepository.find({
+			where: query,
+			order: { createdAt: "DESC" },
+		});
 	}
 
 	async deleteGraphData(id: string): Promise<void> {
-		if (this.isProduction) {
-			const result = await this.jsonDataRepository.delete(id);
-			if (result.affected === 0) {
-				throw new NotFoundException(`JSON с ID ${id} не найден`);
-			}
-			return;
-		}
-
-		const success = await this.memoryStorageService.delete(id);
-		if (!success) {
+		const result = await this.jsonDataRepository.delete(id);
+		if (result.affected === 0) {
 			throw new NotFoundException(`JSON с ID ${id} не найден`);
 		}
+		return;
 	}
 
 	async setCurrentById(id: string): Promise<any> {
-		let result: any;
-		if (this.isProduction) {
-			await this.jsonDataRepository.update({}, { isCurrent: false });
+		await this.jsonDataRepository.update({}, { isCurrent: false });
 
-			const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
-			if (!jsonData) {
-				throw new NotFoundException(`JSON с ID ${id} не найден`);
-			}
-
-			jsonData.isCurrent = true;
-			result = await this.jsonDataRepository.save(jsonData);
-		} else {
-			const record = await this.memoryStorageService.findById(id);
-			if (!record) {
-				throw new NotFoundException(`JSON с ID ${id} не найден`);
-			}
-			result = record;
+		const jsonData = await this.jsonDataRepository.findOne({ where: { id } });
+		if (!jsonData) {
+			throw new NotFoundException(`JSON с ID ${id} не найден`);
 		}
+
+		jsonData.isCurrent = true;
+		const result = await this.jsonDataRepository.save(jsonData);
 
 		await this.changelogService.logSetCurrent(result.id, result.name);
 		return result;
