@@ -21,7 +21,7 @@ import {
 	ConnectionMode,
 	BackgroundVariant,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+
 import { useMergeStore } from "../../../stores/mergeStore";
 
 export const MergeGraphWindow: React.FC = () => {
