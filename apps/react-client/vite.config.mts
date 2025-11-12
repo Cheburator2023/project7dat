@@ -27,9 +27,18 @@ const git_revision = child_process
 	.trim();
 
 export default defineConfig({
-	cacheDir: fileURLToPath(new URL("./.cache/vite-app", import.meta.url)),
-	base: "/",
-	build: {
+  cacheDir: fileURLToPath(new URL("./.cache/vite-app", import.meta.url)),
+  base: "/",
+  resolve: {
+    alias: {
+      "@data-lineage/shared": path.resolve(__dirname, "../../packages/shared/src"),
+      "@data-lineage/shared-schemas": path.resolve(
+        __dirname,
+        "../../packages/shared-schemas/src"
+      ),
+    },
+  },
+  build: {
 		target: "esnext",
 		minify: false,
 		cssCodeSplit: false,
@@ -53,9 +62,11 @@ export default defineConfig({
 	css: {
 		preprocessorOptions: {
 			sass: {
+				// @ts-ignore
 				api: "modern",
 			},
 			scss: {
+				// @ts-ignore
 				api: "modern",
 			},
 		},
@@ -80,11 +91,10 @@ export default defineConfig({
 			},
 		}) as PluginOption,
 		federation({
-			name: "data-lineage-remote",
+			name: "dataLineage",
 			filename: "remoteEntry.js",
 			exposes: {
-				"./App": "./src/App.tsx",
-				"./MfeBridge": "./src/common/mfe/MfeBridge.tsx",
+				"./App": "./src/indexFederated.tsx",
 			},
 			shared: {},
 		}) as PluginOption,

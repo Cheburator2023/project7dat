@@ -21,7 +21,6 @@ import {
 	ConnectionMode,
 	NodeTypes,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import { ObjectDetailsDialog } from "../molecules/ObjectDetailsDialog";
 import { ConnectionDetailsDialog } from "../molecules/ConnectionDetailsDialog";
 
