@@ -11,12 +11,38 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
-import { routes } from "../../../routing/routes";
-import { useMergeStore } from "../../../stores/mergeStore";
+import { routes } from "@react-client/routing/routes";
+import { useMergeStore } from "@react-client/stores/mergeStore";
+// Классификация роутов по категориям меню (статический контекст)
+const BACKEND_ROUTE_KEYS = [
+	"home",
+	"snapshots",
+	"jsonData",
+	"allCommits",
+	"commitQueue",
+	"changelog",
+] as const;
 
-const mainListItems = Object.values(routes)
-	.filter((route) => route.showInNavbar && !(route as any).devOnly)
-	.map((route) => route);
+const MOCKED_ROUTE_KEYS = [
+	"objects",
+	"models",
+	"processes",
+	"changelogTable",
+] as const;
+
+const nonDevEntries = Object.entries(routes).filter(
+	([, route]) => route.showInNavbar && !(route as any).devOnly,
+);
+
+const backendItems = nonDevEntries
+	.filter(([key]) =>
+		(BACKEND_ROUTE_KEYS as ReadonlyArray<string>).includes(key),
+	)
+	.map(([, route]) => route);
+
+const mockedItems = nonDevEntries
+	.filter(([key]) => (MOCKED_ROUTE_KEYS as ReadonlyArray<string>).includes(key))
+	.map(([, route]) => route);
 
 const devOnlyItems = Object.values(routes)
 	.filter((route) => route.showInNavbar && (route as any).devOnly)
@@ -63,21 +89,43 @@ export function MenuContent() {
 			data-test-id="menu-content--Stack-0"
 		>
 			<List data-test-id="menu-content--List-0">
-				{mainListItems.map((item, index) => (
+				{backendItems.map((item, index) => (
 					<ListItem
-						key={index}
+						key={`backend-${index}`}
 						disablePadding
 						sx={{ display: "block", mb: 0.2 }}
 						onClick={() => handler(item.rootPath.replace("/", ""))}
-						data-test-id="menu-content--ListItem-0"
+						data-test-id="menu-content--ListItem-backend"
 					>
 						<ListItemButton
 							selected={item.rootPath === location.pathname.replace("/", "")}
-							data-test-id="menu-content--ListItemButton-0"
+							data-test-id="menu-content--ListItemButton-backend"
 						>
 							<ListItemText
 								primary={item.name}
-								data-test-id="menu-content--ListItemText-0"
+								data-test-id="menu-content--ListItemText-backend"
+							/>
+						</ListItemButton>
+					</ListItem>
+				))}
+
+				<Divider sx={{ my: 1 }} data-test-id="menu-content--Divider-mocked" />
+
+				{mockedItems.map((item, index) => (
+					<ListItem
+						key={`mocked-${index}`}
+						disablePadding
+						sx={{ display: "block", mb: 0.2 }}
+						onClick={() => handler(item.rootPath.replace("/", ""))}
+						data-test-id="menu-content--ListItem-mocked"
+					>
+						<ListItemButton
+							selected={item.rootPath === location.pathname.replace("/", "")}
+							data-test-id="menu-content--ListItemButton-mocked"
+						>
+							<ListItemText
+								primary={item.name}
+								data-test-id="menu-content--ListItemText-mocked"
 							/>
 						</ListItemButton>
 					</ListItem>

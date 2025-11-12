@@ -1,4 +1,4 @@
-const { performance } = require('perf_hooks');
+const { _performance: _performance } = require('perf_hooks');
 const superjson = require('superjson');
 const { stringify: devalueStringify, parse: devalueParse } = require('devalue');
 const jsonUtils = require('./json');
@@ -77,23 +77,23 @@ class JsonBenchmark {
     
     try {
       // Serialize benchmark
-      const start = performance.now();
+      const start = _performance.now();
       let serialized: string = '';
       
       for (let i = 0; i < this.iterations; i++) {
         serialized = devalueStringify(this.testData);
       }
       
-      const serializeTime = performance.now() - start;
+      const serializeTime = _performance.now() - start;
       
       // Deserialize benchmark
-      const deserializeStart = performance.now();
+      const deserializeStart = _performance.now();
       
       for (let i = 0; i < this.iterations; i++) {
         devalueParse(serialized);
       }
       
-      const deserializeTime = performance.now() - deserializeStart;
+      const deserializeTime = _performance.now() - deserializeStart;
       
       return {
         library: 'devalue',
@@ -126,14 +126,14 @@ class JsonBenchmark {
       delete testDataCopy.self;
       delete testDataCopy.nested.parent;
       
-      const start = performance.now();
+      const start = _performance.now();
       let serialized: string = '';
       
       for (let i = 0; i < this.iterations; i++) {
         serialized = superjson.stringify(testDataCopy);
       }
       
-      const serializeTime = performance.now() - start;
+      const serializeTime = _performance.now() - start;
       
       return {
         library: 'superjson',
@@ -169,14 +169,14 @@ class JsonBenchmark {
       testDataCopy.metadata = Object.fromEntries(testDataCopy.metadata);
       testDataCopy.tags = Array.from(testDataCopy.tags);
       
-      const start = performance.now();
+      const start = _performance.now();
       let serialized: string = '';
       
       for (let i = 0; i < this.iterations; i++) {
         serialized = JSON.stringify(testDataCopy);
       }
       
-      const serializeTime = performance.now() - start;
+      const serializeTime = _performance.now() - start;
       
       return {
         library: 'JSON.stringify',
@@ -204,14 +204,14 @@ class JsonBenchmark {
     console.log('🔄 Benchmarking jsonUtil with devalue optimization...');
     
     try {
-      const start = performance.now();
+      const start = _performance.now();
       let serialized: string = '';
       
       for (let i = 0; i < this.iterations; i++) {
         serialized = jsonUtil.serialize(this.testData);
       }
       
-      const serializeTime = performance.now() - start;
+      const serializeTime = _performance.now() - start;
       
       return {
         library: 'jsonUtil (devalue)',
@@ -246,7 +246,7 @@ class JsonBenchmark {
       return;
     }
     
-    // Sort by performance (fastest first)
+    // Sort by _performance (fastest first)
     successfulResults.sort((a, b) => a.timeMs - b.timeMs);
     
     console.log('\n🏆 PERFORMANCE RANKING (Serialization):');
@@ -286,7 +286,7 @@ class JsonBenchmark {
         console.log(`   📊 devalue output: ${devalueResult.outputSize} bytes`);
       }
       
-      console.log(`   ⚡ Best performance: ${(fastest.avgTimePerOp * 1000).toFixed(3)}μs per operation`);
+      console.log(`   ⚡ Best _performance: ${(fastest.avgTimePerOp * 1000).toFixed(3)}μs per operation`);
     }
     
     console.log('\n' + '='.repeat(80));
