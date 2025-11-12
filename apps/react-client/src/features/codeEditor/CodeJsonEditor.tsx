@@ -25,7 +25,7 @@ import { useShallow } from "zustand/react/shallow";
 import { create } from "zustand";
 import { produce } from "immer";
 import { FixedSizeList as List } from "react-window";
-import { fastParse, fastStringify, jsonClone } from "@data-lineage/shared";
+import { fastParse, fastStringify, jsonClone } from "@react-client/shared/src";
 
 interface JsonEditorState {
 	focusedPath: string | null;

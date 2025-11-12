@@ -13,7 +13,7 @@ import {
 import { Close as CloseIcon } from "@mui/icons-material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useCumulativeCommitData } from "@react-client/api/hooks";
-import { fastStringify } from "@data-lineage/shared";
+import { fastStringify } from "@react-client/shared/src";
 
 interface CommitDetailsDialogProps {
 	open: boolean;

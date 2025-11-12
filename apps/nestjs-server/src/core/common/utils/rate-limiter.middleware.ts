@@ -1,5 +1,4 @@
 import { Injectable, NestMiddleware } from "@nestjs/common";
-import { Request, Response, NextFunction } from "express";
 import rateLimit from "express-rate-limit";
 
 @Injectable()
@@ -10,7 +9,7 @@ export class RateLimiterMiddleware implements NestMiddleware {
 		message: "Too Many Requests",
 	});
 
-	use(req: Request, res: Response, next: NextFunction) {
-		this.limiter(req, res, next);
+	use(...args: Parameters<ReturnType<typeof rateLimit>>) {
+		this.limiter(...args);
 	}
 }
