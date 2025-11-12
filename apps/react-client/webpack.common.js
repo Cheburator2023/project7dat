@@ -11,7 +11,6 @@ const APP_NAME = "dataLineage";
 
 const ALIAS = {
 	"@react-client": `${SRC_DIR}`,
-	"@data-lineage/shared": path.resolve(__dirname, "../../packages/shared/src"),
 	"@data-lineage/shared-schemas": path.resolve(
 	__dirname,
 	"../../packages/shared-schemas/src"

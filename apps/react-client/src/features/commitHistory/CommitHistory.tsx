@@ -22,7 +22,7 @@ import {
 } from "@react-client/api/hooks";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Card } from "@react-client/common/muiCustom/Card";
-import { fastStringify } from "@data-lineage/shared";
+import { fastStringify } from "@react-client/shared/src";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useQueryClient } from "@tanstack/react-query";
 import {

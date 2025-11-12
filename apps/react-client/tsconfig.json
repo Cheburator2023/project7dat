@@ -6,8 +6,6 @@
 		"lib": ["dom", "dom.iterable", "esnext"],
 		"paths": {
 			"@react-client/*": ["./src/*"],
-			"@data-lineage/shared": ["../../packages/shared/src/index.ts"],
-			"@data-lineage/shared/*": ["../../packages/shared/src/*"],
 			"@data-lineage/shared-schemas": ["../../packages/shared-schemas/src/index.ts"],
 			"@data-lineage/shared-schemas/*": ["../../packages/shared-schemas/src/*"]
 		},

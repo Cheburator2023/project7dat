@@ -13,7 +13,7 @@ import {
 	jsonCompare,
 	fastStringify,
 	fastParse,
-} from "@data-lineage/shared";
+} from "@react-client/shared/src";
 
 interface RevealPosition {
 	version: number;
