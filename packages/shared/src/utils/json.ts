@@ -1,4 +1,4 @@
-const fastJsonStringify = require('fast-json-stringify');
+import fastJsonStringify from 'fast-json-stringify';
 
 // Fallback for devalue since it's an ES module
 const devalueStringify = (value: any): string => {
@@ -219,23 +219,5 @@ const devalueDeserialize = <T = any>(text: string): T => {
   }
 };
 
-// TypeScript exports for proper type declarations
 export { jsonUtil, fastParse, fastStringify, safeJsonParse, safeJsonStringify, jsonCompare, jsonClone, isValidJson, devalueSerialize, devalueDeserialize, superjson, devalueStringify, devalueParse };
 export type { JsonOptions };
-
-// CommonJS exports for runtime
-module.exports = {
-  jsonUtil,
-  fastParse,
-  fastStringify,
-  safeJsonParse,
-  safeJsonStringify,
-  jsonCompare,
-  jsonClone,
-  isValidJson,
-  devalueSerialize,
-  devalueDeserialize,
-  superjson,
-  devalueStringify,
-  devalueParse
-};

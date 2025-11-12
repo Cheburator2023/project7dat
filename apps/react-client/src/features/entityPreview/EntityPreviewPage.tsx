@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
-import "flexlayout-react/style/light.css";
+
 import { CircularProgress, styled } from "@mui/material";
 import { Header } from "@react-client/features/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
