@@ -1,5 +1,5 @@
 "use strict";
-const { performance } = require('perf_hooks');
+const { performance: _performance } = require('perf_hooks');
 const superjson = require('superjson');
 const { stringify: devalueStringify, parse: devalueParse } = require('devalue');
 const jsonUtils = require('./json');
@@ -56,18 +56,18 @@ class JsonBenchmark {
         console.log('🔄 Benchmarking devalue...');
         try {
             // Serialize benchmark
-            const start = performance.now();
+            const start = _performance.now();
             let serialized = '';
             for (let i = 0; i < this.iterations; i++) {
                 serialized = devalueStringify(this.testData);
             }
-            const serializeTime = performance.now() - start;
+            const serializeTime = _performance.now() - start;
             // Deserialize benchmark
-            const deserializeStart = performance.now();
+            const deserializeStart = _performance.now();
             for (let i = 0; i < this.iterations; i++) {
                 devalueParse(serialized);
             }
-            const deserializeTime = performance.now() - deserializeStart;
+            const deserializeTime = _performance.now() - deserializeStart;
             return {
                 library: 'devalue',
                 operation: 'serialize',
@@ -97,12 +97,12 @@ class JsonBenchmark {
             const testDataCopy = { ...this.testData };
             delete testDataCopy.self;
             delete testDataCopy.nested.parent;
-            const start = performance.now();
+            const start = _performance.now();
             let serialized = '';
             for (let i = 0; i < this.iterations; i++) {
                 serialized = superjson.stringify(testDataCopy);
             }
-            const serializeTime = performance.now() - start;
+            const serializeTime = _performance.now() - start;
             return {
                 library: 'superjson',
                 operation: 'serialize',
@@ -135,12 +135,12 @@ class JsonBenchmark {
             // Convert Map and Set to plain objects/arrays
             testDataCopy.metadata = Object.fromEntries(testDataCopy.metadata);
             testDataCopy.tags = Array.from(testDataCopy.tags);
-            const start = performance.now();
+            const start = _performance.now();
             let serialized = '';
             for (let i = 0; i < this.iterations; i++) {
                 serialized = JSON.stringify(testDataCopy);
             }
-            const serializeTime = performance.now() - start;
+            const serializeTime = _performance.now() - start;
             return {
                 library: 'JSON.stringify',
                 operation: 'serialize',
@@ -166,12 +166,12 @@ class JsonBenchmark {
     async benchmarkJsonUtil() {
         console.log('🔄 Benchmarking jsonUtil with devalue optimization...');
         try {
-            const start = performance.now();
+            const start = _performance.now();
             let serialized = '';
             for (let i = 0; i < this.iterations; i++) {
                 serialized = jsonUtil.serialize(this.testData);
             }
-            const serializeTime = performance.now() - start;
+            const serializeTime = _performance.now() - start;
             return {
                 library: 'jsonUtil (devalue)',
                 operation: 'serialize',
@@ -202,7 +202,7 @@ class JsonBenchmark {
             console.log('❌ No successful benchmarks');
             return;
         }
-        // Sort by performance (fastest first)
+        // Sort by _performance (fastest first)
         successfulResults.sort((a, b) => a.timeMs - b.timeMs);
         console.log('\n🏆 PERFORMANCE RANKING (Serialization):');
         successfulResults.forEach((result, index) => {
@@ -235,7 +235,7 @@ class JsonBenchmark {
                 console.log(`   🔄 devalue handles circular references seamlessly`);
                 console.log(`   📊 devalue output: ${devalueResult.outputSize} bytes`);
             }
-            console.log(`   ⚡ Best performance: ${(fastest.avgTimePerOp * 1000).toFixed(3)}μs per operation`);
+            console.log(`   ⚡ Best _performance: ${(fastest.avgTimePerOp * 1000).toFixed(3)}μs per operation`);
         }
         console.log('\n' + '='.repeat(80));
     }
