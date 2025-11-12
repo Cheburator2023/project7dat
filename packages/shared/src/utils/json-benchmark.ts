@@ -1,4 +1,4 @@
-const { _performance: _performance } = require('perf_hooks');
+const { performance: _performance } = require('perf_hooks');
 const superjson = require('superjson');
 const { stringify: devalueStringify, parse: devalueParse } = require('devalue');
 const jsonUtils = require('./json');
