@@ -1,3 +1,8 @@
+import "./theme/global.css";
+import "flexlayout-react/style/light.css";
+import "@xyflow/react/dist/style.css";
+import "@fontsource/inter";
+
 import { CircularProgress, StyledEngineProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { LocalizationProvider } from "@mui/x-date-pickers";
@@ -6,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, useEffect } from "react";
 import { BrowserRouter } from "react-router";
 import { Toaster } from "sonner";
+import { enableMapSet } from "immer";
 
 import { MainLayout } from "@react-client/common/layouts/MainLayout";
 import { NotificationDrawer } from "./features/notification/NotificationDrawer";
@@ -13,7 +19,6 @@ import { MergeGraphWindow } from "./features/merge/organisms/MergeGraphWindow";
 import { DiffWindow } from "./features/merge/organisms/DiffWindow";
 
 import { setupApiInterceptors } from "./api/apiInterceptor";
-import { MfeBridge } from "./common/mfe/MfeBridge";
 
 import { Routing } from "./routing";
 import { AppTheme } from "./theme/AppTheme";
@@ -23,6 +28,8 @@ import {
 	datePickersCustomizations,
 	treeViewCustomizations,
 } from "./theme/customizations";
+
+enableMapSet();
 
 const xThemeComponents = {
 	...chartsCustomizations,
@@ -42,7 +49,13 @@ const queryClient = new QueryClient({
 	},
 });
 
-export function App() {
+type Props = {
+	bridged?: boolean;
+};
+
+export function App(props: Props) {
+	const { bridged } = props;
+
 	useEffect(() => {
 		setupApiInterceptors();
 	}, []);
@@ -50,22 +63,20 @@ export function App() {
 	return (
 		<StyledEngineProvider injectFirst>
 			<QueryClientProvider client={queryClient}>
-				<BrowserRouter>
+				<BrowserRouter basename={bridged ? "/dataLineage" : "/"}>
 					<AppTheme themeComponents={xThemeComponents as any}>
 						<CssBaseline enableColorScheme />
 						<Toaster position="bottom-right" richColors closeButton />
-						<MfeBridge>
-							<Suspense fallback={<CircularProgress />}>
-								<LocalizationProvider dateAdapter={AdapterDateFns}>
-									<MainLayout>
-										<Routing />
-									</MainLayout>
-									<NotificationDrawer />
-									<MergeGraphWindow />
-									<DiffWindow />
-								</LocalizationProvider>
-							</Suspense>
-						</MfeBridge>
+						<Suspense fallback={<CircularProgress />}>
+							<LocalizationProvider dateAdapter={AdapterDateFns}>
+								<MainLayout>
+									<Routing />
+								</MainLayout>
+								<NotificationDrawer />
+								<MergeGraphWindow />
+								<DiffWindow />
+							</LocalizationProvider>
+						</Suspense>
 					</AppTheme>
 				</BrowserRouter>
 			</QueryClientProvider>

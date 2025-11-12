@@ -22,7 +22,6 @@ import {
 	ConnectionMode,
 	NodeTypes,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import { Close, Visibility } from "@mui/icons-material";
 
 import { ObjectDetailsDialog } from "../molecules/ObjectDetailsDialog";
