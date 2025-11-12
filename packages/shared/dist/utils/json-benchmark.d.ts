@@ -1,4 +1,4 @@
-declare const performance: any;
+declare const _performance: any;
 declare const superjson: any;
 declare const devalueStringify: any, devalueParse: any;
 declare const jsonUtils: any;
