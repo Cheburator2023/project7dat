@@ -14,6 +14,9 @@
 			"passThroughEnv": ["NODE_ENV"],
 			"env": ["NODE_ENV"]
 		},
+		"start": {
+			"dependsOn": []
+		},
 		"build": {
 			"dependsOn": ["^build"],
 			"cache": false
