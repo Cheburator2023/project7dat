@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "nest start --watch",
 		"dev:god": "cross-env NODE_ENV=development NO_ROLES=true nest start --watch",
-		"build": "nest build",
+		"build": "cross-env NO_ROLES=true nest build",
 		"start": "NODE_ENV=production tsx dist/main",
 		"start:debug": "nest start --debug --watch",
 		"prod": "npm run build && npm run start",
