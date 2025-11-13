@@ -1,7 +1,9 @@
 import { createBridgeComponent } from "@module-federation/bridge-react/v19";
+import { CircularProgress } from "@mui/material";
 import { App } from "@react-client/App";
 import { AuthProvider } from "@react-client/common/AuthProvider";
 import { useUserStore } from "@react-client/common/store/userStore";
+import { useDeepEffect } from "@react-client/hooks";
 import { globalStyles } from "@react-client/theme/GlobalStyle";
 import { T_CONFIG_MAP, T_KEYCLOAK_USER } from "@react-client/types";
 import { Permission, Role } from "@react-client/types/roles";
@@ -15,11 +17,20 @@ export type Props = {
 	navigate?: (to: string) => void;
 	protectedFetch?: any;
 	bridged?: boolean;
+	keycloak?: any;
 	onLogout?: () => void;
 };
 
 const MfeRoot = (props: Props) => {
 	console.log("MfeRoot >> props DL:", props);
+
+	useDeepEffect(() => {
+		if (props?.urlConfig && props?.token) {
+			window.urlConfig = props.urlConfig;
+			window.token = props.token;
+			window.keycloak = props.keycloak;
+		}
+	}, [props]);
 
 	const { user } = props;
 	const { setUsername, setGroups, setRoles, setPermissions } = useUserStore();
@@ -51,7 +62,7 @@ const MfeRoot = (props: Props) => {
 		<AuthProvider token={props.token}>
 			{globalStyles}
 
-			<App {...props} bridged />
+			{props?.urlConfig ? <App {...props} bridged /> : <CircularProgress />}
 		</AuthProvider>
 	);
 };
