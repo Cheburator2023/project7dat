@@ -1,17 +1,13 @@
-FROM docker.repo-ci.sfera.inno.local/sumd-docker-lib/ubi8-python39-npm:1.2 as build-deps
+# Base Image
+FROM docker.repo-ci.sfera.inno.local/sumd-docker-lib/ubi8-base-data-lineage-ui:v1.0.2 as build-deps
 
-ARG NPM_REGISTRY
-ARG NPM_EMAIL
-ARG NPM_AUTH
+# build react-client
+## WORKDIR /app
+COPY . ./
+RUN npm run build:nest
 
-WORKDIR /app
-COPY . /app/
-RUN rm package-lock.json
+EXPOSE 3000
 
-RUN npm config set email ${EMAIL} && \
-    npm config set //${NPM_REGISTRY}:_auth ${NPM_AUTH} && \
-    npm config set audit false && \
-    npm i --force --only-production --registry=https://${NPM_REGISTRY}
+# ENV NODE_ENV=production
 
-RUN rm ~/.npmrc && \
-    rm -rf /app/apps
+CMD ["npm","run","start:server"]
