@@ -14,7 +14,7 @@ import {
 	Handle,
 	Connection,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+
 import { useDatabaseSchema } from "@react-client/api/hooks/useDatabaseSchema";
 import { useTableData } from "@react-client/api/hooks/useTableData";
 import type { TableInfo } from "@react-client/api/databaseSchemaApi";

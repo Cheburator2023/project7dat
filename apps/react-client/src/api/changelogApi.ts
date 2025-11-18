@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
+const API_BASE_URL =
+	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
 
 export const changelogApiInstance = axios.create({
 	baseURL: `${API_BASE_URL}/api/changelog`,

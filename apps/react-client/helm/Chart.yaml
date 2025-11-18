@@ -1,0 +1,4 @@
+apiVersion: v1
+description: A Helm chart defining data-lineage-frontend service.
+name: data-lineage-frontend
+version: 1.0.0

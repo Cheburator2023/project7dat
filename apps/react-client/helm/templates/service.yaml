@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "data-lineage-frontend.fullname" . }}
+  labels: {{- include "data-lineage-frontend.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: 8080-tcp
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: {{ include "data-lineage-frontend.fullname" . }}

@@ -5,8 +5,9 @@
 		"moduleResolution": "Bundler",
 		"lib": ["dom", "dom.iterable", "esnext"],
 		"paths": {
-			"@joint/plus/*": ["../../packages/jointjs_plus/*"],
-			"@react-client/*": ["./src/*"]
+			"@react-client/*": ["./src/*"],
+			"@data-lineage/shared-schemas": ["../../packages/shared-schemas/src/index.ts"],
+			"@data-lineage/shared-schemas/*": ["../../packages/shared-schemas/src/*"]
 		},
 		"allowJs": true,
 		"skipLibCheck": true,
@@ -27,8 +28,6 @@
 		"./src/**/*.tsx",
 		"../../apps/react-client/**/*.ts",
 		"../../apps/react-client/**/*.tsx",
-		"../../packages/jointjs_plus/**/*.ts",
-		"../../packages/jointjs_plus/**/*.tsx"
 	],
 	"exclude": ["../../apps/**/node_modules", "../../packages/**/node_modules"]
 }

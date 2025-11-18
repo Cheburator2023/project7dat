@@ -10,9 +10,9 @@ import { Repository } from "typeorm";
 import { JsonCommitEntity } from "../entities/json-commit.entity";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import { GetCommitListInput } from "../schemas/json-commit.schema";
-import { fastStringify, jsonCompare } from "@data-lineage/shared";
 import * as fuzzysort from "fuzzysort";
 import { ChangelogService } from "../../changelog/services/changelog.service";
+import { fastStringify, jsonCompare } from "src/shared/src";
 
 @Injectable()
 export class JsonCommitService {

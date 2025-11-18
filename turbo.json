@@ -1,5 +1,6 @@
 {
 	"$schema": "https://turborepo.org/schema.json",
+	"envMode": "loose",
 	"tasks": {
 		"lib:build": {
 			"dependsOn": []
@@ -13,6 +14,9 @@
 			"cache": false,
 			"passThroughEnv": ["NODE_ENV"],
 			"env": ["NODE_ENV"]
+		},
+		"start": {
+			"dependsOn": []
 		},
 		"build": {
 			"dependsOn": ["^build"],

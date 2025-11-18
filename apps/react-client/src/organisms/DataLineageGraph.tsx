@@ -24,7 +24,6 @@ import {
 	Handle,
 	Position,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 import type {
 	DataLineageSchema,
 	DataLineageEntity,

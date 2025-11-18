@@ -12,7 +12,7 @@ import {
 import { Flex } from "@react-client/common/primitives/Flex";
 import AddIcon from "@mui/icons-material/Add";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
-import "flexlayout-react/style/light.css";
+
 import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
 import { useEditorStore } from "@react-client/stores/editorStore";
 import { CommitDialog } from "@react-client/features/commitHistory/CommitDialog";
