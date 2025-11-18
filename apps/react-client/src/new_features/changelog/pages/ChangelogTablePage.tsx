@@ -15,7 +15,7 @@ import { ru } from "date-fns/locale";
 import { ChangelogTable } from "../organisms/ChangelogTable";
 import { ChangelogDetailsModal } from "../molecules/ChangelogDetailsModal";
 import { ChangelogTableEntry, SortConfig, FilterConfig } from "../types";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 
 // Mock данные для демонстрации
 const mockChangelogData: ChangelogTableEntry[] = [

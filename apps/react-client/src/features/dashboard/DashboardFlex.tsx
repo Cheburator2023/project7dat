@@ -17,7 +17,7 @@ import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor
 import { useEditorStore } from "@react-client/stores/editorStore";
 import { CommitDialog } from "@react-client/features/commitHistory/CommitDialog";
 import { EditorDiff } from "@react-client/features/codeEditor/EditorDiff";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 import { NodeGraph } from "@react-client/features/nodeGraph";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import {

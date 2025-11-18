@@ -69,7 +69,7 @@ env:
  DB_NAME: data_lineage
  NODE_ENV: production
  KEYCLOAK_URL: https://keycloak-sumd.sumd.dk1-sumd01.innodev.local/auth/
- KEYCLOAK_REALMS: cym
+ KEYCLOAK_REALM: cym
  KEYCLOAK_CLIENT: frontend
  NODE_TLS_REJECT_UNAUTHORIZED: 0
  PORT: 3000

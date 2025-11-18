@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
 import { CircularProgress, styled } from "@mui/material";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "./components/EntityJsonEditor";

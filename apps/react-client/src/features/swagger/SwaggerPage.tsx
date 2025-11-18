@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 
 export const SwaggerPage = () => {

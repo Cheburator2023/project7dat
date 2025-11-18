@@ -11,18 +11,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 	token,
 	children,
 }) => {
-	const setAccessToken = useAuthStore((state) => state.setAccessToken);
-	const accessToken = useAuthStore((state) => state.accessToken);
+	const setAccessToken = useAuthStore((s) => s.setAccessToken);
+	const accessToken = useAuthStore((s) => s.accessToken);
+	const initializeGodMode = useAuthStore((s) => s.initializeGodMode);
 
 	useEffect(() => {
 		if (token) {
 			setAccessToken(token);
+			return;
+		}
+		if (typeof window !== "undefined" && (window as any).token) {
+			setAccessToken((window as any).token as string);
 		}
 	}, [token, setAccessToken]);
 
-	const NO_ROLES_FOR_DEV = true || process?.env?.NO_ROLES;
+	const GOD_MODE = process?.env?.NO_ROLES === "true";
 
-	if (NO_ROLES_FOR_DEV) return <>{children}</>;
+	useEffect(() => {
+		if (GOD_MODE) {
+			initializeGodMode();
+		}
+	}, [GOD_MODE, initializeGodMode]);
+
+	if (GOD_MODE) return <>{children}</>;
 
 	return accessToken ? children : <FullScreenLoader />;
 };

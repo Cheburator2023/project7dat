@@ -13,8 +13,9 @@ import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "@react-client/routing/routes";
 import { useMergeStore } from "@react-client/stores/mergeStore";
+
 // Классификация роутов по категориям меню (статический контекст)
-const BACKEND_ROUTE_KEYS = [
+const OLD_ROUTE_KEYS = [
 	"home",
 	"snapshots",
 	"jsonData",
@@ -23,7 +24,7 @@ const BACKEND_ROUTE_KEYS = [
 	"changelog",
 ] as const;
 
-const MOCKED_ROUTE_KEYS = [
+const MOCKED_NEW_ROUTE_KEYS = [
 	"objects",
 	"models",
 	"processes",
@@ -35,13 +36,13 @@ const nonDevEntries = Object.entries(routes).filter(
 );
 
 const backendItems = nonDevEntries
-	.filter(([key]) =>
-		(BACKEND_ROUTE_KEYS as ReadonlyArray<string>).includes(key),
-	)
+	.filter(([key]) => (OLD_ROUTE_KEYS as ReadonlyArray<string>).includes(key))
 	.map(([, route]) => route);
 
 const mockedItems = nonDevEntries
-	.filter(([key]) => (MOCKED_ROUTE_KEYS as ReadonlyArray<string>).includes(key))
+	.filter(([key]) =>
+		(MOCKED_NEW_ROUTE_KEYS as ReadonlyArray<string>).includes(key),
+	)
 	.map(([, route]) => route);
 
 const devOnlyItems = Object.values(routes)

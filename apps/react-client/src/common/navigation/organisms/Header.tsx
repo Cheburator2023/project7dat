@@ -7,14 +7,14 @@ import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useNavigate } from "react-router";
 import { useState } from "react";
-import { Flex } from "../../../common/primitives/Flex";
-import { useGlobalSettingsStore } from "../../../common/store/globalSettingsStore";
+import { Flex } from "../../primitives/Flex";
+import { useGlobalSettingsStore } from "../../store/globalSettingsStore";
 import { useDataLineageStore } from "../../../stores/dataLineageStore";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
 import { NotificationButton } from "../../notification/NotificationButton";
-import { CreateSnapshotDialog } from "../../snapshotsList/CreateSnapshotDialog";
+import { CreateSnapshotDialog } from "../../../features/snapshotsList/CreateSnapshotDialog";
 
 export function Header({
 	children,

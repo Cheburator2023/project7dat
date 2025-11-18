@@ -22,7 +22,7 @@ import {
 	useSetCurrentFromSnapshot,
 } from "@react-client/api/hooks";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { styled } from "@mui/system";
 

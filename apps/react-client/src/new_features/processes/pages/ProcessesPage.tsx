@@ -29,7 +29,7 @@ import {
 	useProcessesStore,
 	Process,
 } from "@react-client/stores/processesStore";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 
 // Cell renderers for ag-grid
 const getStatusColor = (status: Process["status"]) => {

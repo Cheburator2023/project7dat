@@ -23,7 +23,7 @@ import {
 	type ChangelogEntry,
 	type ChangelogGroup,
 } from "../../api/changelogApi";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 
 const getActionTypeColor = (actionType: string) => {
 	switch (actionType) {
