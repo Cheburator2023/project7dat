@@ -3,7 +3,7 @@ import { Flex } from "@react-client/common/primitives/Flex";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { memo, useMemo } from "react";
-import { fastStringify } from "@data-lineage/shared";
+import { fastStringify } from "@react-client/shared/src";
 
 export const EditorDiff = memo(() => {
 	const { currentGraph, originalGraph, hasUnsavedChanges } =
