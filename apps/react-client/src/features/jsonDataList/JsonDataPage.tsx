@@ -24,9 +24,9 @@ import {
 	useSetCurrentJsonData,
 } from "@react-client/api/hooks";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
-import { ChangelogButton } from "@react-client/features/changelog/ChangelogButton";
+import { ChangelogButton } from "@react-client/new_features/changelog/ChangelogButton";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 

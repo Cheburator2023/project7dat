@@ -8,14 +8,14 @@ import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPr
 import { SnapshotsPage } from "@react-client/features/snapshotsList/SnapshotsPage";
 import { JsonDataPage } from "@react-client/features/jsonDataList/JsonDataPage";
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
-import { ObjectsPage } from "@react-client/features/objectsList/ObjectsPage";
+import { ObjectsPage } from "@react-client/new_features/objectsList/ObjectsPage";
 import { CommitQueuePage } from "@react-client/features/commitQueue/CommitQueuePage";
 import { ChangelogPage } from "@react-client/features/changelog/ChangelogPage";
-import { ChangelogTablePage } from "@react-client/features/changelog/pages/ChangelogTablePage";
-import { GraphChangelogPage } from "@react-client/features/changelog/GraphChangelogPage";
-import { ModelsPage } from "@react-client/features/models/ModelsPage";
-import { ProcessesPage } from "@react-client/pages/ProcessesPage";
-import { ProcessGraphPage } from "@react-client/pages/ProcessGraphPage";
+import { ChangelogTablePage } from "@react-client/new_features/changelog/pages/ChangelogTablePage";
+import { GraphChangelogPage } from "@react-client/new_features/changelog/GraphChangelogPage";
+import { ModelsPage } from "@react-client/new_features/models/ModelsPage";
+import { ProcessesPage } from "@react-client/new_features/processes/pages/ProcessesPage";
+import { ProcessGraphPage } from "@react-client/new_features/processes/pages/ProcessGraphPage";
 
 export const Routing = () => (
 	<Routes>

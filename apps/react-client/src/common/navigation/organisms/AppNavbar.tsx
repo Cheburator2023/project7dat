@@ -12,7 +12,7 @@ import { useLocation } from "react-router";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
 import { routes } from "../../../routing/routes";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
-import { MenuButton } from "../../navigation/molecules/MenuButton";
+import { MenuButton } from "../molecules/MenuButton";
 
 const Toolbar = styled(MuiToolbar)({
 	width: "100%",

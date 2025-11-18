@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { ArrowBack, Home } from "@mui/icons-material";
 import { useProcessesStore } from "@react-client/stores/processesStore";
-import { DataLineageGraph } from "@react-client/organisms/DataLineageGraph";
+import { DataLineageGraph } from "@react-client/new_features/processes/organisms/DataLineageGraph";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 
 export const ProcessGraphPage = () => {
