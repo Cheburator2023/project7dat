@@ -33,7 +33,12 @@ import { Spacer } from "@react-client/common/primitives/Spacer";
 import { CloudUploadIcon } from "lucide-react";
 import { useMergeStore } from "../../stores/mergeStore";
 import { jsonDataService } from "../../api/jsonDataApi";
+import { jsonCommitV2Service } from "../../api/jsonCommitV2Api";
 import { QueueVisualization } from "./QueueVisualization";
+
+import { featureFlags } from "@react-client/config/featureFlags";
+import { useCommitQueueV2 } from "@react-client/api/hooks";
+import type { CommitQueueApiItem } from "@react-client/api/jsonDataApi";
 
 // Типы данных
 interface CommitQueueItem {
@@ -47,83 +52,40 @@ interface CommitQueueItem {
 	fileName?: string;
 	fileSize?: number;
 	processName?: string;
+	isFromApi?: boolean;
 }
 
-// Макетные данные
-const mockCommitQueue: CommitQueueItem[] = [
-	{
-		id: "1",
-		name: "Обновление модели пользователей",
-		author: "Иванов И.И.",
-		status: "not_validated",
-		uploadDate: "2024-01-15T10:30:00Z",
-		fileType: "JSON",
-		description: "Добавление новых полей в модель пользователей",
-		fileName: "user_model_update.json",
-		fileSize: 245000,
-		processName: "user_data_process",
-	},
-	{
-		id: "2",
-		name: "Витрина продаж Q4",
-		author: "Петров П.П.",
-		status: "validated",
-		uploadDate: "2024-01-14T15:45:00Z",
-		fileType: "JSON",
-		description: "Обновление витрины данных по продажам за 4 квартал",
-		fileName: "sales_mart_q4.json",
-		fileSize: 512000,
-		processName: "sales_analytics",
-	},
-	{
-		id: "3",
-		name: "Признаки клиентской сегментации",
-		author: "Сидорова С.С.",
-		status: "processing",
-		uploadDate: "2024-01-15T09:15:00Z",
-		fileType: "JSON",
-		description: "Новые признаки для сегментации клиентов",
-		fileName: "customer_features.json",
-		fileSize: 128000,
-		processName: "customer_segmentation",
-	},
-	{
-		id: "4",
-		name: "Модель рекомендаций",
-		author: "Козлов К.К.",
-		status: "error",
-		uploadDate: "2024-01-13T14:20:00Z",
-		fileType: "JSON",
-		description: "Обновление алгоритма рекомендаций",
-		fileName: "recommendation_model.json",
-		fileSize: 890000,
-		processName: "recommendation_engine",
-	},
-	{
-		id: "5",
-		name: "Витрина финансовых показателей",
-		author: "Морозов М.М.",
-		status: "validated",
-		uploadDate: "2024-01-12T11:30:00Z",
-		fileType: "JSON",
-		description: "Обновление финансовых метрик",
-		fileName: "financial_metrics.json",
-		fileSize: 367000,
-		processName: "financial_reporting",
-	},
-	{
-		id: "6",
-		name: "Признаки поведенческого анализа",
-		author: "Лебедева Л.Л.",
-		status: "not_validated",
-		uploadDate: "2024-01-15T08:45:00Z",
-		fileType: "JSON",
-		description: "Новые признаки для анализа поведения пользователей",
-		fileName: "behavior_features.json",
-		fileSize: 445000,
-		processName: "behavior_analytics",
-	},
-];
+const mapEntityStatusToQueueStatus = (
+	status: string,
+): CommitQueueItem["status"] => {
+	switch (status) {
+		case "IN_PROGRESS":
+			return "processing";
+		case "LOADED_VALIDATED":
+			return "validated";
+		case "ERROR":
+			return "error";
+		default:
+			return "not_validated";
+	}
+};
+
+const mapApiItemToQueueItem = (item: CommitQueueApiItem): CommitQueueItem => ({
+	id: item.id,
+	name: item.message,
+	author: item.authorName || "—",
+	status: mapEntityStatusToQueueStatus(item.status),
+	uploadDate:
+		typeof item.createdAt === "string"
+			? item.createdAt
+			: new Date(item.createdAt).toISOString(),
+	fileType: "JSON",
+	description: item.message,
+	fileName: undefined,
+	fileSize: undefined,
+	processName: undefined,
+	isFromApi: true,
+});
 
 // Компонент карточки коммита
 const CommitCard: React.FC<{
@@ -446,7 +408,19 @@ export const CommitQueuePage: React.FC = () => {
 	const [selectedCommit, setSelectedCommit] = useState<CommitQueueItem | null>(
 		null,
 	);
-	const [commits, setCommits] = useState<CommitQueueItem[]>(mockCommitQueue);
+	const [localCommits, setLocalCommits] = useState<CommitQueueItem[]>([]);
+	const useV2Commits = featureFlags.newCommitsV2Enabled;
+	const { data: queueData } = useCommitQueueV2({
+		enabled: useV2Commits,
+	});
+
+	const commits = useMemo(() => {
+		if (useV2Commits && queueData) {
+			return queueData.map(mapApiItemToQueueItem);
+		}
+
+		return localCommits;
+	}, [useV2Commits, queueData, localCommits]);
 
 	// Merge store
 	const { startMerge, openMergeGraphWindow, openDiffWindow } = useMergeStore();
@@ -490,13 +464,14 @@ export const CommitQueuePage: React.FC = () => {
 			fileName: file.name,
 			fileSize: file.size,
 			processName: metadata.name.toLowerCase().replace(/\s+/g, "_"),
+			isFromApi: false,
 		};
 
-		setCommits((prev) => [...prev, newCommit]);
+		setLocalCommits((prev) => [...prev, newCommit]);
 
 		// Имитация обработки
 		setTimeout(() => {
-			setCommits((prev) =>
+			setLocalCommits((prev) =>
 				prev.map((commit) =>
 					commit.id === newCommit.id
 						? {
@@ -529,7 +504,7 @@ export const CommitQueuePage: React.FC = () => {
 		name: string,
 		description: string,
 	) => {
-		setCommits((prev) =>
+		setLocalCommits((prev) =>
 			prev.map((commit) =>
 				commit.id === commitId ? { ...commit, name, description } : commit,
 			),
@@ -550,10 +525,12 @@ export const CommitQueuePage: React.FC = () => {
 		}
 
 		try {
-			// Получаем кумулятивные данные коммита
-			const cumulativeData = await jsonDataService.applyCommit(
-				firstValidatedCommit.id,
-			);
+			// Получаем кумулятивные данные коммита (v1 или v2)
+			const cumulativeData = useV2Commits
+				? await jsonCommitV2Service.getCumulativeDataAtCommit(
+						firstValidatedCommit.id,
+					)
+				: await jsonDataService.applyCommit(firstValidatedCommit.id);
 
 			// Подготавливаем данные для мерджа
 			const mergeData = {
@@ -576,7 +553,7 @@ export const CommitQueuePage: React.FC = () => {
 
 	const handleReplaceFile = (commitId: string, file: File) => {
 		// Обновляем статус коммита на "processing"
-		setCommits((prev) =>
+		setLocalCommits((prev) =>
 			prev.map((commit) =>
 				commit.id === commitId
 					? {
@@ -593,7 +570,7 @@ export const CommitQueuePage: React.FC = () => {
 		// Симуляция валидации файла
 		setTimeout(() => {
 			const newStatus = Math.random() > 0.5 ? "validated" : "not_validated";
-			setCommits((prev) =>
+			setLocalCommits((prev) =>
 				prev.map((commit) =>
 					commit.id === commitId
 						? { ...commit, status: newStatus as any }
@@ -608,7 +585,7 @@ export const CommitQueuePage: React.FC = () => {
 
 	// Проверяем, есть ли валидированные коммиты
 	const hasValidatedCommits = sortedCommits.some(
-		(commit) => commit.status === "validated",
+		(commit) => commit.isFromApi && commit.status === "validated",
 	);
 
 	return (

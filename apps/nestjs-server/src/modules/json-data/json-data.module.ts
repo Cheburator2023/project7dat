@@ -22,7 +22,9 @@ import { JsonValidationService } from "./services/json-validation.service";
 import { VersioningService } from "./services/versioning.service";
 
 import { JsonDataController } from "./controllers/json-data.controller";
+import { JsonDataV2Controller } from "./controllers/json-data-v2.controller";
 import { JsonCommitController } from "./controllers/json-commit.controller";
+import { JsonCommitV2Controller } from "./controllers/json-commit-v2.controller";
 import { JsonImportController } from "./controllers/json-import.controller";
 import { JsonValidationController } from "./controllers/json-validation.controller";
 
@@ -74,7 +76,9 @@ export class JsonDataModule {
 			imports,
 			controllers: [
 				JsonDataController,
+				JsonDataV2Controller,
 				JsonCommitController,
+				JsonCommitV2Controller,
 				JsonImportController,
 				JsonValidationController,
 			],

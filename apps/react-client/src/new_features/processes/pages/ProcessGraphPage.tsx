@@ -17,13 +17,20 @@ import {
 } from "@mui/material";
 import { ArrowBack, Home } from "@mui/icons-material";
 import { useProcessesStore } from "@react-client/stores/processesStore";
+import { featureFlags } from "@react-client/config/featureFlags";
 import { DataLineageGraph } from "@react-client/new_features/processes/organisms/DataLineageGraph";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 
 export const ProcessGraphPage = () => {
 	const { processId } = useParams<{ processId: string }>();
 	const navigate = useNavigate();
-	const { processes, isLoading, loadProcesses } = useProcessesStore();
+	const {
+		processes,
+		isLoading,
+		loadProcesses,
+		currentProcessData,
+		loadProcessData,
+	} = useProcessesStore();
 	const [selectedEntity, setSelectedEntity] =
 		useState<DataLineageEntity | null>(null);
 
@@ -34,6 +41,12 @@ export const ProcessGraphPage = () => {
 			loadProcesses();
 		}
 	}, [processes.length, loadProcesses]);
+
+	useEffect(() => {
+		if (featureFlags.newJsonDataV2Enabled && processId) {
+			void loadProcessData(processId);
+		}
+	}, [processId, loadProcessData]);
 
 	const handleBack = () => {
 		navigate("/processes");
@@ -137,9 +150,17 @@ export const ProcessGraphPage = () => {
 						subheader="Визуализация связей между объектами процесса"
 					/>
 					<CardContent>
-						{process.dataLineage ? (
+						{(
+							featureFlags.newJsonDataV2Enabled
+								? currentProcessData
+								: process.dataLineage
+						) ? (
 							<DataLineageGraph
-								data={process.dataLineage}
+								data={
+									(featureFlags.newJsonDataV2Enabled
+										? currentProcessData
+										: process.dataLineage) as any
+								}
 								onNodeSelect={setSelectedEntity}
 							/>
 						) : (

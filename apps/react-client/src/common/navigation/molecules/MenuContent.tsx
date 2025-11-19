@@ -1,8 +1,6 @@
 import CallMissedOutgoingIcon from "@mui/icons-material/CallMissedOutgoing";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import DifferenceIcon from "@mui/icons-material/Difference";
 import { Button, Divider } from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -157,41 +155,6 @@ export function MenuContent() {
 						))}
 					</>
 				)}
-
-				{/* Демонстрационные кнопки */}
-				<Divider sx={{ my: 1 }} data-test-id="menu-content--Divider-demo" />
-				<ListItem
-					disablePadding
-					sx={{ display: "block", mb: 0.2 }}
-					onClick={openDemoMergeGraphWindow}
-					data-test-id="menu-content--ListItem-demo-graph"
-				>
-					<ListItemButton data-test-id="menu-content--ListItemButton-demo-graph">
-						<ListItemIcon data-test-id="menu-content--ListItemIcon-demo-graph">
-							<AccountTreeIcon sx={{ color: "primary.main" }} />
-						</ListItemIcon>
-						<ListItemText
-							primary="Демо: Граф объектов"
-							data-test-id="menu-content--ListItemText-demo-graph"
-						/>
-					</ListItemButton>
-				</ListItem>
-				<ListItem
-					disablePadding
-					sx={{ display: "block", mb: 0.2 }}
-					onClick={openDemoDiffWindow}
-					data-test-id="menu-content--ListItem-demo-diff"
-				>
-					<ListItemButton data-test-id="menu-content--ListItemButton-demo-diff">
-						<ListItemIcon data-test-id="menu-content--ListItemIcon-demo-diff">
-							<DifferenceIcon sx={{ color: "secondary.main" }} />
-						</ListItemIcon>
-						<ListItemText
-							primary="Демо: Различия JSON"
-							data-test-id="menu-content--ListItemText-demo-diff"
-						/>
-					</ListItemButton>
-				</ListItem>
 
 				{/* Разделы мерджа */}
 				{isMergeActive && (

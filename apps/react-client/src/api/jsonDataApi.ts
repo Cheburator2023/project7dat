@@ -26,6 +26,8 @@ export interface JsonDataItem {
 	description?: string;
 	version: string;
 	isCurrent: boolean;
+	authorName?: string;
+	deprecated?: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -57,7 +59,7 @@ export interface JsonCommitItem {
 	short_id: string;
 	message: string;
 	diff: Record<string, any>;
-	fullData?: Record<string, any>; // Optional since individual commits don't include fullData
+	fullData?: DataLineageSchema; // Optional since individual commits don't include fullData
 	graphId: string;
 	author?: {
 		id: string;
@@ -68,7 +70,7 @@ export interface JsonCommitItem {
 }
 
 export interface CumulativeCommitData {
-	fullData: Record<string, any>;
+	fullData: DataLineageSchema;
 	commits: JsonCommitItem[];
 	targetCommit: JsonCommitItem;
 }
@@ -78,6 +80,18 @@ export interface CommitListResponse {
 	total: number;
 	page: number;
 	limit: number;
+}
+
+// Commit queue API item (matches JsonCommitEntity on backend)
+export interface CommitQueueApiItem {
+	id: string;
+	message: string;
+	diff: Record<string, any>;
+	graphId: string;
+	version: string;
+	status: string;
+	authorName?: string;
+	createdAt: string;
 }
 
 export const jsonDataService = {
