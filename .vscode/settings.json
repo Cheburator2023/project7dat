@@ -20,7 +20,7 @@
 		"editor.formatOnSave": true
 	},
 	"javascript.format.insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces": false,
-	"typescript.tsdk": "node_modules\\typescript\\lib",
+	"typescript.tsdk": "node_modules/typescript/lib",
 	"editor.codeActionsOnSave": {
 		"source.fixAll.biome": "explicit",
 		"source.organizeImports.biome": "explicit"
@@ -28,19 +28,33 @@
 
 	"files.watcherExclude": {
 		"**/node_modules/**": true,
-		"**/dist/**": true,
-		"**/build/**": true,
+		"apps/**/dist/**": true,
+		"apps/**/build/**": true,
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/.vite-app/**": true,
+		"**/node_modules/.vite/**": true,
+		"**/.next/**": true,
+		"**/.vercel/**": true,
 		"**/.turbo/**": true,
 		"**/coverage/**": true,
 		"**/.cache/**": true,
 		"**/logs/**": true
 	},
 	"search.exclude": {
-		"**/dist/**": true,
+		"apps/**/dist/**": true,
 		"**/node_modules/**": true,
-		"**/build/**": true,
+		"apps/**/build/**": true,
+		"**/.vite-app/**": true,
+		"**/node_modules/.vite/**": true,
 		"**/.turbo/**": true
 	},
+	"files.legacyWatcher": "off",
+	"git.enabled": true,
+	"git.autofetch": true,
+	"git.untrackedChanges": "mixed",
+	"git.ignoreLimitWarning": true,
+	"git.pruneOnFetch": true,
 	"git.autorefresh": true,
 	"git.autoRepositoryDetection": true,
 	"[typescriptreact]": {

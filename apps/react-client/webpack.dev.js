@@ -23,9 +23,6 @@ module.exports = merge(common, {
 		new ReactRefreshWebpackPlugin({ overlay: false }),
 		new DefinePlugin({
 			"process.env": {},
-			"process.env.MOCKED_REQUESTS": JSON.stringify(
-				process.env.MOCKED_REQUESTS || "",
-			),
 			"process.env.GIT_REVISION": JSON.stringify(git_revision || ""),
 			"process.env.APP_NAME": JSON.stringify(APP_NAME),
 			"process.env.NO_ROLES": JSON.stringify(process.env.NO_ROLES || ""),

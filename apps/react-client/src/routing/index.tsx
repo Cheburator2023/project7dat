@@ -10,12 +10,13 @@ import { JsonDataPage } from "@react-client/features/jsonDataList/JsonDataPage";
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
 import { ObjectsPage } from "@react-client/new_features/objectsList/ObjectsPage";
 import { CommitQueuePage } from "@react-client/features/commitQueue/CommitQueuePage";
-import { ChangelogPage } from "@react-client/features/changelog/ChangelogPage";
+import { ChangelogPage as LegacyChangelogPage } from "@react-client/features/changelog/ChangelogPage";
 import { ChangelogTablePage } from "@react-client/new_features/changelog/pages/ChangelogTablePage";
 import { GraphChangelogPage } from "@react-client/new_features/changelog/GraphChangelogPage";
 import { ModelsPage } from "@react-client/new_features/models/ModelsPage";
 import { ProcessesPage } from "@react-client/new_features/processes/pages/ProcessesPage";
 import { ProcessGraphPage } from "@react-client/new_features/processes/pages/ProcessGraphPage";
+import { featureFlags } from "@react-client/config/featureFlags";
 
 export const Routing = () => (
 	<Routes>
@@ -29,7 +30,16 @@ export const Routing = () => (
 		<Route path={routes.objects.rootPath} element={<ObjectsPage />} />
 		<Route path={routes.models.rootPath} element={<ModelsPage />} />
 		<Route path={routes.commitQueue.rootPath} element={<CommitQueuePage />} />
-		<Route path={routes.changelog.rootPath} element={<ChangelogPage />} />
+		<Route
+			path={routes.changelog.rootPath}
+			element={
+				featureFlags.newChangelogEnabled ? (
+					<ChangelogTablePage />
+				) : (
+					<LegacyChangelogPage />
+				)
+			}
+		/>
 		<Route
 			path={routes.changelogTable.rootPath}
 			element={<ChangelogTablePage />}

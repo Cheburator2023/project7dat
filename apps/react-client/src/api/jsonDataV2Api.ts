@@ -1,0 +1,32 @@
+import axios from "axios";
+import type { JsonDataItem } from "./jsonDataApi";
+export type { JsonDataItem } from "./jsonDataApi";
+
+const API_BASE_URL =
+	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
+
+export const jsonDataV2Api = axios.create({
+	baseURL: `${API_BASE_URL}/api/v2/json-data`,
+	headers: {
+		"Content-Type": "application/json",
+	},
+});
+
+export const jsonDataV2Service = {
+	getAll: async (): Promise<JsonDataItem[]> => {
+		const response = await jsonDataV2Api.get("/list");
+		return response.data.data;
+	},
+
+	getById: async (id: string): Promise<JsonDataItem> => {
+		const response = await jsonDataV2Api.get(`/${id}`);
+		return response.data;
+	},
+
+	setCurrent: async (
+		id: string,
+	): Promise<{ success: boolean; message: string }> => {
+		const response = await jsonDataV2Api.post(`/set-current/${id}`);
+		return response.data;
+	},
+};

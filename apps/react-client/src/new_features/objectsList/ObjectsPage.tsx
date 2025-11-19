@@ -1,5 +1,13 @@
 import React, { useState, useMemo } from "react";
-import { Box, Typography, TextField, InputAdornment } from "@mui/material";
+import {
+	Box,
+	Typography,
+	TextField,
+	InputAdornment,
+	Button,
+	Alert,
+	CircularProgress,
+} from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { Search as SearchIcon } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
@@ -11,9 +19,13 @@ import {
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Spacer } from "@react-client/common/primitives/Spacer";
+import { ChangelogButton } from "@react-client/new_features/changelog/ChangelogButton";
+import { useJsonDataListV2 } from "@react-client/api/hooks";
+import type { JsonDataItem } from "@react-client/api/jsonDataV2Api";
 
 interface ObjectItem {
 	id: string;
+	graphId?: string;
 	object: string;
 	objectType: "Модель" | "Витрина" | "Признак";
 	description: string;
@@ -23,261 +35,73 @@ interface ObjectItem {
 	processDescription: string;
 }
 
-const mockData: ObjectItem[] = [
-	{
-		id: "1",
-		object: "user_profile",
-		objectType: "Модель",
-		description: "Профиль пользователя с основной информацией",
-		modelId: "MDL_001",
-		database: "user_db",
-		process: "ETL_USER_PROFILE",
-		processDescription: "Загрузка и обработка данных профиля пользователя",
-	},
-	{
-		id: "2",
-		object: "sales_mart",
-		objectType: "Витрина",
-		description: "Витрина данных по продажам",
-		modelId: "MDL_002",
-		database: "analytics_db",
-		process: "ETL_SALES_MART",
-		processDescription: "Агрегация данных продаж для аналитики",
-	},
-	{
-		id: "3",
-		object: "customer_age",
-		objectType: "Признак",
-		description: "Возраст клиента",
-		modelId: "MDL_003",
-		database: "customer_db",
-		process: "CALC_CUSTOMER_AGE",
-		processDescription: "Расчет возраста клиента на основе даты рождения",
-	},
-	{
-		id: "4",
-		object: "product_catalog",
-		objectType: "Модель",
-		description: "Каталог товаров с характеристиками",
-		modelId: "MDL_004",
-		database: "product_db",
-		process: "ETL_PRODUCT_CATALOG",
-		processDescription: "Синхронизация каталога товаров",
-	},
-	{
-		id: "5",
-		object: "revenue_dashboard",
-		objectType: "Витрина",
-		description: "Дашборд по выручке компании",
-		modelId: "MDL_005",
-		database: "analytics_db",
-		process: "ETL_REVENUE_DASHBOARD",
-		processDescription: "Подготовка данных для дашборда выручки",
-	},
-	{
-		id: "6",
-		object: "purchase_frequency",
-		objectType: "Признак",
-		description: "Частота покупок клиента",
-		modelId: "MDL_006",
-		database: "customer_db",
-		process: "CALC_PURCHASE_FREQ",
-		processDescription: "Расчет частоты покупок за последние 12 месяцев",
-	},
-	{
-		id: "7",
-		object: "inventory_model",
-		objectType: "Модель",
-		description: "Модель управления запасами",
-		modelId: "MDL_007",
-		database: "inventory_db",
-		process: "ETL_INVENTORY",
-		processDescription: "Обработка данных складских остатков",
-	},
-	{
-		id: "8",
-		object: "customer_segmentation",
-		objectType: "Витрина",
-		description: "Сегментация клиентов по поведению",
-		modelId: "MDL_008",
-		database: "analytics_db",
-		process: "ETL_CUSTOMER_SEGMENTS",
-		processDescription: "Создание сегментов клиентов для маркетинга",
-	},
-	{
-		id: "9",
-		object: "loyalty_score",
-		objectType: "Признак",
-		description: "Оценка лояльности клиента",
-		modelId: "MDL_009",
-		database: "customer_db",
-		process: "CALC_LOYALTY_SCORE",
-		processDescription: "Расчет индекса лояльности на основе истории покупок",
-	},
-	{
-		id: "10",
-		object: "financial_reports",
-		objectType: "Витрина",
-		description: "Финансовая отчетность",
-		modelId: "MDL_010",
-		database: "finance_db",
-		process: "ETL_FINANCIAL_REPORTS",
-		processDescription: "Формирование финансовых отчетов",
-	},
-	{
-		id: "11",
-		object: "order_amount",
-		objectType: "Признак",
-		description: "Сумма заказа",
-		modelId: "MDL_011",
-		database: "orders_db",
-		process: "CALC_ORDER_AMOUNT",
-		processDescription: "Расчет общей суммы заказа включая налоги",
-	},
-	{
-		id: "12",
-		object: "supplier_performance",
-		objectType: "Модель",
-		description: "Модель оценки поставщиков",
-		modelId: "MDL_012",
-		database: "supplier_db",
-		process: "ETL_SUPPLIER_PERF",
-		processDescription: "Анализ эффективности работы поставщиков",
-	},
+const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
+	const { id: graphId, name: jsonName, description, data } = item;
 
-	{
-		id: "1",
-		object: "user_profile",
-		objectType: "Модель",
-		description: "Профиль пользователя с основной информацией",
-		modelId: "MDL_001",
-		database: "user_db",
-		process: "ETL_USER_PROFILE",
-		processDescription: "Загрузка и обработка данных профиля пользователя",
-	},
-	{
-		id: "2",
-		object: "sales_mart",
-		objectType: "Витрина",
-		description: "Витрина данных по продажам",
-		modelId: "MDL_002",
-		database: "analytics_db",
-		process: "ETL_SALES_MART",
-		processDescription: "Агрегация данных продаж для аналитики",
-	},
-	{
-		id: "3",
-		object: "customer_age",
-		objectType: "Признак",
-		description: "Возраст клиента",
-		modelId: "MDL_003",
-		database: "customer_db",
-		process: "CALC_CUSTOMER_AGE",
-		processDescription: "Расчет возраста клиента на основе даты рождения",
-	},
-	{
-		id: "4",
-		object: "product_catalog",
-		objectType: "Модель",
-		description: "Каталог товаров с характеристиками",
-		modelId: "MDL_004",
-		database: "product_db",
-		process: "ETL_PRODUCT_CATALOG",
-		processDescription: "Синхронизация каталога товаров",
-	},
-	{
-		id: "5",
-		object: "revenue_dashboard",
-		objectType: "Витрина",
-		description: "Дашборд по выручке компании",
-		modelId: "MDL_005",
-		database: "analytics_db",
-		process: "ETL_REVENUE_DASHBOARD",
-		processDescription: "Подготовка данных для дашборда выручки",
-	},
-	{
-		id: "6",
-		object: "purchase_frequency",
-		objectType: "Признак",
-		description: "Частота покупок клиента",
-		modelId: "MDL_006",
-		database: "customer_db",
-		process: "CALC_PURCHASE_FREQ",
-		processDescription: "Расчет частоты покупок за последние 12 месяцев",
-	},
-	{
-		id: "7",
-		object: "inventory_model",
-		objectType: "Модель",
-		description: "Модель управления запасами",
-		modelId: "MDL_007",
-		database: "inventory_db",
-		process: "ETL_INVENTORY",
-		processDescription: "Обработка данных складских остатков",
-	},
-	{
-		id: "8",
-		object: "customer_segmentation",
-		objectType: "Витрина",
-		description: "Сегментация клиентов по поведению",
-		modelId: "MDL_008",
-		database: "analytics_db",
-		process: "ETL_CUSTOMER_SEGMENTS",
-		processDescription: "Создание сегментов клиентов для маркетинга",
-	},
-	{
-		id: "9",
-		object: "loyalty_score",
-		objectType: "Признак",
-		description: "Оценка лояльности клиента",
-		modelId: "MDL_009",
-		database: "customer_db",
-		process: "CALC_LOYALTY_SCORE",
-		processDescription: "Расчет индекса лояльности на основе истории покупок",
-	},
-	{
-		id: "10",
-		object: "financial_reports",
-		objectType: "Витрина",
-		description: "Финансовая отчетность",
-		modelId: "MDL_010",
-		database: "finance_db",
-		process: "ETL_FINANCIAL_REPORTS",
-		processDescription: "Формирование финансовых отчетов",
-	},
-	{
-		id: "11",
-		object: "order_amount",
-		objectType: "Признак",
-		description: "Сумма заказа",
-		modelId: "MDL_011",
-		database: "orders_db",
-		process: "CALC_ORDER_AMOUNT",
-		processDescription: "Расчет общей суммы заказа включая налоги",
-	},
-	{
-		id: "12",
-		object: "supplier_performance",
-		objectType: "Модель",
-		description: "Модель оценки поставщиков",
-		modelId: "MDL_012",
-		database: "supplier_db",
-		process: "ETL_SUPPLIER_PERF",
-		processDescription: "Анализ эффективности работы поставщиков",
-	},
-];
+	const appId = data.desc?.appId ?? "";
+	const appName = data.desc?.appName ?? "";
+
+	return data.entities.flatMap((entity) => {
+		const database = entity.namespace ?? appId;
+		const process = appName || jsonName;
+		const processDescription = description ?? (appName || jsonName);
+
+		const rows: ObjectItem[] = [];
+
+		// Уровень сущности (модель/витрина)
+		rows.push({
+			id: `${graphId}::${entity.id}`,
+			graphId,
+			object: entity.name ?? entity.id,
+			objectType: entity.type === "view" ? "Витрина" : "Модель",
+			description: processDescription,
+			modelId: entity.id,
+			database,
+			process,
+			processDescription,
+		});
+
+		// Уровень признаков (атрибуты сущности)
+		if (entity.attrSeq) {
+			for (const attr of entity.attrSeq) {
+				rows.push({
+					id: `${graphId}::${entity.id}::${attr.name}`,
+					graphId,
+					object: attr.name,
+					objectType: "Признак",
+					description: attr.comment ?? "",
+					modelId: entity.id,
+					database,
+					process,
+					processDescription,
+				});
+			}
+		}
+
+		return rows;
+	});
+};
 
 export const ObjectsPage: React.FC = () => {
 	const { mode } = useColorScheme();
 	const [searchText, setSearchText] = useState("");
+	const { data: jsonDataList, isLoading, error } = useJsonDataListV2();
+
+	const baseData = useMemo<ObjectItem[]>(() => {
+		if (!jsonDataList) {
+			return [];
+		}
+		return jsonDataList.flatMap(mapJsonDataItemToObjects);
+	}, [jsonDataList]);
 
 	const filteredData = useMemo(() => {
+		const data = baseData;
 		if (!searchText.trim()) {
-			return mockData;
+			return data;
 		}
 
 		const searchLower = searchText.toLowerCase();
-		return mockData.filter(
+		return data.filter(
 			(item) =>
 				item.object.toLowerCase().includes(searchLower) ||
 				item.objectType.toLowerCase().includes(searchLower) ||
@@ -287,7 +111,7 @@ export const ObjectsPage: React.FC = () => {
 				item.process.toLowerCase().includes(searchLower) ||
 				item.processDescription.toLowerCase().includes(searchLower),
 		);
-	}, [searchText]);
+	}, [baseData, searchText]);
 
 	const columnDefs: ColDef<ObjectItem>[] = useMemo(
 		() => [
@@ -418,6 +242,17 @@ export const ObjectsPage: React.FC = () => {
 					</Box>
 				),
 			},
+			{
+				headerName: "История",
+				field: "graphId",
+				width: 140,
+				pinned: "right",
+				sortable: false,
+				filter: false,
+				cellRenderer: (params: any) => (
+					<ChangelogButton graphId={params.data.graphId} size="small" />
+				),
+			},
 		],
 		[],
 	);
@@ -431,24 +266,96 @@ export const ObjectsPage: React.FC = () => {
 		[],
 	);
 
+	const downloadFile = (content: string, fileName: string) => {
+		const blob = new Blob([content], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = fileName;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
+	};
+
+	const handleExportJson = () => {
+		const payload = {
+			generatedAt: new Date().toISOString(),
+			items: filteredData,
+		};
+		downloadFile(JSON.stringify(payload, null, 2), "dl_objects_export.json");
+	};
+
+	const handleExportS2T = () => {
+		const s2tPayload = {
+			generatedAt: new Date().toISOString(),
+			format: "S2T-JSON",
+			objects: filteredData.map((item) => ({
+				objectName: item.object,
+				objectType: item.objectType,
+				modelId: item.modelId,
+				database: item.database,
+				process: item.process,
+				description: item.description,
+			})),
+		};
+		downloadFile(JSON.stringify(s2tPayload, null, 2), "dl_s2t_export.json");
+	};
+
+	if (isLoading) {
+		return (
+			<Box
+				sx={{
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					minHeight: "50vh",
+				}}
+			>
+				<CircularProgress />
+			</Box>
+		);
+	}
+
+	if (error) {
+		return (
+			<Box sx={{ p: 3 }}>
+				<Alert severity="error">
+					Ошибка загрузки объектов: {error.message}
+				</Alert>
+			</Box>
+		);
+	}
+
 	return (
 		<Box>
-			<Header />
-
-			<TextField
-				fullWidth
-				variant="outlined"
-				placeholder="Поиск по объектам..."
-				value={searchText}
-				onChange={(e) => setSearchText(e.target.value)}
-				InputProps={{
-					startAdornment: (
-						<InputAdornment position="start">
-							<SearchIcon />
-						</InputAdornment>
-					),
-				}}
-			/>
+			<Header>
+				<Flex alignItems="center" gap={10} width="100%">
+					<TextField
+						fullWidth
+						variant="outlined"
+						placeholder="Поиск по объектам..."
+						value={searchText}
+						onChange={(e) => setSearchText(e.target.value)}
+						InputProps={{
+							startAdornment: (
+								<InputAdornment position="start">
+									<SearchIcon />
+								</InputAdornment>
+							),
+						}}
+					/>
+					<Button variant="outlined" size="small" onClick={handleExportJson}>
+						Экспорт JSON
+					</Button>
+					<Button variant="outlined" size="small" onClick={handleExportS2T}>
+						Экспорт S2T JSON
+					</Button>
+					<Typography variant="body2" color="text.secondary">
+						{filteredData.length} объектов
+					</Typography>
+				</Flex>
+			</Header>
 
 			<Spacer space={6} />
 

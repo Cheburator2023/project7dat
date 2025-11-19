@@ -67,10 +67,11 @@ export const routes = {
 		showInNavbar: true,
 	},
 	changelogTable: {
-		name: "История изменений (Таблица)",
+		name: "История изменений V2",
 		rootPath: "/changelog-table",
 		disabled: false,
 		showInNavbar: true,
+		devOnly: false,
 	},
 	graphChangelog: {
 		name: "История графика",

@@ -7,40 +7,69 @@ import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
-import { useCommitList } from "@react-client/api/hooks/useCommitList";
-import { useAllCommitsFromAllGraphs } from "@react-client/api/hooks/useAllCommitsFromAllGraphs";
+import {
+	useCommitList,
+	useAllCommitsFromAllGraphs,
+	useCommitListV2,
+	useAllCommitsFromAllGraphsV2,
+} from "@react-client/api/hooks";
 import type { JsonCommitItem } from "@react-client/api/jsonDataApi";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { JsonDiffViewerCell } from "@react-client/common/grid/JsonDiffViewerCell";
+import { featureFlags } from "@react-client/config/featureFlags";
 
 export const AllCommitsPage: React.FC = () => {
 	const { mode } = useColorScheme();
 	const [_refreshKey, setRefreshKey] = useState(0);
 	const [showAllGraphs, setShowAllGraphs] = useState(false);
+	const useV2Commits = featureFlags.newCommitsV2Enabled;
 
-	const {
-		data: singleGraphCommitsResponse,
-		isLoading: isLoadingSingle,
-		error: errorSingle,
-		refetch: refetchSingle,
-	} = useCommitList({
+	const singleGraphV1 = useCommitList({
 		page: 1,
-		enabled: !showAllGraphs,
 		limit: 100,
+		enabled: !showAllGraphs && !useV2Commits,
 	});
 
-	const {
-		data: allGraphsCommitsResponse,
-		isLoading: isLoadingAll,
-		error: errorAll,
-		refetch: refetchAll,
-	} = useAllCommitsFromAllGraphs({
+	const singleGraphV2 = useCommitListV2({
 		page: 1,
-		enabled: showAllGraphs,
 		limit: 100,
+		enabled: !showAllGraphs && useV2Commits,
 	});
+
+	const allGraphsV1 = useAllCommitsFromAllGraphs({
+		page: 1,
+		limit: 100,
+		enabled: showAllGraphs && !useV2Commits,
+	});
+
+	const allGraphsV2 = useAllCommitsFromAllGraphsV2({
+		page: 1,
+		limit: 100,
+		enabled: showAllGraphs && useV2Commits,
+	});
+
+	const singleGraphCommitsResponse = useV2Commits
+		? singleGraphV2.data
+		: singleGraphV1.data;
+	const allGraphsCommitsResponse = useV2Commits
+		? allGraphsV2.data
+		: allGraphsV1.data;
+
+	const isLoadingSingle = useV2Commits
+		? singleGraphV2.isLoading
+		: singleGraphV1.isLoading;
+	const isLoadingAll = useV2Commits
+		? allGraphsV2.isLoading
+		: allGraphsV1.isLoading;
+
+	const errorSingle = useV2Commits ? singleGraphV2.error : singleGraphV1.error;
+	const errorAll = useV2Commits ? allGraphsV2.error : allGraphsV1.error;
+	const refetchSingle = useV2Commits
+		? singleGraphV2.refetch
+		: singleGraphV1.refetch;
+	const refetchAll = useV2Commits ? allGraphsV2.refetch : allGraphsV1.refetch;
 
 	const commitsList = showAllGraphs
 		? allGraphsCommitsResponse?.data || []

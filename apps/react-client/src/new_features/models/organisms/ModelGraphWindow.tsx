@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
 	Dialog,
 	DialogContent,
@@ -10,6 +10,8 @@ import {
 	Typography,
 	IconButton,
 	Paper,
+	CircularProgress,
+	Alert,
 } from "@mui/material";
 import {
 	ReactFlow,
@@ -26,6 +28,14 @@ import { Close, Visibility } from "@mui/icons-material";
 
 import { ObjectDetailsDialog } from "../molecules/ObjectDetailsDialog";
 import { ConnectionDetailsDialog } from "../molecules/ConnectionDetailsDialog";
+import { featureFlags } from "@react-client/config/featureFlags";
+import { jsonDataV2Service } from "@react-client/api/jsonDataV2Api";
+import type { JsonDataItem } from "@react-client/api/jsonDataV2Api";
+import type {
+	DataLineageSchema,
+	DataLineageEntity,
+	DataLineageMapping,
+} from "@data-lineage/shared-schemas";
 
 export interface ModelObject {
 	id: string;
@@ -76,233 +86,125 @@ interface ModelGraphWindowProps {
 	model: any;
 }
 
-// Мок-данные для демонстрации
-const createMockModelData = (
-	_modelId: string,
+const buildModelGraphFromSchema = (
+	schema: DataLineageSchema,
+	modelEntityId: string,
 ): { objects: ModelObject[]; connections: ObjectConnection[] } => {
-	const objects: ModelObject[] = [
-		{
-			id: "obj1",
-			name: "Таблица продаж",
-			type: "source",
-			description: "Основная таблица с данными о продажах",
-			attributes: [
-				{
-					id: "attr1",
-					name: "sale_id",
-					type: "INTEGER",
-					description: "Уникальный идентификатор продажи",
-					isKey: true,
-				},
-				{
-					id: "attr2",
-					name: "product_id",
-					type: "INTEGER",
-					description: "Идентификатор продукта",
-				},
-				{
-					id: "attr3",
-					name: "customer_id",
-					type: "INTEGER",
-					description: "Идентификатор клиента",
-				},
-				{
-					id: "attr4",
-					name: "sale_date",
-					type: "DATE",
-					description: "Дата продажи",
-				},
-				{
-					id: "attr5",
-					name: "amount",
-					type: "DECIMAL",
-					description: "Сумма продажи",
-				},
-			],
-			connections: [],
-		},
-		{
-			id: "obj2",
-			name: "Витрина продаж",
-			type: "datamart",
-			description: "Агрегированные данные продаж для аналитики",
-			attributes: [
-				{
-					id: "attr6",
-					name: "period",
-					type: "DATE",
-					description: "Период агрегации",
-					isKey: true,
-				},
-				{
-					id: "attr7",
-					name: "total_sales",
-					type: "DECIMAL",
-					description: "Общая сумма продаж",
-				},
-				{
-					id: "attr8",
-					name: "sales_count",
-					type: "INTEGER",
-					description: "Количество продаж",
-				},
-				{
-					id: "attr9",
-					name: "avg_sale_amount",
-					type: "DECIMAL",
-					description: "Средняя сумма продажи",
-				},
-			],
-			connections: [],
-		},
-		{
-			id: "obj3",
-			name: "Модель клиентов",
-			type: "model",
-			description: "Аналитическая модель поведения клиентов",
-			attributes: [
-				{
-					id: "attr10",
-					name: "customer_segment",
-					type: "VARCHAR",
-					description: "Сегмент клиента",
-					isKey: true,
-				},
-				{
-					id: "attr11",
-					name: "lifetime_value",
-					type: "DECIMAL",
-					description: "Пожизненная ценность клиента",
-				},
-				{
-					id: "attr12",
-					name: "churn_probability",
-					type: "DECIMAL",
-					description: "Вероятность оттока",
-				},
-			],
-			connections: [],
-		},
-		{
-			id: "obj4",
-			name: "Векторное представление",
-			type: "vector",
-			description: "Векторизованные данные для ML",
-			attributes: [
-				{
-					id: "attr13",
-					name: "vector_id",
-					type: "INTEGER",
-					description: "Идентификатор вектора",
-					isKey: true,
-				},
-				{
-					id: "attr14",
-					name: "embedding",
-					type: "ARRAY",
-					description: "Векторное представление",
-				},
-				{
-					id: "attr15",
-					name: "metadata",
-					type: "JSON",
-					description: "Метаданные вектора",
-				},
-			],
-			connections: [],
-		},
-	];
+	const entitiesById = new Map<string, DataLineageEntity>();
+	schema.entities.forEach((entity) => {
+		entitiesById.set(entity.id, entity);
+	});
 
-	const connections: ObjectConnection[] = [
-		{
-			id: "conn1",
-			sourceId: "obj1",
-			targetId: "obj2",
-			sourceName: "Таблица продаж",
-			targetName: "Витрина продаж",
-			description: "Агрегация данных продаж",
-			mappings: [
-				{
-					id: "map1",
-					sourceAttribute: "sale_date",
-					sourceDescription: "Дата продажи",
-					targetAttribute: "period",
-					targetDescription: "Период агрегации",
-				},
-				{
-					id: "map2",
-					sourceAttribute: "amount",
-					sourceDescription: "Сумма продажи",
-					targetAttribute: "total_sales",
-					targetDescription: "Общая сумма продаж",
-				},
-			],
-			functions: [
-				{
-					id: "func1",
-					attribute: "total_sales",
-					function: "SUM(amount)",
-					description: "Суммирование продаж за период",
-				},
-				{
-					id: "func2",
-					attribute: "sales_count",
-					function: "COUNT(*)",
-					description: "Подсчет количества продаж",
-				},
-			],
-		},
-		{
-			id: "conn2",
-			sourceId: "obj1",
-			targetId: "obj3",
-			sourceName: "Таблица продаж",
-			targetName: "Модель клиентов",
-			description: "Анализ поведения клиентов",
-			mappings: [
-				{
-					id: "map3",
-					sourceAttribute: "customer_id",
-					sourceDescription: "Идентификатор клиента",
-					targetAttribute: "customer_segment",
-					targetDescription: "Сегмент клиента",
-				},
-			],
-			functions: [
-				{
-					id: "func3",
-					attribute: "lifetime_value",
-					function: "ML_MODEL_PREDICT(customer_features)",
-					description: "Предсказание LTV с помощью ML модели",
-				},
-			],
-		},
-		{
-			id: "conn3",
-			sourceId: "obj2",
-			targetId: "obj4",
-			sourceName: "Витрина продаж",
-			targetName: "Векторное представление",
-			description: "Векторизация агрегированных данных",
-			mappings: [
-				{
-					id: "map4",
-					sourceAttribute: "total_sales",
-					sourceDescription: "Общая сумма продаж",
-					targetAttribute: "embedding",
-					targetDescription: "Векторное представление",
-				},
-			],
-			functions: [
-				{
-					id: "func4",
-					attribute: "embedding",
-					function: "VECTORIZE(sales_features)",
-					description: "Создание векторного представления",
-				},
-			],
-		},
-	];
+	const modelEntity = entitiesById.get(modelEntityId) ?? null;
+	const objects: ModelObject[] = [];
+	const connections: ObjectConnection[] = [];
+
+	const toModelObjectType = (
+		entity: DataLineageEntity,
+	): ModelObject["type"] => {
+		if (entity.id === modelEntityId) return "model";
+		if (entity.type === "view") return "datamart";
+		return "source";
+	};
+
+	const makeAttributes = (entity: DataLineageEntity): ObjectAttribute[] => {
+		return (entity.attrSeq ?? []).map((attr, index) => ({
+			id: `${entity.id}__${attr.name ?? index}`,
+			name: attr.name,
+			type: attr.type,
+			description: attr.comment ?? "",
+			isKey: false,
+		}));
+	};
+
+	schema.entities.forEach((entity) => {
+		objects.push({
+			id: entity.id,
+			name: entity.name ?? entity.id,
+			type: toModelObjectType(entity),
+			description: "",
+			attributes: makeAttributes(entity),
+			connections: [],
+		});
+	});
+
+	const mappings: DataLineageMapping[] = schema.mappings ?? [];
+
+	mappings.forEach((mapping) => {
+		if (!mapping.deps || mapping.deps.length === 0) return;
+		const targetEntity = entitiesById.get(mapping.entityId);
+		if (!targetEntity) return;
+
+		if (mapping.entityId === modelEntityId && modelEntity) {
+			mapping.deps.forEach((dep, depIndex) => {
+				const sourceEntity = entitiesById.get(dep.entityId);
+				if (!sourceEntity) return;
+				const attrMaps = dep.attrMaps ?? [];
+				const mappingsList: AttributeMapping[] = attrMaps.map((am, idx) => {
+					const srcAttr = sourceEntity.attrSeq?.find((a) => a.name === am.src);
+					const dstAttr = modelEntity.attrSeq?.find((a) => a.name === am.dst);
+					return {
+						id: `${mapping.id}__in__${depIndex}__${idx}`,
+						sourceAttribute: am.src,
+						sourceDescription: srcAttr?.comment ?? "",
+						targetAttribute: am.dst,
+						targetDescription: dstAttr?.comment ?? "",
+					};
+				});
+				if (mappingsList.length === 0) return;
+				connections.push({
+					id: `conn__in__${mapping.id}__${dep.entityId}__${mapping.entityId}`,
+					sourceId: dep.entityId,
+					targetId: mapping.entityId,
+					sourceName: sourceEntity.name ?? sourceEntity.id,
+					targetName: targetEntity.name ?? targetEntity.id,
+					description: "Трансформация источника в модель",
+					mappings: mappingsList,
+					functions: [],
+				});
+			});
+		}
+
+		const modelDep = mapping.deps.find((dep) => dep.entityId === modelEntityId);
+		if (modelDep && modelEntity) {
+			const attrMaps = modelDep.attrMaps ?? [];
+			const mappingsList: AttributeMapping[] = attrMaps.map((am, idx) => {
+				const srcAttr = modelEntity.attrSeq?.find((a) => a.name === am.src);
+				const dstAttr = targetEntity.attrSeq?.find((a) => a.name === am.dst);
+				return {
+					id: `${mapping.id}__out__${idx}`,
+					sourceAttribute: am.src,
+					sourceDescription: srcAttr?.comment ?? "",
+					targetAttribute: am.dst,
+					targetDescription: dstAttr?.comment ?? "",
+				};
+			});
+			if (mappingsList.length === 0) return;
+			connections.push({
+				id: `conn__out__${mapping.id}__${modelEntityId}__${mapping.entityId}`,
+				sourceId: modelEntityId,
+				targetId: mapping.entityId,
+				sourceName: modelEntity.name ?? modelEntityId,
+				targetName: targetEntity.name ?? targetEntity.id,
+				description: "Трансформация модели в витрину",
+				mappings: mappingsList,
+				functions: [],
+			});
+		}
+	});
+
+	const usedIds = new Set<string>();
+	connections.forEach((conn) => {
+		usedIds.add(conn.sourceId);
+		usedIds.add(conn.targetId);
+	});
+
+	if (usedIds.size > 0) {
+		return {
+			objects: objects.filter((obj) => usedIds.has(obj.id)),
+			connections,
+		};
+	}
 
 	return { objects, connections };
 };
@@ -424,6 +326,9 @@ export const ModelGraphWindow = ({
 	onClose,
 	model,
 }: ModelGraphWindowProps) => {
+	const [schema, setSchema] = useState<DataLineageSchema | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
 	const [selectedObject, setSelectedObject] = useState<ModelObject | null>(
 		null,
 	);
@@ -432,10 +337,54 @@ export const ModelGraphWindow = ({
 	const [isObjectDetailsOpen, setIsObjectDetailsOpen] = useState(false);
 	const [isConnectionDetailsOpen, setIsConnectionDetailsOpen] = useState(false);
 
-	const { objects, connections } = useMemo(
-		() => createMockModelData(model.id),
-		[model.id],
-	);
+	useEffect(() => {
+		if (!isOpen) return;
+		if (!featureFlags.newJsonDataV2Enabled) {
+			setSchema(null);
+			setError(null);
+			setIsLoading(false);
+			return;
+		}
+		const graphId: string | undefined =
+			(model as JsonDataItem | any).graphId ?? model.graphId;
+		if (!graphId) {
+			setSchema(null);
+			setError(null);
+			setIsLoading(false);
+			return;
+		}
+
+		let cancelled = false;
+		setIsLoading(true);
+		setError(null);
+
+		jsonDataV2Service
+			.getById(graphId)
+			.then((item) => {
+				if (cancelled) return;
+				setSchema(item.data as DataLineageSchema);
+			})
+			.catch((e) => {
+				if (cancelled) return;
+				setError(e instanceof Error ? e : new Error("Ошибка загрузки графа"));
+				setSchema(null);
+			})
+			.finally(() => {
+				if (cancelled) return;
+				setIsLoading(false);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [isOpen, model]);
+
+	const { objects, connections } = useMemo(() => {
+		if (schema && featureFlags.newJsonDataV2Enabled) {
+			return buildModelGraphFromSchema(schema, model.id);
+		}
+		return { objects: [], connections: [] };
+	}, [schema, model.id]);
 
 	const initialNodes: Node[] = useMemo(() => {
 		return objects.map((obj, index) => ({
@@ -509,19 +458,44 @@ export const ModelGraphWindow = ({
 							borderRadius: 1,
 						}}
 					>
-						<ReactFlow
-							nodes={nodes}
-							edges={edges}
-							onNodesChange={onNodesChange}
-							onEdgesChange={onEdgesChange}
-							onEdgeDoubleClick={onEdgeDoubleClick}
-							nodeTypes={nodeTypes}
-							connectionMode={ConnectionMode.Loose}
-							fitView
-						>
-							<Controls />
-							<Background />
-						</ReactFlow>
+						{isLoading ? (
+							<Box
+								sx={{
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									height: "100%",
+								}}
+							>
+								<CircularProgress />
+							</Box>
+						) : error ? (
+							<Box
+								sx={{
+									p: 2,
+									height: "100%",
+									boxSizing: "border-box",
+								}}
+							>
+								<Alert severity="error">
+									Ошибка загрузки графа модели: {error.message}
+								</Alert>
+							</Box>
+						) : (
+							<ReactFlow
+								nodes={nodes}
+								edges={edges}
+								onNodesChange={onNodesChange}
+								onEdgesChange={onEdgesChange}
+								onEdgeDoubleClick={onEdgeDoubleClick}
+								nodeTypes={nodeTypes}
+								connectionMode={ConnectionMode.Loose}
+								fitView
+							>
+								<Controls />
+								<Background />
+							</ReactFlow>
+						)}
 					</Box>
 				</DialogContent>
 				<DialogActions>
