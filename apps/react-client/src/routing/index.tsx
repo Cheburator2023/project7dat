@@ -16,6 +16,7 @@ import { GraphChangelogPage } from "@react-client/features/changelog/GraphChange
 import { ModelsPage } from "@react-client/features/models/ModelsPage";
 import { ProcessesPage } from "@react-client/pages/ProcessesPage";
 import { ProcessGraphPage } from "@react-client/pages/ProcessGraphPage";
+import { DataMartPreview } from "@react-client/features/dataMart/pages/DataMartPreview";
 
 export const Routing = () => (
 	<Routes>
@@ -44,6 +45,10 @@ export const Routing = () => (
 		/>
 		<Route path={routes.processes.rootPath} element={<ProcessesPage />} />
 		<Route path={routes.processGraph.rootPath} element={<ProcessGraphPage />} />
+		<Route
+			path={routes.dataMartPreview.rootPath}
+			element={<DataMartPreview />}
+		/>
 		<Route path="*" element={<Page404 />} />
 	</Routes>
 );
