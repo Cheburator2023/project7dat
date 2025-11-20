@@ -5,16 +5,18 @@
 	"scripts": {
 		"dev": "cross-env NODE_ENV=development vite serve",
 		"dev:god": "cross-env NODE_ENV=development NO_ROLES=true vite serve",
-		"build": "cross-env NODE_ENV=production vite build",
-		"start": "serve -s build",
+		"dev:webpack": "webpack serve --mode development --config ./webpack.dev.js",
+		"dev:webpack:god": "cross-env NO_ROLES=true && webpack serve --mode development --config ./webpack.dev.js",
+		"build": "npm run build:webpack",
+		"build:vite": "cross-env NODE_ENV=production vite build",
+		"build:webpack": "webpack --mode production --config webpack.prod.js",
+		"start:dist": "cross-env NODE_ENV=production npx serve -s dist -l 8008",
 		"prod": "npm build && npm start",
 		"biome": "npx @biomejs/biome check",
 		"biome:fix": "npx @biomejs/biome check --log-level=error --diagnostic-level=error --fix --unsafe $(pwd)/src"
 	},
 	"dependencies": {
 		"@dagrejs/dagre": "^1.1.5",
-		"@data-lineage/shared": "file:../../packages/shared",
-		"@data-lineage/shared-schemas": "file:../../packages/shared-schemas",
 		"@xyflow/react": "^12.8.6",
 		"jsondiffpatch": "^0.7.3"
 	},
@@ -27,6 +29,7 @@
 		"@testing-library/user-event": "^14.6.1",
 		"@vitejs/plugin-react": "4.7.0",
 		"globals": "^16.0.0",
+		"ts-loader": "^9.5.1",
 		"typescript": "^5.8.2",
 		"vite": "7.0.6",
 		"vite-plugin-checker": "0.10.1",

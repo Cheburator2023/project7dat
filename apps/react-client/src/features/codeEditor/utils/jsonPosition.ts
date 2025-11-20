@@ -1,5 +1,5 @@
 import type { DataLineageGraph } from "@react-client/types/dataLineage";
-import { fastStringify } from "@data-lineage/shared";
+import { fastStringify } from "@react-client/shared/src";
 
 export interface Position {
 	line: number;

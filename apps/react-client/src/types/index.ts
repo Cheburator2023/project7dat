@@ -40,6 +40,21 @@ export type T_CONFIG_MAP = {
 	SUM_RM_API: string;
 	KEYCLOAK_URL: string;
 	KABVAL_URL: string;
+	DATA_LINEAGE_API: string;
+	DATA_LINEAGE_FRONTEND: string;
 };
 
 export * from "./jsonData";
+
+type TKeycloakLike = {
+	logout: () => void;
+	login: () => void;
+} & Record<string, unknown>;
+
+declare global {
+	interface Window {
+		urlConfig?: T_CONFIG_MAP;
+		token?: string;
+		keycloak?: TKeycloakLike;
+	}
+}
