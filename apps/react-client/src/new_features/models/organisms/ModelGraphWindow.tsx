@@ -12,6 +12,7 @@ import {
 	Paper,
 	CircularProgress,
 	Alert,
+	Divider,
 } from "@mui/material";
 import {
 	ReactFlow,
@@ -199,6 +200,7 @@ const buildModelGraphFromSchema = (
 		usedIds.add(conn.targetId);
 	});
 
+	// Если есть связи, показываем только связанные объекты
 	if (usedIds.size > 0) {
 		return {
 			objects: objects.filter((obj) => usedIds.has(obj.id)),
@@ -206,6 +208,13 @@ const buildModelGraphFromSchema = (
 		};
 	}
 
+	// Если связей нет, показываем хотя бы саму выбранную модель
+	const selectedModelObject = objects.find((obj) => obj.id === modelEntityId);
+	if (selectedModelObject) {
+		return { objects: [selectedModelObject], connections: [] };
+	}
+
+	// Если не нашли модель по ID, показываем все объекты
 	return { objects, connections };
 };
 
@@ -362,6 +371,12 @@ export const ModelGraphWindow = ({
 			.getById(graphId)
 			.then((item) => {
 				if (cancelled) return;
+				console.log("[ModelGraphWindow] Schema loaded:", {
+					graphId,
+					modelId: model.id,
+					entities: item.data?.entities?.length,
+					mappings: item.data?.mappings?.length,
+				});
 				setSchema(item.data as DataLineageSchema);
 			})
 			.catch((e) => {
@@ -381,7 +396,16 @@ export const ModelGraphWindow = ({
 
 	const { objects, connections } = useMemo(() => {
 		if (schema && featureFlags.newJsonDataV2Enabled) {
-			return buildModelGraphFromSchema(schema, model.id);
+			const result = buildModelGraphFromSchema(schema, model.id);
+			console.log("[ModelGraphWindow] Graph data:", {
+				modelId: model.id,
+				schemaEntities: schema.entities?.length,
+				schemaMappings: schema.mappings?.length,
+				objects: result.objects.length,
+				connections: result.connections.length,
+				objectIds: result.objects.map((o) => o.id),
+			});
+			return result;
 		}
 		return { objects: [], connections: [] };
 	}, [schema, model.id]);
@@ -420,8 +444,17 @@ export const ModelGraphWindow = ({
 		}));
 	}, [connections]);
 
-	const [nodes, _setNodes, onNodesChange] = useNodesState(initialNodes);
-	const [edges, _setEdges, onEdgesChange] = useEdgesState(initialEdges);
+	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+	// Обновляем nodes и edges при изменении данных
+	useEffect(() => {
+		setNodes(initialNodes);
+	}, [initialNodes, setNodes]);
+
+	useEffect(() => {
+		setEdges(initialEdges);
+	}, [initialEdges, setEdges]);
 
 	const onEdgeDoubleClick = useCallback(
 		(_event: React.MouseEvent, edge: Edge) => {
@@ -447,8 +480,150 @@ export const ModelGraphWindow = ({
 	return (
 		<>
 			<Dialog open={isOpen} onClose={onClose} maxWidth="xl" fullWidth>
-				<DialogTitle>Граф объектов {model.name}</DialogTitle>
+				<DialogTitle>
+					<Box display="flex" alignItems="center" gap={2}>
+						<Typography variant="h6">Граф объектов: {model.name}</Typography>
+						<Chip
+							label={model.type === "view" ? "Витрина" : "Модель"}
+							color={model.type === "view" ? "success" : "primary"}
+							size="small"
+						/>
+						{model.status && (
+							<Chip
+								label={
+									model.status === "active"
+										? "Активная"
+										: model.status === "draft"
+											? "Черновик"
+											: "Архивная"
+								}
+								color={
+									model.status === "active"
+										? "success"
+										: model.status === "draft"
+											? "warning"
+											: "error"
+								}
+								size="small"
+							/>
+						)}
+					</Box>
+				</DialogTitle>
 				<DialogContent>
+					{/* Метаданные модели */}
+					<Paper sx={{ p: 2, mb: 2 }}>
+						<Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+							Метаданные модели
+						</Typography>
+						<Divider sx={{ mb: 2 }} />
+						<Box
+							sx={{
+								display: "grid",
+								gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" },
+								gap: 2,
+							}}
+						>
+							<Box>
+								<Typography variant="caption" color="text.secondary">
+									ID
+								</Typography>
+								<Typography variant="body2" fontFamily="monospace">
+									{model.id}
+								</Typography>
+							</Box>
+							<Box>
+								<Typography variant="caption" color="text.secondary">
+									Пространство имен
+								</Typography>
+								<Typography variant="body2">
+									{model.namespace || "—"}
+								</Typography>
+							</Box>
+							<Box>
+								<Typography variant="caption" color="text.secondary">
+									Автор
+								</Typography>
+								<Typography variant="body2">{model.author || "—"}</Typography>
+							</Box>
+							<Box>
+								<Typography variant="caption" color="text.secondary">
+									Версия
+								</Typography>
+								<Typography variant="body2">{model.version || "—"}</Typography>
+							</Box>
+							<Box>
+								<Typography variant="caption" color="text.secondary">
+									Количество атрибутов
+								</Typography>
+								<Typography variant="body2">
+									{model.objectsCount || 0}
+								</Typography>
+							</Box>
+							<Box>
+								<Typography variant="caption" color="text.secondary">
+									Дата создания
+								</Typography>
+								<Typography variant="body2">
+									{model.createdDate
+										? new Date(model.createdDate).toLocaleDateString()
+										: "—"}
+								</Typography>
+							</Box>
+						</Box>
+						{model.description && (
+							<Box sx={{ mt: 2 }}>
+								<Typography variant="caption" color="text.secondary">
+									Описание
+								</Typography>
+								<Typography variant="body2">{model.description}</Typography>
+							</Box>
+						)}
+					</Paper>
+
+					{/* Граф связей */}
+					<Paper sx={{ p: 2, mb: 2 }}>
+						<Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+							Граф связей
+						</Typography>
+						<Divider sx={{ mb: 2 }} />
+						{!featureFlags.newJsonDataV2Enabled && (
+							<Alert severity="info" sx={{ mb: 2 }}>
+								Граф связей доступен только при включенном флаге
+								newJsonDataV2Enabled
+							</Alert>
+						)}
+						{schema && featureFlags.newJsonDataV2Enabled && (
+							<Box
+								sx={{ mb: 2, p: 1, bgcolor: "action.hover", borderRadius: 1 }}
+							>
+								<Typography variant="caption" color="text.secondary">
+									Отладка: Сущностей в схеме: {schema.entities?.length || 0} |
+									Объектов для отображения: {objects.length} | Связей:{" "}
+									{connections.length} | Model ID: {model.id}
+								</Typography>
+							</Box>
+						)}
+						{objects.length === 0 &&
+							!isLoading &&
+							!error &&
+							featureFlags.newJsonDataV2Enabled &&
+							schema && (
+								<Alert severity="info" sx={{ mb: 2 }}>
+									Для данной модели нет связей с другими объектами. Всего
+									сущностей в схеме: {schema.entities?.length || 0}
+								</Alert>
+							)}
+						{!schema &&
+							!isLoading &&
+							!error &&
+							featureFlags.newJsonDataV2Enabled && (
+								<Alert severity="warning" sx={{ mb: 2 }}>
+									Не удалось загрузить схему данных для модели. GraphId:{" "}
+									{model.graphId || "отсутствует"}
+								</Alert>
+							)}
+					</Paper>
+
 					<Box
 						sx={{
 							height: "600px",

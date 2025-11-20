@@ -72,7 +72,7 @@ export function NavbarBreadcrumbs() {
 		// Handle other routes using the existing logic
 		const path = camelCase(pathname.split("/", 3).join(" "));
 		const pathName = routes[path as keyof typeof routes]?.name;
-		const crumb = pathName ? pathName : !path ? routes.home.name : "???";
+		const crumb = pathName ? pathName : !path ? routes.home.name : "";
 
 		return {
 			breadcrumbs: [{ name: crumb, isLink: false }],

@@ -7,9 +7,15 @@ import {
 	Button,
 	Alert,
 	CircularProgress,
+	IconButton,
+	Tooltip,
 } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
-import { Search as SearchIcon } from "@mui/icons-material";
+import {
+	Search as SearchIcon,
+	Visibility as VisibilityIcon,
+} from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
 import {
@@ -41,7 +47,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 	const appId = data.desc?.appId ?? "";
 	const appName = data.desc?.appName ?? "";
 
-	return data.entities.flatMap((entity) => {
+	return data?.entities?.flatMap((entity) => {
 		const database = entity.namespace ?? appId;
 		const process = appName || jsonName;
 		const processDescription = description ?? (appName || jsonName);
@@ -84,6 +90,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 
 export const ObjectsPage: React.FC = () => {
 	const { mode } = useColorScheme();
+	const navigate = useNavigate();
 	const [searchText, setSearchText] = useState("");
 	const { data: jsonDataList, isLoading, error } = useJsonDataListV2();
 
@@ -115,6 +122,29 @@ export const ObjectsPage: React.FC = () => {
 
 	const columnDefs: ColDef<ObjectItem>[] = useMemo(
 		() => [
+			{
+				headerName: "Действия",
+				field: "id",
+				width: 100,
+				pinned: "left",
+				sortable: false,
+				filter: false,
+				cellRenderer: (params: any) => (
+					<Box sx={{ padding: 1, display: "flex", justifyContent: "center" }}>
+						<Tooltip title="Просмотр карточки">
+							<IconButton
+								size="small"
+								color="primary"
+								onClick={() =>
+									navigate(`/objects/${encodeURIComponent(params.data.id)}`)
+								}
+							>
+								<VisibilityIcon fontSize="small" />
+							</IconButton>
+						</Tooltip>
+					</Box>
+				),
+			},
 			{
 				headerName: "Объект",
 				field: "object",
@@ -254,7 +284,7 @@ export const ObjectsPage: React.FC = () => {
 				),
 			},
 		],
-		[],
+		[navigate],
 	);
 
 	const defaultColDef = useMemo(

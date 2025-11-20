@@ -9,6 +9,7 @@ import { SnapshotsPage } from "@react-client/features/snapshotsList/SnapshotsPag
 import { JsonDataPage } from "@react-client/features/jsonDataList/JsonDataPage";
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
 import { ObjectsPage } from "@react-client/new_features/objectsList/ObjectsPage";
+import { ObjectCardPage } from "@react-client/new_features/objectsList/ObjectCardPage";
 import { CommitQueuePage } from "@react-client/features/commitQueue/CommitQueuePage";
 import { ChangelogPage as LegacyChangelogPage } from "@react-client/features/changelog/ChangelogPage";
 import { ChangelogTablePage } from "@react-client/new_features/changelog/pages/ChangelogTablePage";
@@ -28,6 +29,7 @@ export const Routing = () => (
 		<Route path={routes.jsonData.rootPath} element={<JsonDataPage />} />
 		<Route path={routes.allCommits.rootPath} element={<AllCommitsPage />} />
 		<Route path={routes.objects.rootPath} element={<ObjectsPage />} />
+		<Route path={routes.objectCard.rootPath} element={<ObjectCardPage />} />
 		<Route path={routes.models.rootPath} element={<ModelsPage />} />
 		<Route path={routes.commitQueue.rootPath} element={<CommitQueuePage />} />
 		<Route
