@@ -230,6 +230,7 @@ export class JsonImportController {
 						entitiesProcessed: { type: "number", example: 15 },
 						attributesProcessed: { type: "number", example: 67 },
 						mappingsProcessed: { type: "number", example: 12 },
+						failedMappingsProcessed: { type: "number", example: 3 },
 					},
 				},
 			},
