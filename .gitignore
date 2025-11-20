@@ -29,6 +29,7 @@ coverage
 # misc
 .DS_Store
 .env
+apps/nestjs-server/.env.development
 .env.*
 *.log
 .pnp.js

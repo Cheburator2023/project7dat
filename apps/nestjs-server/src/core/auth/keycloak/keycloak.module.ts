@@ -14,7 +14,7 @@ import { GodModeGuard } from "./god-mode.guard";
  *
  * @features
  * - Поддержка offline и online валидации токенов
- * - Гибкая конфигурация через .env
+ * - Гибкая конфигурация через .env.development
  * - Режим "бога" (NO_ROLES=true) для разработки
  * - Три уровня защиты: Auth, Resource, Role
  */
