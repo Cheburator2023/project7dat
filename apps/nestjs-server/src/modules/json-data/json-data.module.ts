@@ -30,8 +30,6 @@ import { JsonValidationController } from "./controllers/json-validation.controll
 
 import { ChangelogModule } from "../changelog/changelog.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { ChangelogService } from "../changelog/services/changelog.service";
-import { ChangelogMemoryStorageService } from "../changelog/services/changelog-memory-storage.service";
 
 @Global()
 @Module({})
@@ -66,8 +64,6 @@ export class JsonDataModule {
 			DependencyCheckService,
 			JsonValidationService,
 			VersioningService,
-			ChangelogService,
-			ChangelogMemoryStorageService,
 			ConfigService,
 		];
 
@@ -93,8 +89,6 @@ export class JsonDataModule {
 				DependencyCheckService,
 				JsonValidationService,
 				VersioningService,
-				ChangelogService,
-				ChangelogMemoryStorageService,
 			],
 		};
 	}
