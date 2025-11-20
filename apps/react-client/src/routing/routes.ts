@@ -36,6 +36,12 @@ export const routes = {
 		disabled: false,
 		showInNavbar: true,
 	},
+	objectCard: {
+		name: "Карточка объекта",
+		rootPath: "/objects/:objectId",
+		disabled: false,
+		showInNavbar: false,
+	},
 	models: {
 		name: "Модели",
 		rootPath: "/models",
@@ -57,8 +63,8 @@ export const routes = {
 	commitQueue: {
 		name: "Очередь коммитов",
 		rootPath: "/commit-queue",
-		disabled: false,
-		showInNavbar: true,
+		disabled: true,
+		showInNavbar: false,
 	},
 	changelog: {
 		name: "История изменений",
