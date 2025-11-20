@@ -1,4 +1,4 @@
 apiVersion: v1
-description: A Helm chart defining datalineage-api service.
-name: datalineage-api
+description: A Helm chart defining data-lineage-api service.
+name: data-lineage-api
 version: 0.0.1

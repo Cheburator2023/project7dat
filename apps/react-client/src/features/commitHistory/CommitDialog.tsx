@@ -12,7 +12,7 @@ import {
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Spacer } from "@react-client/common/primitives/Spacer";
-import { fastStringify } from "@data-lineage/shared";
+import { fastStringify } from "@react-client/shared/src";
 
 interface CommitDialogProps {
 	open: boolean;

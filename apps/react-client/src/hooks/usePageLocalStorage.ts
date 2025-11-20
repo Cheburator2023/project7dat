@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router";
-import { safeJsonParse, fastStringify } from "@data-lineage/shared";
+import { safeJsonParse, fastStringify } from "@react-client/shared/src";
 
 export const usePageLocalStorage = <T = any>(
 	componentId: string,
