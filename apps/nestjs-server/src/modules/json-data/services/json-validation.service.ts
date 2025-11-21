@@ -256,13 +256,21 @@ export class JsonValidationService {
 
 		const normalized = JSON.parse(JSON.stringify(data));
 
-		// Нормализация типов
-		if (normalized.entities && Array.isArray(normalized.entities)) {
-			normalized.entities.forEach((entity: any) => {
-				// Установка значения по умолчанию для modified
-				if (entity.modified === undefined) {
-					entity.modified = false;
-				}
+        // Нормализация desc
+        if (!normalized.desc) {
+            normalized.desc = {};
+        }
+        if (!normalized.desc.schemaVersion) {
+            normalized.desc.schemaVersion = "1.0";
+        }
+
+        // Нормализация entities
+        if (normalized.entities && Array.isArray(normalized.entities)) {
+            normalized.entities.forEach((entity: any) => {
+                // Установка значения по умолчанию для modified
+                if (entity.modified === undefined) {
+                    entity.modified = false;
+                }
 
 				// Нормализация типа
 				if (entity.type) {
@@ -309,132 +317,110 @@ export class JsonValidationService {
 			});
 		}
 
-		// Нормализация desc
-		if (normalized.desc) {
-			if (!normalized.desc.schemaVersion) {
-				normalized.desc.schemaVersion = "1.0";
-			}
-		}
+        // Нормализация failedMappings
+        if (!normalized.failedMappings) {
+            normalized.failedMappings = [];
+        }
 
 		this.logger.log("Нормализация завершена");
 		return normalized;
 	}
 
-	/**
-	 * Проверка версии схемы JSON
-	 */
-	validateSchemaVersion(data: any): {
-		isValid: boolean;
-		version: string;
-		supported: boolean;
-		message: string;
-	} {
-		const version = data.desc?.schemaVersion || "1.0";
-
-		// Поддерживаемые версии
-		const supportedVersions = ["1.0", "1.1", "2.0"];
-		const isSupported = supportedVersions.includes(version);
-
-		let message = "";
-		if (!isSupported) {
-			message = `Версия схемы ${version} не поддерживается. Поддерживаемые версии: ${supportedVersions.join(", ")}`;
-		} else {
-			message = `Версия схемы ${version} поддерживается`;
-		}
-
-		return {
-			isValid: isSupported,
-			version,
-			supported: isSupported,
-			message,
-		};
-	}
-
-	/**
-	 * Проверка целостности данных
-	 */
-	validateDataIntegrity(data: any): { isValid: boolean; issues: string[] } {
-		const issues: string[] = [];
+    /**
+     * Проверка целостности данных
+     */
+    validateDataIntegrity(data: any): { isValid: boolean; issues: string[] } {
+        const issues: string[] = [];
 
 		if (!data.entities || !data.mappings) {
 			return { isValid: false, issues: ["Отсутствуют entities или mappings"] };
 		}
 
-		// Проверка ссылочной целостности для маппингов
-		if (data.mappings && Array.isArray(data.mappings)) {
-			data.mappings.forEach((mapping: any, index: number) => {
-				const targetEntity = data.entities.find(
-					(e: any) => e.id === mapping.entityId,
-				);
-				if (!targetEntity) {
-					issues.push(
-						`Маппинг ${index}: target entity не найдена: ${mapping.entityId}`,
-					);
-				}
+        // Проверка ссылочной целостности для маппингов
+        if (data.mappings && Array.isArray(data.mappings)) {
+            data.mappings.forEach((mapping: any, index: number) => {
+                const targetEntity = data.entities.find((e: any) => e.id === mapping.entityId);
+                if (!targetEntity) {
+                    issues.push(`Маппинг ${index}: target entity не найдена: ${mapping.entityId}`);
+                }
 
-				if (mapping.deps && Array.isArray(mapping.deps)) {
-					mapping.deps.forEach((dep: any, depIndex: number) => {
-						const sourceEntity = data.entities.find(
-							(e: any) => e.id === dep.entityId,
-						);
-						if (!sourceEntity) {
-							issues.push(
-								`Маппинг ${index}, зависимость ${depIndex}: source entity не найдена: ${dep.entityId}`,
-							);
-						}
+                if (mapping.deps && Array.isArray(mapping.deps)) {
+                    mapping.deps.forEach((dep: any, depIndex: number) => {
+                        const sourceEntity = data.entities.find((e: any) => e.id === dep.entityId);
+                        if (!sourceEntity) {
+                            issues.push(`Маппинг ${index}, зависимость ${depIndex}: source entity не найдена: ${dep.entityId}`);
+                        }
 
-						// Проверка атрибутов в attrMaps
-						if (dep.attrMaps && Array.isArray(dep.attrMaps)) {
-							dep.attrMaps.forEach((attrMap: any, attrMapIndex: number) => {
-								if (sourceEntity && sourceEntity.attrSeq) {
-									const srcAttr = sourceEntity.attrSeq.find(
-										(a: any) => a.name === attrMap.src,
-									);
-									if (!srcAttr) {
-										issues.push(
-											`Маппинг ${index}, зависимость ${depIndex}, attrMap ${attrMapIndex}: source атрибут не найден: ${attrMap.src}`,
-										);
-									}
-								}
+                        // Проверка атрибутов в attrMaps
+                        if (dep.attrMaps && Array.isArray(dep.attrMaps)) {
+                            dep.attrMaps.forEach((attrMap: any, attrMapIndex: number) => {
+                                if (sourceEntity && sourceEntity.attrSeq) {
+                                    const srcAttr = sourceEntity.attrSeq.find((a: any) => a.name === attrMap.src);
+                                    if (!srcAttr) {
+                                        issues.push(`Маппинг ${index}, зависимость ${depIndex}, attrMap ${attrMapIndex}: source атрибут не найден: ${attrMap.src}`);
+                                    }
+                                }
 
-								if (targetEntity && targetEntity.attrSeq) {
-									const dstAttr = targetEntity.attrSeq.find(
-										(a: any) => a.name === attrMap.dst,
-									);
-									if (!dstAttr) {
-										issues.push(
-											`Маппинг ${index}, зависимость ${depIndex}, attrMap ${attrMapIndex}: target атрибут не найден: ${attrMap.dst}`,
-										);
-									}
-								}
-							});
-						}
+                                if (targetEntity && targetEntity.attrSeq) {
+                                    const dstAttr = targetEntity.attrSeq.find((a: any) => a.name === attrMap.dst);
+                                    if (!dstAttr) {
+                                        issues.push(`Маппинг ${index}, зависимость ${depIndex}, attrMap ${attrMapIndex}: target атрибут не найден: ${attrMap.dst}`);
+                                    }
+                                }
+                            });
+                        }
 
-						// Проверка атрибутов в attrDeps
-						if (dep.atrDeps && Array.isArray(dep.atrDeps)) {
-							dep.atrDeps.forEach((attrDep: any, attrDepIndex: number) => {
-								if (sourceEntity && sourceEntity.attrSeq) {
-									const srcAttr = sourceEntity.attrSeq.find(
-										(a: any) => a.name === attrDep.attr,
-									);
-									if (!srcAttr) {
-										issues.push(
-											`Маппинг ${index}, зависимость ${depIndex}, attrDep ${attrDepIndex}: source атрибут не найден: ${attrDep.attr}`,
-										);
-									}
-								}
-							});
-						}
-					});
-				}
-			});
-		}
+                        // Проверка атрибутов в attrDeps
+                        if (dep.atrDeps && Array.isArray(dep.atrDeps)) {
+                            dep.atrDeps.forEach((attrDep: any, attrDepIndex: number) => {
+                                if (sourceEntity && sourceEntity.attrSeq) {
+                                    const srcAttr = sourceEntity.attrSeq.find((a: any) => a.name === attrDep.attr);
+                                    if (!srcAttr) {
+                                        issues.push(`Маппинг ${index}, зависимость ${depIndex}, attrDep ${attrDepIndex}: source атрибут не найден: ${attrDep.attr}`);
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
 
 		return {
 			isValid: issues.length === 0,
 			issues,
 		};
 	}
+
+    /**
+     * Проверка версии схемы JSON
+     */
+    validateSchemaVersion(data: any): {
+        isValid: boolean;
+        version: string;
+        supported: boolean;
+        message: string;
+    } {
+        const version = data.desc?.schemaVersion || "1.0";
+
+        // Поддерживаемые версии
+        const supportedVersions = ["1.0", "1.1", "2.0"];
+        const isSupported = supportedVersions.includes(version);
+
+        let message = "";
+        if (!isSupported) {
+            message = `Версия схемы ${version} не поддерживается. Поддерживаемые версии: ${supportedVersions.join(", ")}`;
+        } else {
+            message = `Версия схемы ${version} поддерживается`;
+        }
+
+        return {
+            isValid: isSupported,
+            version,
+            supported: isSupported,
+            message,
+        };
+    }
 
 	/**
 	 * Генерация отчета о валидации
