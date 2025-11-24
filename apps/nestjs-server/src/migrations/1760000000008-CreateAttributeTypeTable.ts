@@ -17,27 +17,31 @@ export class CreateAttributeTypeTable1760000000008
             )
         `);
 
-		await queryRunner.query(`
-            COMMENT ON TABLE attribute_type IS 'Справочник типов данных по группам (таблицы, файлы, модели)'
-        `);
-		await queryRunner.query(`
-            COMMENT ON COLUMN attribute_type.type_id IS 'Идентификатор записи'
-        `);
-		await queryRunner.query(`
-            COMMENT ON COLUMN attribute_type.change_id IS 'Идентификатор изменения'
-        `);
-		await queryRunner.query(`
-            COMMENT ON COLUMN attribute_type.name IS 'Наименование типа'
-        `);
-		await queryRunner.query(`
-            COMMENT ON COLUMN attribute_type.description IS 'Описание типа'
-        `);
-		await queryRunner.query(`
-            COMMENT ON COLUMN attribute_type.type_group IS 'Наименование группы'
-        `);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_attribute_type_group ON attribute_type(type_group)`,
+		);
+
+		await queryRunner.query(
+			`COMMENT ON TABLE attribute_type IS 'Справочник типов данных по группам (таблицы, файлы, модели)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_type.type_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_type.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_type.name IS 'Наименование типа'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_type.description IS 'Описание типа'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_type.type_group IS 'Наименование группы'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {
-		await queryRunner.query(`DROP TABLE attribute_type`);
+		await queryRunner.query(`DROP TABLE IF EXISTS attribute_type`);
 	}
 }

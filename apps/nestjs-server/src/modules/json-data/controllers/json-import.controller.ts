@@ -230,6 +230,7 @@ export class JsonImportController {
 						entitiesProcessed: { type: "number", example: 15 },
 						attributesProcessed: { type: "number", example: 67 },
 						mappingsProcessed: { type: "number", example: 12 },
+						failedMappingsProcessed: { type: "number", example: 3 },
 					},
 				},
 			},
@@ -442,94 +443,6 @@ export class JsonImportController {
 		}
 	}
 
-	@Post("check-dependencies")
-	@RealmRole(Permission.DL_VIEW_JSON_DATA)
-	@ApiOperation({
-		summary: "Проверка зависимостей сущностей",
-		description: "Проверяет использование сущностей в других процессах",
-	})
-	@ApiBody({
-		description: "Список сущностей для проверки",
-		schema: {
-			type: "object",
-			properties: {
-				entityFullNames: {
-					type: "array",
-					items: { type: "string" },
-					example: ["schema1.table1", "schema2.view1"],
-				},
-				currentProcessId: {
-					type: "number",
-					example: 1,
-				},
-			},
-		},
-	})
-	@ApiResponse({
-		status: 200,
-		description: "Результаты проверки зависимостей",
-		schema: {
-			type: "object",
-			properties: {
-				hasConflicts: { type: "boolean" },
-				conflicts: {
-					type: "array",
-					items: {
-						type: "object",
-						properties: {
-							entityName: { type: "string" },
-							processes: { type: "array", items: { type: "string" } },
-						},
-					},
-				},
-				recommendations: { type: "array", items: { type: "string" } },
-			},
-		},
-	})
-	async checkDependencies(
-		@Body() body: { entityFullNames: string[]; currentProcessId?: number },
-	) {
-		this.logger.log(
-			`Проверка зависимостей для сущностей: ${body.entityFullNames?.length || 0}`,
-		);
-
-		if (!body.entityFullNames || !Array.isArray(body.entityFullNames)) {
-			throw new BadRequestException("entityFullNames должен быть массивом");
-		}
-
-		if (body.entityFullNames.length === 0) {
-			return {
-				hasConflicts: false,
-				conflicts: [],
-				recommendations: ["Нет сущностей для проверки"],
-			};
-		}
-
-		try {
-			const result =
-				await this.jsonMappingService.dependencyCheckService.checkMartUsage(
-					body.entityFullNames,
-					body.currentProcessId,
-				);
-
-			const recommendations = this.generateDependencyRecommendations(result);
-
-			return {
-				...result,
-				recommendations,
-			};
-		} catch (error) {
-			this.logger.error(
-				`Ошибка при проверке зависимостей: ${error.message}`,
-				error.stack,
-			);
-			throw new InternalServerErrorException({
-				message: "Ошибка при проверке зависимостей",
-				error: error.message,
-			});
-		}
-	}
-
 	/**
 	 * Валидация специфичных полей DAPP JSON
 	 */
@@ -643,34 +556,6 @@ export class JsonImportController {
 		if (validationReport.statistics.entitiesCount > 50) {
 			recommendations.push(
 				"Большое количество сущностей. Рекомендуется разбить импорт на части",
-			);
-		}
-
-		return recommendations;
-	}
-
-	/**
-	 * Генерация рекомендаций по зависимостям
-	 */
-	private generateDependencyRecommendations(result: any): string[] {
-		const recommendations: string[] = [];
-
-		if (result.hasConflicts) {
-			recommendations.push("Обнаружены конфликты зависимостей. Рекомендуется:");
-			recommendations.push(
-				"- Согласовать изменения с владельцами затронутых процессов",
-			);
-			recommendations.push("- Выполнить импорт в период минимальной нагрузки");
-			recommendations.push("- Создать бэкап данных перед импортом");
-		} else {
-			recommendations.push(
-				"Конфликты зависимостей не обнаружены. Импорт может быть выполнен безопасно",
-			);
-		}
-
-		if (result.conflicts.length > 3) {
-			recommendations.push(
-				"Множественные конфликты. Рекомендуется поэтапный импорт",
 			);
 		}
 

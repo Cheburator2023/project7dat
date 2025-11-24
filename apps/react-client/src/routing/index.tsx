@@ -18,6 +18,7 @@ import { ModelsPage } from "@react-client/new_features/models/ModelsPage";
 import { ProcessesPage } from "@react-client/new_features/processes/pages/ProcessesPage";
 import { ProcessGraphPage } from "@react-client/new_features/processes/pages/ProcessGraphPage";
 import { featureFlags } from "@react-client/config/featureFlags";
+import { DataMartPreview } from "@react-client/features/dataMart/pages/DataMartPreview";
 
 export const Routing = () => (
 	<Routes>
@@ -56,6 +57,10 @@ export const Routing = () => (
 		/>
 		<Route path={routes.processes.rootPath} element={<ProcessesPage />} />
 		<Route path={routes.processGraph.rootPath} element={<ProcessGraphPage />} />
+		<Route
+			path={routes.dataMartPreview.rootPath}
+			element={<DataMartPreview />}
+		/>
 		<Route path="*" element={<Page404 />} />
 	</Routes>
 );

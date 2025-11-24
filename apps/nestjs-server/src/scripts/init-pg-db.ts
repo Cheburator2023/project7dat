@@ -5,7 +5,7 @@ import { Client } from "pg";
 
 // Named export to keep code consistent with project rules
 export async function initPostgresDatabase() {
-	// Load env from .env.<NODE_ENV>, default to development
+	// Load env from .env.development.<NODE_ENV>, default to development
 	const envFile = `.env.${process.env.NODE_ENV || "development"}`;
 	dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 

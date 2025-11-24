@@ -10,6 +10,7 @@ import { EntityMapEntity } from "./entities/entity-map.entity";
 import { AttributeMapEntity } from "./entities/attribute-map.entity";
 import { AttributeMapSourceEntity } from "./entities/attribute-map-source.entity";
 import { EntityAttributeMapEntity } from "./entities/entity-attribute-map.entity";
+import { FailedMappingsEntity } from "./entities/failed-mappings.entity";
 
 import { JsonDataService } from "./services/json-data.service";
 import { JsonCommitService } from "./services/json-commit.service";
@@ -46,6 +47,7 @@ export class JsonDataModule {
 			AttributeMapEntity,
 			AttributeMapSourceEntity,
 			EntityAttributeMapEntity,
+			FailedMappingsEntity,
 		];
 
 		const imports = [
