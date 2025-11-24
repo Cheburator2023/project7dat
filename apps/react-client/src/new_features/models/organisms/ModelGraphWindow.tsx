@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import {
 	ReactFlow,
+	ReactFlowProvider,
 	Node,
 	Edge,
 	Controls,
@@ -24,8 +25,11 @@ import {
 	useEdgesState,
 	ConnectionMode,
 	NodeTypes,
+	MarkerType,
+	Handle,
+	Position,
 } from "@xyflow/react";
-import { Close, Visibility } from "@mui/icons-material";
+import { Close, Visibility, ExpandMore, ExpandLess } from "@mui/icons-material";
 
 import { ObjectDetailsDialog } from "../molecules/ObjectDetailsDialog";
 import { ConnectionDetailsDialog } from "../molecules/ConnectionDetailsDialog";
@@ -36,7 +40,7 @@ import type {
 	DataLineageSchema,
 	DataLineageEntity,
 	DataLineageMapping,
-} from "@data-lineage/shared-schemas";
+} from "@react-client/types/dataLineage";
 
 export interface ModelObject {
 	id: string;
@@ -86,137 +90,6 @@ interface ModelGraphWindowProps {
 	onClose: () => void;
 	model: any;
 }
-
-const buildModelGraphFromSchema = (
-	schema: DataLineageSchema,
-	modelEntityId: string,
-): { objects: ModelObject[]; connections: ObjectConnection[] } => {
-	const entitiesById = new Map<string, DataLineageEntity>();
-	schema.entities.forEach((entity) => {
-		entitiesById.set(entity.id, entity);
-	});
-
-	const modelEntity = entitiesById.get(modelEntityId) ?? null;
-	const objects: ModelObject[] = [];
-	const connections: ObjectConnection[] = [];
-
-	const toModelObjectType = (
-		entity: DataLineageEntity,
-	): ModelObject["type"] => {
-		if (entity.id === modelEntityId) return "model";
-		if (entity.type === "view") return "datamart";
-		return "source";
-	};
-
-	const makeAttributes = (entity: DataLineageEntity): ObjectAttribute[] => {
-		return (entity.attrSeq ?? []).map((attr, index) => ({
-			id: `${entity.id}__${attr.name ?? index}`,
-			name: attr.name,
-			type: attr.type,
-			description: attr.comment ?? "",
-			isKey: false,
-		}));
-	};
-
-	schema.entities.forEach((entity) => {
-		objects.push({
-			id: entity.id,
-			name: entity.name ?? entity.id,
-			type: toModelObjectType(entity),
-			description: "",
-			attributes: makeAttributes(entity),
-			connections: [],
-		});
-	});
-
-	const mappings: DataLineageMapping[] = schema.mappings ?? [];
-
-	mappings.forEach((mapping) => {
-		if (!mapping.deps || mapping.deps.length === 0) return;
-		const targetEntity = entitiesById.get(mapping.entityId);
-		if (!targetEntity) return;
-
-		if (mapping.entityId === modelEntityId && modelEntity) {
-			mapping.deps.forEach((dep, depIndex) => {
-				const sourceEntity = entitiesById.get(dep.entityId);
-				if (!sourceEntity) return;
-				const attrMaps = dep.attrMaps ?? [];
-				const mappingsList: AttributeMapping[] = attrMaps.map((am, idx) => {
-					const srcAttr = sourceEntity.attrSeq?.find((a) => a.name === am.src);
-					const dstAttr = modelEntity.attrSeq?.find((a) => a.name === am.dst);
-					return {
-						id: `${mapping.id}__in__${depIndex}__${idx}`,
-						sourceAttribute: am.src,
-						sourceDescription: srcAttr?.comment ?? "",
-						targetAttribute: am.dst,
-						targetDescription: dstAttr?.comment ?? "",
-					};
-				});
-				if (mappingsList.length === 0) return;
-				connections.push({
-					id: `conn__in__${mapping.id}__${dep.entityId}__${mapping.entityId}`,
-					sourceId: dep.entityId,
-					targetId: mapping.entityId,
-					sourceName: sourceEntity.name ?? sourceEntity.id,
-					targetName: targetEntity.name ?? targetEntity.id,
-					description: "Трансформация источника в модель",
-					mappings: mappingsList,
-					functions: [],
-				});
-			});
-		}
-
-		const modelDep = mapping.deps.find((dep) => dep.entityId === modelEntityId);
-		if (modelDep && modelEntity) {
-			const attrMaps = modelDep.attrMaps ?? [];
-			const mappingsList: AttributeMapping[] = attrMaps.map((am, idx) => {
-				const srcAttr = modelEntity.attrSeq?.find((a) => a.name === am.src);
-				const dstAttr = targetEntity.attrSeq?.find((a) => a.name === am.dst);
-				return {
-					id: `${mapping.id}__out__${idx}`,
-					sourceAttribute: am.src,
-					sourceDescription: srcAttr?.comment ?? "",
-					targetAttribute: am.dst,
-					targetDescription: dstAttr?.comment ?? "",
-				};
-			});
-			if (mappingsList.length === 0) return;
-			connections.push({
-				id: `conn__out__${mapping.id}__${modelEntityId}__${mapping.entityId}`,
-				sourceId: modelEntityId,
-				targetId: mapping.entityId,
-				sourceName: modelEntity.name ?? modelEntityId,
-				targetName: targetEntity.name ?? targetEntity.id,
-				description: "Трансформация модели в витрину",
-				mappings: mappingsList,
-				functions: [],
-			});
-		}
-	});
-
-	const usedIds = new Set<string>();
-	connections.forEach((conn) => {
-		usedIds.add(conn.sourceId);
-		usedIds.add(conn.targetId);
-	});
-
-	// Если есть связи, показываем только связанные объекты
-	if (usedIds.size > 0) {
-		return {
-			objects: objects.filter((obj) => usedIds.has(obj.id)),
-			connections,
-		};
-	}
-
-	// Если связей нет, показываем хотя бы саму выбранную модель
-	const selectedModelObject = objects.find((obj) => obj.id === modelEntityId);
-	if (selectedModelObject) {
-		return { objects: [selectedModelObject], connections: [] };
-	}
-
-	// Если не нашли модель по ID, показываем все объекты
-	return { objects, connections };
-};
 
 const getNodeColor = (type: ModelObject["type"]) => {
 	switch (type) {
@@ -271,58 +144,115 @@ interface CustomNodeData {
 	description: string;
 	onView: () => void;
 	onDoubleClick: () => void;
+	isExpanded?: boolean;
+	canExpand?: boolean;
+	onToggleExpand?: () => void;
 }
 
 const CustomNode = ({ data }: { data: CustomNodeData }) => {
 	return (
-		<Paper
-			sx={{
-				backgroundColor: getNodeColor(data.type),
-				border: `2px solid ${getNodeBorderColor(data.type)}`,
-				borderRadius: 1,
-				p: 2,
-				minWidth: "200px",
-				cursor: "pointer",
-				"&:hover": { boxShadow: 2 },
-			}}
-			onDoubleClick={data.onDoubleClick}
-		>
-			<Box display="flex" flexDirection="column" gap={1}>
-				<Box display="flex" justifyContent="space-between" alignItems="center">
-					<Chip
-						label={getTypeLabel(data.type)}
-						size="small"
-						color={
-							data.type === "model"
-								? "primary"
-								: data.type === "vector"
-									? "secondary"
-									: data.type === "datamart"
-										? "success"
-										: "warning"
-						}
-					/>
-					<IconButton size="small" onClick={data.onView}>
-						<Visibility fontSize="small" />
-					</IconButton>
+		<>
+			{/* Target handle - for incoming edges */}
+			<Handle
+				type="target"
+				position={Position.Left}
+				style={{ background: "#555" }}
+			/>
+
+			<Paper
+				sx={{
+					backgroundColor: getNodeColor(data.type),
+					border: `2px solid ${getNodeBorderColor(data.type)}`,
+					borderRadius: 1,
+					p: 2,
+					minWidth: "200px",
+					cursor: "pointer",
+					"&:hover": { boxShadow: 2 },
+					boxShadow: data.isExpanded ? 3 : 0,
+				}}
+				onDoubleClick={data.onDoubleClick}
+			>
+				<Box display="flex" flexDirection="column" gap={1}>
+					<Box
+						display="flex"
+						justifyContent="space-between"
+						alignItems="center"
+					>
+						<Chip
+							label={getTypeLabel(data.type)}
+							size="small"
+							color={
+								data.type === "model"
+									? "primary"
+									: data.type === "vector"
+										? "secondary"
+										: data.type === "datamart"
+											? "success"
+											: "warning"
+							}
+						/>
+						<Box display="flex" gap={0.5}>
+							{data.canExpand && data.onToggleExpand && (
+								<IconButton
+									size="small"
+									title={
+										data.isExpanded ? "Свернуть связи" : "Развернуть связи"
+									}
+									onClick={(e) => {
+										e.stopPropagation();
+										data.onToggleExpand?.();
+									}}
+									sx={{
+										bgcolor: data.isExpanded ? "primary.main" : "transparent",
+										color: data.isExpanded ? "white" : "inherit",
+										"&:hover": {
+											bgcolor: data.isExpanded
+												? "primary.dark"
+												: "action.hover",
+										},
+									}}
+								>
+									{data.isExpanded ? (
+										<ExpandLess fontSize="small" />
+									) : (
+										<ExpandMore fontSize="small" />
+									)}
+								</IconButton>
+							)}
+							<IconButton
+								size="small"
+								title="Просмотр деталей"
+								onClick={data.onView}
+							>
+								<Visibility fontSize="small" />
+							</IconButton>
+						</Box>
+					</Box>
+					<Typography variant="subtitle2" fontWeight="bold">
+						{data.name}
+					</Typography>
+					<Typography
+						variant="caption"
+						color="text.secondary"
+						sx={{
+							display: "-webkit-box",
+							WebkitLineClamp: 2,
+							WebkitBoxOrient: "vertical",
+							overflow: "hidden",
+						}}
+					>
+						{data.description}
+					</Typography>
 				</Box>
-				<Typography variant="subtitle2" fontWeight="bold">
-					{data.name}
-				</Typography>
-				<Typography
-					variant="caption"
-					color="text.secondary"
-					sx={{
-						display: "-webkit-box",
-						WebkitLineClamp: 2,
-						WebkitBoxOrient: "vertical",
-						overflow: "hidden",
-					}}
-				>
-					{data.description}
-				</Typography>
-			</Box>
-		</Paper>
+			</Paper>
+
+			{/* Source handle - for outgoing edges */}
+			<Handle
+				type="source"
+				position={Position.Right}
+				style={{ background: "#555" }}
+			/>
+		</>
 	);
 };
 
@@ -345,6 +275,9 @@ export const ModelGraphWindow = ({
 		useState<ObjectConnection | null>(null);
 	const [isObjectDetailsOpen, setIsObjectDetailsOpen] = useState(false);
 	const [isConnectionDetailsOpen, setIsConnectionDetailsOpen] = useState(false);
+	const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
+		new Set([model.id]),
+	);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -394,58 +327,308 @@ export const ModelGraphWindow = ({
 		};
 	}, [isOpen, model]);
 
-	const { objects, connections } = useMemo(() => {
-		if (schema && featureFlags.newJsonDataV2Enabled) {
-			const result = buildModelGraphFromSchema(schema, model.id);
-			console.log("[ModelGraphWindow] Graph data:", {
-				modelId: model.id,
-				schemaEntities: schema.entities?.length,
-				schemaMappings: schema.mappings?.length,
-				objects: result.objects.length,
-				connections: result.connections.length,
-				objectIds: result.objects.map((o) => o.id),
-			});
-			return result;
+	// Build full graph with all entities and connections
+	const { allObjects, allConnections } = useMemo(() => {
+		if (!schema || !featureFlags.newJsonDataV2Enabled) {
+			return { allObjects: [], allConnections: [] };
 		}
-		return { objects: [], connections: [] };
+
+		const entitiesById = new Map<string, DataLineageEntity>();
+		schema.entities.forEach((entity) => {
+			entitiesById.set(entity.id, entity);
+		});
+
+		const toModelObjectType = (
+			entity: DataLineageEntity,
+		): ModelObject["type"] => {
+			if (entity.id === model.id) return "model";
+			if (entity.type === "view") return "datamart";
+			return "source";
+		};
+
+		const makeAttributes = (entity: DataLineageEntity): ObjectAttribute[] => {
+			return (entity.attrSeq ?? []).map((attr, index) => ({
+				id: `${entity.id}__${attr.name ?? index}`,
+				name: attr.name,
+				type: attr.type,
+				description: attr.comment ?? "",
+				isKey: false,
+			}));
+		};
+
+		// Deduplicate entities by ID - take the first occurrence
+		const uniqueEntitiesMap = new Map<string, DataLineageEntity>();
+		schema.entities.forEach((entity) => {
+			if (!uniqueEntitiesMap.has(entity.id)) {
+				uniqueEntitiesMap.set(entity.id, entity);
+			}
+		});
+
+		const objects: ModelObject[] = [];
+		uniqueEntitiesMap.forEach((entity) => {
+			objects.push({
+				id: entity.id,
+				name: entity.name ?? entity.id,
+				type: toModelObjectType(entity),
+				description: "",
+				attributes: makeAttributes(entity),
+				connections: [],
+			});
+		});
+
+		const connections: ObjectConnection[] = [];
+		const mappings: DataLineageMapping[] = schema.mappings ?? [];
+
+		mappings.forEach((mapping) => {
+			if (!mapping.deps || mapping.deps.length === 0) return;
+			if (!mapping.entityId) {
+				console.warn(
+					"[ModelGraphWindow] Skipping mapping - no entityId:",
+					mapping,
+				);
+				return;
+			}
+
+			const targetEntity = entitiesById.get(mapping.entityId);
+			if (!targetEntity) return;
+
+			mapping.deps.forEach((dep, depIndex) => {
+				if (!dep.entityId) {
+					console.warn("[ModelGraphWindow] Skipping dep - no entityId:", dep);
+					return;
+				}
+
+				const sourceEntity = entitiesById.get(dep.entityId);
+				if (!sourceEntity) return;
+				const attrMaps = dep.attrMaps ?? [];
+				if (attrMaps.length === 0) return;
+
+				const mappingsList: AttributeMapping[] = attrMaps.map((am, idx) => {
+					const srcAttr = sourceEntity.attrSeq?.find((a) => a.name === am.src);
+					const dstAttr = targetEntity.attrSeq?.find((a) => a.name === am.dst);
+					return {
+						id: `${mapping.id}__${depIndex}__${idx}`,
+						sourceAttribute: am.src,
+						sourceDescription: srcAttr?.comment ?? "",
+						targetAttribute: am.dst,
+						targetDescription: dstAttr?.comment ?? "",
+					};
+				});
+
+				connections.push({
+					id: `conn__${mapping.id}__${dep.entityId}__${mapping.entityId}`,
+					sourceId: dep.entityId,
+					targetId: mapping.entityId,
+					sourceName: sourceEntity.name ?? sourceEntity.id,
+					targetName: targetEntity.name ?? targetEntity.id,
+					description:
+						mapping.entityId === model.id
+							? "Трансформация источника в модель"
+							: dep.entityId === model.id
+								? "Трансформация модели в витрину"
+								: "Трансформация данных",
+					mappings: mappingsList,
+					functions: [],
+				});
+			});
+		});
+
+		console.log("[ModelGraphWindow] Full graph data:", {
+			modelId: model.id,
+			schemaEntities: schema.entities?.length,
+			uniqueEntities: uniqueEntitiesMap.size,
+			duplicatesRemoved: schema.entities.length - uniqueEntitiesMap.size,
+			schemaMappings: schema.mappings?.length,
+			objects: objects.length,
+			connections: connections.length,
+		});
+
+		return { allObjects: objects, allConnections: connections };
 	}, [schema, model.id]);
 
+	// Filter objects and connections based on expanded nodes
+	const { objects, connections } = useMemo(() => {
+		if (allObjects.length === 0) {
+			return { objects: [], connections: [] };
+		}
+
+		const visibleNodeIds = new Set<string>(expandedNodes);
+		const visibleConnections: ObjectConnection[] = [];
+
+		// Add all connections involving expanded nodes
+		allConnections.forEach((conn) => {
+			if (
+				expandedNodes.has(conn.sourceId) ||
+				expandedNodes.has(conn.targetId)
+			) {
+				visibleConnections.push(conn);
+				visibleNodeIds.add(conn.sourceId);
+				visibleNodeIds.add(conn.targetId);
+			}
+		});
+
+		const visibleObjects = allObjects.filter((obj) =>
+			visibleNodeIds.has(obj.id),
+		);
+
+		console.log("[ModelGraphWindow] Visible graph:", {
+			expandedNodes: Array.from(expandedNodes),
+			visibleNodeIds: Array.from(visibleNodeIds),
+			allObjectIds: allObjects.map((o) => o.id),
+			visibleObjectIds: visibleObjects.map((o) => o.id),
+			visibleObjects: visibleObjects.length,
+			visibleConnections: visibleConnections.length,
+			connectionDetails: visibleConnections.map((c) => ({
+				id: c.id,
+				source: c.sourceId,
+				target: c.targetId,
+			})),
+		});
+
+		return { objects: visibleObjects, connections: visibleConnections };
+	}, [allObjects, allConnections, expandedNodes]);
+
+	const toggleNodeExpansion = useCallback(
+		(nodeId: string) => {
+			setExpandedNodes((prev) => {
+				const newSet = new Set(prev);
+				if (newSet.has(nodeId)) {
+					// When collapsing, only remove the node if it's not the main model
+					if (nodeId !== model.id) {
+						newSet.delete(nodeId);
+					}
+				} else {
+					newSet.add(nodeId);
+				}
+				return newSet;
+			});
+		},
+		[model.id],
+	);
+
 	const initialNodes: Node[] = useMemo(() => {
-		return objects.map((obj, index) => ({
-			id: obj.id,
-			type: "custom",
-			position: {
-				x: (index % 3) * 250,
-				y: Math.floor(index / 3) * 150,
-			},
-			data: {
-				...obj,
-				onDoubleClick: () => {
-					setSelectedObject(obj);
-					setIsObjectDetailsOpen(true);
+		const nodes = objects.map((obj, index) => {
+			const hasConnections = allConnections.some(
+				(conn) => conn.sourceId === obj.id || conn.targetId === obj.id,
+			);
+			const isExpanded = expandedNodes.has(obj.id);
+
+			return {
+				id: obj.id,
+				type: "custom",
+				position: {
+					x: (index % 3) * 300,
+					y: Math.floor(index / 3) * 200,
 				},
-				onView: () => {
-					setSelectedObject(obj);
-					setIsObjectDetailsOpen(true);
+				data: {
+					...obj,
+					isExpanded,
+					canExpand: hasConnections,
+					onToggleExpand: () => toggleNodeExpansion(obj.id),
+					onDoubleClick: () => {
+						setSelectedObject(obj);
+						setIsObjectDetailsOpen(true);
+					},
+					onView: () => {
+						setSelectedObject(obj);
+						setIsObjectDetailsOpen(true);
+					},
 				},
-			},
-		}));
-	}, [objects]);
+			};
+		});
+
+		console.log("[ModelGraphWindow] Nodes created:", {
+			count: nodes.length,
+			nodeIds: nodes.map((n) => n.id),
+			nodes: nodes.map((n) => ({
+				id: n.id,
+				dataId: n.data.id,
+				name: n.data.name,
+			})),
+		});
+
+		return nodes;
+	}, [objects, allConnections, expandedNodes, toggleNodeExpansion]);
 
 	const initialEdges: Edge[] = useMemo(() => {
-		return connections.map((conn) => ({
+		const nodeIdSet = new Set(objects.map((obj) => obj.id));
+
+		// Filter connections to only include those where both source and target nodes exist
+		const validConnections = connections.filter((conn) => {
+			// Check if sourceId and targetId are valid strings
+			if (
+				!conn.sourceId ||
+				!conn.targetId ||
+				typeof conn.sourceId !== "string" ||
+				typeof conn.targetId !== "string"
+			) {
+				console.warn("[ModelGraphWindow] Skipping edge - invalid IDs:", {
+					edgeId: conn.id,
+					sourceId: conn.sourceId,
+					sourceIdType: typeof conn.sourceId,
+					targetId: conn.targetId,
+					targetIdType: typeof conn.targetId,
+				});
+				return false;
+			}
+
+			const sourceExists = nodeIdSet.has(conn.sourceId);
+			const targetExists = nodeIdSet.has(conn.targetId);
+
+			if (!sourceExists || !targetExists) {
+				console.warn("[ModelGraphWindow] Skipping edge - missing node:", {
+					edgeId: conn.id,
+					sourceId: conn.sourceId,
+					sourceExists,
+					targetId: conn.targetId,
+					targetExists,
+					availableNodeIds: Array.from(nodeIdSet).slice(0, 10), // Show first 10 for debugging
+				});
+				return false;
+			}
+			return true;
+		});
+
+		const edges = validConnections.map((conn) => ({
 			id: conn.id,
 			source: conn.sourceId,
 			target: conn.targetId,
-			type: "smoothstep",
-			style: { stroke: "#666", strokeWidth: 2 },
+			type: "default",
+			style: { strokeWidth: 2, stroke: "#666" },
+			markerEnd: {
+				type: MarkerType.ArrowClosed,
+				color: "#666",
+			},
 			label: conn.description,
-			labelStyle: { fontSize: "10px", fontWeight: "bold" },
+			animated: false,
 		}));
-	}, [connections]);
+
+		console.log("[ModelGraphWindow] Edges created:", {
+			totalConnections: connections.length,
+			validConnections: validConnections.length,
+			edgesCount: edges.length,
+			nodeCount: nodeIdSet.size,
+			sampleEdge: edges[0],
+			edges: edges.map((e) => ({
+				id: e.id,
+				source: e.source,
+				target: e.target,
+			})),
+		});
+
+		// Debug: Log if edges are empty
+		if (edges.length === 0) {
+			console.error(
+				"[ModelGraphWindow] No valid edges created! Check node IDs.",
+			);
+		}
+
+		return edges;
+	}, [connections, objects]);
 
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+	const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
 	// Обновляем nodes и edges при изменении данных
 	useEffect(() => {
@@ -455,6 +638,29 @@ export const ModelGraphWindow = ({
 	useEffect(() => {
 		setEdges(initialEdges);
 	}, [initialEdges, setEdges]);
+
+	// Fit view after nodes and edges are set
+	useEffect(() => {
+		if (reactFlowInstance && nodes.length > 0) {
+			setTimeout(() => {
+				reactFlowInstance.fitView({ padding: 0.2, duration: 200 });
+			}, 100);
+		}
+	}, [reactFlowInstance, nodes, edges]);
+
+	// Debug: log current state
+	useEffect(() => {
+		console.log("[ModelGraphWindow] Current state:", {
+			nodesCount: nodes.length,
+			edgesCount: edges.length,
+			nodes: nodes.map((n) => ({ id: n.id, type: n.type })),
+			edges: edges.map((e) => ({
+				id: e.id,
+				source: e.source,
+				target: e.target,
+			})),
+		});
+	}, [nodes, edges]);
 
 	const onEdgeDoubleClick = useCallback(
 		(_event: React.MouseEvent, edge: Edge) => {
@@ -657,19 +863,44 @@ export const ModelGraphWindow = ({
 								</Alert>
 							</Box>
 						) : (
-							<ReactFlow
-								nodes={nodes}
-								edges={edges}
-								onNodesChange={onNodesChange}
-								onEdgesChange={onEdgesChange}
-								onEdgeDoubleClick={onEdgeDoubleClick}
-								nodeTypes={nodeTypes}
-								connectionMode={ConnectionMode.Loose}
-								fitView
-							>
-								<Controls />
-								<Background />
-							</ReactFlow>
+							<>
+								{console.log("[ModelGraphWindow] Rendering ReactFlow:", {
+									nodesCount: nodes.length,
+									edgesCount: edges.length,
+									nodeIds: nodes.map((n) => n.id),
+									edges: edges.map((e) => ({
+										id: e.id,
+										source: e.source,
+										sourceType: typeof e.source,
+										target: e.target,
+										targetType: typeof e.target,
+										type: e.type,
+									})),
+									firstEdge: edges[0],
+								})}
+								<ReactFlowProvider>
+									<ReactFlow
+										nodes={nodes}
+										edges={edges}
+										onNodesChange={onNodesChange}
+										onEdgesChange={onEdgesChange}
+										onEdgeDoubleClick={onEdgeDoubleClick}
+										onInit={setReactFlowInstance}
+										nodeTypes={nodeTypes}
+										connectionMode={ConnectionMode.Loose}
+										minZoom={0.1}
+										maxZoom={4}
+										defaultEdgeOptions={{
+											type: "default",
+											animated: false,
+										}}
+										proOptions={{ hideAttribution: true }}
+									>
+										<Controls />
+										<Background />
+									</ReactFlow>
+								</ReactFlowProvider>
+							</>
 						)}
 					</Box>
 				</DialogContent>
@@ -686,11 +917,12 @@ export const ModelGraphWindow = ({
 					open={isObjectDetailsOpen}
 					onClose={handleCloseObjectDetails}
 					object={selectedObject}
-					connections={connections.filter(
+					connections={allConnections.filter(
 						(conn) =>
 							conn.sourceId === selectedObject.id ||
 							conn.targetId === selectedObject.id,
 					)}
+					onExpandNode={toggleNodeExpansion}
 				/>
 			)}
 
