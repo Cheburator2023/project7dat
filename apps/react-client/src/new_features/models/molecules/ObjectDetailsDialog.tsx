@@ -28,6 +28,7 @@ import {
 	Search as SearchIcon,
 	Key as KeyIcon,
 	Link as LinkIcon,
+	OpenInNew as OpenInNewIcon,
 } from "@mui/icons-material";
 import { ModelObject, ObjectConnection } from "../organisms/ModelGraphWindow";
 
@@ -36,6 +37,7 @@ interface ObjectDetailsDialogProps {
 	onClose: () => void;
 	object: ModelObject;
 	connections: ObjectConnection[];
+	onExpandNode?: (nodeId: string) => void;
 }
 
 type ViewMode = "attributes" | "connections";
@@ -45,6 +47,7 @@ export const ObjectDetailsDialog = ({
 	onClose,
 	object,
 	connections,
+	onExpandNode,
 }: ObjectDetailsDialogProps) => {
 	const [viewMode, setViewMode] = useState<ViewMode>("attributes");
 	const [searchTerm, setSearchTerm] = useState("");
@@ -237,9 +240,27 @@ export const ObjectDetailsDialog = ({
 													/>
 												</TableCell>
 												<TableCell>
-													<Typography variant="body2" fontWeight="medium">
-														{getConnectionDirection(conn)}
-													</Typography>
+													<Box display="flex" alignItems="center" gap={1}>
+														<Typography variant="body2" fontWeight="medium">
+															{getConnectionDirection(conn)}
+														</Typography>
+														{onExpandNode && (
+															<IconButton
+																size="small"
+																onClick={() => {
+																	const relatedNodeId =
+																		conn.sourceId === object.id
+																			? conn.targetId
+																			: conn.sourceId;
+																	onExpandNode(relatedNodeId);
+																}}
+																title="Развернуть связанный объект на графе"
+																sx={{ ml: 1 }}
+															>
+																<OpenInNewIcon fontSize="small" />
+															</IconButton>
+														)}
+													</Box>
 												</TableCell>
 												<TableCell>
 													<Typography variant="body2" color="text.secondary">
