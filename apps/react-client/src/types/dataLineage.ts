@@ -21,6 +21,7 @@ export {
 // Attribute type for data lineage entities
 export interface DataLineageAttribute {
 	name: string;
+	id: string;
 	type: string;
 	comment?: string;
 }
@@ -33,6 +34,7 @@ export interface DataLineageEntity {
 	namespace?: string;
 	name: string | null;
 	description?: string;
+	entity_change?: string;
 	attrSeq?: DataLineageAttribute[];
 }
 

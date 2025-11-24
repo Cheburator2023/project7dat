@@ -20,6 +20,12 @@ export class CreateProcessTable1760000000012 implements MigrationInterface {
 				)
 		`);
 
+		// Add description column if it doesn't exist (in case table was created without it)
+		await queryRunner.query(`
+			ALTER TABLE process 
+			ADD COLUMN IF NOT EXISTS description VARCHAR
+		`);
+
 		await queryRunner.query(
 			`CREATE INDEX IF NOT EXISTS idx_process_name ON process(name)`,
 		);
