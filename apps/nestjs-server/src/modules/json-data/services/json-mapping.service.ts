@@ -17,6 +17,7 @@ import { EntityMapEntity } from "../entities/entity-map.entity";
 import { AttributeMapEntity } from "../entities/attribute-map.entity";
 import { AttributeMapSourceEntity } from "../entities/attribute-map-source.entity";
 import { EntityAttributeMapEntity } from "../entities/entity-attribute-map.entity";
+import { FailedMappingsEntity } from "../entities/failed-mappings.entity";
 import { JsonImportRequestDto } from "../dto/requests/json-import-request.dto";
 import { EntityTypeService } from "./entity-type.service";
 import { AttributeTypeService } from "./attribute-type.service";
@@ -55,6 +56,9 @@ export class JsonMappingService {
 		@InjectRepository(EntityAttributeMapEntity)
 		readonly _entityAttributeMapRepository: Repository<EntityAttributeMapEntity>,
 		@Optional()
+		@InjectRepository(FailedMappingsEntity)
+		readonly _failedMappingsRepository: Repository<FailedMappingsEntity>,
+		@Optional()
 		private readonly dataSource: DataSource,
 		private readonly entityTypeService: EntityTypeService,
 		private readonly attributeTypeService: AttributeTypeService,
@@ -77,6 +81,7 @@ export class JsonMappingService {
 			entitiesProcessed: number;
 			attributesProcessed: number;
 			mappingsProcessed: number;
+			failedMappingsProcessed: number;
 		};
 	}> {
 		const { data, user, changeName, validated = true } = importRequest;
@@ -107,7 +112,7 @@ export class JsonMappingService {
 			);
 		if (!versionCompatibility.compatible) {
 			throw new BadRequestException({
-				message: "Несовместимая версия схемы",
+				message: "Несовместимая версии схемы",
 				details: versionCompatibility,
 			});
 		}
@@ -206,6 +211,16 @@ export class JsonMappingService {
 			);
 			this.logger.log(`Обработано маппингов: ${mappingsStats.count}`);
 
+			// Шаг 5: Обработка неудачных маппингов (для DAPP JSON)
+			const failedMappingsStats = await this.handleFailedMappings(
+				processedData.failedMappings,
+				changeId,
+				queryRunner,
+			);
+			this.logger.log(
+				`Обработано неудачных маппингов: ${failedMappingsStats.count}`,
+			);
+
 			await queryRunner.commitTransaction();
 
 			this.logger.log(`Импорт успешно завершен. Change ID: ${changeId}`);
@@ -219,6 +234,7 @@ export class JsonMappingService {
 					entitiesProcessed: entitiesStats.count,
 					attributesProcessed: entitiesStats.attributesCount,
 					mappingsProcessed: mappingsStats.count,
+					failedMappingsProcessed: failedMappingsStats.count,
 				},
 			};
 		} catch (error) {
@@ -229,6 +245,50 @@ export class JsonMappingService {
 			await queryRunner.release();
 			this.entityContainerService.clearCache();
 		}
+	}
+
+	/**
+	 * Обработка неудачных маппингов
+	 */
+	private async handleFailedMappings(
+		failedMappings: any[],
+		changeId: number,
+		queryRunner: QueryRunner,
+	): Promise<{ count: number }> {
+		if (!failedMappings || !Array.isArray(failedMappings)) {
+			return { count: 0 };
+		}
+
+		for (const failedMapping of failedMappings) {
+			await this.handleSingleFailedMapping(
+				failedMapping,
+				changeId,
+				queryRunner,
+			);
+		}
+
+		return { count: failedMappings.length };
+	}
+
+	/**
+	 * Обработка одного неудачного маппинга
+	 */
+	private async handleSingleFailedMapping(
+		failedMapping: any,
+		changeId: number,
+		queryRunner: QueryRunner,
+	): Promise<void> {
+		const failedMappingsEntity = new FailedMappingsEntity();
+		failedMappingsEntity.change_id = changeId;
+		failedMappingsEntity.entity_name =
+			failedMapping.entityName || failedMapping.entityId;
+		failedMappingsEntity.error_description =
+			failedMapping.errorDescription || failedMapping.error;
+		failedMappingsEntity.unmatched_entities = JSON.stringify(
+			failedMapping.unmatchedEntities || failedMapping.unmatched || [],
+		);
+
+		await queryRunner.manager.save(FailedMappingsEntity, failedMappingsEntity);
 	}
 
 	/**

@@ -6,6 +6,12 @@ export const routes = {
 		showInNavbar: true,
 		subRoutes: {},
 	},
+	dataMartPreview: {
+		name: "Витрина",
+		rootPath: "/datamart/:datamartId",
+		disabled: false,
+		showInNavbar: false,
+	},
 	entityPreview: {
 		name: "Просмотр сущности",
 		rootPath: "/entity/:entityId",
