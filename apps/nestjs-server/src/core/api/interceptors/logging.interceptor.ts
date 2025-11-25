@@ -1,24 +1,36 @@
 import {
-	Injectable,
-	NestInterceptor,
-	ExecutionContext,
-	CallHandler,
+    Injectable,
+    NestInterceptor,
+    ExecutionContext,
+    CallHandler,
+    Logger,
 } from "@nestjs/common";
+import { Observable } from "rxjs";
+import { tap } from "rxjs/operators";
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-	intercept(_context: ExecutionContext, next: CallHandler) {
-		console.log("Before...");
-		const now = Date.now();
+    private readonly logger = new Logger(LoggingInterceptor.name);
 
-		const result = next.handle();
+    intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+        const request = context.switchToHttp().getRequest();
+        const method = request.method;
+        const url = request.url;
+        const now = Date.now();
 
-		if (result && typeof result.subscribe === "function") {
-			result.subscribe({
-				complete: () => console.log(`After... ${Date.now() - now}ms`),
-			});
-		}
+        this.logger.log(`Before ${method} ${url}`);
 
-		return result;
-	}
+        return next.handle().pipe(
+            tap({
+                next: () => {
+                    const time = Date.now() - now;
+                    this.logger.log(`After ${method} ${url} - ${time}ms`);
+                },
+                error: (error) => {
+                    const time = Date.now() - now;
+                    this.logger.error(`Error in ${method} ${url} - ${time}ms: ${error.message}`);
+                },
+            }),
+        );
+    }
 }

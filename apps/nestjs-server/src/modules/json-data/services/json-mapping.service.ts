@@ -8,6 +8,24 @@ import { ChangeRecordService } from "./change-record.service";
 import { ProcessHandlingService } from "./process-handling.service";
 import { EntityProcessingService } from "./entity-processing.service";
 import { MappingProcessingService } from "./mapping-processing.service";
+import {
+    ValidationResult,
+    RecursionCheckResult,
+    DuplicateCheckResult
+} from "../types/validation.types";
+
+interface ImportResult {
+    success: boolean;
+    changeId: number;
+    message: string;
+    warnings: string[];
+    stats: {
+        entitiesProcessed: number;
+        attributesProcessed: number;
+        mappingsProcessed: number;
+        failedMappingsProcessed: number;
+    };
+}
 
 @Injectable()
 export class JsonMappingService {
@@ -24,31 +42,33 @@ export class JsonMappingService {
         private readonly mappingProcessingService: MappingProcessingService,
     ) {}
 
-	/**
-	 * Основной метод импорта JSON данных в БД DL
-	 */
-	async importJsonData(importRequest: JsonImportRequestDto): Promise<{
-		success: boolean;
-		changeId: number;
-		message: string;
-		warnings: string[];
-		stats: {
-			entitiesProcessed: number;
-			attributesProcessed: number;
-			mappingsProcessed: number;
-			failedMappingsProcessed: number;
-		};
-	}> {
-		const { data, user, changeName, validated = true } = importRequest;
+    /**
+     * Основной метод импорта JSON данных в БД DL
+     */
+    async importJsonData(importRequest: JsonImportRequestDto): Promise<ImportResult> {
+        const { data, user, changeName, validated = true } = importRequest;
 
         this.logger.log(`Импорт JSON данных пользователем: ${user}`);
 
-		// Проверка подтверждения пользователем
-		if (!validated) {
-			throw new ConflictException(
-				"JSON должен быть проверен и подтвержден пользователем перед импортом",
-			);
-		}
+        // Валидация и предобработка данных
+        const processedData = await this.validateAndPreprocessData(data, validated);
+
+        // Проверка конфликтов
+        await this.checkForConflicts(processedData);
+
+        // Выполнение импорта в транзакции
+        return await this.executeImportTransaction(processedData, user, changeName);
+    }
+
+    /**
+     * Валидация и предобработка данных
+     */
+    private async validateAndPreprocessData(data: any, validated: boolean): Promise<any> {
+        if (!validated) {
+            throw new ConflictException(
+                "JSON должен быть проверен и подтвержден пользователем перед импортом",
+            );
+        }
 
 		// Комплексная валидация JSON
 		const validationReport =
@@ -67,7 +87,7 @@ export class JsonMappingService {
 			);
 		if (!versionCompatibility.compatible) {
 			throw new BadRequestException({
-				message: "Несовместимая версии схемы",
+				message: "Несовместимая версия схемы",
 				details: versionCompatibility,
 			});
 		}
@@ -87,7 +107,17 @@ export class JsonMappingService {
 		// Нормализация данных
 		processedData = this.jsonValidationService.normalizeJsonData(processedData);
 
-		// Проверка на рекурсию
+        // Проверка на рекурсию и дублирование
+        this.validateDataConsistency(processedData);
+
+        return processedData;
+    }
+
+    /**
+     * Проверка конфликтов и зависимостей
+     */
+    private async checkForConflicts(processedData: any): Promise<void> {
+        // Проверка на рекурсию
         const recursionCheck = this.jsonValidationService.checkForRecursion(
 			processedData.entities || [],
 			processedData.mappings || [],
@@ -123,20 +153,71 @@ export class JsonMappingService {
                 );
             }
         }
+    }
 
-		const queryRunner = this.dataSource.createQueryRunner();
-		await queryRunner.connect();
-		await queryRunner.startTransaction();
+    /**
+     * Проверка консистентности данных
+     */
+    private validateDataConsistency(data: any): void {
+        const integrityCheck = this.jsonValidationService.validateDataIntegrity(data);
+        if (!integrityCheck.isValid) {
+            throw new BadRequestException(
+                `Проблемы целостности данных: ${integrityCheck.issues.join(', ')}`,
+            );
+        }
+    }
+
+    /**
+     * Выполнение импорта в транзакции
+     */
+    private async executeImportTransaction(
+        processedData: any,
+        user: string,
+        changeName: string,
+    ): Promise<ImportResult> {
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
 
         try {
-            // Шаг 1: Создание записи в таблице изменений
-            const changeId = await this.changeRecordService.createChangeRecord(
-                processedData,
-                user,
-                changeName,
-                queryRunner,
-            );
-            this.logger.log(`Создана запись изменения с ID: ${changeId}`);
+            const importStats = await this.processImportData(processedData, user, changeName, queryRunner);
+            await queryRunner.commitTransaction();
+
+            this.logger.log(`Импорт успешно завершен. Change ID: ${importStats.changeId}`);
+
+            return {
+                success: true,
+                changeId: importStats.changeId,
+                message: "JSON данные успешно импортированы в БД DL",
+                warnings: [],
+                stats: importStats.stats,
+            };
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            this.logger.error(`Ошибка импорта: ${error.message}`, error.stack);
+            throw error;
+        } finally {
+            await queryRunner.release();
+        }
+    }
+
+    /**
+     * Обработка данных импорта
+     */
+    private async processImportData(
+        processedData: any,
+        user: string,
+        changeName: string,
+        queryRunner: QueryRunner,
+    ): Promise<{ changeId: number; stats: ImportResult['stats'] }> {
+        // Шаг 1: Создание записи в таблице изменений
+        const changeId = await this.changeRecordService.createChangeRecord(
+            processedData,
+            user,
+            changeName,
+            queryRunner,
+        );
+        this.logger.log(`Создана запись изменения с ID: ${changeId}`);
 
             // Шаг 2: Обработка процесса
             const process = await this.processHandlingService.handleProcess(
@@ -175,29 +256,17 @@ export class JsonMappingService {
             );
             this.logger.log(`Обработано неудачных маппингов: ${failedMappingsStats.count}`);
 
-			await queryRunner.commitTransaction();
+        this.logger.log(`Импорт успешно завершен. Change ID: ${changeId}`);
 
-			this.logger.log(`Импорт успешно завершен. Change ID: ${changeId}`);
-
-            return {
-                success: true,
-                changeId,
-                message: "JSON данные успешно импортированы в БД DL",
-                warnings: [],
-                stats: {
-                    entitiesProcessed: entitiesStats.count,
-                    attributesProcessed: entitiesStats.attributesCount,
-                    mappingsProcessed: mappingsStats.count,
-                    failedMappingsProcessed: failedMappingsStats.count,
-                },
-            };
-        } catch (error) {
-            await queryRunner.rollbackTransaction();
-            this.logger.error(`Ошибка импорта: ${error.message}`, error.stack);
-            throw error;
-        } finally {
-            await queryRunner.release();
-        }
+        return {
+            changeId,
+            stats: {
+                entitiesProcessed: entitiesStats.count,
+                attributesProcessed: entitiesStats.attributesCount,
+                mappingsProcessed: mappingsStats.count,
+                failedMappingsProcessed: failedMappingsStats.count,
+            },
+        };
     }
 
     /**
@@ -231,35 +300,26 @@ export class JsonMappingService {
 		};
 	}
 
-	/**
-	 * Валидация JSON структуры
-	 */
-    validateJsonStructure(data: any): {
-        isValid: boolean;
-        errors: string[];
-    } {
-		return this.jsonValidationService.validateJsonForImport(data);
-	}
+    /**
+     * Валидация JSON структуры
+     */
+    validateJsonStructure(data: any): ValidationResult {
+        return this.jsonValidationService.validateJsonForImport(data);
+    }
 
-	/**
-	 * Проверка на рекурсивные зависимости
-	 */
-    checkForRecursion(entities: any[], mappings: any[]): {
-        hasRecursion: boolean;
-        cycles: string[][];
-    } {
-		return this.jsonValidationService.checkForRecursion(entities, mappings);
-	}
+    /**
+     * Проверка на рекурсивные зависимости
+     */
+    checkForRecursion(entities: any[], mappings: any[]): RecursionCheckResult {
+        return this.jsonValidationService.checkForRecursion(entities, mappings);
+    }
 
-	/**
-	 * Проверка на дублирование сущностей и атрибутов
-	 */
-	checkForDuplicates(data: any): {
-		hasDuplicates: boolean;
-		duplicates: string[];
-	} {
-		return this.jsonValidationService.checkForDuplicates(data);
-	}
+    /**
+     * Проверка на дублирование сущностей и атрибутов
+     */
+    checkForDuplicates(data: any): DuplicateCheckResult {
+        return this.jsonValidationService.checkForDuplicates(data);
+    }
 
     /**
      * Получение ID процесса из данных JSON
