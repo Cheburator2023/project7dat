@@ -21,7 +21,7 @@ export {
 // Attribute type for data lineage entities
 export interface DataLineageAttribute {
 	name: string;
-	id: string;
+	id?: string;
 	type: string;
 	comment?: string;
 }

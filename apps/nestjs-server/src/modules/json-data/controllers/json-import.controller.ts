@@ -22,6 +22,7 @@ import { VersioningService } from "../services/versioning.service";
 import { JsonImportRequestDto } from "../dto/requests/json-import-request.dto";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
+import { ComprehensiveValidationResponse } from "../types/validation.types";
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("Импорт JSON")
@@ -45,6 +46,17 @@ export class JsonImportController {
 	@ApiBody({
 		description: "JSON данные для импорта",
 		type: JsonImportRequestDto,
+	})
+	@ApiHeader({
+		name: "x-user",
+		description:
+			'Идентификатор пользователя в формате: { "id": "user-id", "username": "user-name", "email": "user@example.com" }',
+		required: true,
+		schema: {
+			type: "string",
+			example:
+				'{"id":"12345","username":"ivanov","email":"ivanov@company.com"}',
+		},
 	})
 	@ApiHeader({
 		name: "x-user",
@@ -192,6 +204,7 @@ export class JsonImportController {
 			throw new InternalServerErrorException({
 				message: "Внутренняя ошибка при импорте JSON",
 				error: error.message,
+				timestamp: new Date().toISOString(),
 			});
 		}
 	}
@@ -206,6 +219,17 @@ export class JsonImportController {
 	@ApiBody({
 		description: "JSON данные для импорта",
 		type: JsonImportRequestDto,
+	})
+	@ApiHeader({
+		name: "x-user",
+		description:
+			'Идентификатор пользователя в формате: { "id": "user-id", "username": "user-name", "email": "user@example.com" }',
+		required: true,
+		schema: {
+			type: "string",
+			example:
+				'{"id":"12345","username":"ivanov","email":"ivanov@company.com"}',
+		},
 	})
 	@ApiHeader({
 		name: "x-user",
@@ -309,6 +333,7 @@ export class JsonImportController {
 			throw new InternalServerErrorException({
 				message: "Внутренняя ошибка при импорте DAPP JSON",
 				error: error.message,
+				timestamp: new Date().toISOString(),
 			});
 		}
 	}
@@ -322,6 +347,15 @@ export class JsonImportController {
 	@ApiBody({
 		description: "JSON данные для валидации",
 		type: JsonImportRequestDto,
+	})
+	@ApiHeader({
+		name: "x-user",
+		description: "Идентификатор пользователя для аудита",
+		required: false,
+		schema: {
+			type: "string",
+			example: "ivanov",
+		},
 	})
 	@ApiResponse({
 		status: 200,
@@ -369,7 +403,9 @@ export class JsonImportController {
 			},
 		},
 	})
-	async comprehensiveValidation(@Body() importRequest: JsonImportRequestDto) {
+	async comprehensiveValidation(
+		@Body() importRequest: JsonImportRequestDto,
+	): Promise<ComprehensiveValidationResponse> {
 		this.logger.log("Запрос на комплексную валидацию JSON");
 
 		try {
@@ -406,7 +442,11 @@ export class JsonImportController {
 				duplicateCheck,
 			);
 
-			const response = {
+			// Получаем информацию о версии схемы
+			const schemaVersionCheck =
+				this.jsonValidationService.validateSchemaVersion(importRequest.data);
+
+			const response: ComprehensiveValidationResponse = {
 				isValid:
 					validationReport.summary.isValid &&
 					validationReport.integrity.isValid &&
@@ -417,7 +457,8 @@ export class JsonImportController {
 				integrity: validationReport.integrity,
 				schemaVersion: {
 					...versionCompatibility,
-					currentVersion: validationReport.summary.schemaVersion,
+					version: schemaVersionCheck.version,
+					supported: schemaVersionCheck.supported,
 				},
 				statistics: validationReport.statistics,
 				recursionCheck,

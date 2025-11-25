@@ -1,22 +1,19 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
-import { ConfigService } from "@nestjs/config";
 import { EntityEntity } from "../entities/entity.entity";
 import { EntityMapEntity } from "../entities/entity-map.entity";
 
 @Injectable()
 export class DependencyCheckService {
+	private readonly logger = new Logger(DependencyCheckService.name);
+
 	constructor(
-		@Optional()
 		@InjectRepository(EntityEntity)
 		private readonly entityRepository: Repository<EntityEntity>,
-		@Optional()
 		@InjectRepository(EntityMapEntity)
 		readonly _entityMapRepository: Repository<EntityMapEntity>,
-		@Optional()
 		private readonly dataSource: DataSource,
-		readonly _configService: ConfigService,
 	) {}
 
 	/**
@@ -53,6 +50,7 @@ export class DependencyCheckService {
 				const params = currentProcessId
 					? [entity.entity_id, currentProcessId]
 					: [entity.entity_id];
+
 				const usages = await this.dataSource.query(query, params);
 
 				if (usages.length > 0) {
@@ -70,12 +68,41 @@ export class DependencyCheckService {
 				conflicts,
 			};
 		} catch (error) {
-			console.error("Ошибка при проверке зависимостей:", error);
+			this.logger.error("Ошибка при проверке зависимостей:", error);
 			return {
 				hasConflicts: false,
 				conflicts: [],
 			};
 		}
+	}
+
+	/**
+	 * Проверка безопасности удаления/обновления связей
+	 */
+	async isSafeToUpdate(
+		targetEntities: string[],
+		sourceProcessId?: number,
+	): Promise<{ safe: boolean; warnings: string[] }> {
+		const warnings: string[] = [];
+
+		const usageCheck = await this.checkMartUsage(
+			targetEntities,
+			sourceProcessId,
+		);
+
+		if (usageCheck.hasConflicts) {
+			for (const conflict of usageCheck.conflicts) {
+				warnings.push(
+					`Сущность "${conflict.entityName}" используется в процессах: ${conflict.processes.join(", ")}. ` +
+						`Обновление может повлиять на эти процессы.`,
+				);
+			}
+		}
+
+		return {
+			safe: warnings.length === 0,
+			warnings,
+		};
 	}
 
 	/**
@@ -117,37 +144,8 @@ export class DependencyCheckService {
 
 			return result;
 		} catch (error) {
-			console.error("Ошибка при получении процессов:", error);
+			this.logger.error("Ошибка при получении процессов:", error);
 			return result;
 		}
-	}
-
-	/**
-	 * Проверка безопасности удаления/обновления связей
-	 */
-	async isSafeToUpdate(
-		targetEntities: string[],
-		sourceProcessId: number,
-	): Promise<{ safe: boolean; warnings: string[] }> {
-		const warnings: string[] = [];
-
-		const usageCheck = await this.checkMartUsage(
-			targetEntities,
-			sourceProcessId,
-		);
-
-		if (usageCheck.hasConflicts) {
-			for (const conflict of usageCheck.conflicts) {
-				warnings.push(
-					`Сущность "${conflict.entityName}" используется в процессах: ${conflict.processes.join(", ")}. ` +
-						`Обновление может повлиять на эти процессы.`,
-				);
-			}
-		}
-
-		return {
-			safe: warnings.length === 0,
-			warnings,
-		};
 	}
 }
