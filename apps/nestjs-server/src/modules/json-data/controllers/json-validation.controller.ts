@@ -5,6 +5,7 @@ import {
 	ApiResponse,
 	ApiBody,
 	ApiBearerAuth,
+	ApiHeader,
 } from "@nestjs/swagger";
 import { JsonMappingService } from "../services/json-mapping.service";
 import { DependencyCheckService } from "../services/dependency-check.service";
@@ -41,6 +42,15 @@ export class JsonValidationController {
 					example: { desc: {}, entities: [], mappings: [] },
 				},
 			},
+		},
+	})
+	@ApiHeader({
+		name: "x-user",
+		description: "Идентификатор пользователя для аудита операций валидации",
+		required: false,
+		schema: {
+			type: "string",
+			example: "ivanov",
 		},
 	})
 	@ApiResponse({
