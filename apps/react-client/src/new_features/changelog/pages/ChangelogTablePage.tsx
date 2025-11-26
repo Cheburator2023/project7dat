@@ -16,11 +16,11 @@ import { ChangelogTable } from "../organisms/ChangelogTable";
 import { ChangelogDetailsModal } from "../molecules/ChangelogDetailsModal";
 import { ChangelogTableEntry, SortConfig, FilterConfig } from "../types";
 import { Header } from "@react-client/common/navigation/organisms/Header";
-import { useChangelogV2 } from "@react-client/api/hooks";
-import type {
-	ChangelogEntryV2,
-	ChangelogGroupV2,
-} from "../../../api/changelogV2Api";
+import {
+	ChangelogEntry,
+	ChangelogGroup,
+} from "@react-client/api/hooks/changelogApi";
+import { useChangelog } from "../../../api/hooks";
 
 const mapActionTypeToChangeType = (
 	actionType: string,
@@ -38,7 +38,7 @@ const mapActionTypeToChangeType = (
 };
 
 const mapChangelogEntryToTableEntry = (
-	entry: ChangelogEntryV2,
+	entry: ChangelogEntry,
 ): ChangelogTableEntry => {
 	const changeType = mapActionTypeToChangeType(entry.actionType);
 
@@ -97,7 +97,7 @@ const mapChangelogEntryToTableEntry = (
 
 export const ChangelogTablePage = () => {
 	const [data, setData] = useState<ChangelogTableEntry[]>([]);
-	const { loading, error, getChangelog } = useChangelogV2();
+	const { loading, error, getChangelog } = useChangelog();
 	const [selectedEntry, setSelectedEntry] =
 		useState<ChangelogTableEntry | null>(null);
 	const [modalOpen, setModalOpen] = useState(false);
@@ -123,8 +123,8 @@ export const ChangelogTablePage = () => {
 		const loadData = async () => {
 			const response = await getChangelog({ page: 1, limit: 1000 });
 			if (response) {
-				const mapped = response.groups.flatMap((group: ChangelogGroupV2) =>
-					group.entries.map((entry: ChangelogEntryV2) =>
+				const mapped = response.groups.flatMap((group: ChangelogGroup) =>
+					group.entries.map((entry: ChangelogEntry) =>
 						mapChangelogEntryToTableEntry(entry),
 					),
 				);

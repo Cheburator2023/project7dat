@@ -20,8 +20,8 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { ModelGraphWindow } from "./organisms/ModelGraphWindow";
 import { DataLineageEntity } from "@data-lineage/shared-schemas";
-import { useJsonDataListV2 } from "@react-client/api/hooks";
-import type { JsonDataItem } from "@react-client/api/jsonDataV2Api";
+import { useJsonDataList } from "@react-client/api/hooks";
+import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 
 // Extended interface based on DataLineageEntity for UI display purposes
 export interface Model extends DataLineageEntity {
@@ -209,7 +209,7 @@ const ActionRenderer = ({ data }: { data: Model }) => {
 export const ModelsPage = () => {
 	const [searchQuery, setSearchQuery] = useState("");
 	const { mode } = useColorScheme();
-	const { data: jsonDataList, isLoading, error } = useJsonDataListV2();
+	const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
 	const baseModels = useMemo<Model[]>(() => {
 		if (!jsonDataList) {

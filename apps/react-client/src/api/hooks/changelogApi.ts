@@ -16,7 +16,7 @@ export interface ChangelogEntry {
 	graphName: string;
 	actionType: string;
 	actionDescription: string;
-	details?: Record<string, any>;
+	details?: Record<string, any> | string | null;
 	author?: string;
 	commitId?: string;
 	snapshotId?: string;

@@ -12,18 +12,14 @@ import {
 } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
-import {
-	useCumulativeCommitData,
-	useCumulativeCommitDataV2,
-} from "@react-client/api/hooks";
 import { fastStringify } from "@react-client/shared/src";
-import { featureFlags } from "@react-client/config/featureFlags";
 import type {
 	DataLineageSchema,
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@data-lineage/shared-schemas";
 import { isDataLineageSchema } from "@data-lineage/shared-schemas";
+import { useCumulativeCommitData } from "@react-client/api/hooks";
 
 interface CommitDetailsDialogProps {
 	open: boolean;
@@ -71,21 +67,13 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 	const { mode } = useColorScheme();
 	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
-	const useV2Commits = featureFlags.newCommitsV2Enabled;
-
-	const cumulativeV1 = useCumulativeCommitData(selectedCommitId || "", {
-		enabled: Boolean(selectedCommitId && !useV2Commits),
-	});
-
-	const cumulativeV2 = useCumulativeCommitDataV2(selectedCommitId || "", {
-		enabled: Boolean(selectedCommitId && useV2Commits),
-	});
-
 	const {
 		data: cumulativeData,
 		isLoading: isLoadingCumulative,
 		error: cumulativeError,
-	} = useV2Commits ? cumulativeV2 : cumulativeV1;
+	} = useCumulativeCommitData(selectedCommitId || "", {
+		enabled: Boolean(selectedCommitId),
+	});
 
 	const baselineSchema: DataLineageSchema | null = useMemo(() => {
 		if (currentGraph && isDataLineageSchema(currentGraph)) {
@@ -149,19 +137,13 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 	}, [selectedEntityId, entityDiffItems]);
 
 	const baselineEntityView = useMemo(
-		() =>
-			useV2Commits
-				? buildEntityView(baselineSchema, effectiveSelectedEntityId)
-				: null,
-		[baselineSchema, effectiveSelectedEntityId, useV2Commits],
+		() => buildEntityView(baselineSchema, effectiveSelectedEntityId),
+		[baselineSchema, effectiveSelectedEntityId],
 	);
 
 	const targetEntityView = useMemo(
-		() =>
-			useV2Commits
-				? buildEntityView(targetSchema, effectiveSelectedEntityId)
-				: null,
-		[targetSchema, effectiveSelectedEntityId, useV2Commits],
+		() => buildEntityView(targetSchema, effectiveSelectedEntityId),
+		[targetSchema, effectiveSelectedEntityId],
 	);
 
 	const oldValue = currentGraph
@@ -222,95 +204,91 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 							/>
 						</Box>
 
-						{useV2Commits &&
-							baselineSchema &&
-							targetSchema &&
-							entityDiffItems.length > 0 && (
-								<Box sx={{ mb: 3 }}>
-									<Typography variant="h6" gutterBottom>
-										Изменения по сущностям
-									</Typography>
+						{baselineSchema && targetSchema && entityDiffItems.length > 0 && (
+							<Box sx={{ mb: 3 }}>
+								<Typography variant="h6" gutterBottom>
+									Изменения по сущностям
+								</Typography>
+								<Box
+									sx={{
+										display: "flex",
+										gap: 2,
+										maxHeight: "400px",
+									}}
+								>
 									<Box
 										sx={{
-											display: "flex",
-											gap: 2,
+											minWidth: 260,
 											maxHeight: "400px",
+											overflow: "auto",
+											borderRight: "1px solid #e0e0e0",
+											pr: 1,
 										}}
 									>
-										<Box
-											sx={{
-												minWidth: 260,
-												maxHeight: "400px",
-												overflow: "auto",
-												borderRight: "1px solid #e0e0e0",
-												pr: 1,
-											}}
-										>
-											{entityDiffItems.map((item) => {
-												const isSelected =
-													item.id === effectiveSelectedEntityId;
-												const status = item.inBaseline
-													? item.inTarget
-														? "modified"
-														: "removed"
-													: item.inTarget
-														? "new"
-														: "unknown";
-												const color =
-													status === "new"
-														? "success"
-														: status === "removed"
-															? "error"
-															: "primary";
-												const prefix =
-													status === "new"
-														? "[NEW] "
-														: status === "removed"
-															? "[REM] "
-															: status === "modified"
-																? "[MOD] "
-																: "";
+										{entityDiffItems.map((item) => {
+											const isSelected = item.id === effectiveSelectedEntityId;
+											const status = item.inBaseline
+												? item.inTarget
+													? "modified"
+													: "removed"
+												: item.inTarget
+													? "new"
+													: "unknown";
+											const color =
+												status === "new"
+													? "success"
+													: status === "removed"
+														? "error"
+														: "primary";
+											const prefix =
+												status === "new"
+													? "[NEW] "
+													: status === "removed"
+														? "[REM] "
+														: status === "modified"
+															? "[MOD] "
+															: "";
 
-												return (
-													<Button
-														key={item.id}
-														size="small"
-														variant={isSelected ? "contained" : "text"}
-														color={color}
-														onClick={() => setSelectedEntityId(item.id)}
-														sx={{
-															justifyContent: "flex-start",
-															width: "100%",
-															mb: 0.5,
-														}}
-													>
-														{prefix}
-														{item.name}
-													</Button>
-												);
-											})}
-										</Box>
-										<Box sx={{ flex: 1, overflow: "auto" }}>
-											{effectiveSelectedEntityId ? (
-												<ReactDiffViewer
-													oldValue={entityOldValue}
-													newValue={entityNewValue}
-													splitView
-													compareMethod={DiffMethod.CHARS}
-													useDarkTheme={mode === "dark"}
-													showDiffOnly={false}
-													leftTitle="Состояние в снепшоте"
-													rightTitle="Состояние на выбранном коммите"
-												/>
-											) : (
-												<Typography variant="body2" color="text.secondary">
-													Нет сущностей для сравнения
-												</Typography>
-											)}
-										</Box>
+											return (
+												<Button
+													key={item.id}
+													size="small"
+													variant={isSelected ? "contained" : "text"}
+													color={color}
+													onClick={() => setSelectedEntityId(item.id)}
+													sx={{
+														justifyContent: "flex-start",
+														width: "100%",
+														mb: 0.5,
+													}}
+												>
+													{prefix}
+													{item.name}
+												</Button>
+											);
+										})}
+									</Box>
+									<Box sx={{ flex: 1, overflow: "auto" }}>
+										{effectiveSelectedEntityId ? (
+											<ReactDiffViewer
+												oldValue={entityOldValue}
+												newValue={entityNewValue}
+												splitView
+												compareMethod={DiffMethod.CHARS}
+												useDarkTheme={mode === "dark"}
+												showDiffOnly={false}
+												leftTitle="Состояние в снепшоте"
+												rightTitle="Состояние на выбранном коммите"
+											/>
+										) : (
+											<Typography variant="body2" color="text.secondary">
+												Нет сущностей для сравнения
+											</Typography>
+										)}
 									</Box>
 								</Box>
-							)}
+							</Box>
+						)}
 
 						<Typography variant="h6" gutterBottom>
 							История изменений ({cumulativeData.commits.length} коммитов):

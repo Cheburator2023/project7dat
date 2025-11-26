@@ -13,7 +13,7 @@ import {
 	CircularProgress,
 } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
-import { useCumulativeCommitDataV2 } from "@react-client/api/hooks";
+import { useCumulativeCommitData } from "@react-client/api/hooks";
 import { featureFlags } from "@react-client/config/featureFlags";
 
 interface CommitQueueItem {
@@ -59,7 +59,7 @@ export const ViewCommitDialog: React.FC<ViewCommitDialogProps> = ({
 		data: cumulativeData,
 		isLoading,
 		error,
-	} = useCumulativeCommitDataV2(commitId, {
+	} = useCumulativeCommitData(commitId, {
 		enabled: useV2Commits && Boolean(commit?.isFromApi && commitId),
 	});
 

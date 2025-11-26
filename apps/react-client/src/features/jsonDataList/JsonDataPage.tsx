@@ -27,30 +27,14 @@ import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { ChangelogButton } from "@react-client/new_features/changelog/ChangelogButton";
-import { featureFlags } from "@react-client/config/featureFlags";
-import {
-	useJsonDataListV2,
-	useSetCurrentJsonDataV2,
-} from "@react-client/api/hooks";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 export const JsonDataPage = () => {
 	const { mode } = useColorScheme();
 
-	const listV1 = useJsonDataList();
-	const listV2 = useJsonDataListV2();
-	const setCurrentV1 = useSetCurrentJsonData();
-	const setCurrentV2 = useSetCurrentJsonDataV2();
-
-	const useV2 = featureFlags.newJsonDataV2Enabled;
-	const {
-		data: jsonDataList,
-		isLoading,
-		error,
-		refetch,
-	} = useV2 ? listV2 : listV1;
-	const setCurrentMutation = useV2 ? setCurrentV2 : setCurrentV1;
+	const { data: jsonDataList, isLoading, error, refetch } = useJsonDataList();
+	const setCurrentMutation = useSetCurrentJsonData();
 
 	const jsonDataColumns: ColDef[] = useMemo(
 		() => [

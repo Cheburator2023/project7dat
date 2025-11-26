@@ -26,8 +26,8 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { ChangelogButton } from "@react-client/new_features/changelog/ChangelogButton";
-import { useJsonDataListV2 } from "@react-client/api/hooks";
-import type { JsonDataItem } from "@react-client/api/jsonDataV2Api";
+import { useJsonDataList } from "@react-client/api/hooks";
+import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 
 interface ObjectItem {
 	id: string;
@@ -92,7 +92,7 @@ export const ObjectsPage: React.FC = () => {
 	const { mode } = useColorScheme();
 	const navigate = useNavigate();
 	const [searchText, setSearchText] = useState("");
-	const { data: jsonDataList, isLoading, error } = useJsonDataListV2();
+	const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
 	const baseData = useMemo<ObjectItem[]>(() => {
 		if (!jsonDataList) {
