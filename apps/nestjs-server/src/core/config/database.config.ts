@@ -1,9 +1,19 @@
-import { ConfigService, registerAs } from "@nestjs/config";
-import { TypeOrmModuleOptions } from "@nestjs/typeorm";
-import { DataSourceOptions } from "typeorm";
+import { registerAs } from "@nestjs/config";
 import * as Joi from "joi";
 
-export type DatabaseConfig = TypeOrmModuleOptions & DataSourceOptions;
+export interface PostgresDatabaseConfig {
+	type: "postgres";
+	host: string;
+	port: number;
+	username: string;
+	password: string;
+	database: string;
+	entities: string[];
+	synchronize: boolean;
+	logging: boolean;
+	migrations: string[];
+	migrationsRun: boolean;
+}
 
 export const databaseValidationSchema = Joi.object({
 	DB_HOST: Joi.string().default("localhost"),
@@ -24,44 +34,50 @@ export const databaseValidationSchema = Joi.object({
 	DEV_DB_PASSWORD: Joi.string().default("postgres"),
 });
 
-export const databaseConfig = registerAs("database", (): DatabaseConfig => {
-	const configService = new ConfigService();
-	const isProduction = configService.get("app.isProduction");
-	const _devDbType = process.env.DEV_DB_TYPE || "postgres";
+export const databaseConfig = registerAs(
+	"database",
+	(): PostgresDatabaseConfig => {
+		const nodeEnv = process.env.NODE_ENV || "development";
+		const isProduction = nodeEnv === "production";
 
-	const commonOptions: Partial<DatabaseConfig> = {
-		entities: [__dirname + "/../../**/*.entity{.ts,.js}"],
-		synchronize: process.env.DB_SYNCHRONIZE === "true" || !isProduction,
-		logging: process.env.DB_LOGGING === "true" || !isProduction,
-		migrations: [__dirname + "/../../migrations/*{.ts,.js}"],
-		migrationsRun: process.env.DB_MIGRATIONS_RUN === "true",
-	};
+		console.log("Database configuration loaded:", {
+			nodeEnv,
+			isProduction,
+			dbHost: isProduction ? process.env.DB_HOST : process.env.DEV_DB_HOST,
+			dbPort: isProduction ? process.env.DB_PORT : process.env.DEV_DB_PORT,
+			dbName: isProduction ? process.env.DB_NAME : process.env.DEV_DB_NAME,
+		});
 
-    console.log('DB configuration loaded:', {
-        dbHost: process.env.DB_HOST,
-        dbPort: process.env.DB_PORT,
-        dbName: process.env.DB_NAME
-    });
+		// Базовые параметры
+		const baseConfig = {
+			type: "postgres" as const,
+			host: isProduction
+				? process.env.DB_HOST || "localhost"
+				: process.env.DEV_DB_HOST || "localhost",
+			port: isProduction
+				? Number.parseInt(process.env.DB_PORT || "5432", 10)
+				: Number.parseInt(process.env.DEV_DB_PORT || "5432", 10),
+			username: isProduction
+				? process.env.DB_USERNAME || "postgres"
+				: process.env.DEV_DB_USERNAME || "postgres",
+			password: isProduction
+				? process.env.DB_PASSWORD || "postgres"
+				: process.env.DEV_DB_PASSWORD || "postgres",
+			database: isProduction
+				? process.env.DB_NAME || "data_lineage"
+				: process.env.DEV_DB_NAME || "data_lineage",
+		};
 
-	if (isProduction) {
-		return {
-			type: "postgres",
-			host: process.env.DB_HOST || "localhost",
-			port: Number.parseInt(process.env.DB_PORT || "5432", 10),
-			username: process.env.DB_USERNAME || "postgres",
-			password: process.env.DB_PASSWORD || "postgres",
-			database: process.env.DB_NAME || "data_lineage",
-			...commonOptions,
-		} as DatabaseConfig;
-	}
+		// Полная конфигурация
+		const fullConfig: PostgresDatabaseConfig = {
+			...baseConfig,
+			entities: [__dirname + "/../../**/*.entity{.ts,.js}"],
+			synchronize: process.env.DB_SYNCHRONIZE === "true" || !isProduction,
+			logging: process.env.DB_LOGGING === "true" || !isProduction,
+			migrations: [__dirname + "/../../migrations/*{.ts,.js}"],
+			migrationsRun: process.env.DB_MIGRATIONS_RUN === "true",
+		};
 
-	return {
-		type: "postgres",
-		host: process.env.DEV_DB_HOST || "localhost",
-		port: Number.parseInt(process.env.DEV_DB_PORT || "5432", 10),
-		username: process.env.DEV_DB_USERNAME || "postgres",
-		password: process.env.DEV_DB_PASSWORD || "postgres",
-		database: process.env.DEV_DB_NAME || "data_lineage",
-		...commonOptions,
-	} as DatabaseConfig;
-});
+		return fullConfig;
+	},
+);
