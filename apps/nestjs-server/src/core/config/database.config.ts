@@ -37,6 +37,12 @@ export const databaseConfig = registerAs("database", (): DatabaseConfig => {
 		migrationsRun: process.env.DB_MIGRATIONS_RUN === "true",
 	};
 
+    console.log('DB configuration loaded:', {
+        dbHost: process.env.DB_HOST,
+        dbPort: process.env.DB_PORT,
+        dbName: process.env.DB_NAME
+    });
+
 	if (isProduction) {
 		return {
 			type: "postgres",
