@@ -18,7 +18,9 @@ import { FailedMappingsEntity } from "./entities/failed-mappings.entity";
 // Services
 import { JsonDataService } from "./services/json-data.service";
 import { JsonCommitService } from "./services/json-commit.service";
-import { JsonMappingService } from "./services/json-mapping.service";
+import { JsonImportService } from "./services/json-import.service";
+import { JsonConflictService } from "./services/json-conflict.service";
+import { JsonMigrationService } from "./services/json-migration.service";
 import { ChangeRecordService } from './services/change-record.service';
 import { ProcessHandlingService } from './services/process-handling.service';
 import { EntityProcessingService } from './services/entity-processing.service';
@@ -27,8 +29,23 @@ import { EntityTypeService } from "./services/entity-type.service";
 import { AttributeTypeService } from "./services/attribute-type.service";
 import { EntityContainerService } from "./services/entity-container.service";
 import { DependencyCheckService } from "./services/dependency-check.service";
-import { JsonValidationService } from "./services/json-validation.service";
 import { VersioningService } from "./services/versioning.service";
+
+// New Validation Services
+import { JsonStructureValidationService } from "./services/json-structure-validation.service";
+import { JsonIntegrityValidationService } from "./services/json-integrity-validation.service";
+import { JsonBusinessRulesValidationService } from "./services/json-business-rules-validation.service";
+import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
+import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
+import { CommonJsonValidationService } from "./services/common-json-validation.service";
+
+// Interfaces
+import {
+    IJsonStructureValidator,
+    IJsonBusinessRulesValidator,
+    IJsonIntegrityValidator,
+    IJsonSchemaVersionValidator
+} from "./services/interfaces/validation.interfaces";
 
 // Controllers
 import { JsonDataController } from "./controllers/json-data.controller";
@@ -67,7 +84,11 @@ export class JsonDataModule {
             // Core services
             JsonDataService,
             JsonCommitService,
-            JsonMappingService,
+            JsonImportService,
+
+            // Conflict and Migration services
+            JsonConflictService,
+            JsonMigrationService,
 
             // Processing services
             ChangeRecordService,
@@ -80,8 +101,33 @@ export class JsonDataModule {
             AttributeTypeService,
             EntityContainerService,
             DependencyCheckService,
-            JsonValidationService,
             VersioningService,
+
+            // New Validation Services
+            JsonStructureValidationService,
+            JsonIntegrityValidationService,
+            JsonBusinessRulesValidationService,
+            JsonSchemaVersionValidationService,
+            JsonValidationOrchestratorService,
+            CommonJsonValidationService,
+
+            // Register interfaces with implementations
+            {
+                provide: 'IJsonStructureValidator',
+                useClass: JsonStructureValidationService
+            },
+            {
+                provide: 'IJsonBusinessRulesValidator',
+                useClass: JsonBusinessRulesValidationService
+            },
+            {
+                provide: 'IJsonIntegrityValidator',
+                useClass: JsonIntegrityValidationService
+            },
+            {
+                provide: 'IJsonSchemaVersionValidator',
+                useClass: JsonSchemaVersionValidationService
+            },
 
             // External services (from ChangelogModule)
             ConfigService,
@@ -97,7 +143,9 @@ export class JsonDataModule {
         const exports = [
             JsonDataService,
             JsonCommitService,
-            JsonMappingService,
+            JsonImportService,
+            JsonConflictService,
+            JsonMigrationService,
             ChangeRecordService,
             ProcessHandlingService,
             EntityProcessingService,
@@ -106,8 +154,13 @@ export class JsonDataModule {
             AttributeTypeService,
             EntityContainerService,
             DependencyCheckService,
-            JsonValidationService,
             VersioningService,
+            JsonStructureValidationService,
+            JsonIntegrityValidationService,
+            JsonBusinessRulesValidationService,
+            JsonSchemaVersionValidationService,
+            JsonValidationOrchestratorService,
+            CommonJsonValidationService,
         ];
 
         return {
