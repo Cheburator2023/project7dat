@@ -18,11 +18,8 @@ import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import {
 	useCommitList,
 	useCommitSearch,
-	useCommitListV2,
-	useCommitSearchV2,
 	useSnapshotList,
 } from "@react-client/api/hooks";
-import { featureFlags } from "@react-client/config/featureFlags";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { fastStringify } from "@react-client/shared/src";
@@ -165,12 +162,6 @@ export const CommitHistory: React.FC = memo(() => {
 			queryClient.invalidateQueries({
 				queryKey: ["jsonData", "commitSearch"],
 			});
-			queryClient.invalidateQueries({
-				queryKey: ["jsonData", "commitListV2"],
-			});
-			queryClient.invalidateQueries({
-				queryKey: ["jsonData", "commitSearchV2"],
-			});
 		}
 		setPrevHasUnsavedChanges(hasUnsavedChanges);
 	}, [hasUnsavedChanges, prevHasUnsavedChanges, currentGraphId, queryClient]);
@@ -197,39 +188,23 @@ export const CommitHistory: React.FC = memo(() => {
 		],
 	);
 
-	const useV2Commits = featureFlags.newCommitsV2Enabled;
-
-	const listV1 = useCommitList({
-		graphId: currentGraphId || undefined,
-		enabled: Boolean(currentGraphId && !useV2Commits),
-	});
-
-	const listV2 = useCommitListV2({
-		graphId: currentGraphId || undefined,
-		enabled: Boolean(currentGraphId && useV2Commits),
-	});
-
-	const searchV1 = useCommitSearch(currentGraphId || "", {
-		...searchParams,
-		enabled: Boolean(searchParams.enabled && !useV2Commits),
-	});
-
-	const searchV2 = useCommitSearchV2(currentGraphId || "", {
-		...searchParams,
-		enabled: Boolean(searchParams.enabled && useV2Commits),
-	});
-
 	const {
 		data: commitData,
 		isLoading: isLoadingList,
 		error: listError,
-	} = useV2Commits ? listV2 : listV1;
+	} = useCommitList({
+		graphId: currentGraphId || undefined,
+		enabled: Boolean(currentGraphId),
+	});
 
 	const {
 		data: searchData,
 		isLoading: isLoadingSearch,
 		error: searchError,
-	} = useV2Commits ? searchV2 : searchV1;
+	} = useCommitSearch(currentGraphId || "", {
+		...searchParams,
+		enabled: Boolean(searchParams.enabled),
+	});
 
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");

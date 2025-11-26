@@ -17,7 +17,7 @@ import {
 
 import { useDatabaseSchema } from "@react-client/api/hooks/useDatabaseSchema";
 import { useTableData } from "@react-client/api/hooks/useTableData";
-import type { TableInfo } from "@react-client/api/databaseSchemaApi";
+import type { TableInfo } from "@react-client/api/hooks/databaseSchemaApi";
 
 // MUI v7 imports
 import {

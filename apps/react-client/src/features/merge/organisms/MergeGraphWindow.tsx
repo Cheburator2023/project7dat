@@ -17,10 +17,7 @@ import type {
 	DataLineageEntity,
 } from "@data-lineage/shared-schemas";
 import { isDataLineageSchema } from "@data-lineage/shared-schemas";
-import {
-	useApplyCommitV2,
-	useApplyPartialCommitV2,
-} from "@react-client/api/hooks";
+import { useApplyCommit, useApplyPartialCommit } from "@react-client/api/hooks";
 import { featureFlags } from "@react-client/config/featureFlags";
 
 type EntityDiffItem = {
@@ -39,8 +36,8 @@ export const MergeGraphWindow: React.FC = () => {
 	} = useMergeStore();
 
 	const useV2Commits = featureFlags.newCommitsV2Enabled;
-	const applyPartialCommitMutation = useApplyPartialCommitV2();
-	const applyCommitMutation = useApplyCommitV2();
+	const applyPartialCommitMutation = useApplyPartialCommit();
+	const applyCommitMutation = useApplyCommit();
 	const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
 
 	const { targetSchema, entityDiffItems } = useMemo(() => {

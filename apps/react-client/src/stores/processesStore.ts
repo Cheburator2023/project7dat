@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
-import type { JsonDataItem } from "@react-client/api/jsonDataV2Api";
-import { jsonDataV2Service } from "@react-client/api/jsonDataV2Api";
+import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
+import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
 import { featureFlags } from "@react-client/config/featureFlags";
 
 export interface Process {
@@ -71,7 +71,7 @@ const useProcessesStore = create<ProcessesStore>((set) => ({
 	setCurrentProcessData: (data) => set({ currentProcessData: data }),
 	loadProcesses: async () => {
 		try {
-			const response = await jsonDataV2Service.getJsonDataV2();
+			const response = await jsonDataService.getJsonDataV2();
 			const processes = response.data.map(mapJsonDataItemToProcess);
 			set({ processes, isLoading: false });
 		} catch (error) {
@@ -80,7 +80,7 @@ const useProcessesStore = create<ProcessesStore>((set) => ({
 	},
 	loadProcessData: async (processId) => {
 		try {
-			const response = await jsonDataV2Service.getJsonDataV2(processId);
+			const response = await jsonDataService.getJsonDataV2(processId);
 			const data = response.data.data as DataLineageSchema;
 			set({ currentProcessData: data, isLoading: false });
 		} catch (error) {
@@ -2289,7 +2289,7 @@ export const useProcessesStore = create<ProcessesStore>()((set, get) => ({
 
 		try {
 			if (featureFlags.newJsonDataV2Enabled) {
-				const items = await jsonDataV2Service.getAll();
+				const items = await jsonDataService.getAll();
 				const processes = items.map(mapJsonDataItemToProcess);
 				setProcesses(processes);
 			} else {
@@ -2318,7 +2318,7 @@ export const useProcessesStore = create<ProcessesStore>()((set, get) => ({
 				if (existing?.dataLineage) {
 					setCurrentProcessData(existing.dataLineage);
 				} else {
-					const item = await jsonDataV2Service.getById(processId);
+					const item = await jsonDataService.getById(processId);
 					setCurrentProcessData(item.data as DataLineageSchema);
 				}
 			} else {

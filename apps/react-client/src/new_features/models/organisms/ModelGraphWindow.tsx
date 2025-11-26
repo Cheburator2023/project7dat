@@ -34,8 +34,8 @@ import { Close, Visibility, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { ObjectDetailsDialog } from "../molecules/ObjectDetailsDialog";
 import { ConnectionDetailsDialog } from "../molecules/ConnectionDetailsDialog";
 import { featureFlags } from "@react-client/config/featureFlags";
-import { jsonDataV2Service } from "@react-client/api/jsonDataV2Api";
-import type { JsonDataItem } from "@react-client/api/jsonDataV2Api";
+import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
+import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import type {
 	DataLineageSchema,
 	DataLineageEntity,
@@ -300,7 +300,7 @@ export const ModelGraphWindow = ({
 		setIsLoading(true);
 		setError(null);
 
-		jsonDataV2Service
+		jsonDataService
 			.getById(graphId)
 			.then((item) => {
 				if (cancelled) return;

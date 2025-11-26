@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import { featureFlags } from "@react-client/config/featureFlags";
-import { jsonDataV2Service } from "@react-client/api/jsonDataV2Api";
+import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
 import { DataLineageGraph } from "@react-client/new_features/processes/organisms/DataLineageGraph";
 
@@ -53,7 +53,7 @@ export function ProcessGraphWindow({
 		setIsLoading(true);
 		setError(null);
 
-		jsonDataV2Service
+		jsonDataService
 			.getById(process.id)
 			.then((item) => {
 				if (cancelled) return;

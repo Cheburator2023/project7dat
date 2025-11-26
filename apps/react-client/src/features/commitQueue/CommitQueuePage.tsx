@@ -32,13 +32,10 @@ import { ReplaceFileDialog } from "./dialogs/ReplaceFileDialog";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { CloudUploadIcon } from "lucide-react";
 import { useMergeStore } from "../../stores/mergeStore";
-import { jsonDataService } from "../../api/jsonDataApi";
-import { jsonCommitV2Service } from "../../api/jsonCommitV2Api";
 import { QueueVisualization } from "./QueueVisualization";
-
-import { featureFlags } from "@react-client/config/featureFlags";
-import { useCommitQueueV2 } from "@react-client/api/hooks";
-import type { CommitQueueApiItem } from "@react-client/api/jsonDataApi";
+import type { CommitQueueApiItem } from "@react-client/api/hooks/jsonDataApi";
+import { jsonCommitService } from "@react-client/api/hooks/jsonCommitApi";
+import { useCommitQueue } from "@react-client/api/hooks";
 
 // Типы данных
 interface CommitQueueItem {
@@ -409,18 +406,15 @@ export const CommitQueuePage: React.FC = () => {
 		null,
 	);
 	const [localCommits, setLocalCommits] = useState<CommitQueueItem[]>([]);
-	const useV2Commits = featureFlags.newCommitsV2Enabled;
-	const { data: queueData } = useCommitQueueV2({
-		enabled: useV2Commits,
-	});
+	const { data: queueData } = useCommitQueue();
 
 	const commits = useMemo(() => {
-		if (useV2Commits && queueData) {
+		if (queueData) {
 			return queueData.map(mapApiItemToQueueItem);
 		}
 
 		return localCommits;
-	}, [useV2Commits, queueData, localCommits]);
+	}, [queueData, localCommits]);
 
 	// Merge store
 	const { startMerge, openMergeGraphWindow, openDiffWindow } = useMergeStore();
@@ -525,12 +519,10 @@ export const CommitQueuePage: React.FC = () => {
 		}
 
 		try {
-			// Получаем кумулятивные данные коммита (v1 или v2)
-			const cumulativeData = useV2Commits
-				? await jsonCommitV2Service.getCumulativeDataAtCommit(
-						firstValidatedCommit.id,
-					)
-				: await jsonDataService.applyCommit(firstValidatedCommit.id);
+			// Получаем кумулятивные данные коммита
+			const cumulativeData = await jsonCommitService.getCumulativeDataAtCommit(
+				firstValidatedCommit.id,
+			);
 
 			// Подготавливаем данные для мерджа
 			const mergeData = {

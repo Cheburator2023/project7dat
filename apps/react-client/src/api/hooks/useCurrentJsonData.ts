@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { jsonDataService, type JsonDataItem } from "../jsonDataApi";
+import { jsonDataService, type JsonDataItem } from "./jsonDataApi";
 
 export const CURRENT_JSON_DATA_QUERY_KEY = ["jsonData", "current"] as const;
 

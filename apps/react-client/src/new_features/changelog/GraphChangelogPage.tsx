@@ -19,12 +19,12 @@ import {
 	ExpandMore as ExpandMoreIcon,
 	History as HistoryIcon,
 } from "@mui/icons-material";
-import { useChangelogV2 } from "@react-client/api/hooks";
-import type {
-	ChangelogEntryV2,
-	ChangelogGroupV2,
-} from "../../api/changelogV2Api";
 import { Header } from "@react-client/common/navigation/organisms/Header";
+import { useChangelog } from "@react-client/api/hooks";
+import {
+	ChangelogEntry,
+	ChangelogGroup,
+} from "@react-client/api/hooks/changelogApi";
 
 const getActionTypeColor = (actionType: string) => {
 	switch (actionType) {
@@ -88,7 +88,7 @@ const formatTime = (dateString: string) => {
 };
 
 interface ChangelogEntryItemProps {
-	entry: ChangelogEntryV2;
+	entry: ChangelogEntry;
 }
 
 const ChangelogEntryItem = ({ entry }: ChangelogEntryItemProps) => {
@@ -137,7 +137,7 @@ const ChangelogEntryItem = ({ entry }: ChangelogEntryItemProps) => {
 };
 
 interface ChangelogGroupItemProps {
-	group: ChangelogGroupV2;
+	group: ChangelogGroup;
 }
 
 const ChangelogGroupItem = ({ group }: ChangelogGroupItemProps) => {
@@ -164,8 +164,8 @@ const ChangelogGroupItem = ({ group }: ChangelogGroupItemProps) => {
 export const GraphChangelogPage = () => {
 	const { graphId } = useParams<{ graphId: string }>();
 	const navigate = useNavigate();
-	const { loading, error, getChangelogForGraph } = useChangelogV2();
-	const [groups, setGroups] = useState<ChangelogGroupV2[]>([]);
+	const { loading, error, getChangelogForGraph } = useChangelog();
+	const [groups, setGroups] = useState<ChangelogGroup[]>([]);
 	const [page, setPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 	const [authorFilter, setAuthorFilter] = useState("");

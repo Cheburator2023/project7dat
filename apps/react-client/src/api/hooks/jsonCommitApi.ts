@@ -9,14 +9,14 @@ import type {
 const API_BASE_URL =
 	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
 
-export const jsonCommitV2Api = axios.create({
-	baseURL: `${API_BASE_URL}/api/v2/json-commits`,
+export const jsonCommitApi = axios.create({
+	baseURL: `${API_BASE_URL}/api/json-commits`,
 	headers: {
 		"Content-Type": "application/json",
 	},
 });
 
-export const jsonCommitV2Service = {
+export const jsonCommitService = {
 	getCommits(params?: {
 		page?: number;
 		limit?: number;
@@ -26,7 +26,7 @@ export const jsonCommitV2Service = {
 		if (params?.page) searchParams.append("page", params.page.toString());
 		if (params?.limit) searchParams.append("limit", params.limit.toString());
 		if (params?.graphId) searchParams.append("graphId", params.graphId);
-		return jsonCommitV2Api
+		return jsonCommitApi
 			.get(`/commits?${searchParams.toString()}`)
 			.then((response) => response.data);
 	},
@@ -46,7 +46,7 @@ export const jsonCommitV2Service = {
 		if (params?.dateTo) searchParams.append("dateTo", params.dateTo);
 		if (params?.user) searchParams.append("user", params.user);
 		if (params?.query) searchParams.append("query", params.query);
-		return jsonCommitV2Api
+		return jsonCommitApi
 			.get(`/commits/all?${searchParams.toString()}`)
 			.then((response) => response.data);
 	},
@@ -69,23 +69,23 @@ export const jsonCommitV2Service = {
 		if (params?.query) searchParams.append("query", params.query);
 		if (params?.page) searchParams.append("page", params.page.toString());
 		if (params?.limit) searchParams.append("limit", params.limit.toString());
-		return jsonCommitV2Api
+		return jsonCommitApi
 			.get(`/commits/search/${graphId}?${searchParams.toString()}`)
 			.then((response) => response.data);
 	},
 
 	getCumulativeDataAtCommit(id: string): Promise<CumulativeCommitData> {
-		return jsonCommitV2Api
+		return jsonCommitApi
 			.get(`/commits/${id}/cumulative`)
 			.then((response) => response.data);
 	},
 
 	getCommitQueue(): Promise<CommitQueueApiItem[]> {
-		return jsonCommitV2Api.get("/queue").then((response) => response.data);
+		return jsonCommitApi.get("/queue").then((response) => response.data);
 	},
 
 	applyCommit(id: string): Promise<JsonDataItem> {
-		return jsonCommitV2Api
+		return jsonCommitApi
 			.post(`/commits/${id}/apply`)
 			.then((response) => response.data);
 	},
@@ -94,7 +94,7 @@ export const jsonCommitV2Service = {
 		id: string;
 		selectedEntityIds: string[];
 	}): Promise<JsonDataItem> {
-		return jsonCommitV2Api
+		return jsonCommitApi
 			.post(`/commits/${params.id}/apply-partial`, {
 				selectedEntityIds: params.selectedEntityIds,
 			})
