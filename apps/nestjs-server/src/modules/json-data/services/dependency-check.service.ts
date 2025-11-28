@@ -2,7 +2,6 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
 import { EntityEntity } from "../entities/entity.entity";
-import { EntityMapEntity } from "../entities/entity-map.entity";
 
 @Injectable()
 export class DependencyCheckService {
@@ -11,8 +10,6 @@ export class DependencyCheckService {
     constructor(
         @InjectRepository(EntityEntity)
         private readonly entityRepository: Repository<EntityEntity>,
-        @InjectRepository(EntityMapEntity)
-        private readonly entityMapRepository: Repository<EntityMapEntity>,
         private readonly dataSource: DataSource,
     ) {}
 
@@ -75,6 +72,81 @@ export class DependencyCheckService {
 			};
 		}
 	}
+
+    /**
+     * Проверка рекурсивных зависимостей
+     */
+    async checkForRecursion(
+        entities: any[],
+        mappings: any[],
+    ): Promise<{ hasRecursion: boolean; cycles: string[][] }> {
+        const graph = new Map<string, string[]>();
+        const cycles: string[][] = [];
+
+        // Построение графа зависимостей
+        entities.forEach((entity) => {
+            graph.set(entity.id, []);
+        });
+
+        mappings.forEach((mapping) => {
+            if (mapping.deps && Array.isArray(mapping.deps)) {
+                mapping.deps.forEach((dep: any) => {
+                    const source = dep.entityId;
+                    const target = mapping.entityId;
+
+                    if (graph.has(source)) {
+                        graph.get(source)!.push(target);
+                    }
+                });
+            }
+        });
+
+        // Поиск циклов с помощью DFS
+        const visited = new Set<string>();
+        const recursionStack = new Set<string>();
+
+        const dfs = (node: string, path: string[]): boolean => {
+            if (recursionStack.has(node)) {
+                cycles.push([...path, node]);
+                return true;
+            }
+
+            if (visited.has(node)) {
+                return false;
+            }
+
+            visited.add(node);
+            recursionStack.add(node);
+            path.push(node);
+
+            const neighbors = graph.get(node) || [];
+            let hasCycle = false;
+
+            for (const neighbor of neighbors) {
+                if (dfs(neighbor, path)) {
+                    hasCycle = true;
+                }
+            }
+
+            path.pop();
+            recursionStack.delete(node);
+            return hasCycle;
+        };
+
+        let hasRecursion = false;
+        for (const node of graph.keys()) {
+            if (!visited.has(node)) {
+                if (dfs(node, [])) {
+                    hasRecursion = true;
+                }
+            }
+        }
+
+        return {
+            hasRecursion,
+            cycles,
+        };
+    }
 
     /**
      * Проверка безопасности удаления/обновления связей

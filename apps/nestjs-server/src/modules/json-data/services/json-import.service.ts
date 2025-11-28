@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException, ConflictException } from "@nestjs/common";
 import { DataSource, QueryRunner } from "typeorm";
-import { JsonImportRequestDto } from "../dto/requests/json-import-request.dto";
+import { JsonImportRequestDto } from "../dto";
 import { JsonValidationOrchestratorService } from "./json-validation-orchestrator.service";
 import { JsonConflictService } from "./json-conflict.service";
 import { JsonMigrationService } from "./json-migration.service";
@@ -76,7 +76,7 @@ export class JsonImportService {
                 validationResult.schemaVersion.incomingVersion,
             );
             this.logger.log(
-                `Данные мигрированы с версии ${validationResult.schemaVersion.incomingVersion}`,
+                `Данные мигрированы с версии ${validationResult.schemaVersion.incomingVersion} на ${validationResult.schemaVersion.currentVersion}`,
             );
         }
 
@@ -103,8 +103,9 @@ export class JsonImportService {
 
         // Проверка зависимостей для модифицированных витрин
         const modifiedEntities = (processedData.entities || []).filter(
-            (entity: any) => entity.modified,
+            (entity: any) => entity.modified === true,
         );
+
         if (modifiedEntities.length > 0) {
             const processId = await this.processHandlingService.getProcessIdFromData(processedData);
             const safetyCheck = await this.conflictService.isSafeToUpdate(
@@ -139,7 +140,7 @@ export class JsonImportService {
                 success: true,
                 changeId: importStats.changeId,
                 message: "JSON данные успешно импортированы в БД DL",
-                warnings: [],
+                warnings: importStats.warnings,
                 stats: importStats.stats,
             };
         } catch (error) {
@@ -156,7 +157,9 @@ export class JsonImportService {
         user: string,
         changeName: string,
         queryRunner: QueryRunner,
-    ): Promise<{ changeId: number; stats: ImportResult['stats'] }> {
+    ): Promise<{ changeId: number; warnings: string[]; stats: ImportResult['stats'] }> {
+        const warnings: string[] = [];
+
         // Шаг 1: Создание записи в таблице changes
         const changeId = await this.changeRecordService.createChangeRecord(
             processedData,
@@ -166,9 +169,11 @@ export class JsonImportService {
         );
         this.logger.log(`Создана запись изменения с ID: ${changeId}`);
 
-        // Шаг 2: Обработка процесса
+        // Шаг 2: Обработка процесса с передачей entities и mappings для точной очистки связей
         const process = await this.processHandlingService.handleProcess(
             processedData.desc,
+            processedData.entities || [],
+            processedData.mappings || [],
             changeId,
             queryRunner,
         );
@@ -176,9 +181,10 @@ export class JsonImportService {
             `Обработан процесс: ${process.name} (ID: ${process.process_id})`,
         );
 
-        // Шаг 3: Обработка сущностей
+        // Шаг 3: Обработка сущностей и создание entity_map для целевых сущностей
         const entitiesStats = await this.entityProcessingService.handleEntities(
             processedData.entities,
+            process.process_id,
             changeId,
             queryRunner,
         );
@@ -197,14 +203,19 @@ export class JsonImportService {
 
         // Шаг 5: Обработка неудачных маппингов (для DAPP JSON)
         const failedMappingsStats = await this.mappingProcessingService.handleFailedMappings(
-            processedData.failedMappings,
+            processedData.failedMappings || [],
             changeId,
             queryRunner,
         );
-        this.logger.log(`Обработано неудачных маппингов: ${failedMappingsStats.count}`);
+
+        if (failedMappingsStats.count > 0) {
+            this.logger.log(`Обработано неудачных маппингов: ${failedMappingsStats.count}`);
+            warnings.push(`Обнаружено ${failedMappingsStats.count} неудачных маппингов`);
+        }
 
         return {
             changeId,
+            warnings,
             stats: {
                 entitiesProcessed: entitiesStats.count,
                 attributesProcessed: entitiesStats.attributesCount,

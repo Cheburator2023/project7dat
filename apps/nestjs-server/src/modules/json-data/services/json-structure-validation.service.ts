@@ -4,7 +4,7 @@ import {
     ValidationResult,
     RecursionCheckResult,
     DuplicateCheckResult
-} from "../types/validation.types";
+} from "../types";
 import { IJsonStructureValidator } from "./interfaces/validation.interfaces";
 
 @Injectable()
@@ -14,7 +14,11 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
     private readonly maxEntities: number;
     private readonly maxAttributes: number;
     private readonly validEntityTypes = ["table", "view", "unresolved", "rdd"];
-    private readonly validAttributeTypes = ["timestamp", "decimal", "string", "integer"];
+    private readonly validAttributeTypes = [
+        "timestamp", "date", "datetime", "decimal", "numeric",
+        "double", "float", "string", "varchar", "text", "char",
+        "integer", "int", "bigint", "smallint", "boolean", "bool"
+    ];
 
     constructor(private readonly configService: ConfigService) {
         this.maxJsonSize = this.configService.get<number>("MAX_JSON_SIZE", 52428800);
