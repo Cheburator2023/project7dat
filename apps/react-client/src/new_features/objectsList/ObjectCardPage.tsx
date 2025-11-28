@@ -31,7 +31,7 @@ interface ObjectItem {
 	id: string;
 	graphId?: string;
 	object: string;
-	objectType: "Модель" | "Витрина" | "Признак";
+	objectType: "Источник" | "Витрина" | "Признак";
 	description: string;
 	modelId: string;
 	database: string;
@@ -56,7 +56,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 			id: `${graphId}::${entity.id}`,
 			graphId,
 			object: entity.name ?? entity.id,
-			objectType: entity.type === "view" ? "Витрина" : "Модель",
+			objectType: entity.modified ? "Витрина" : "Источник",
 			description: processDescription,
 			modelId: entity.id,
 			database,
@@ -126,7 +126,7 @@ export const ObjectCardPage: React.FC = () => {
 
 	const getTypeColor = (type: string) => {
 		switch (type) {
-			case "Модель":
+			case "Источник":
 				return "primary";
 			case "Витрина":
 				return "warning";

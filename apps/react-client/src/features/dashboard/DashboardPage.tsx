@@ -95,6 +95,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { dataLineageExampleData } from "@react-client/examples/dataLineageExampleData";
 import type { DataLineageGraph } from "@react-client/types/dataLineage";
+import {
+	useProcessesStore,
+	type Process,
+} from "@react-client/stores/processesStore";
 
 // ============================================================================
 // Cross-Panel Selection Store (Zustand)
@@ -230,7 +234,7 @@ interface ObjectRow {
 	id: string;
 	graphId: string;
 	name: string;
-	objectType: "Модель" | "Витрина" | "Признак";
+	objectType: "Источник" | "Витрина" | "Признак";
 	parentEntity: string;
 	dataType?: string;
 	description: string;
@@ -651,7 +655,7 @@ const ObjectsPanel = memo(() => {
 					id: `${item.id}::${entity.id}`,
 					graphId: item.id,
 					name: entity.name ?? entity.id,
-					objectType: entity.type === "view" ? "Витрина" : "Модель",
+					objectType: entity.modified ? "Витрина" : "Источник",
 					parentEntity: entity.id,
 					description: item.description ?? "",
 				});
@@ -741,11 +745,11 @@ const ObjectsPanel = memo(() => {
 				width: 100,
 				cellRenderer: ({ value }: { value: string }) => {
 					const colors =
-						value === "Модель"
-							? { bg: "#e3f2fd", color: "#1976d2" }
+						value === "Источник"
+							? { bg: "#e0f2f1", color: "#00897b" }
 							: value === "Витрина"
 								? { bg: "#f3e5f5", color: "#9c27b0" }
-								: { bg: "#e8f5e9", color: "#388e3c" };
+								: { bg: "#e3f2fd", color: "#1976d2" }; // Признак
 					return (
 						<Chip
 							label={value}
@@ -845,6 +849,112 @@ const ObjectsPanel = memo(() => {
 					headerHeight={32}
 				/>
 			</Box>
+		</Box>
+	);
+});
+
+// ============================================================================
+// Processes Panel Component
+// ============================================================================
+
+const ProcessesPanel = memo(() => {
+	const { mode } = useColorScheme();
+	const isDark = mode === "dark";
+	const navigate = useNavigate();
+
+	const { filteredProcesses, isLoading, loadProcesses } = useProcessesStore();
+
+	useEffect(() => {
+		loadProcesses();
+	}, [loadProcesses]);
+
+	const columnDefs: ColDef<Process>[] = useMemo(
+		() => [
+			{
+				field: "name",
+				headerName: "Название",
+				flex: 2,
+				minWidth: 150,
+			},
+			{
+				field: "type",
+				headerName: "Тип",
+				width: 100,
+				cellRenderer: ({ value }: { value: string }) => (
+					<Chip label={value} size="small" color="primary" variant="outlined" />
+				),
+			},
+			{
+				field: "status",
+				headerName: "Статус",
+				width: 100,
+				cellRenderer: ({ value }: { value: Process["status"] }) => (
+					<Chip
+						label={
+							value === "active"
+								? "Активен"
+								: value === "inactive"
+									? "Неактивен"
+									: "Ошибка"
+						}
+						size="small"
+						color={
+							value === "active"
+								? "success"
+								: value === "error"
+									? "error"
+									: "default"
+						}
+						variant="outlined"
+					/>
+				),
+			},
+			{
+				field: "owner",
+				headerName: "Владелец",
+				width: 120,
+			},
+		],
+		[],
+	);
+
+	const handleRowDoubleClicked = useCallback(
+		(event: RowDoubleClickedEvent<Process>) => {
+			if (event.data) {
+				navigate(`/processes/${event.data.id}/graph`);
+			}
+		},
+		[navigate],
+	);
+
+	if (isLoading) {
+		return (
+			<Box
+				sx={{
+					height: "100%",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+				}}
+			>
+				<CircularProgress size={24} />
+			</Box>
+		);
+	}
+
+	return (
+		<Box sx={{ height: "100%", width: "100%" }}>
+			<AgGridReact
+				rowData={filteredProcesses}
+				columnDefs={columnDefs}
+				theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+				onRowDoubleClicked={handleRowDoubleClicked}
+				rowSelection="single"
+				suppressCellFocus
+				animateRows
+				rowHeight={28}
+				headerHeight={32}
+			/>
 		</Box>
 	);
 });
@@ -1811,6 +1921,12 @@ const flexLayoutJson: IJsonModel = {
 								component: "entities",
 								id: "entities-tab",
 							},
+							// {
+							// 	type: "tab",
+							// 	name: "⚙️ Процессы",
+							// 	component: "processes",
+							// 	id: "processes-tab",
+							// },
 						],
 					},
 					{
@@ -2532,6 +2648,8 @@ export const DashboardPage = () => {
 				return <EntitiesPanel />;
 			case "objects":
 				return <ObjectsPanel />;
+			case "processes":
+				return <ProcessesPanel />;
 			case "graph":
 				return <GraphPanel />;
 			case "selection-info":

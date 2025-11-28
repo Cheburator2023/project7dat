@@ -15,10 +15,9 @@ import {
 	Alert,
 	useMediaQuery,
 	useTheme,
-	IconButton,
 } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
-import { Search, Visibility, CalendarToday } from "@mui/icons-material";
+import { Search, CalendarToday } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
 import {
@@ -102,27 +101,6 @@ const TagsRenderer = ({ value }: { value: string[] }) => {
 				<Chip label={`+${value.length - 3}`} size="small" color="primary" />
 			)}
 		</Stack>
-	);
-};
-
-const ActionRenderer = ({
-	data,
-	onViewProcess,
-}: {
-	data: Process;
-	onViewProcess: (id: string) => void;
-}) => {
-	return (
-		<IconButton
-			size="small"
-			onClick={(e) => {
-				e.stopPropagation();
-				onViewProcess(data.id);
-			}}
-			title="Просмотр графа"
-		>
-			<Visibility />
-		</IconButton>
 	);
 };
 
@@ -223,16 +201,6 @@ export const ProcessesPage = () => {
 			sortable: false,
 			filter: false,
 			cellRenderer: TagsRenderer,
-		},
-		{
-			headerName: "Действия",
-			width: 100,
-			sortable: false,
-			filter: false,
-			pinned: "right",
-			cellRenderer: ({ data }: { data: Process }) => (
-				<ActionRenderer data={data} onViewProcess={handleViewProcess} />
-			),
 		},
 	];
 
