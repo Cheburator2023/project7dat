@@ -2,9 +2,17 @@ import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import AdvancedFilterForm from "@react-client/examples/AdvancedFilterForm";
 import { Header } from "@react-client/common/navigation/organisms/Header";
-import SQLiteViewer from "@react-client/features/playground/SQLViewer";
+import { DataLinageGraph2 } from "@react-client/features/playground/DataLinageGraph2";
 
 const data: any = [
+	{
+		name: "DataLinageGraph2",
+		Component: () => (
+			<div style={{ height: "80vh" }}>
+				<DataLinageGraph2 />
+			</div>
+		),
+	},
 	{
 		name: "AdvancedFilterForm",
 		Component: () => (
@@ -17,7 +25,7 @@ const data: any = [
 		name: "SQLViewer",
 		Component: () => (
 			<div style={{ zoom: 0.8 }}>
-				<SQLiteViewer />
+				<div />
 			</div>
 		),
 	},

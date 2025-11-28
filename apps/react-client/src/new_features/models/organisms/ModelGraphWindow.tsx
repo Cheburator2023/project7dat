@@ -21,6 +21,7 @@ import {
 	Edge,
 	Controls,
 	Background,
+	MiniMap,
 	useNodesState,
 	useEdgesState,
 	ConnectionMode,
@@ -29,6 +30,7 @@ import {
 	Handle,
 	Position,
 } from "@xyflow/react";
+import dagre from "@dagrejs/dagre";
 import { Close, Visibility, ExpandMore, ExpandLess } from "@mui/icons-material";
 
 import { ObjectDetailsDialog } from "../molecules/ObjectDetailsDialog";
@@ -91,34 +93,25 @@ interface ModelGraphWindowProps {
 	model: any;
 }
 
-const getNodeColor = (type: ModelObject["type"]) => {
-	switch (type) {
-		case "model":
-			return "#e3f2fd";
-		case "vector":
-			return "#f3e5f5";
-		case "datamart":
-			return "#e8f5e8";
-		case "source":
-			return "#fff3e0";
-		default:
-			return "#f5f5f5";
-	}
+// Constants matching DataLinageGraph2
+const NODE_WIDTH = 240;
+const NODE_HEIGHT = 120;
+const MAX_VISIBLE_ATTRS = 3;
+
+const HIGHLIGHT_COLORS = {
+	selected: "#ffc107",
+	upstream: "#4caf50",
+	downstream: "#2196f3",
 };
 
-const getNodeBorderColor = (type: ModelObject["type"]) => {
-	switch (type) {
-		case "model":
-			return "#1976d2";
-		case "vector":
-			return "#7b1fa2";
-		case "datamart":
-			return "#388e3c";
-		case "source":
-			return "#f57c00";
-		default:
-			return "#757575";
-	}
+const TYPE_COLORS: Record<
+	string,
+	{ bg: string; border: string; text: string }
+> = {
+	model: { bg: "#e3f2fd", border: "#1976d2", text: "#1565c0" },
+	vector: { bg: "#f3e5f5", border: "#7b1fa2", text: "#6a1b9a" },
+	datamart: { bg: "#e8f5e9", border: "#388e3c", text: "#2e7d32" },
+	source: { bg: "#fff3e0", border: "#f57c00", text: "#e65100" },
 };
 
 const getTypeLabel = (type: ModelObject["type"]) => {
@@ -136,123 +129,301 @@ const getTypeLabel = (type: ModelObject["type"]) => {
 	}
 };
 
-// Кастомный компонент узла
+// Dagre layout function
+const getLayoutedElements = (
+	nodes: Node[],
+	edges: Edge[],
+	direction: "TB" | "LR" = "LR",
+) => {
+	const dagreGraph = new dagre.graphlib.Graph();
+	dagreGraph.setDefaultEdgeLabel(() => ({}));
+	dagreGraph.setGraph({ rankdir: direction, nodesep: 60, ranksep: 120 });
+
+	nodes.forEach((node) => {
+		dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+	});
+
+	edges.forEach((edge) => {
+		dagreGraph.setEdge(edge.source, edge.target);
+	});
+
+	dagre.layout(dagreGraph);
+
+	const layoutedNodes = nodes.map((node) => {
+		const nodeWithPosition = dagreGraph.node(node.id);
+		return {
+			...node,
+			position: {
+				x: nodeWithPosition.x - NODE_WIDTH / 2,
+				y: nodeWithPosition.y - NODE_HEIGHT / 2,
+			},
+		};
+	});
+
+	return { nodes: layoutedNodes, edges };
+};
+
+// Кастомный компонент узла - matching DataLinageGraph2 style
 interface CustomNodeData {
 	id: string;
 	name: string;
 	type: ModelObject["type"];
 	description: string;
+	attributes: ObjectAttribute[];
 	onView: () => void;
 	onDoubleClick: () => void;
+	onNodeClick: (id: string) => void;
 	isExpanded?: boolean;
 	canExpand?: boolean;
 	onToggleExpand?: () => void;
+	// New fields for highlighting
+	highlightType: "none" | "selected" | "upstream" | "downstream";
+	upstreamCount: number;
+	downstreamCount: number;
 }
 
-const CustomNode = ({ data }: { data: CustomNodeData }) => {
+const CustomNode = ({ data, id }: { data: CustomNodeData; id: string }) => {
+	const colors = TYPE_COLORS[data.type] || TYPE_COLORS.model;
+	const attrs = data.attributes || [];
+	const visibleAttrs = attrs.slice(0, MAX_VISIBLE_ATTRS);
+	const moreCount = attrs.length - MAX_VISIBLE_ATTRS;
+
+	// Detect lineage role
+	const isDataMart = data.upstreamCount > 0 && data.downstreamCount === 0;
+	const isSource = data.upstreamCount === 0 && data.downstreamCount > 0;
+
+	const borderColor =
+		data.highlightType !== "none"
+			? HIGHLIGHT_COLORS[data.highlightType as keyof typeof HIGHLIGHT_COLORS]
+			: colors.border;
+
+	const borderWidth = data.highlightType !== "none" ? 3 : 2;
+
 	return (
-		<>
-			{/* Target handle - for incoming edges */}
+		<div
+			style={{
+				background: "#fff",
+				border: `${borderWidth}px solid ${borderColor}`,
+				borderRadius: 8,
+				width: NODE_WIDTH,
+				boxShadow:
+					data.highlightType !== "none"
+						? `0 4px 20px ${borderColor}40`
+						: "0 2px 8px rgba(0,0,0,0.1)",
+				overflow: "hidden",
+				cursor: "pointer",
+				transition: "all 0.2s ease",
+			}}
+			onClick={() => data.onNodeClick(id)}
+			onDoubleClick={data.onDoubleClick}
+		>
+			{/* Header */}
+			<div
+				style={{
+					background: colors.bg,
+					padding: "8px 12px",
+					borderBottom: `1px solid ${colors.border}`,
+				}}
+			>
+				<div
+					style={{
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "flex-start",
+					}}
+				>
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<div
+							style={{
+								fontSize: 11,
+								color: colors.text,
+								opacity: 0.8,
+								textTransform: "uppercase",
+								letterSpacing: "0.5px",
+								marginBottom: 2,
+							}}
+						>
+							{getTypeLabel(data.type)}
+							{isDataMart && (
+								<span
+									style={{
+										marginLeft: 6,
+										background: "#9c27b0",
+										color: "#fff",
+										padding: "1px 4px",
+										borderRadius: 3,
+										fontSize: 9,
+									}}
+									title="Витрина данных — конечная точка"
+								>
+									витрина
+								</span>
+							)}
+							{isSource && (
+								<span
+									style={{
+										marginLeft: 6,
+										background: "#00897b",
+										color: "#fff",
+										padding: "1px 4px",
+										borderRadius: 3,
+										fontSize: 9,
+									}}
+									title="Источник данных — начальная точка"
+								>
+									источник
+								</span>
+							)}
+						</div>
+						<div
+							style={{
+								fontWeight: 600,
+								fontSize: 13,
+								color: "#333",
+								whiteSpace: "nowrap",
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+							}}
+							title={data.name}
+						>
+							{data.name}
+						</div>
+					</div>
+					<div style={{ display: "flex", gap: 2 }}>
+						{data.canExpand && data.onToggleExpand && (
+							<IconButton
+								size="small"
+								title={data.isExpanded ? "Свернуть связи" : "Развернуть связи"}
+								onClick={(e) => {
+									e.stopPropagation();
+									data.onToggleExpand?.();
+								}}
+								sx={{
+									padding: "2px",
+									bgcolor: data.isExpanded ? "primary.main" : "transparent",
+									color: data.isExpanded ? "white" : "inherit",
+									"&:hover": {
+										bgcolor: data.isExpanded ? "primary.dark" : "action.hover",
+									},
+								}}
+							>
+								{data.isExpanded ? (
+									<ExpandLess fontSize="small" />
+								) : (
+									<ExpandMore fontSize="small" />
+								)}
+							</IconButton>
+						)}
+						<IconButton
+							size="small"
+							title="Просмотр деталей"
+							onClick={(e) => {
+								e.stopPropagation();
+								data.onView();
+							}}
+							sx={{ padding: "2px" }}
+						>
+							<Visibility fontSize="small" />
+						</IconButton>
+					</div>
+				</div>
+				{/* Connection counts */}
+				<div style={{ display: "flex", gap: 8, marginTop: 6, fontSize: 10 }}>
+					{data.upstreamCount > 0 && (
+						<span style={{ color: HIGHLIGHT_COLORS.upstream, fontWeight: 500 }}>
+							← {data.upstreamCount}
+						</span>
+					)}
+					{data.downstreamCount > 0 && (
+						<span
+							style={{ color: HIGHLIGHT_COLORS.downstream, fontWeight: 500 }}
+						>
+							→ {data.downstreamCount}
+						</span>
+					)}
+					<span style={{ color: "#888", marginLeft: "auto" }}>
+						{attrs.length} атр.
+					</span>
+				</div>
+			</div>
+
+			{/* Preview attributes */}
+			{visibleAttrs.length > 0 && (
+				<div>
+					{visibleAttrs.map((attr, idx) => (
+						<div
+							key={attr.name}
+							style={{
+								padding: "4px 12px",
+								fontSize: 11,
+								borderBottom:
+									idx < visibleAttrs.length - 1 ? "1px solid #f0f0f0" : "none",
+								background: idx % 2 === 0 ? "#fafafa" : "#fff",
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+							}}
+						>
+							<span
+								style={{
+									color: "#555",
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+								}}
+							>
+								{attr.name}
+							</span>
+							<span
+								style={{
+									color: "#888",
+									fontSize: 10,
+									background: "#eee",
+									padding: "1px 4px",
+									borderRadius: 2,
+								}}
+							>
+								{attr.type}
+							</span>
+						</div>
+					))}
+					{moreCount > 0 && (
+						<div
+							style={{
+								padding: "4px 12px",
+								fontSize: 10,
+								color: "#888",
+								textAlign: "center",
+								background: "#f5f5f5",
+							}}
+						>
+							+{moreCount} ещё
+						</div>
+					)}
+				</div>
+			)}
+
+			{/* Handles */}
 			<Handle
 				type="target"
 				position={Position.Left}
-				style={{ background: "#555" }}
-			/>
-
-			<Paper
-				sx={{
-					backgroundColor: getNodeColor(data.type),
-					border: `2px solid ${getNodeBorderColor(data.type)}`,
-					borderRadius: 1,
-					p: 2,
-					minWidth: "200px",
-					cursor: "pointer",
-					"&:hover": { boxShadow: 2 },
-					boxShadow: data.isExpanded ? 3 : 0,
+				style={{
+					background: colors.border,
+					width: 10,
+					height: 10,
+					border: "2px solid #fff",
 				}}
-				onDoubleClick={data.onDoubleClick}
-			>
-				<Box display="flex" flexDirection="column" gap={1}>
-					<Box
-						display="flex"
-						justifyContent="space-between"
-						alignItems="center"
-					>
-						<Chip
-							label={getTypeLabel(data.type)}
-							size="small"
-							color={
-								data.type === "model"
-									? "primary"
-									: data.type === "vector"
-										? "secondary"
-										: data.type === "datamart"
-											? "success"
-											: "warning"
-							}
-						/>
-						<Box display="flex" gap={0.5}>
-							{data.canExpand && data.onToggleExpand && (
-								<IconButton
-									size="small"
-									title={
-										data.isExpanded ? "Свернуть связи" : "Развернуть связи"
-									}
-									onClick={(e) => {
-										e.stopPropagation();
-										data.onToggleExpand?.();
-									}}
-									sx={{
-										bgcolor: data.isExpanded ? "primary.main" : "transparent",
-										color: data.isExpanded ? "white" : "inherit",
-										"&:hover": {
-											bgcolor: data.isExpanded
-												? "primary.dark"
-												: "action.hover",
-										},
-									}}
-								>
-									{data.isExpanded ? (
-										<ExpandLess fontSize="small" />
-									) : (
-										<ExpandMore fontSize="small" />
-									)}
-								</IconButton>
-							)}
-							<IconButton
-								size="small"
-								title="Просмотр деталей"
-								onClick={data.onView}
-							>
-								<Visibility fontSize="small" />
-							</IconButton>
-						</Box>
-					</Box>
-					<Typography variant="subtitle2" fontWeight="bold">
-						{data.name}
-					</Typography>
-					<Typography
-						variant="caption"
-						color="text.secondary"
-						sx={{
-							display: "-webkit-box",
-							WebkitLineClamp: 2,
-							WebkitBoxOrient: "vertical",
-							overflow: "hidden",
-						}}
-					>
-						{data.description}
-					</Typography>
-				</Box>
-			</Paper>
-
-			{/* Source handle - for outgoing edges */}
+			/>
 			<Handle
 				type="source"
 				position={Position.Right}
-				style={{ background: "#555" }}
+				style={{
+					background: colors.border,
+					width: 10,
+					height: 10,
+					border: "2px solid #fff",
+				}}
 			/>
-		</>
+		</div>
 	);
 };
 
@@ -278,6 +449,7 @@ export const ModelGraphWindow = ({
 	const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
 		new Set([model.id]),
 	);
+	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -488,6 +660,57 @@ export const ModelGraphWindow = ({
 		return { objects: visibleObjects, connections: visibleConnections };
 	}, [allObjects, allConnections, expandedNodes]);
 
+	// Calculate upstream/downstream counts for highlighting
+	const { upstreamMap, downstreamMap } = useMemo(() => {
+		const upstream = new Map<string, Set<string>>();
+		const downstream = new Map<string, Set<string>>();
+
+		allConnections.forEach((conn) => {
+			if (!upstream.has(conn.targetId)) {
+				upstream.set(conn.targetId, new Set());
+			}
+			upstream.get(conn.targetId)!.add(conn.sourceId);
+
+			if (!downstream.has(conn.sourceId)) {
+				downstream.set(conn.sourceId, new Set());
+			}
+			downstream.get(conn.sourceId)!.add(conn.targetId);
+		});
+
+		return { upstreamMap: upstream, downstreamMap: downstream };
+	}, [allConnections]);
+
+	// Get connected entities recursively for highlighting
+	const getConnectedEntities = useCallback(
+		(entityId: string, direction: "upstream" | "downstream") => {
+			const result = new Set<string>();
+			const map = direction === "upstream" ? upstreamMap : downstreamMap;
+			const queue = [entityId];
+
+			while (queue.length > 0) {
+				const current = queue.shift()!;
+				const connected = map.get(current);
+				if (connected) {
+					connected.forEach((id) => {
+						if (!result.has(id)) {
+							result.add(id);
+							queue.push(id);
+						}
+					});
+				}
+			}
+			return result;
+		},
+		[upstreamMap, downstreamMap],
+	);
+
+	// Handle node click for highlighting
+	const handleNodeClick = useCallback((nodeId: string) => {
+		setSelectedNodeId((prev: string | null) =>
+			prev === nodeId ? null : nodeId,
+		);
+	}, []);
+
 	const toggleNodeExpansion = useCallback(
 		(nodeId: string) => {
 			setExpandedNodes((prev) => {
@@ -507,24 +730,41 @@ export const ModelGraphWindow = ({
 	);
 
 	const initialNodes: Node[] = useMemo(() => {
-		const nodes = objects.map((obj, index) => {
+		// Calculate highlighted sets
+		const upstreamSet = selectedNodeId
+			? getConnectedEntities(selectedNodeId, "upstream")
+			: new Set<string>();
+		const downstreamSet = selectedNodeId
+			? getConnectedEntities(selectedNodeId, "downstream")
+			: new Set<string>();
+
+		const nodes = objects.map((obj) => {
 			const hasConnections = allConnections.some(
 				(conn) => conn.sourceId === obj.id || conn.targetId === obj.id,
 			);
 			const isExpanded = expandedNodes.has(obj.id);
 
+			// Determine highlight type
+			let highlightType: "none" | "selected" | "upstream" | "downstream" =
+				"none";
+			if (selectedNodeId === obj.id) {
+				highlightType = "selected";
+			} else if (upstreamSet.has(obj.id)) {
+				highlightType = "upstream";
+			} else if (downstreamSet.has(obj.id)) {
+				highlightType = "downstream";
+			}
+
 			return {
 				id: obj.id,
 				type: "custom",
-				position: {
-					x: (index % 3) * 300,
-					y: Math.floor(index / 3) * 200,
-				},
+				position: { x: 0, y: 0 }, // Will be set by Dagre
 				data: {
 					...obj,
 					isExpanded,
 					canExpand: hasConnections,
 					onToggleExpand: () => toggleNodeExpansion(obj.id),
+					onNodeClick: handleNodeClick,
 					onDoubleClick: () => {
 						setSelectedObject(obj);
 						setIsObjectDetailsOpen(true);
@@ -533,22 +773,26 @@ export const ModelGraphWindow = ({
 						setSelectedObject(obj);
 						setIsObjectDetailsOpen(true);
 					},
+					// New fields for DataLinageGraph2 style
+					highlightType,
+					upstreamCount: upstreamMap.get(obj.id)?.size ?? 0,
+					downstreamCount: downstreamMap.get(obj.id)?.size ?? 0,
 				},
 			};
 		});
 
-		console.log("[ModelGraphWindow] Nodes created:", {
-			count: nodes.length,
-			nodeIds: nodes.map((n) => n.id),
-			nodes: nodes.map((n) => ({
-				id: n.id,
-				dataId: n.data.id,
-				name: n.data.name,
-			})),
-		});
-
 		return nodes;
-	}, [objects, allConnections, expandedNodes, toggleNodeExpansion]);
+	}, [
+		objects,
+		allConnections,
+		expandedNodes,
+		toggleNodeExpansion,
+		selectedNodeId,
+		getConnectedEntities,
+		handleNodeClick,
+		upstreamMap,
+		downstreamMap,
+	]);
 
 	const initialEdges: Edge[] = useMemo(() => {
 		const nodeIdSet = new Set(objects.map((obj) => obj.id));
@@ -630,14 +874,24 @@ export const ModelGraphWindow = ({
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
-	// Обновляем nodes и edges при изменении данных
+	// Apply Dagre layout and update nodes/edges
 	useEffect(() => {
-		setNodes(initialNodes);
-	}, [initialNodes, setNodes]);
+		if (initialNodes.length === 0) {
+			setNodes([]);
+			setEdges([]);
+			return;
+		}
 
-	useEffect(() => {
-		setEdges(initialEdges);
-	}, [initialEdges, setEdges]);
+		// Apply Dagre layout
+		const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+			initialNodes,
+			initialEdges,
+			"LR",
+		);
+
+		setNodes(layoutedNodes);
+		setEdges(layoutedEdges);
+	}, [initialNodes, initialEdges, setNodes, setEdges]);
 
 	// Fit view after nodes and edges are set
 	useEffect(() => {
@@ -898,6 +1152,17 @@ export const ModelGraphWindow = ({
 									>
 										<Controls />
 										<Background />
+										<MiniMap
+											nodeColor={(node: Node) => {
+												const data = node.data as unknown as CustomNodeData;
+												const colors =
+													TYPE_COLORS[data?.type] || TYPE_COLORS.model;
+												return colors.border;
+											}}
+											nodeStrokeWidth={3}
+											zoomable
+											pannable
+										/>
 									</ReactFlow>
 								</ReactFlowProvider>
 							</>

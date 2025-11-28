@@ -8,7 +8,7 @@ import {
 	Alert,
 	CircularProgress,
 } from "@mui/material";
-import { styled, useColorScheme } from "@mui/material/styles";
+import { useColorScheme } from "@mui/material/styles";
 import { Search, Visibility } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
@@ -63,27 +63,6 @@ const mapJsonDataItemToModels = (item: JsonDataItem): Model[] => {
 	}));
 };
 
-const _StyledContainer = styled(Box)(({ theme }) => ({
-	height: "100vh",
-	display: "flex",
-	flexDirection: "column",
-	padding: theme.spacing(2),
-	gap: theme.spacing(2),
-}));
-
-const getBusinessTypeColor = (businessType: Model["businessType"]) => {
-	switch (businessType) {
-		case "analytical":
-			return "primary";
-		case "operational":
-			return "secondary";
-		case "dimensional":
-			return "info";
-		default:
-			return "default";
-	}
-};
-
 const getStatusColor = (status: Model["status"]) => {
 	switch (status) {
 		case "active":
@@ -97,45 +76,11 @@ const getStatusColor = (status: Model["status"]) => {
 	}
 };
 
-const _BusinessTypeChipRenderer = ({
-	value,
-}: {
-	value: Model["businessType"];
-}) => {
-	const businessTypeLabels = {
-		analytical: "Аналитическая",
-		operational: "Операционная",
-		dimensional: "Размерная",
-	};
-
-	if (!value) return null;
-
-	return (
-		<Chip
-			label={businessTypeLabels[value]}
-			color={getBusinessTypeColor(value) as any}
-			size="small"
-			variant="outlined"
-		/>
-	);
-};
-
-const _TechnicalTypeChipRenderer = ({ value }: { value: Model["type"] }) => {
-	const technicalTypeLabels = {
-		table: "Таблица",
-		view: "Представление",
-		rdd: "RDD",
-		unresolved: "Неопределенный",
-	};
-
-	return (
-		<Chip
-			label={technicalTypeLabels[value]}
-			color="default"
-			size="small"
-			variant="filled"
-		/>
-	);
+const TYPE_COLORS: Record<string, string> = {
+	table: "#1976d2",
+	view: "#9c27b0",
+	rdd: "#f57c00",
+	unresolved: "#c2185b",
 };
 
 const StatusChipRenderer = ({ value }: { value: Model["status"] }) => {
@@ -172,42 +117,10 @@ const TagsRenderer = ({ value }: { value: string[] }) => {
 	);
 };
 
-const ActionRenderer = ({ data }: { data: Model }) => {
-	const [selectedModel, setSelectedModel] = useState<Model | null>(null);
-	const [isGraphOpen, setIsGraphOpen] = useState(false);
-
-	const handleViewModel = () => {
-		setSelectedModel(data);
-		setIsGraphOpen(true);
-	};
-
-	const handleCloseGraph = () => {
-		setIsGraphOpen(false);
-		setSelectedModel(null);
-	};
-
-	return (
-		<>
-			<IconButton
-				size="small"
-				onClick={handleViewModel}
-				sx={{ color: "primary.main" }}
-			>
-				<Visibility fontSize="small" />
-			</IconButton>
-			{selectedModel && (
-				<ModelGraphWindow
-					isOpen={isGraphOpen}
-					onClose={handleCloseGraph}
-					model={selectedModel}
-				/>
-			)}
-		</>
-	);
-};
-
 export const ModelsPage = () => {
 	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedModel, setSelectedModel] = useState<Model | null>(null);
+	const [isGraphOpen, setIsGraphOpen] = useState(false);
 	const { mode } = useColorScheme();
 	const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
@@ -280,11 +193,49 @@ export const ModelsPage = () => {
 			cellRenderer: (params: any) => (
 				<Chip
 					label={params.value}
-					color="primary"
 					size="small"
-					variant="outlined"
+					variant="filled"
+					sx={{
+						background: TYPE_COLORS[params.value] || "#666",
+						color: "#fff",
+					}}
 				/>
 			),
+		},
+		{
+			headerName: "Роль",
+			field: "id",
+			width: 120,
+			headerTooltip: "Роль в линейке данных",
+			cellRenderer: (params: any) => {
+				// For now, simplified role detection based on type
+				// In real scenario, would need upstream/downstream counts
+				const type = params.data?.type;
+				const isVitrina = type === "view";
+				const isSource = type === "table" && !params.data?.modified;
+
+				if (isVitrina) {
+					return (
+						<Chip
+							label="витрина"
+							size="small"
+							sx={{ background: "#9c27b0", color: "#fff", fontSize: "0.7rem" }}
+							title="Витрина данных — конечная точка"
+						/>
+					);
+				}
+				if (isSource) {
+					return (
+						<Chip
+							label="источник"
+							size="small"
+							sx={{ background: "#00897b", color: "#fff", fontSize: "0.7rem" }}
+							title="Источник данных — начальная точка"
+						/>
+					);
+				}
+				return null;
+			},
 		},
 		{
 			headerName: "Изменен",
@@ -327,11 +278,16 @@ export const ModelsPage = () => {
 			field: "objectsCount",
 			width: 100,
 			type: "numericColumn",
-		},
-		{
-			headerName: "Размер",
-			field: "size",
-			width: 100,
+			cellRenderer: (params: any) => (
+				<Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
+					<Chip
+						label={params.value ?? 0}
+						size="small"
+						variant="outlined"
+						color="info"
+					/>
+				</Box>
+			),
 		},
 		{
 			headerName: "Теги",
@@ -361,7 +317,18 @@ export const ModelsPage = () => {
 		{
 			headerName: "Действия",
 			width: 100,
-			cellRenderer: ActionRenderer,
+			cellRenderer: (params: any) => (
+				<IconButton
+					size="small"
+					onClick={() => {
+						setSelectedModel(params.data);
+						setIsGraphOpen(true);
+					}}
+					sx={{ color: "primary.main" }}
+				>
+					<Visibility fontSize="small" />
+				</IconButton>
+			),
 			sortable: false,
 			filter: false,
 			pinned: "right",
@@ -416,6 +383,18 @@ export const ModelsPage = () => {
 					domLayout="normal"
 				/>
 			</Box>
+
+			{/* Graph Window */}
+			{selectedModel && (
+				<ModelGraphWindow
+					isOpen={isGraphOpen}
+					onClose={() => {
+						setIsGraphOpen(false);
+						setSelectedModel(null);
+					}}
+					model={selectedModel}
+				/>
+			)}
 		</div>
 	);
 };

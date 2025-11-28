@@ -39,6 +39,10 @@ interface ObjectItem {
 	database: string;
 	process: string;
 	processDescription: string;
+	// Additional fields for attributes
+	dataType?: string; // Attribute data type (e.g., string, int, etc.)
+	entityType?: string; // Parent entity type (table, view, rdd)
+	attributeCount?: number; // Number of attributes for model/vitrina
 }
 
 const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
@@ -65,6 +69,8 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 			database,
 			process,
 			processDescription,
+			entityType: entity.type,
+			attributeCount: entity.attrSeq?.length ?? 0,
 		});
 
 		// Уровень признаков (атрибуты сущности)
@@ -80,6 +86,8 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 					database,
 					process,
 					processDescription,
+					dataType: attr.type, // Include attribute data type
+					entityType: entity.type,
 				});
 			}
 		}
@@ -163,40 +171,73 @@ export const ObjectsPage: React.FC = () => {
 			{
 				headerName: "Тип объекта",
 				field: "objectType",
-				width: 150,
+				width: 130,
 				sortable: true,
 				filter: true,
 				cellRenderer: (params: any) => {
-					const getColor = (type: string) => {
-						switch (type) {
-							case "Модель":
-								return "primary";
-							case "Витрина":
-								return "warning";
-							case "Признак":
-								return "success";
-							default:
-								return "default";
-						}
+					const colors: Record<string, { bg: string; color: string }> = {
+						Модель: { bg: "#1976d2", color: "#fff" },
+						Витрина: { bg: "#9c27b0", color: "#fff" },
+						Признак: { bg: "#00897b", color: "#fff" },
 					};
+					const style = colors[params.value] || { bg: "#666", color: "#fff" };
 
+					return (
+						<Box sx={{ padding: 1, display: "flex", alignItems: "center" }}>
+							<Box
+								sx={{
+									background: style.bg,
+									color: style.color,
+									padding: "2px 8px",
+									borderRadius: 1,
+									fontSize: "0.75rem",
+									fontWeight: 500,
+								}}
+							>
+								{params.value || "—"}
+							</Box>
+						</Box>
+					);
+				},
+			},
+			{
+				headerName: "Тип данных",
+				field: "dataType",
+				width: 120,
+				sortable: true,
+				filter: true,
+				cellRenderer: (params: any) => {
+					if (!params.value) return null;
 					return (
 						<Box sx={{ padding: 1 }}>
 							<Typography
 								variant="body2"
+								fontFamily="monospace"
 								sx={{
-									color:
-										getColor(params.value) === "primary"
-											? "primary.main"
-											: getColor(params.value) === "warning"
-												? "secondary.main"
-												: getColor(params.value) === "success"
-													? "success.main"
-													: "text.primary",
-									fontWeight: "medium",
+									background: "#f5f5f5",
+									padding: "2px 6px",
+									borderRadius: 1,
+									fontSize: "0.75rem",
 								}}
 							>
-								{params.value || "—"}
+								{params.value}
+							</Typography>
+						</Box>
+					);
+				},
+			},
+			{
+				headerName: "Кол-во атр.",
+				field: "attributeCount",
+				width: 100,
+				sortable: true,
+				filter: "agNumberColumnFilter",
+				cellRenderer: (params: any) => {
+					if (params.data?.objectType === "Признак") return null;
+					return (
+						<Box sx={{ padding: 1 }}>
+							<Typography variant="body2" color="text.secondary">
+								{params.value ?? 0}
 							</Typography>
 						</Box>
 					);

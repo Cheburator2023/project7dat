@@ -1,18 +1,890 @@
-import React, { useMemo, useState } from "react";
-import { styled, Box, Typography, Button, ButtonGroup } from "@mui/material";
+import React, { useCallback, useEffect, useMemo, useState, memo } from "react";
+import { useNavigate } from "react-router";
 import {
 	ReactFlow,
 	ReactFlowProvider,
 	Background,
 	Controls,
+	MiniMap,
+	Node,
+	Edge,
+	Handle,
+	Position,
+	NodeProps,
+	MarkerType,
+	Panel,
+	useNodesState,
+	useEdgesState,
+	useReactFlow,
 } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import dagre from "@dagrejs/dagre";
 import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
-import { DataLineageNodeComponent } from "../../nodeGraph/DataLineageNode";
-import type { DataLineageNode } from "@react-client/types/dataLineage";
-import { getLayoutedElements } from "../utils/dagreLayout";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface EntityNodeData {
+	entity: DataLineageEntity;
+	isHighlighted: boolean;
+	highlightType: "none" | "selected" | "upstream" | "downstream";
+	onNodeClick: (id: string) => void;
+	upstreamCount: number;
+	downstreamCount: number;
+	[key: string]: unknown;
+}
+
+type EntityNode = Node<EntityNodeData, "entityNode">;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const NODE_WIDTH = 260;
+const NODE_HEADER_HEIGHT = 56;
+const ATTR_ROW_HEIGHT = 20;
+const MAX_VISIBLE_ATTRS = 3;
+
+const TYPE_COLORS: Record<
+	string,
+	{ bg: string; border: string; text: string }
+> = {
+	table: { bg: "#e3f2fd", border: "#1976d2", text: "#0d47a1" },
+	view: { bg: "#f3e5f5", border: "#7b1fa2", text: "#4a148c" },
+	rdd: { bg: "#fff3e0", border: "#ef6c00", text: "#e65100" },
+	unresolved: { bg: "#fce4ec", border: "#c2185b", text: "#ad1457" },
+};
+
+const HIGHLIGHT_COLORS = {
+	selected: "#ffc107",
+	upstream: "#4caf50",
+	downstream: "#2196f3",
+};
+
+// ============================================================================
+// Custom Node Component
+// ============================================================================
+
+const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
+	const { entity, highlightType, onNodeClick, upstreamCount, downstreamCount } =
+		data;
+	const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
+	const attrs = entity.attrSeq || [];
+	const visibleAttrs = attrs.slice(0, MAX_VISIBLE_ATTRS);
+	const moreCount = attrs.length - MAX_VISIBLE_ATTRS;
+
+	// Витрина = есть источники, но нет потребителей (конечная точка данных)
+	const isDataMart = upstreamCount > 0 && downstreamCount === 0;
+	// Источник = нет источников, но есть потребители (начальная точка данных)
+	const isSource = upstreamCount === 0 && downstreamCount > 0;
+
+	const borderColor =
+		highlightType !== "none"
+			? HIGHLIGHT_COLORS[highlightType as keyof typeof HIGHLIGHT_COLORS]
+			: colors.border;
+
+	const borderWidth = highlightType !== "none" ? 3 : 2;
+
+	return (
+		<div
+			style={{
+				background: "#fff",
+				border: `${borderWidth}px solid ${borderColor}`,
+				borderRadius: 8,
+				width: NODE_WIDTH,
+				boxShadow:
+					highlightType !== "none"
+						? `0 4px 16px ${borderColor}40`
+						: "0 2px 6px rgba(0,0,0,0.1)",
+				overflow: "hidden",
+				cursor: "pointer",
+				transition: "all 0.2s ease",
+			}}
+			onClick={() => onNodeClick(id)}
+		>
+			{/* Header */}
+			<div
+				style={{
+					background: colors.bg,
+					padding: "6px 10px",
+					borderBottom: `1px solid ${colors.border}`,
+				}}
+			>
+				<div
+					style={{
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "flex-start",
+					}}
+				>
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<div
+							style={{
+								fontSize: 10,
+								color: colors.text,
+								opacity: 0.8,
+								textTransform: "uppercase",
+								letterSpacing: "0.5px",
+								marginBottom: 2,
+							}}
+						>
+							{entity.type}
+							{entity.modified && (
+								<span
+									style={{
+										marginLeft: 6,
+										background: "#ff9800",
+										color: "#fff",
+										padding: "1px 4px",
+										borderRadius: 3,
+										fontSize: 8,
+									}}
+								>
+									изм.
+								</span>
+							)}
+							{isDataMart && (
+								<span
+									style={{
+										marginLeft: 6,
+										background: "#9c27b0",
+										color: "#fff",
+										padding: "1px 4px",
+										borderRadius: 3,
+										fontSize: 8,
+									}}
+									title="Витрина данных — конечная точка, данные не передаются дальше"
+								>
+									витрина
+								</span>
+							)}
+							{isSource && (
+								<span
+									style={{
+										marginLeft: 6,
+										background: "#00897b",
+										color: "#fff",
+										padding: "1px 4px",
+										borderRadius: 3,
+										fontSize: 8,
+									}}
+									title="Источник данных — начальная точка, данные не поступают извне"
+								>
+									источник
+								</span>
+							)}
+						</div>
+						<div
+							style={{
+								fontWeight: 600,
+								fontSize: 12,
+								color: "#333",
+								whiteSpace: "nowrap",
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+							}}
+							title={entity.name || entity.id}
+						>
+							{entity.name || entity.id}
+						</div>
+						{entity.namespace && (
+							<div
+								style={{
+									fontSize: 9,
+									color: "#666",
+									whiteSpace: "nowrap",
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+								}}
+								title={entity.namespace}
+							>
+								{entity.namespace}
+							</div>
+						)}
+					</div>
+				</div>
+				{/* Connection counts */}
+				<div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 9 }}>
+					{upstreamCount > 0 && (
+						<span style={{ color: HIGHLIGHT_COLORS.upstream, fontWeight: 500 }}>
+							← {upstreamCount}
+						</span>
+					)}
+					{downstreamCount > 0 && (
+						<span
+							style={{ color: HIGHLIGHT_COLORS.downstream, fontWeight: 500 }}
+						>
+							→ {downstreamCount}
+						</span>
+					)}
+					<span style={{ color: "#888", marginLeft: "auto" }}>
+						{attrs.length} атр.
+					</span>
+				</div>
+			</div>
+
+			{/* Preview attributes */}
+			{visibleAttrs.length > 0 && (
+				<div>
+					{visibleAttrs.map((attr, idx) => (
+						<div
+							key={attr.name}
+							style={{
+								display: "flex",
+								justifyContent: "space-between",
+								padding: "2px 10px",
+								fontSize: 9,
+								borderBottom:
+									idx < visibleAttrs.length - 1 ? "1px solid #f5f5f5" : "none",
+								background: idx % 2 === 0 ? "#fafafa" : "#fff",
+							}}
+						>
+							<span
+								style={{
+									color: "#555",
+									whiteSpace: "nowrap",
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+									flex: 1,
+								}}
+							>
+								{attr.name}
+							</span>
+							<span style={{ color: "#999", marginLeft: 8, fontSize: 8 }}>
+								{attr.type}
+							</span>
+						</div>
+					))}
+					{moreCount > 0 && (
+						<div
+							style={{
+								padding: "3px 10px",
+								fontSize: 9,
+								color: "#1976d2",
+								background: "#f8f9fa",
+								textAlign: "center",
+							}}
+						>
+							+{moreCount} ещё...
+						</div>
+					)}
+				</div>
+			)}
+
+			{/* Handles */}
+			<Handle
+				type="target"
+				position={Position.Left}
+				style={{
+					background: colors.border,
+					width: 8,
+					height: 8,
+					border: "2px solid #fff",
+				}}
+			/>
+			<Handle
+				type="source"
+				position={Position.Right}
+				style={{
+					background: colors.border,
+					width: 8,
+					height: 8,
+					border: "2px solid #fff",
+				}}
+			/>
+		</div>
+	);
+});
+
+EntityNodeComponent.displayName = "EntityNodeComponent";
+
+const nodeTypes = {
+	entityNode: EntityNodeComponent,
+};
+
+// ============================================================================
+// Layout Utilities
+// ============================================================================
+
+const getLayoutedElements = (
+	nodes: EntityNode[],
+	edges: Edge[],
+	direction: "LR" | "TB" = "LR",
+) => {
+	const dagreGraph = new dagre.graphlib.Graph();
+	dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+	dagreGraph.setGraph({
+		rankdir: direction,
+		nodesep: 60,
+		ranksep: 120,
+		marginx: 40,
+		marginy: 40,
+	});
+
+	nodes.forEach((node) => {
+		const attrCount = node.data.entity.attrSeq?.length || 0;
+		const visibleAttrs = Math.min(attrCount, MAX_VISIBLE_ATTRS);
+		const height =
+			NODE_HEADER_HEIGHT +
+			visibleAttrs * ATTR_ROW_HEIGHT +
+			(attrCount > MAX_VISIBLE_ATTRS ? 20 : 0);
+
+		dagreGraph.setNode(node.id, { width: NODE_WIDTH, height });
+	});
+
+	edges.forEach((edge) => {
+		dagreGraph.setEdge(edge.source, edge.target);
+	});
+
+	dagre.layout(dagreGraph);
+
+	const layoutedNodes = nodes.map((node) => {
+		const nodeWithPosition = dagreGraph.node(node.id);
+		const attrCount = node.data.entity.attrSeq?.length || 0;
+		const visibleAttrs = Math.min(attrCount, MAX_VISIBLE_ATTRS);
+		const height =
+			NODE_HEADER_HEIGHT +
+			visibleAttrs * ATTR_ROW_HEIGHT +
+			(attrCount > MAX_VISIBLE_ATTRS ? 20 : 0);
+
+		return {
+			...node,
+			position: {
+				x: nodeWithPosition.x - NODE_WIDTH / 2,
+				y: nodeWithPosition.y - height / 2,
+			},
+		};
+	});
+
+	return { nodes: layoutedNodes, edges };
+};
+
+// ============================================================================
+// Build Lineage Graph
+// ============================================================================
+
+const buildLineageGraph = (
+	mappings: DataLineageMapping[],
+): {
+	upstream: Map<string, Set<string>>;
+	downstream: Map<string, Set<string>>;
+} => {
+	const upstream = new Map<string, Set<string>>();
+	const downstream = new Map<string, Set<string>>();
+
+	mappings.forEach((mapping) => {
+		if (!mapping.deps) return;
+
+		mapping.deps.forEach((dep) => {
+			// upstream: target -> sources
+			if (!upstream.has(mapping.entityId)) {
+				upstream.set(mapping.entityId, new Set());
+			}
+			upstream.get(mapping.entityId)!.add(dep.entityId);
+
+			// downstream: source -> targets
+			if (!downstream.has(dep.entityId)) {
+				downstream.set(dep.entityId, new Set());
+			}
+			downstream.get(dep.entityId)!.add(mapping.entityId);
+		});
+	});
+
+	return { upstream, downstream };
+};
+
+const getUpstreamNodes = (
+	nodeId: string,
+	upstreamGraph: Map<string, Set<string>>,
+	visited = new Set<string>(),
+): Set<string> => {
+	if (visited.has(nodeId)) return visited;
+	visited.add(nodeId);
+
+	const parents = upstreamGraph.get(nodeId);
+	if (parents) {
+		parents.forEach((parent) => {
+			getUpstreamNodes(parent, upstreamGraph, visited);
+		});
+	}
+
+	return visited;
+};
+
+const getDownstreamNodes = (
+	nodeId: string,
+	downstreamGraph: Map<string, Set<string>>,
+	visited = new Set<string>(),
+): Set<string> => {
+	if (visited.has(nodeId)) return visited;
+	visited.add(nodeId);
+
+	const children = downstreamGraph.get(nodeId);
+	if (children) {
+		children.forEach((child) => {
+			getDownstreamNodes(child, downstreamGraph, visited);
+		});
+	}
+
+	return visited;
+};
+
+// ============================================================================
+// Inner Graph Component
+// ============================================================================
+
+interface EntityGraphInnerProps {
+	mainEntity: DataLineageEntity;
+	allEntities: DataLineageEntity[];
+	mappings: DataLineageMapping[];
+	onEntitiesCalculated?: (entities: DataLineageEntity[]) => void;
+}
+
+const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
+	mainEntity,
+	allEntities,
+	mappings,
+	onEntitiesCalculated,
+}) => {
+	const navigate = useNavigate();
+	const [selectedNode, setSelectedNode] = useState<string | null>(
+		mainEntity.id,
+	);
+	const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
+
+	const { fitView } = useReactFlow();
+
+	// Build lineage graph
+	const lineageGraph = useMemo(() => buildLineageGraph(mappings), [mappings]);
+
+	// Find related entities (upstream + downstream from main entity)
+	const relatedEntityIds = useMemo(() => {
+		const upstream = getUpstreamNodes(mainEntity.id, lineageGraph.upstream);
+		const downstream = getDownstreamNodes(
+			mainEntity.id,
+			lineageGraph.downstream,
+		);
+		return new Set([...upstream, ...downstream]);
+	}, [mainEntity.id, lineageGraph]);
+
+	// Filter entities to show only related ones
+	const filteredEntities = useMemo(() => {
+		return allEntities.filter((e) => relatedEntityIds.has(e.id));
+	}, [allEntities, relatedEntityIds]);
+
+	// Calculate upstream/downstream counts
+	const { upstreamCounts, downstreamCounts } = useMemo(() => {
+		const upCounts = new Map<string, number>();
+		const downCounts = new Map<string, number>();
+
+		for (const entity of filteredEntities) {
+			const upNodes = getUpstreamNodes(entity.id, lineageGraph.upstream);
+			upNodes.delete(entity.id);
+			upCounts.set(entity.id, upNodes.size);
+
+			const downNodes = getDownstreamNodes(entity.id, lineageGraph.downstream);
+			downNodes.delete(entity.id);
+			downCounts.set(entity.id, downNodes.size);
+		}
+
+		return { upstreamCounts: upCounts, downstreamCounts: downCounts };
+	}, [filteredEntities, lineageGraph]);
+
+	// Calculate upstream/downstream sets for selected node
+	const { upstreamNodes, downstreamNodes } = useMemo(() => {
+		if (!selectedNode) {
+			return {
+				upstreamNodes: new Set<string>(),
+				downstreamNodes: new Set<string>(),
+			};
+		}
+
+		const upstream = getUpstreamNodes(selectedNode, lineageGraph.upstream);
+		const downstream = getDownstreamNodes(
+			selectedNode,
+			lineageGraph.downstream,
+		);
+
+		upstream.delete(selectedNode);
+		downstream.delete(selectedNode);
+
+		return { upstreamNodes: upstream, downstreamNodes: downstream };
+	}, [selectedNode, lineageGraph]);
+
+	// Handlers
+	const handleNodeClick = useCallback((id: string) => {
+		setSelectedNode(id);
+	}, []);
+
+	const handleOpenEntity = useCallback(
+		(entityId: string) => {
+			const encodedId = encodeURIComponent(entityId);
+			navigate(`/entity/${encodedId}`);
+		},
+		[navigate],
+	);
+
+	// Create nodes
+	const nodes: EntityNode[] = useMemo(() => {
+		return filteredEntities.map((entity) => {
+			let highlightType: EntityNodeData["highlightType"] = "none";
+			if (entity.id === selectedNode) {
+				highlightType = "selected";
+			} else if (upstreamNodes.has(entity.id)) {
+				highlightType = "upstream";
+			} else if (downstreamNodes.has(entity.id)) {
+				highlightType = "downstream";
+			}
+
+			return {
+				id: entity.id,
+				type: "entityNode",
+				position: { x: 0, y: 0 },
+				data: {
+					entity,
+					isHighlighted: highlightType !== "none",
+					highlightType,
+					onNodeClick: handleNodeClick,
+					upstreamCount: upstreamCounts.get(entity.id) || 0,
+					downstreamCount: downstreamCounts.get(entity.id) || 0,
+				},
+			};
+		});
+	}, [
+		filteredEntities,
+		selectedNode,
+		upstreamNodes,
+		downstreamNodes,
+		upstreamCounts,
+		downstreamCounts,
+		handleNodeClick,
+	]);
+
+	// Create edges
+	const edges: Edge[] = useMemo(() => {
+		const edgeList: Edge[] = [];
+		const edgeSet = new Set<string>();
+
+		mappings.forEach((mapping) => {
+			if (!mapping.deps) return;
+
+			mapping.deps.forEach((dep) => {
+				// Only include edges between filtered entities
+				if (
+					!relatedEntityIds.has(dep.entityId) ||
+					!relatedEntityIds.has(mapping.entityId)
+				) {
+					return;
+				}
+
+				const edgeId = `${dep.entityId}->${mapping.entityId}`;
+				if (edgeSet.has(edgeId)) return;
+				edgeSet.add(edgeId);
+
+				const isHighlighted =
+					(upstreamNodes.has(dep.entityId) &&
+						upstreamNodes.has(mapping.entityId)) ||
+					(downstreamNodes.has(dep.entityId) &&
+						downstreamNodes.has(mapping.entityId)) ||
+					dep.entityId === selectedNode ||
+					mapping.entityId === selectedNode;
+
+				edgeList.push({
+					id: edgeId,
+					source: dep.entityId,
+					target: mapping.entityId,
+					type: "smoothstep",
+					animated: isHighlighted,
+					style: {
+						stroke: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
+						strokeWidth: isHighlighted ? 2 : 1,
+					},
+					markerEnd: {
+						type: MarkerType.ArrowClosed,
+						color: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
+					},
+				});
+			});
+		});
+
+		return edgeList;
+	}, [
+		mappings,
+		relatedEntityIds,
+		upstreamNodes,
+		downstreamNodes,
+		selectedNode,
+	]);
+
+	// Apply layout
+	const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
+		return getLayoutedElements(nodes, edges, layoutDirection);
+	}, [nodes, edges, layoutDirection]);
+
+	const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(
+		layoutedNodes as Node[],
+	);
+	const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(layoutedEdges);
+
+	// Update nodes/edges when data changes
+	useEffect(() => {
+		setFlowNodes(layoutedNodes as Node[]);
+		setFlowEdges(layoutedEdges);
+	}, [layoutedNodes, layoutedEdges, setFlowNodes, setFlowEdges]);
+
+	// Fit view on layout change
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			fitView({ padding: 0.15, duration: 300 });
+		}, 100);
+		return () => clearTimeout(timer);
+	}, [layoutDirection, fitView]);
+
+	// Notify parent about calculated entities
+	useEffect(() => {
+		if (onEntitiesCalculated) {
+			onEntitiesCalculated(filteredEntities);
+		}
+	}, [filteredEntities, onEntitiesCalculated]);
+
+	// Get selected entity
+	const selectedEntity = useMemo(() => {
+		if (!selectedNode) return null;
+		return filteredEntities.find((e) => e.id === selectedNode) || null;
+	}, [selectedNode, filteredEntities]);
+
+	return (
+		<div style={{ width: "100%", height: "100%", position: "relative" }}>
+			<ReactFlow
+				nodes={flowNodes}
+				edges={flowEdges}
+				onNodesChange={onNodesChange}
+				onEdgesChange={onEdgesChange}
+				nodeTypes={nodeTypes}
+				fitView
+				minZoom={0.1}
+				maxZoom={2}
+				proOptions={{ hideAttribution: true }}
+			>
+				<Background color="#e0e0e0" gap={16} />
+				<Controls />
+				<MiniMap
+					nodeColor={(node) => {
+						const entityNode = node as unknown as EntityNode;
+						if (entityNode.data.highlightType === "selected")
+							return HIGHLIGHT_COLORS.selected;
+						if (entityNode.data.highlightType === "upstream")
+							return HIGHLIGHT_COLORS.upstream;
+						if (entityNode.data.highlightType === "downstream")
+							return HIGHLIGHT_COLORS.downstream;
+						return TYPE_COLORS[entityNode.data.entity.type]?.border || "#999";
+					}}
+					style={{
+						background: "#f5f5f5",
+						border: "1px solid #ddd",
+						borderRadius: 6,
+					}}
+				/>
+
+				{/* Control Panel */}
+				<Panel position="top-left">
+					<div
+						style={{
+							background: "#fff",
+							padding: 12,
+							borderRadius: 8,
+							boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+							minWidth: 200,
+						}}
+					>
+						<div style={{ marginBottom: 8 }}>
+							<div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+								Граф зависимостей
+							</div>
+							<div style={{ fontSize: 11, color: "#666" }}>
+								{filteredEntities.length} связанных сущностей
+							</div>
+						</div>
+
+						{/* Layout Direction */}
+						<div style={{ display: "flex", gap: 6 }}>
+							<button
+								onClick={() => setLayoutDirection("LR")}
+								style={{
+									flex: 1,
+									padding: "5px 10px",
+									border: "1px solid #ddd",
+									borderRadius: 4,
+									background: layoutDirection === "LR" ? "#1976d2" : "#fff",
+									color: layoutDirection === "LR" ? "#fff" : "#333",
+									cursor: "pointer",
+									fontSize: 11,
+								}}
+							>
+								↔ Горизонт.
+							</button>
+							<button
+								onClick={() => setLayoutDirection("TB")}
+								style={{
+									flex: 1,
+									padding: "5px 10px",
+									border: "1px solid #ddd",
+									borderRadius: 4,
+									background: layoutDirection === "TB" ? "#1976d2" : "#fff",
+									color: layoutDirection === "TB" ? "#fff" : "#333",
+									cursor: "pointer",
+									fontSize: 11,
+								}}
+							>
+								↕ Вертикал.
+							</button>
+						</div>
+					</div>
+				</Panel>
+
+				{/* Legend */}
+				<Panel position="bottom-left">
+					<div
+						style={{
+							background: "#fff",
+							padding: 8,
+							borderRadius: 6,
+							boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+							display: "flex",
+							gap: 10,
+							fontSize: 9,
+						}}
+					>
+						<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+							<span
+								style={{
+									width: 8,
+									height: 8,
+									background: HIGHLIGHT_COLORS.selected,
+									borderRadius: 2,
+								}}
+							/>
+							выбрано
+						</div>
+						<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+							<span
+								style={{
+									width: 8,
+									height: 8,
+									background: HIGHLIGHT_COLORS.upstream,
+									borderRadius: 2,
+								}}
+							/>
+							источники
+						</div>
+						<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+							<span
+								style={{
+									width: 8,
+									height: 8,
+									background: HIGHLIGHT_COLORS.downstream,
+									borderRadius: 2,
+								}}
+							/>
+							потребители
+						</div>
+					</div>
+				</Panel>
+			</ReactFlow>
+
+			{/* Selected Entity Info */}
+			{selectedEntity && selectedEntity.id !== mainEntity.id && (
+				<div
+					style={{
+						position: "absolute",
+						top: 12,
+						right: 12,
+						background: "#fff",
+						padding: 12,
+						borderRadius: 8,
+						boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+						maxWidth: 280,
+						zIndex: 1000,
+					}}
+				>
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "flex-start",
+							marginBottom: 8,
+						}}
+					>
+						<div>
+							<div
+								style={{
+									fontSize: 10,
+									color: "#666",
+									textTransform: "uppercase",
+								}}
+							>
+								{selectedEntity.type}
+							</div>
+							<div style={{ fontWeight: 600, fontSize: 13 }}>
+								{selectedEntity.name || selectedEntity.id}
+							</div>
+						</div>
+						<button
+							onClick={() => setSelectedNode(mainEntity.id)}
+							style={{
+								background: "none",
+								border: "none",
+								fontSize: 16,
+								cursor: "pointer",
+								color: "#666",
+								padding: 0,
+							}}
+						>
+							×
+						</button>
+					</div>
+
+					{selectedEntity.namespace && (
+						<div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>
+							{selectedEntity.namespace}
+						</div>
+					)}
+
+					<div style={{ fontSize: 11, marginBottom: 8 }}>
+						<strong>Атрибутов:</strong> {selectedEntity.attrSeq?.length || 0}
+					</div>
+
+					<button
+						onClick={() => handleOpenEntity(selectedEntity.id)}
+						style={{
+							width: "100%",
+							padding: "8px 12px",
+							background: "#1976d2",
+							color: "#fff",
+							border: "none",
+							borderRadius: 6,
+							fontSize: 11,
+							fontWeight: 500,
+							cursor: "pointer",
+						}}
+					>
+						↗ Открыть карточку
+					</button>
+				</div>
+			)}
+		</div>
+	);
+};
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 interface EntityNodeViewProps {
 	entity: DataLineageEntity | null;
@@ -25,194 +897,40 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 	mappings,
 	onEntitiesCalculated,
 }) => {
-	const [layoutDirection, setLayoutDirection] = useState<"TB" | "LR">("TB");
+	const { currentGraph } = useDataLineageStore();
+
+	// Get all entities from the store
+	const allEntities = useMemo(() => {
+		if (!currentGraph?.entities) return [];
+		return currentGraph.entities;
+	}, [currentGraph?.entities]);
 
 	if (!entity) {
 		return (
-			<Container>
-				<Typography variant="body1" color="text.secondary">
-					Сущность не выбрана
-				</Typography>
-			</Container>
+			<div
+				style={{
+					height: "100%",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					color: "#666",
+				}}
+			>
+				Сущность не выбрана
+			</div>
 		);
 	}
 
-	const { flowNodes, flowEdges, allEntities } = useMemo(() => {
-		// Find all related entities through mappings
-		const relatedEntityIds = new Set<string>();
-		const entityMap = new Map<string, DataLineageEntity>();
-
-		// Add the main entity
-		entityMap.set(entity.id, entity);
-
-		// Find mappings where this entity is involved
-		const relevantMappings = mappings.filter(
-			(mapping) =>
-				mapping.entityId === entity.id ||
-				mapping.deps?.some((dep) => dep.entityId === entity.id),
-		);
-
-		// Collect all related entity IDs
-		relevantMappings.forEach((mapping) => {
-			relatedEntityIds.add(mapping.entityId);
-			mapping.deps?.forEach((dep) => {
-				relatedEntityIds.add(dep.entityId);
-			});
-		});
-
-		// For now, we'll create placeholder entities for IDs we don't have full data for
-		// In a real scenario, you'd fetch these from your data source
-		const allEntitiesArray = Array.from(relatedEntityIds).map((id) => {
-			if (id === entity.id) return entity;
-
-			// Create placeholder entity - in real app you'd fetch this data
-			return {
-				id,
-				name: id.split(".").pop() || id,
-				type: "table" as const,
-				modified: false,
-				namespace: id.includes(".")
-					? id.split(".").slice(0, -1).join(".")
-					: undefined,
-				attrSeq: [],
-			};
-		});
-
-		// Create nodes with initial positioning (will be overridden by Dagre)
-		const initialNodes = allEntitiesArray.map((ent) => {
-			const isMainEntity = ent.id === entity.id;
-
-			const node: DataLineageNode = {
-				id: ent.id,
-				name: ent.name,
-				type: ent.type === "table" ? "dataset" : "view",
-				description: `${ent.namespace ? `${ent.namespace}.` : ""}${ent.name}`,
-				metadata: {
-					created: new Date().toISOString(),
-					updated: new Date().toISOString(),
-					tags: ent.attrSeq?.map((attr) => `${attr.name}: ${attr.type}`) || [],
-				},
-				position: { x: 0, y: 0 }, // Initial position, will be set by Dagre
-				status: ent.modified ? "active" : "inactive",
-			};
-
-			return {
-				id: ent.id,
-				type: "dataLineageNode",
-				position: { x: 0, y: 0 }, // Initial position, will be set by Dagre
-				data: {
-					node,
-					selected: isMainEntity,
-					width: 220,
-					height: 120,
-				},
-				draggable: true,
-				selectable: true,
-				focusable: true,
-			};
-		});
-
-		// Create edges based on mappings
-		const initialEdges = relevantMappings.flatMap(
-			(mapping) =>
-				mapping.deps?.map((dep) => ({
-					id: `${dep.entityId}-${mapping.entityId}`,
-					source: dep.entityId,
-					target: mapping.entityId,
-					type: "default",
-					style: {
-						stroke: "#666",
-						strokeWidth: 2,
-					},
-					animated: true,
-					label: dep.attrMaps?.length
-						? `${dep.attrMaps.length} атрибутов`
-						: undefined,
-				})) || [],
-		);
-
-		// Apply Dagre layout
-		const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-			initialNodes,
-			initialEdges,
-			layoutDirection,
-		);
-
-		return {
-			flowNodes: layoutedNodes,
-			flowEdges: layoutedEdges,
-			allEntities: allEntitiesArray,
-		};
-	}, [entity, mappings, layoutDirection]);
-
-	// Call the callback with calculated entities
-	React.useEffect(() => {
-		if (onEntitiesCalculated) {
-			onEntitiesCalculated(allEntities);
-		}
-	}, [allEntities, onEntitiesCalculated]);
-
 	return (
-		<Container>
-			<ControlsHeader>
-				<Typography variant="h6" component="h2">
-					Граф зависимостей
-				</Typography>
-				<ButtonGroup size="small" variant="outlined">
-					<Button
-						onClick={() => setLayoutDirection("TB")}
-						variant={layoutDirection === "TB" ? "contained" : "outlined"}
-					>
-						Сверху вниз
-					</Button>
-					<Button
-						onClick={() => setLayoutDirection("LR")}
-						variant={layoutDirection === "LR" ? "contained" : "outlined"}
-					>
-						Слева направо
-					</Button>
-				</ButtonGroup>
-			</ControlsHeader>
-			<NodeVisualization>
-				<ReactFlowProvider>
-					<ReactFlow
-						nodes={flowNodes}
-						edges={flowEdges}
-						nodeTypes={nodeTypes}
-						fitView
-						fitViewOptions={{ padding: 0.1 }}
-						zoomOnScroll={true}
-					>
-						<Background />
-						<Controls />
-					</ReactFlow>
-				</ReactFlowProvider>
-			</NodeVisualization>
-		</Container>
+		<div style={{ height: "100%", width: "100%" }}>
+			<ReactFlowProvider>
+				<EntityGraphInner
+					mainEntity={entity}
+					allEntities={allEntities.length > 0 ? allEntities : [entity]}
+					mappings={mappings}
+					onEntitiesCalculated={onEntitiesCalculated}
+				/>
+			</ReactFlowProvider>
+		</div>
 	);
-};
-
-const Container = styled(Box)(({ theme }) => ({
-	height: "100%",
-	display: "flex",
-	flexDirection: "column",
-	padding: theme.spacing(2),
-}));
-
-const ControlsHeader = styled(Box)(({ theme }) => ({
-	display: "flex",
-	justifyContent: "space-between",
-	alignItems: "center",
-	marginBottom: theme.spacing(2),
-}));
-
-const NodeVisualization = styled(Box)(({ theme }) => ({
-	height: "100%",
-	border: `1px solid ${theme.palette.divider}`,
-	borderRadius: theme.shape.borderRadius,
-	overflow: "hidden",
-}));
-
-const nodeTypes = {
-	dataLineageNode: DataLineageNodeComponent as any,
 };
