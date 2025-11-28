@@ -5,10 +5,9 @@ import {
     BusinessValidationResult,
     RecursionCheckResult,
     DuplicateCheckResult,
-    SchemaVersionResult,
     ValidationReport,
     ComprehensiveValidationResponse
-} from "../types/validation.types";
+} from "../types";
 import { VersioningService } from "./versioning.service";
 
 @Injectable()

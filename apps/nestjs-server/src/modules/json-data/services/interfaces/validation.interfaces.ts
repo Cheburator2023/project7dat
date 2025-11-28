@@ -4,7 +4,7 @@ import {
     BusinessValidationResult,
     RecursionCheckResult,
     DuplicateCheckResult
-} from "../../types/validation.types";
+} from "../../types";
 
 export interface IJsonStructureValidator {
     validateStructure(data: any): ValidationResult;
