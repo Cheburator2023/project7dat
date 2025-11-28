@@ -7,17 +7,12 @@ import {
 	Button,
 	Alert,
 	CircularProgress,
-	IconButton,
-	Tooltip,
 } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
-import {
-	Search as SearchIcon,
-	Visibility as VisibilityIcon,
-} from "@mui/icons-material";
+import { Search as SearchIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
-import { ColDef } from "ag-grid-community";
+import { ColDef, RowDoubleClickedEvent } from "ag-grid-community";
 import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
@@ -131,29 +126,6 @@ export const ObjectsPage: React.FC = () => {
 	const columnDefs: ColDef<ObjectItem>[] = useMemo(
 		() => [
 			{
-				headerName: "Действия",
-				field: "id",
-				width: 100,
-				pinned: "left",
-				sortable: false,
-				filter: false,
-				cellRenderer: (params: any) => (
-					<Box sx={{ padding: 1, display: "flex", justifyContent: "center" }}>
-						<Tooltip title="Просмотр карточки">
-							<IconButton
-								size="small"
-								color="primary"
-								onClick={() =>
-									navigate(`/objects/${encodeURIComponent(params.data.id)}`)
-								}
-							>
-								<VisibilityIcon fontSize="small" />
-							</IconButton>
-						</Tooltip>
-					</Box>
-				),
-			},
-			{
 				headerName: "Объект",
 				field: "object",
 				width: 200,
@@ -176,9 +148,9 @@ export const ObjectsPage: React.FC = () => {
 				filter: true,
 				cellRenderer: (params: any) => {
 					const colors: Record<string, { bg: string; color: string }> = {
-						Модель: { bg: "#1976d2", color: "#fff" },
+						Источник: { bg: "#00897b", color: "#fff" },
 						Витрина: { bg: "#9c27b0", color: "#fff" },
-						Признак: { bg: "#00897b", color: "#fff" },
+						Признак: { bg: "#1976d2", color: "#fff" },
 					};
 					const style = colors[params.value] || { bg: "#666", color: "#fff" };
 
@@ -473,6 +445,11 @@ export const ObjectsPage: React.FC = () => {
 					enableCellTextSelection={true}
 					ensureDomOrder={true}
 					maintainColumnOrder={true}
+					onRowDoubleClicked={(event: RowDoubleClickedEvent<ObjectItem>) => {
+						if (event.data) {
+							navigate(`/objects/${encodeURIComponent(event.data.id)}`);
+						}
+					}}
 				/>
 			</GridWrapper>
 		</Box>
