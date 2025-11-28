@@ -183,12 +183,12 @@ export const ObjectsPage: React.FC = () => {
 					const style = colors[params.value] || { bg: "#666", color: "#fff" };
 
 					return (
-						<Box sx={{ padding: 1, display: "flex", alignItems: "center" }}>
+						<Box sx={{ padding: 0, display: "flex", alignItems: "center" }}>
 							<Box
 								sx={{
 									background: style.bg,
 									color: style.color,
-									padding: "2px 8px",
+									padding: "0 8px",
 									borderRadius: 1,
 									fontSize: "0.75rem",
 									fontWeight: 500,

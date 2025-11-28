@@ -62,7 +62,7 @@ export function NavbarBreadcrumbs() {
 			if (graphId) {
 				return {
 					breadcrumbs: [
-						{ name: routes.changelog.name, isLink: false },
+						{ name: routes.changelogTable.name, isLink: false },
 						{ name: `График: ${graphId}`, isLink: false },
 					],
 				};
