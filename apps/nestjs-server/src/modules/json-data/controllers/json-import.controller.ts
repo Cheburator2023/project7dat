@@ -18,36 +18,35 @@ import {
 } from "@nestjs/swagger";
 import { JsonImportService } from "../services/json-import.service";
 import { JsonValidationOrchestratorService } from "../services/json-validation-orchestrator.service";
-import { JsonImportRequestDto } from "../dto/requests/json-import-request.dto";
+import {
+    JsonImportRequestDto,
+    ComprehensiveValidationRequestDto,
+    ComprehensiveValidationResponseDto
+} from "../dto";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
-import { ComprehensiveValidationResponse } from "../types/validation.types";
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("Импорт JSON")
 @Controller("json-import")
 export class JsonImportController {
-	private readonly logger = new Logger(JsonImportController.name);
+    private readonly logger = new Logger(JsonImportController.name);
 
     constructor(
         private readonly jsonImportService: JsonImportService,
         private readonly validationOrchestrator: JsonValidationOrchestratorService,
     ) {}
 
-	@Post("surm")
-	@RealmRole(Permission.DL_CREATE_JSON_DATA)
-	@ApiOperation({
-		summary: "Импорт JSON СУРМ в БД DL",
-		description:
-			"Импортирует JSON данные СУРМ в таблицы БД DL согласно маппингу",
-	})
-	@ApiBody({
-		description: "JSON данные для импорта",
-		type: JsonImportRequestDto,
-	})
+    @Post("surm")
+    @RealmRole(Permission.DL_CREATE_JSON_DATA)
+    @ApiOperation({
+        summary: "Импорт JSON СУРМ в БД DL",
+        description: "Импортирует JSON данные СУРМ в таблицы БД DL согласно маппингу",
+    })
+    @ApiBody({ type: JsonImportRequestDto })
     @ApiHeader({
         name: 'x-user',
-        description: 'Идентификатор пользователя в формате: { "id": "user-id", "username": "user-name", "email": "user@example.com" }',
+        description: 'Идентификатор пользователя',
         required: true,
         schema: {
             type: 'string',
@@ -62,15 +61,8 @@ export class JsonImportController {
             properties: {
                 success: { type: "boolean", example: true },
                 changeId: { type: "number", example: 123 },
-                message: {
-                    type: "string",
-                    example: "JSON данные успешно импортированы в БД DL",
-                },
-                warnings: {
-                    type: "array",
-                    items: { type: "string" },
-                    example: ["Некоторые сущности не были изменены"],
-                },
+                message: { type: "string", example: "JSON данные успешно импортированы в БД DL" },
+                warnings: { type: "array", items: { type: "string" }, example: ["Некоторые сущности не были изменены"] },
                 stats: {
                     type: "object",
                     properties: {
@@ -82,29 +74,15 @@ export class JsonImportController {
             },
         },
     })
-    @ApiResponse({
-        status: 400,
-        description: "Неверная структура JSON данных",
-    })
-    @ApiResponse({
-        status: 409,
-        description: "Конфликты при импорте или данные не проверены",
-    })
-    @ApiResponse({
-        status: 413,
-        description: "Превышен размер файла",
-    })
-    @ApiResponse({
-        status: 429,
-        description: "Превышен лимит запросов",
-    })
+    @ApiResponse({ status: 400, description: "Неверная структура JSON данных" })
+    @ApiResponse({ status: 409, description: "Конфликты при импорте или данные не проверены" })
+    @ApiResponse({ status: 413, description: "Превышен размер файла" })
+    @ApiResponse({ status: 429, description: "Превышен лимит запросов" })
     async importSurmJson(
         @Body() importRequest: JsonImportRequestDto,
         @Headers("x-user") userHeader: string,
     ): Promise<any> {
-        this.logger.log(
-            `Запрос на импорт SURM JSON от пользователя: ${userHeader}`,
-        );
+        this.logger.log(`Запрос на импорт SURM JSON от пользователя: ${userHeader}`);
 
         try {
             const user = userHeader || importRequest.user || "system";
@@ -113,23 +91,14 @@ export class JsonImportController {
                 user,
             });
 
-			this.logger.log(
-				`Импорт SURM JSON завершен успешно. Change ID: ${result.changeId}`,
-			);
-
+            this.logger.log(`Импорт SURM JSON завершен успешно. Change ID: ${result.changeId}`);
             return result;
         } catch (error) {
-            this.logger.error(
-                `Ошибка импорта SURM JSON: ${error.message}`,
-                error.stack,
-            );
+            this.logger.error(`Ошибка импорта SURM JSON: ${error.message}`, error.stack);
 
-			if (
-				error instanceof BadRequestException ||
-				error instanceof ConflictException
-			) {
-				throw error;
-			}
+            if (error instanceof BadRequestException || error instanceof ConflictException) {
+                throw error;
+            }
 
 			throw new InternalServerErrorException({
 				message: "Внутренняя ошибка при импорте JSON",
@@ -139,20 +108,16 @@ export class JsonImportController {
 		}
 	}
 
-	@Post("dapp")
-	@RealmRole(Permission.DL_CREATE_JSON_DATA)
-	@ApiOperation({
-		summary: "Импорт JSON DAPP в БД DL",
-		description:
-			"Импортирует JSON данные DAPP в таблицы БД DL согласно маппингу",
-	})
-	@ApiBody({
-		description: "JSON данные для импорта",
-		type: JsonImportRequestDto,
-	})
+    @Post("dapp")
+    @RealmRole(Permission.DL_CREATE_JSON_DATA)
+    @ApiOperation({
+        summary: "Импорт JSON DAPP в БД DL",
+        description: "Импортирует JSON данные DAPP в таблицы БД DL согласно маппингу",
+    })
+    @ApiBody({ type: JsonImportRequestDto })
     @ApiHeader({
         name: 'x-user',
-        description: 'Идентификатор пользователя в формате: { "id": "user-id", "username": "user-name", "email": "user@example.com" }',
+        description: 'Идентификатор пользователя',
         required: true,
         schema: {
             type: 'string',
@@ -167,15 +132,8 @@ export class JsonImportController {
             properties: {
                 success: { type: "boolean", example: true },
                 changeId: { type: "number", example: 123 },
-                message: {
-                    type: "string",
-                    example: "JSON данные успешно импортированы в БД DL",
-                },
-                warnings: {
-                    type: "array",
-                    items: { type: "string" },
-                    example: ["Некоторые сущности не были изменены"],
-                },
+                message: { type: "string", example: "JSON данные успешно импортированы в БД DL" },
+                warnings: { type: "array", items: { type: "string" }, example: ["Некоторые сущности не были изменены"] },
                 stats: {
                     type: "object",
                     properties: {
@@ -187,29 +145,15 @@ export class JsonImportController {
             },
         },
     })
-    @ApiResponse({
-        status: 400,
-        description: "Неверная структура JSON данных",
-    })
-    @ApiResponse({
-        status: 409,
-        description: "Конфликты при импорте или данные не проверены",
-    })
-    @ApiResponse({
-        status: 413,
-        description: "Превышен размер файла",
-    })
-    @ApiResponse({
-        status: 429,
-        description: "Превышен лимит запросов",
-    })
+    @ApiResponse({ status: 400, description: "Неверная структура JSON данных" })
+    @ApiResponse({ status: 409, description: "Конфликты при импорте или данные не проверены" })
+    @ApiResponse({ status: 413, description: "Превышен размер файла" })
+    @ApiResponse({ status: 429, description: "Превышен лимит запросов" })
     async importDappJson(
         @Body() importRequest: JsonImportRequestDto,
         @Headers("x-user") userHeader: string,
     ): Promise<any> {
-        this.logger.log(
-            `Запрос на импорт DAPP JSON от пользователя: ${userHeader}`,
-        );
+        this.logger.log(`Запрос на импорт DAPP JSON от пользователя: ${userHeader}`);
 
         try {
             const user = userHeader || importRequest.user || "system";
@@ -218,21 +162,12 @@ export class JsonImportController {
                 user,
             });
 
-            this.logger.log(
-                `Импорт DAPP JSON завершен успешно. Change ID: ${result.changeId}`,
-            );
-
+            this.logger.log(`Импорт DAPP JSON завершен успешно. Change ID: ${result.changeId}`);
             return result;
         } catch (error) {
-            this.logger.error(
-                `Ошибка импорта DAPP JSON: ${error.message}`,
-                error.stack,
-            );
+            this.logger.error(`Ошибка импорта DAPP JSON: ${error.message}`, error.stack);
 
-            if (
-                error instanceof BadRequestException ||
-                error instanceof ConflictException
-            ) {
+            if (error instanceof BadRequestException || error instanceof ConflictException) {
                 throw error;
             }
 
@@ -252,33 +187,32 @@ export class JsonImportController {
 	})
 	@ApiBody({
 		description: "JSON данные для валидации",
-		type: JsonImportRequestDto,
+        type: ComprehensiveValidationRequestDto,
 	})
     @ApiHeader({
         name: 'x-user',
-        description: 'Идентификатор пользователя для аудита',
-        required: false,
+        description: 'Идентификатор пользователя',
+        required: true,
         schema: {
             type: 'string',
-            example: 'ivanov'
+            example: '{"id":"12345","username":"ivanov","email":"ivanov@company.com"}'
         }
     })
     @ApiResponse({
         status: 200,
         description: "Результаты комплексной валидации",
-        type: Object,
+        type: ComprehensiveValidationResponseDto,
     })
-    async comprehensiveValidation(@Body() importRequest: JsonImportRequestDto): Promise<ComprehensiveValidationResponse> {
+    async comprehensiveValidation(
+        @Body() validationRequest: ComprehensiveValidationRequestDto
+    ): Promise<ComprehensiveValidationResponseDto> {
         this.logger.log("Запрос на комплексную валидацию JSON");
 
         try {
-            const validationResult = await this.validationOrchestrator.validate(importRequest.data);
-            return validationResult;
+            const validationResult = await this.validationOrchestrator.validate(validationRequest.data);
+            return validationResult as ComprehensiveValidationResponseDto;
         } catch (error) {
-            this.logger.error(
-                `Ошибка при валидации JSON: ${error.message}`,
-                error.stack,
-            );
+            this.logger.error(`Ошибка при валидации JSON: ${error.message}`, error.stack);
             throw new BadRequestException({
                 message: "Ошибка при валидации JSON",
                 error: error.message,

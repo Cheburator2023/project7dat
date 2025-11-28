@@ -1,13 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class VersioningService {
 	private readonly logger = new Logger(VersioningService.name);
 	private readonly currentSchemaVersion = "2.0";
 	private readonly supportedVersions = ["1.0", "1.1", "2.0"];
-
-	constructor(readonly _configService: ConfigService) {}
 
 	/**
 	 * Валидация совместимости версий схемы JSON
@@ -31,9 +28,9 @@ export class VersioningService {
 		);
 		const incomingMinor = Number.parseInt(version.split(".")[1] || "0", 10);
 
-		let compatible = false;
-		let migrationRequired = false;
-		let message = "";
+        let compatible: boolean;
+        let migrationRequired: boolean;
+        let message: string;
 
 		// Проверка поддержки версии
 		const isSupported = this.supportedVersions.includes(version);
@@ -202,53 +199,6 @@ export class VersioningService {
 	}
 
 	/**
-	 * Получение информации о версиях
-	 */
-	getVersionInfo(): {
-		currentVersion: string;
-		supportedVersions: string[];
-		migrationPaths: { from: string; to: string; available: boolean }[];
-	} {
-		const migrationPaths = [
-			{ from: "0.9", to: "1.0", available: true },
-			{ from: "1.0", to: "1.1", available: true },
-			{ from: "1.1", to: "2.0", available: true },
-		];
-
-		return {
-			currentVersion: this.currentSchemaVersion,
-			supportedVersions: this.supportedVersions,
-			migrationPaths,
-		};
-	}
-
-	/**
-	 * Сравнение версий
-	 */
-	compareVersions(version1: string, version2: string): -1 | 0 | 1 {
-		const v1 = version1.split(".").map(Number);
-		const v2 = version2.split(".").map(Number);
-
-		for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
-			const num1 = v1[i] || 0;
-			const num2 = v2[i] || 0;
-
-			if (num1 > num2) return 1;
-			if (num1 < num2) return -1;
-		}
-
-		return 0;
-	}
-
-	/**
-	 * Проверка, требуется ли миграция
-	 */
-	isMigrationRequired(fromVersion: string, toVersion?: string): boolean {
-		const targetVersion = toVersion || this.currentSchemaVersion;
-		return this.compareVersions(fromVersion, targetVersion) < 0;
-	}
-
-	/**
 	 * Миграция с версии 0.9 на 1.0
 	 */
 	private migrateFromV09ToV10(data: any): any {
@@ -329,50 +279,6 @@ export class VersioningService {
 			});
 		}
 
-		return migrated;
-	}
-
-	/**
-	 * Создание дампа схемы для отладки
-	 */
-	createSchemaDump(data: any): {
-		version: string;
-		entitiesCount: number;
-		mappingsCount: number;
-		entityTypes: string[];
-		attributeTypes: string[];
-		schemaInfo: any;
-	} {
-		const entityTypes = new Set<string>();
-		const attributeTypes = new Set<string>();
-
-		if (data.entities && Array.isArray(data.entities)) {
-			data.entities.forEach((entity: any) => {
-				if (entity.type) {
-					entityTypes.add(entity.type);
-				}
-				if (entity.attrSeq && Array.isArray(entity.attrSeq)) {
-					entity.attrSeq.forEach((attr: any) => {
-						if (attr.type) {
-							attributeTypes.add(attr.type);
-						}
-					});
-				}
-			});
-		}
-
-		return {
-			version: data.desc?.schemaVersion || "unknown",
-			entitiesCount: data.entities?.length || 0,
-			mappingsCount: data.mappings?.length || 0,
-			entityTypes: Array.from(entityTypes),
-			attributeTypes: Array.from(attributeTypes),
-			schemaInfo: {
-				hasDesc: !!data.desc,
-				hasEntities: !!data.entities,
-				hasMappings: !!data.mappings,
-				hasFailedMappings: !!data.failedMappings,
-			},
-		};
-	}
+        return migrated;
+    }
 }

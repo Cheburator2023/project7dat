@@ -13,6 +13,10 @@ import { EntityTypeService } from "../services/entity-type.service";
 import { AttributeTypeService } from "../services/attribute-type.service";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
+import {
+    JsonValidationRequestDto,
+    DependencyCheckRequestDto
+} from "../dto";
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("Валидация JSON")
@@ -32,25 +36,14 @@ export class JsonValidationController {
 		description:
 			"Проверяет JSON данные на корректность и выявляет потенциальные проблемы",
 	})
-	@ApiBody({
-		description: "JSON данные для валидации",
-		schema: {
-			type: "object",
-			properties: {
-				data: {
-					type: "object",
-					example: { desc: {}, entities: [], mappings: [] },
-				},
-			},
-		},
-	})
+    @ApiBody({ type: JsonValidationRequestDto })
     @ApiHeader({
         name: 'x-user',
-        description: 'Идентификатор пользователя для аудита операций валидации',
+        description: 'Идентификатор пользователя',
         required: false,
         schema: {
             type: 'string',
-            example: 'ivanov'
+            example: '{"id":"12345","username":"ivanov","email":"ivanov@company.com"}'
         }
     })
     @ApiResponse({
@@ -69,10 +62,10 @@ export class JsonValidationController {
         },
     })
     async validateJson(
-        @Body() body: { data: any },
+        @Body() validationRequest: JsonValidationRequestDto,
         @Headers("x-user") _userHeader: string,
     ) {
-        const { data } = body;
+        const { data } = validationRequest;
 
         const validationResult = await this.validationOrchestrator.validate(data);
         const entityTypes = await this.entityTypeService.getSupportedEntityTypes();
@@ -97,23 +90,7 @@ export class JsonValidationController {
 		summary: "Проверка зависимостей сущностей",
 		description: "Проверяет использование сущностей в других процессах",
 	})
-	@ApiBody({
-		description: "Список сущностей для проверки",
-		schema: {
-			type: "object",
-			properties: {
-				entityFullNames: {
-					type: "array",
-					items: { type: "string" },
-					example: ["schema1.table1", "schema2.view1"],
-				},
-				currentProcessId: {
-					type: "number",
-					example: 1,
-				},
-			},
-		},
-	})
+    @ApiBody({ type: DependencyCheckRequestDto })
 	@ApiResponse({
 		status: 200,
 		description: "Результаты проверки зависимостей",

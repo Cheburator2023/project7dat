@@ -37,7 +37,6 @@ import { JsonIntegrityValidationService } from "./services/json-integrity-valida
 import { JsonBusinessRulesValidationService } from "./services/json-business-rules-validation.service";
 import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
 import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
-import { CommonJsonValidationService } from "./services/common-json-validation.service";
 
 // Interfaces
 import {
@@ -109,7 +108,6 @@ export class JsonDataModule {
             JsonBusinessRulesValidationService,
             JsonSchemaVersionValidationService,
             JsonValidationOrchestratorService,
-            CommonJsonValidationService,
 
             // Register interfaces with implementations
             {
@@ -160,7 +158,6 @@ export class JsonDataModule {
             JsonBusinessRulesValidationService,
             JsonSchemaVersionValidationService,
             JsonValidationOrchestratorService,
-            CommonJsonValidationService,
         ];
 
         return {

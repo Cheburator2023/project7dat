@@ -4,12 +4,14 @@ import {
 	Column,
 	ManyToOne,
 	JoinColumn,
+    Unique,
 } from "typeorm";
 import { ChangeEntity } from "./change.entity";
 import { EntityEntity } from "./entity.entity";
 import { ProcessEntity } from "./process.entity";
 
 @Entity("entity_map")
+@Unique("entity_map_entity_process_unique", ["entity_id", "process_id"])
 export class EntityMapEntity {
 	@PrimaryGeneratedColumn()
 	entity_map_id: number;
