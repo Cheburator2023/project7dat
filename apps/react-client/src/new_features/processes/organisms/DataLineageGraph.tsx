@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo, useState } from "react";
 import {
 	Box,
 	Card,
@@ -24,6 +24,7 @@ import {
 	Handle,
 	Position,
 } from "@xyflow/react";
+import dagre from "@dagrejs/dagre";
 import type {
 	DataLineageSchema,
 	DataLineageEntity,
@@ -37,43 +38,106 @@ interface DataLineageGraphProps {
 interface NodeData extends Record<string, unknown> {
 	entity: DataLineageEntity;
 	label: string;
+	isHighlighted: boolean;
+	highlightType: "none" | "selected" | "upstream" | "downstream";
+	upstreamCount: number;
+	downstreamCount: number;
+	onNodeClick: (id: string) => void;
 }
 
+// Constants
+const NODE_WIDTH = 220;
+const NODE_HEIGHT = 100;
+const HIGHLIGHT_COLORS = {
+	selected: "#ffc107",
+	upstream: "#4caf50",
+	downstream: "#2196f3",
+};
+
+const TYPE_COLORS: Record<
+	string,
+	{ bg: string; border: string; text: string }
+> = {
+	table: { bg: "#e3f2fd", border: "#1976d2", text: "#1565c0" },
+	view: { bg: "#f3e5f5", border: "#7b1fa2", text: "#6a1b9a" },
+	rdd: { bg: "#fff3e0", border: "#f57c00", text: "#e65100" },
+	unresolved: { bg: "#fce4ec", border: "#c2185b", text: "#ad1457" },
+};
+
 const getEntityColor = (type: string): string => {
-	const colors: Record<string, string> = {
-		table: "#3B82F6", // blue
-		model: "#10B981", // green
-		source: "#F59E0B", // amber
-		datamart: "#8B5CF6", // purple
-		dataset: "#06B6D4", // cyan
-		pipeline: "#F97316", // orange
-		view: "#8B5CF6", // purple
-	};
-	return colors[type.toLowerCase()] || "#6B7280"; // gray as default
+	return TYPE_COLORS[type]?.border || "#6B7280";
+};
+
+// Dagre layout
+const getLayoutedElements = (
+	nodes: Node<NodeData>[],
+	edges: Edge[],
+	direction: "TB" | "LR" = "LR",
+) => {
+	const dagreGraph = new dagre.graphlib.Graph();
+	dagreGraph.setDefaultEdgeLabel(() => ({}));
+	dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 100 });
+
+	nodes.forEach((node) => {
+		dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+	});
+
+	edges.forEach((edge) => {
+		dagreGraph.setEdge(edge.source, edge.target);
+	});
+
+	dagre.layout(dagreGraph);
+
+	const layoutedNodes = nodes.map((node) => {
+		const nodeWithPosition = dagreGraph.node(node.id);
+		return {
+			...node,
+			position: {
+				x: nodeWithPosition.x - NODE_WIDTH / 2,
+				y: nodeWithPosition.y - NODE_HEIGHT / 2,
+			},
+		};
+	});
+
+	return { nodes: layoutedNodes, edges };
 };
 
 // Custom node component for data lineage entities
-const DataLineageEntityNode = ({ id, data, selected }: NodeProps) => {
-	const entity = data.entity as DataLineageEntity;
-	const nodeColor = getEntityColor(entity.type);
+const DataLineageEntityNode = ({ id, data }: NodeProps) => {
+	const nodeData = data as NodeData;
+	const { entity, highlightType, onNodeClick, upstreamCount, downstreamCount } =
+		nodeData;
+	const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
+
+	// Detect lineage role
+	const isDataMart = upstreamCount > 0 && downstreamCount === 0;
+	const isSource = upstreamCount === 0 && downstreamCount > 0;
+
+	const borderColor =
+		highlightType !== "none"
+			? HIGHLIGHT_COLORS[highlightType as keyof typeof HIGHLIGHT_COLORS]
+			: colors.border;
+
+	const borderWidth = highlightType !== "none" ? 3 : 2;
 
 	return (
 		<Paper
-			elevation={selected ? 8 : 2}
+			elevation={highlightType !== "none" ? 8 : 2}
+			onClick={() => onNodeClick(id)}
 			sx={{
-				width: "100%",
-				height: "100%",
-				minHeight: 80,
-				border: `2px solid ${nodeColor}`,
+				width: NODE_WIDTH,
+				minHeight: NODE_HEIGHT,
+				border: `${borderWidth}px solid ${borderColor}`,
 				borderRadius: 2,
-				backgroundColor: selected ? `${nodeColor}20` : "white",
+				backgroundColor: colors.bg,
 				transition: "all 0.2s ease",
+				boxShadow:
+					highlightType !== "none" ? `0 4px 20px ${borderColor}40` : undefined,
 				"&:hover": {
-					elevation: 4,
-					backgroundColor: `${nodeColor}10`,
 					transform: "scale(1.02)",
 				},
 				cursor: "pointer",
+				overflow: "hidden",
 			}}
 		>
 			{/* Input handle */}
@@ -81,53 +145,128 @@ const DataLineageEntityNode = ({ id, data, selected }: NodeProps) => {
 				type="target"
 				position={Position.Left}
 				style={{
-					background: nodeColor,
-					width: 8,
-					height: 8,
+					background: colors.border,
+					width: 10,
+					height: 10,
+					border: "2px solid #fff",
 				}}
 			/>
 
 			<Box sx={{ p: 1.5 }}>
-				<Chip
-					label={entity.type}
-					size="small"
+				{/* Header with type and badges */}
+				<Box
 					sx={{
-						backgroundColor: nodeColor,
-						color: "white",
-						fontSize: "0.7rem",
-						height: "20px",
-						mb: 1,
+						display: "flex",
+						alignItems: "center",
+						gap: 0.5,
+						mb: 0.5,
+						flexWrap: "wrap",
 					}}
-				/>
+				>
+					<Typography
+						variant="caption"
+						sx={{
+							color: colors.text,
+							textTransform: "uppercase",
+							fontWeight: 600,
+							fontSize: "0.65rem",
+						}}
+					>
+						{entity.type}
+					</Typography>
+					{entity.modified && (
+						<Chip
+							label="изм."
+							size="small"
+							sx={{
+								height: 16,
+								fontSize: "0.6rem",
+								background: "#ff9800",
+								color: "#fff",
+							}}
+						/>
+					)}
+					{isDataMart && (
+						<Chip
+							label="витрина"
+							size="small"
+							sx={{
+								height: 16,
+								fontSize: "0.6rem",
+								background: "#9c27b0",
+								color: "#fff",
+							}}
+						/>
+					)}
+					{isSource && (
+						<Chip
+							label="источник"
+							size="small"
+							sx={{
+								height: 16,
+								fontSize: "0.6rem",
+								background: "#00897b",
+								color: "#fff",
+							}}
+						/>
+					)}
+				</Box>
+
+				{/* Name */}
 				<Typography
 					variant="body2"
 					sx={{
-						fontWeight: "medium",
+						fontWeight: 600,
 						lineHeight: 1.2,
 						overflow: "hidden",
 						textOverflow: "ellipsis",
-						display: "-webkit-box",
-						WebkitLineClamp: 2,
-						WebkitBoxOrient: "vertical",
+						whiteSpace: "nowrap",
 					}}
+					title={entity.name || entity.id}
 				>
-					{entity.name || "Unnamed Entity"}
+					{entity.name || entity.id}
 				</Typography>
-				{entity.description && (
+
+				{/* Namespace */}
+				{entity.namespace && (
 					<Typography
 						variant="caption"
 						color="text.secondary"
 						sx={{
 							display: "block",
-							mt: 0.5,
 							overflow: "hidden",
 							textOverflow: "ellipsis",
 							whiteSpace: "nowrap",
+							fontSize: "0.7rem",
 						}}
+						title={entity.namespace}
 					>
-						{entity.description}
+						{entity.namespace}
 					</Typography>
 				)}
+
+				{/* Connection counts */}
+				<Box sx={{ display: "flex", gap: 1, mt: 0.5, fontSize: "0.7rem" }}>
+					{upstreamCount > 0 && (
+						<Typography
+							variant="caption"
+							sx={{ color: HIGHLIGHT_COLORS.upstream, fontWeight: 500 }}
+						>
+							← {upstreamCount}
+						</Typography>
+					)}
+					{downstreamCount > 0 && (
+						<Typography
+							variant="caption"
+							sx={{ color: HIGHLIGHT_COLORS.downstream, fontWeight: 500 }}
+						>
+							→ {downstreamCount}
+						</Typography>
+					)}
+					<Typography variant="caption" sx={{ color: "#888", ml: "auto" }}>
+						{entity.attrSeq?.length ?? 0} атр.
+					</Typography>
+				</Box>
 			</Box>
 
 			{/* Output handle */}
@@ -135,9 +274,10 @@ const DataLineageEntityNode = ({ id, data, selected }: NodeProps) => {
 				type="source"
 				position={Position.Right}
 				style={{
-					background: nodeColor,
-					width: 8,
-					height: 8,
+					background: colors.border,
+					width: 10,
+					height: 10,
+					border: "2px solid #fff",
 				}}
 			/>
 		</Paper>
@@ -154,52 +294,70 @@ const DataLineageGraphContent = ({
 }: DataLineageGraphProps) => {
 	const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
-	// Calculate layout positions
-	const calculateLayout = useCallback((entities: DataLineageEntity[]) => {
-		// Group entities by type for better layout
-		const entityGroups: Record<string, DataLineageEntity[]> = {};
-		entities.forEach((entity) => {
-			const type = entity.type.toLowerCase();
-			if (!entityGroups[type]) {
-				entityGroups[type] = [];
-			}
-			entityGroups[type].push(entity);
-		});
+	// Calculate upstream/downstream counts
+	const { upstreamMap, downstreamMap } = useMemo(() => {
+		const upstream = new Map<string, Set<string>>();
+		const downstream = new Map<string, Set<string>>();
 
-		const newNodes: Node<NodeData>[] = [];
-		const typeKeys = Object.keys(entityGroups);
-		const nodeWidth = 200;
-		const nodeHeight = 120;
-		const horizontalSpacing = 300;
-		const verticalSpacing = 150;
+		data?.mappings?.forEach((mapping) => {
+			mapping.deps?.forEach((dep) => {
+				// dep.entityId is upstream of mapping.entityId
+				if (!upstream.has(mapping.entityId)) {
+					upstream.set(mapping.entityId, new Set());
+				}
+				upstream.get(mapping.entityId)!.add(dep.entityId);
 
-		// Arrange types in columns
-		typeKeys.forEach((type, typeIndex) => {
-			const entities = entityGroups[type];
-			const x = typeIndex * horizontalSpacing;
-
-			entities.forEach((entity, entityIndex) => {
-				const y = entityIndex * verticalSpacing;
-
-				newNodes.push({
-					id: entity.id,
-					type: "dataLineageEntity",
-					position: { x, y },
-					data: {
-						entity,
-						label: entity.name || "Unnamed Entity",
-					},
-					style: {
-						width: nodeWidth,
-						height: nodeHeight,
-					},
-				});
+				// mapping.entityId is downstream of dep.entityId
+				if (!downstream.has(dep.entityId)) {
+					downstream.set(dep.entityId, new Set());
+				}
+				downstream.get(dep.entityId)!.add(mapping.entityId);
 			});
 		});
 
-		return newNodes;
-	}, []);
+		return { upstreamMap: upstream, downstreamMap: downstream };
+	}, [data?.mappings]);
+
+	// Get all upstream/downstream entities recursively
+	const getConnectedEntities = useCallback(
+		(entityId: string, direction: "upstream" | "downstream") => {
+			const result = new Set<string>();
+			const map = direction === "upstream" ? upstreamMap : downstreamMap;
+			const queue = [entityId];
+
+			while (queue.length > 0) {
+				const current = queue.shift()!;
+				const connected = map.get(current);
+				if (connected) {
+					connected.forEach((id) => {
+						if (!result.has(id)) {
+							result.add(id);
+							queue.push(id);
+						}
+					});
+				}
+			}
+
+			return result;
+		},
+		[upstreamMap, downstreamMap],
+	);
+
+	// Handle node click
+	const handleNodeClick = useCallback(
+		(nodeId: string) => {
+			setSelectedNodeId((prev: string | null) =>
+				prev === nodeId ? null : nodeId,
+			);
+			const entity = data?.entities?.find((e) => e.id === nodeId);
+			if (entity && onNodeSelect) {
+				onNodeSelect(entity);
+			}
+		},
+		[data?.entities, onNodeSelect],
+	);
 
 	// Create edges from mappings
 	const createEdges = useCallback(
@@ -302,7 +460,7 @@ const DataLineageGraphContent = ({
 		[],
 	);
 
-	// Update nodes and edges when data changes
+	// Build nodes with highlighting
 	useEffect(() => {
 		if (!data?.entities || data.entities.length === 0) {
 			setNodes([]);
@@ -310,29 +468,63 @@ const DataLineageGraphContent = ({
 			return;
 		}
 
-		const newNodes = calculateLayout(data.entities);
+		// Calculate highlighted sets
+		const upstreamSet = selectedNodeId
+			? getConnectedEntities(selectedNodeId, "upstream")
+			: new Set<string>();
+		const downstreamSet = selectedNodeId
+			? getConnectedEntities(selectedNodeId, "downstream")
+			: new Set<string>();
+
+		// Create nodes with proper NodeData
+		const newNodes: Node<NodeData>[] = data.entities.map((entity) => {
+			let highlightType: NodeData["highlightType"] = "none";
+			if (selectedNodeId === entity.id) {
+				highlightType = "selected";
+			} else if (upstreamSet.has(entity.id)) {
+				highlightType = "upstream";
+			} else if (downstreamSet.has(entity.id)) {
+				highlightType = "downstream";
+			}
+
+			return {
+				id: entity.id,
+				type: "dataLineageEntity",
+				position: { x: 0, y: 0 }, // Will be set by Dagre
+				data: {
+					entity,
+					label: entity.name || entity.id,
+					isHighlighted: highlightType !== "none",
+					highlightType,
+					upstreamCount: upstreamMap.get(entity.id)?.size ?? 0,
+					downstreamCount: downstreamMap.get(entity.id)?.size ?? 0,
+					onNodeClick: handleNodeClick,
+				},
+			};
+		});
+
 		const newEdges = createEdges(data.mappings, data.entities);
 
-		setNodes(newNodes);
-		setEdges(newEdges);
-	}, [data, calculateLayout, createEdges, setNodes, setEdges]);
+		// Apply Dagre layout
+		const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+			newNodes,
+			newEdges,
+			"LR",
+		);
 
-	// Handle node click
-	const onNodeClick = useCallback(
-		(_event: React.MouseEvent, node: Node) => {
-			const nodeData = node.data as NodeData;
-			if (nodeData?.entity && onNodeSelect) {
-				onNodeSelect(nodeData.entity);
-			}
-		},
-		[onNodeSelect],
-	);
-
-	// Group types for legend
-	const _entityTypes = useMemo(() => {
-		if (!data?.entities) return [];
-		return Array.from(new Set(data.entities.map((e) => e.type.toLowerCase())));
-	}, [data?.entities]);
+		setNodes(layoutedNodes);
+		setEdges(layoutedEdges);
+	}, [
+		data,
+		selectedNodeId,
+		upstreamMap,
+		downstreamMap,
+		getConnectedEntities,
+		handleNodeClick,
+		createEdges,
+		setNodes,
+		setEdges,
+	]);
 
 	return (
 		<Box sx={{ height: "600px", width: "100%" }}>
@@ -341,7 +533,6 @@ const DataLineageGraphContent = ({
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
-				onNodeClick={onNodeClick}
 				nodeTypes={nodeTypes}
 				fitView
 				fitViewOptions={{

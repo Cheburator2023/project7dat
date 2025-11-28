@@ -390,6 +390,7 @@ const LayoutGraph = memo(
 				)
 				.filter(Boolean) as any[];
 		}, [currentGraph?.mappings, selectedEdges, viewMode, visibleEntityIds]);
+		console.log("🐸 Pepe said >> currentGraph:", currentGraph);
 
 		const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 		const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);

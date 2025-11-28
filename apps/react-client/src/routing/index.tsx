@@ -31,7 +31,6 @@ export const Routing = () => (
 		<Route path={routes.objectCard.rootPath} element={<ObjectCardPage />} />
 		<Route path={routes.models.rootPath} element={<ModelsPage />} />
 		<Route path={routes.commitQueue.rootPath} element={<CommitQueuePage />} />
-		<Route path={routes.changelog.rootPath} element={<ChangelogTablePage />} />
 		<Route
 			path={routes.changelogTable.rootPath}
 			element={<ChangelogTablePage />}
