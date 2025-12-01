@@ -61,18 +61,20 @@ export class JsonImportService {
 
         // Комплексная валидация JSON
         const validationResult = await this.validationOrchestrator.validate(data);
-        if (!validationResult.isValid) {
+
+        // Разрешаем импорт если есть только предупреждения (но нет критических ошибок)
+        if (this.hasCriticalErrors(validationResult)) {
             throw new BadRequestException({
                 message: "Валидация JSON не пройдена",
                 details: validationResult,
             });
         }
 
-        // Обработка обратной совместимости
-        let processedData = data;
+        // Обработка обратной совместимости - ВСЕГДА выполняем миграцию если требуется
+        let processedData = validationResult.normalizedData;
         if (validationResult.schemaVersion.migrationRequired) {
             processedData = this.migrationService.migrateDataToCurrentVersion(
-                data,
+                processedData,
                 validationResult.schemaVersion.incomingVersion,
             );
             this.logger.log(
@@ -81,6 +83,50 @@ export class JsonImportService {
         }
 
         return processedData;
+    }
+
+    /**
+     * Определяет наличие КРИТИЧЕСКИХ ошибок, которые блокируют импорт
+     */
+    private hasCriticalErrors(validationResult: any): boolean {
+        // Критические ошибки структуры
+        if (validationResult.validation.errors.length > 0) {
+            this.logger.warn(`Критические ошибки структуры: ${validationResult.validation.errors.length}`);
+            return true;
+        }
+
+        // Проблемы целостности, связанные с отсутствием source entities, НЕ являются критическими
+        // Они будут обработаны как предупреждения
+        const criticalIntegrityIssues = validationResult.integrity.issues.filter(issue =>
+            !issue.includes('source entity не найдена') &&
+            !issue.includes('target entity не найдена')
+        );
+
+        if (criticalIntegrityIssues.length > 0) {
+            this.logger.warn(`Критические ошибки целостности: ${criticalIntegrityIssues.length}`);
+            return true;
+        }
+
+        // Неподдерживаемая версия схемы - критическая ошибка
+        if (!validationResult.schemaVersion.supported) {
+            this.logger.warn(`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`);
+            return true;
+        }
+
+        // Рекурсия - критическая ошибка
+        if (validationResult.recursionCheck.hasRecursion) {
+            this.logger.warn('Обнаружена рекурсия в зависимостях');
+            return true;
+        }
+
+        // Дубликаты - критическая ошибка
+        if (validationResult.duplicateCheck.hasDuplicates) {
+            this.logger.warn(`Обнаружены дубликаты: ${validationResult.duplicateCheck.duplicates.join(', ')}`);
+            return true;
+        }
+
+        this.logger.log('Критических ошибок не обнаружено, импорт может быть продолжен');
+        return false;
     }
 
     private async checkForConflicts(processedData: any): Promise<void> {
@@ -114,9 +160,8 @@ export class JsonImportService {
             );
 
             if (!safetyCheck.safe) {
-                throw new ConflictException(
-                    `Обнаружены потенциальные конфликты: ${safetyCheck.warnings.join('; ')}`,
-                );
+                this.logger.warn(`Обнаружены потенциальные конфликты: ${safetyCheck.warnings.join('; ')}`);
+                // Конфликты не блокируют импорт, только предупреждаем
             }
         }
     }
@@ -160,6 +205,20 @@ export class JsonImportService {
     ): Promise<{ changeId: number; warnings: string[]; stats: ImportResult['stats'] }> {
         const warnings: string[] = [];
 
+        // Добавляем предупреждения из валидации
+        if (processedData.validation?.warnings?.length > 0) {
+            warnings.push(...processedData.validation.warnings);
+        }
+
+        // Добавляем предупреждения о отсутствующих source entities
+        if (processedData.integrity?.issues?.length > 0) {
+            const missingSourceWarnings = processedData.integrity.issues.filter(issue =>
+                issue.includes('source entity не найдена') ||
+                issue.includes('target entity не найдена')
+            );
+            warnings.push(...missingSourceWarnings);
+        }
+
         // Шаг 1: Создание записи в таблице changes
         const changeId = await this.changeRecordService.createChangeRecord(
             processedData,
@@ -193,13 +252,14 @@ export class JsonImportService {
         );
 
         // Шаг 4: Обработка маппингов
-        const mappingsStats = await this.mappingProcessingService.handleMappings(
+        const mappingsResult = await this.mappingProcessingService.handleMappings(
             processedData.mappings,
             process.process_id,
             changeId,
             queryRunner,
         );
-        this.logger.log(`Обработано маппингов: ${mappingsStats.count}`);
+        const mappingsStats = { count: mappingsResult.count };
+        warnings.push(...mappingsResult.warnings);
 
         // Шаг 5: Обработка неудачных маппингов (для DAPP JSON)
         const failedMappingsStats = await this.mappingProcessingService.handleFailedMappings(
