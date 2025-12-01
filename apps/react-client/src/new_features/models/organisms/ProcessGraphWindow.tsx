@@ -14,7 +14,7 @@ import {
 import { Close as CloseIcon } from "@mui/icons-material";
 import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
-import { DataLineageGraph } from "@react-client/new_features/processes/organisms/DataLineageGraph";
+import { DataLineageGraph } from "@react-client/features/dataMart/components/DataLineageGraph";
 
 interface Process {
 	id: string;

@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import { useMergeStore } from "../../../stores/mergeStore";
-import { DataLineageGraph } from "@react-client/new_features/processes/organisms/DataLineageGraph";
+import { DataLineageGraph } from "@react-client/features/dataMart/components/DataLineageGraph";
 import type {
 	DataLineageSchema,
 	DataLineageEntity,

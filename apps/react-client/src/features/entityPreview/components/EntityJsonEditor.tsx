@@ -60,12 +60,6 @@ export const EntityJsonEditor: React.FC<EntityJsonEditorProps> = ({
 		<Container>
 			<Header>
 				<HeaderContent>
-					<div>
-						<Typography variant="h6">JSON представление</Typography>
-						<Typography variant="body2" color="text.secondary">
-							Только для чтения
-						</Typography>
-					</div>
 					<Tooltip title={copied ? "Скопировано!" : "Скопировать JSON"}>
 						<IconButton
 							onClick={handleCopy}

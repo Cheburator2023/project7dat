@@ -13,8 +13,6 @@ import { CommitQueuePage } from "@react-client/features/commitQueue/CommitQueueP
 import { ChangelogTablePage } from "@react-client/new_features/changelog/pages/ChangelogTablePage";
 import { GraphChangelogPage } from "@react-client/new_features/changelog/GraphChangelogPage";
 import { ModelsPage } from "@react-client/new_features/models/ModelsPage";
-import { ProcessesPage } from "@react-client/new_features/processes/pages/ProcessesPage";
-import { ProcessGraphPage } from "@react-client/new_features/processes/pages/ProcessGraphPage";
 import { DataMartPreview } from "@react-client/features/dataMart/pages/DataMartPreview";
 import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 
@@ -43,8 +41,6 @@ export const Routing = () => (
 			path={routes.entityPreview.rootPath}
 			element={<EntityPreviewPage />}
 		/>
-		<Route path={routes.processes.rootPath} element={<ProcessesPage />} />
-		<Route path={routes.processGraph.rootPath} element={<ProcessGraphPage />} />
 		<Route
 			path={routes.dataMartPreview.rootPath}
 			element={<DataMartPreview />}
