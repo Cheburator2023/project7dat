@@ -112,7 +112,7 @@ export class JsonImportController {
     @RealmRole(Permission.DL_CREATE_JSON_DATA)
     @ApiOperation({
         summary: "Импорт JSON DAPP в БД DL",
-        description: "Импортирует JSON данные DAPP в таблицы БД DL согласно маппингу",
+        description: "Импортирует JSON данные DAPP в таблицы БД DL",
     })
     @ApiBody({ type: JsonImportRequestDto })
     @ApiHeader({

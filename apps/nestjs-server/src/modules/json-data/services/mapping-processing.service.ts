@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryRunner } from 'typeorm';
@@ -15,49 +15,37 @@ import { EntityMapSourceEntity } from '../entities/entity-map-source.entity';
 export class MappingProcessingService {
     private readonly logger = new Logger(MappingProcessingService.name);
 
-    constructor(
-        @InjectRepository(EntityMapEntity)
-        private readonly entityMapRepository: Repository<EntityMapEntity>,
-        @InjectRepository(AttributeMapEntity)
-        private readonly attributeMapRepository: Repository<AttributeMapEntity>,
-        @InjectRepository(AttributeMapSourceEntity)
-        private readonly attributeMapSourceRepository: Repository<AttributeMapSourceEntity>,
-        @InjectRepository(EntityAttributeMapEntity)
-        private readonly entityAttributeMapRepository: Repository<EntityAttributeMapEntity>,
-        @InjectRepository(FailedMappingsEntity)
-        private readonly failedMappingsRepository: Repository<FailedMappingsEntity>,
-        @InjectRepository(EntityEntity)
-        private readonly entityRepository: Repository<EntityEntity>,
-        @InjectRepository(AttributeEntity)
-        private readonly attributeRepository: Repository<AttributeEntity>,
-        @InjectRepository(EntityMapSourceEntity)
-        private readonly entityMapSourceRepository: Repository<EntityMapSourceEntity>,
-    ) {}
-
     async handleMappings(
         mappings: any[],
         processId: number,
         changeId: number,
         queryRunner: QueryRunner,
-    ): Promise<{ count: number }> {
+    ): Promise<{ count: number; warnings: string[] }> {
         if (!mappings || !Array.isArray(mappings)) {
-            return { count: 0 };
+            return { count: 0, warnings: [] };
         }
 
         let processedCount = 0;
+        const warnings: string[] = [];
 
         for (const mapping of mappings) {
             try {
-                await this.handleSingleMapping(mapping, processId, changeId, queryRunner);
+                const mappingWarnings = await this.handleSingleMapping(
+                    mapping,
+                    processId,
+                    changeId,
+                    queryRunner
+                );
+                warnings.push(...mappingWarnings);
                 processedCount++;
             } catch (error) {
                 this.logger.error(`Ошибка обработки маппинга: ${error.message}`, error.stack);
-                // Сохраняем информацию о неудачном маппинге согласно документации
                 await this.handleFailedMapping(mapping, error.message, changeId, queryRunner);
+                warnings.push(`Маппинг для ${mapping.entityId} завершился с ошибкой: ${error.message}`);
             }
         }
 
-        return { count: processedCount };
+        return { count: processedCount, warnings };
     }
 
     private async handleSingleMapping(
@@ -65,30 +53,39 @@ export class MappingProcessingService {
         processId: number,
         changeId: number,
         queryRunner: QueryRunner,
-    ): Promise<void> {
+    ): Promise<string[]> {
+        const warnings: string[] = [];
+
         // Находим entity_map для целевой сущности и процесса
-        const entityMap = await this.findOrCreateEntityMap(mapping.entityId, processId, changeId, queryRunner);
+        const entityMap = await this.findOrCreateEntityMap(
+            mapping.entityId,
+            processId,
+            changeId,
+            queryRunner
+        );
 
         if (!entityMap) {
-            throw new NotFoundException(
-                `Entity_map не найден/создан для сущности: ${mapping.entityId} и процесса: ${processId}`,
-            );
+            warnings.push(`Не удалось найти или создать entity_map для сущности: ${mapping.entityId}`);
+            return warnings;
         }
 
-        // Обработка зависимостей
+        // Обработка зависимостей с сбором предупреждений
         if (mapping.deps && Array.isArray(mapping.deps)) {
             for (const dep of mapping.deps) {
-                await this.handleDependency(
+                const dependencyWarnings = await this.handleDependency(
                     dep,
                     entityMap.entity_map_id,
                     changeId,
                     queryRunner,
                 );
+                warnings.push(...dependencyWarnings);
             }
         }
 
         // Обработка entity_map_source для связи с источниками
         await this.handleEntityMapSources(mapping, entityMap.entity_map_id, changeId, queryRunner);
+
+        return warnings;
     }
 
     private async findOrCreateEntityMap(
@@ -98,16 +95,17 @@ export class MappingProcessingService {
         queryRunner: QueryRunner,
     ): Promise<EntityMapEntity | null> {
         // Находим сущность по full_name
-        const entity = await this.entityRepository.findOne({
+        const entity = await queryRunner.manager.findOne(EntityEntity, {
             where: { full_name: entityId },
         });
 
         if (!entity) {
+            this.logger.warn(`Сущность не найдена: ${entityId}`);
             return null;
         }
 
         // Находим или создаем entity_map для этой сущности и процесса
-        let entityMap = await this.entityMapRepository.findOne({
+        let entityMap = await queryRunner.manager.findOne(EntityMapEntity, {
             where: {
                 entity_id: entity.entity_id,
                 process_id: processId,
@@ -144,7 +142,7 @@ export class MappingProcessingService {
         }
 
         for (const dep of mapping.deps) {
-            const sourceEntity = await this.entityRepository.findOne({
+            const sourceEntity = await queryRunner.manager.findOne(EntityEntity, {
                 where: { full_name: dep.entityId },
             });
 
@@ -165,7 +163,7 @@ export class MappingProcessingService {
         changeId: number,
         queryRunner: QueryRunner,
     ): Promise<void> {
-        const existingSource = await this.entityMapSourceRepository.findOne({
+        const existingSource = await queryRunner.manager.findOne(EntityMapSourceEntity, {
             where: {
                 entity_map_id: entityMapId,
                 source_entity_id: sourceEntityId,
@@ -181,49 +179,65 @@ export class MappingProcessingService {
             await queryRunner.manager.save(EntityMapSourceEntity, entityMapSource);
         }
     }
-
     private async handleDependency(
         dep: any,
         entityMapId: number,
         changeId: number,
         queryRunner: QueryRunner,
-    ): Promise<void> {
+    ): Promise<string[]> {
+        const warnings: string[] = [];
+
         // Поиск source сущности
-        const sourceEntity = await this.entityRepository.findOne({
+        const sourceEntity = await queryRunner.manager.findOne(EntityEntity, {
             where: { full_name: dep.entityId },
         });
 
         if (!sourceEntity) {
-            throw new NotFoundException(
-                `Source сущность не найдена: ${dep.entityId}`,
-            );
+            const warning = `Source сущность не найдена: ${dep.entityId}. Зависимость будет пропущена.`;
+            this.logger.warn(warning);
+            warnings.push(warning);
+            return warnings;
         }
 
         // Обработка attrMaps
         if (dep.attrMaps && Array.isArray(dep.attrMaps)) {
             for (const attrMap of dep.attrMaps) {
-                await this.handleAttrMap(
-                    attrMap,
-                    entityMapId,
-                    sourceEntity.entity_id,
-                    changeId,
-                    queryRunner,
-                );
+                try {
+                    await this.handleAttrMap(
+                        attrMap,
+                        entityMapId,
+                        sourceEntity.entity_id,
+                        changeId,
+                        queryRunner,
+                    );
+                } catch (error) {
+                    const warning = `Ошибка обработки attrMap для зависимости ${dep.entityId}: ${error.message}`;
+                    this.logger.warn(warning);
+                    warnings.push(warning);
+                }
             }
         }
 
         // Обработка attrDeps
         if (dep.atrDeps && Array.isArray(dep.atrDeps)) {
             for (const attrDep of dep.atrDeps) {
-                await this.handleAttrDep(
-                    attrDep,
-                    entityMapId,
-                    sourceEntity.entity_id,
-                    changeId,
-                    queryRunner,
-                );
+                try {
+                    await this.handleAttrDep(
+                        attrDep,
+                        entityMapId,
+                        sourceEntity.entity_id,
+                        changeId,
+                        queryRunner,
+                    );
+                } catch (error) {
+                    const warning = `Ошибка обработки attrDep для зависимости ${dep.entityId}: ${error.message}`;
+                    this.logger.warn(warning);
+                    warnings.push(warning);
+                }
             }
         }
+
+        return warnings;
     }
 
     private async handleAttrMap(
@@ -234,7 +248,7 @@ export class MappingProcessingService {
         queryRunner: QueryRunner,
     ): Promise<void> {
         // Поиск source атрибута
-        const sourceAttribute = await this.attributeRepository.findOne({
+        const sourceAttribute = await queryRunner.manager.findOne(AttributeEntity, {
             where: {
                 entity_id: sourceEntityId,
                 name: attrMap.src,
@@ -242,22 +256,20 @@ export class MappingProcessingService {
         });
 
         if (!sourceAttribute) {
-            throw new NotFoundException(
-                `Source атрибут не найден: ${attrMap.src} в сущности ${sourceEntityId}`,
-            );
+            throw new Error(`Source атрибут не найден: ${attrMap.src} в сущности ${sourceEntityId}`);
         }
 
         // Находим target entity из entity_map
-        const entityMap = await this.entityMapRepository.findOne({
+        const entityMap = await queryRunner.manager.findOne(EntityMapEntity, {
             where: { entity_map_id: entityMapId },
         });
 
         if (!entityMap) {
-            throw new NotFoundException(`Entity_map не найден: ${entityMapId}`);
+            throw new Error(`Entity_map не найден: ${entityMapId}`);
         }
 
         // Поиск target атрибута
-        const targetAttribute = await this.attributeRepository.findOne({
+        const targetAttribute = await queryRunner.manager.findOne(AttributeEntity, {
             where: {
                 entity_id: entityMap.entity_id,
                 name: attrMap.dst,
@@ -265,9 +277,7 @@ export class MappingProcessingService {
         });
 
         if (!targetAttribute) {
-            throw new NotFoundException(
-                `Target атрибут не найден: ${attrMap.dst} в сущности ${entityMap.entity_id}`,
-            );
+            throw new Error(`Target атрибут не найден: ${attrMap.dst} в сущности ${entityMap.entity_id}`);
         }
 
         // Создание или обновление attribute_map
@@ -293,7 +303,7 @@ export class MappingProcessingService {
         changeId: number,
         queryRunner: QueryRunner,
     ): Promise<AttributeMapEntity> {
-        let attributeMap = await this.attributeMapRepository.findOne({
+        let attributeMap = await queryRunner.manager.findOne(AttributeMapEntity, {
             where: {
                 entity_map_id: entityMapId,
                 attribute_id: attributeId,
@@ -321,7 +331,7 @@ export class MappingProcessingService {
         changeId: number,
         queryRunner: QueryRunner,
     ): Promise<AttributeMapSourceEntity> {
-        const existingSource = await this.attributeMapSourceRepository.findOne({
+        const existingSource = await queryRunner.manager.findOne(AttributeMapSourceEntity, {
             where: {
                 attribute_map_id: attributeMapId,
                 source_attribute_id: sourceAttributeId,
@@ -349,7 +359,7 @@ export class MappingProcessingService {
         queryRunner: QueryRunner,
     ): Promise<void> {
         // Поиск source атрибута
-        const sourceAttribute = await this.attributeRepository.findOne({
+        const sourceAttribute = await queryRunner.manager.findOne(AttributeEntity, {
             where: {
                 entity_id: sourceEntityId,
                 name: attrDep.attr,
@@ -357,9 +367,7 @@ export class MappingProcessingService {
         });
 
         if (!sourceAttribute) {
-            throw new NotFoundException(
-                `Source атрибут не найден: ${attrDep.attr} в сущности ${sourceEntityId}`,
-            );
+            throw new Error(`Source атрибут не найден: ${attrDep.attr} в сущности ${sourceEntityId}`);
         }
 
         // Создание entity_attribute_map для каждого linkType
@@ -383,7 +391,7 @@ export class MappingProcessingService {
         changeId: number,
         queryRunner: QueryRunner,
     ): Promise<EntityAttributeMapEntity> {
-        const existingMap = await this.entityAttributeMapRepository.findOne({
+        const existingMap = await queryRunner.manager.findOne(EntityAttributeMapEntity, {
             where: {
                 entity_map_id: entityMapId,
                 source_attribute_id: sourceAttributeId,

@@ -62,6 +62,8 @@ import { JsonValidationController } from "./controllers/json-validation.controll
 
 // Modules
 import { ChangelogModule } from "../changelog/changelog.module";
+import { JsonExportService } from "./services/json-export.service";
+import { JsonExportController } from "./controllers/json-export.controller";
 
 @Global()
 @Module({})
@@ -102,6 +104,7 @@ export class JsonDataModule {
             JsonDataService,
             JsonCommitService,
             JsonImportService,
+            JsonExportService,
 
             // Conflict and Migration services
             JsonConflictService,
@@ -154,6 +157,7 @@ export class JsonDataModule {
             JsonCommitController,
             JsonImportController,
             JsonValidationController,
+            JsonExportController,
         ];
 
         const exports = [
@@ -176,6 +180,7 @@ export class JsonDataModule {
             JsonBusinessRulesValidationService,
             JsonSchemaVersionValidationService,
             JsonValidationOrchestratorService,
+            JsonExportService,
         ];
 
         return {

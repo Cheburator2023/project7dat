@@ -199,7 +199,8 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
                 if (entity.attrSeq && Array.isArray(entity.attrSeq)) {
                     entity.attrSeq.forEach((attr: any) => {
                         if (attr.type) {
-                            attr.type = attr.type.toLowerCase().trim();
+                            // Нормализация типа атрибута - приведение к базовому типу
+                            attr.type = this.normalizeAttributeType(attr.type);
                         }
                         if (attr.comment === undefined) {
                             attr.comment = "";
@@ -208,8 +209,7 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
                 }
             });
         }
-
-        // Нормализация маппингов
+// Нормализация маппингов
         if (normalized.mappings && Array.isArray(normalized.mappings)) {
             normalized.mappings.forEach((mapping: any) => {
                 if (!mapping.deps) {
@@ -239,6 +239,36 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
         return normalized;
     }
 
+    private normalizeAttributeType(type: string): string {
+        if (!type || typeof type !== 'string') {
+            return 'string';
+        }
+
+        const normalized = type.toLowerCase().trim();
+
+        // Извлечение базового типа из сложных определений
+        if (normalized.includes('decimal') || normalized.includes('numeric')) {
+            return 'decimal';
+        }
+        if (normalized.includes('timestamp') || normalized.includes('datetime')) {
+            return 'timestamp';
+        }
+        if (normalized.includes('int') || normalized.includes('integer')) {
+            return 'integer';
+        }
+        if (normalized.includes('bool')) {
+            return 'boolean';
+        }
+        if (normalized.includes('char') || normalized.includes('text') || normalized.includes('varchar')) {
+            return 'string';
+        }
+        if (normalized.includes('double') || normalized.includes('float')) {
+            return 'decimal';
+        }
+
+        return normalized;
+    }
+
     private validateJsonSize(data: any, errors: string[]): void {
         const jsonSize = JSON.stringify(data).length;
         if (jsonSize > this.maxJsonSize) {
@@ -256,7 +286,7 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
                 errors.push("Отсутствует desc.appName");
             }
             if (!data.desc.appId) {
-                errors.push("Отсутствует desc.appId");
+                warnings.push("Отсутствует desc.appId");
             }
         }
 
@@ -330,7 +360,7 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
         }
 
         entity.attrSeq.forEach((attr: any, attrIndex: number) => {
-            this.validateSingleAttribute(attr, entityIndex, attrIndex, entity.id, errors);
+            this.validateSingleAttribute(attr, entityIndex, attrIndex, entity.id, errors, warnings);
         });
     }
 
@@ -340,6 +370,7 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
         attrIndex: number,
         entityId: string,
         errors: string[],
+        warnings: string[],
     ): void {
         if (!attr.name) {
             errors.push(`Сущность ${entityIndex}, атрибут ${attrIndex}: отсутствует name`);
@@ -348,10 +379,13 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
             errors.push(`Сущность ${entityIndex}, атрибут ${attrIndex}: отсутствует type`);
         }
 
-        if (attr.type && !this.validAttributeTypes.includes(attr.type)) {
-            errors.push(
-                `Сущность ${entityId}, атрибут ${attrIndex}: неверный тип '${attr.type}'`,
-            );
+        if (attr.type) {
+            const normalizedType = this.normalizeAttributeType(attr.type);
+            if (!this.validAttributeTypes.includes(normalizedType)) {
+                warnings.push(
+                    `Сущность ${entityId}, атрибут ${attrIndex}: тип '${attr.type}' будет нормализован к '${normalizedType}'`,
+                );
+            }
         }
     }
 
