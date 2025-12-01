@@ -7,7 +7,6 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "./components/EntityJsonEditor";
 import { EntityNodeView } from "./components/EntityNodeView";
-import { EntityTableView } from "./components/EntityTableView";
 import { EntityDetailsView } from "./components/EntityDetailsView";
 import { useParams } from "react-router";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
@@ -31,14 +30,20 @@ const flexLayoutJson = {
 		children: [
 			{
 				type: "tabset",
-				weight: 40,
+				weight: 50,
 				children: [
 					{
 						type: "tab",
-						name: "Узел",
+						name: "Граф",
 						component: "entity-node",
 						id: "entity-node-tab",
 					},
+				],
+			},
+			{
+				type: "tabset",
+				weight: 30,
+				children: [
 					{
 						type: "tab",
 						name: "Детали",
@@ -49,25 +54,13 @@ const flexLayoutJson = {
 			},
 			{
 				type: "tabset",
-				weight: 30,
+				weight: 20,
 				children: [
 					{
 						type: "tab",
 						name: "JSON",
 						component: "entity-json",
 						id: "entity-json-tab",
-					},
-				],
-			},
-			{
-				type: "tabset",
-				weight: 30,
-				children: [
-					{
-						type: "tab",
-						name: "Таблица",
-						component: "entity-table",
-						id: "entity-table-tab",
 					},
 				],
 			},
@@ -165,15 +158,6 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 					return (
 						<EntityContainer>
 							<EntityJsonEditor entity={selectedEntity} />
-						</EntityContainer>
-					);
-				case "entity-table":
-					return (
-						<EntityContainer>
-							<EntityTableView
-								entity={selectedEntity}
-								mappings={relatedMappings}
-							/>
 						</EntityContainer>
 					);
 				default:

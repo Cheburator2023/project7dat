@@ -24,6 +24,36 @@ import type {
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
+import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
+
+// Connection type for dialogs
+interface EntityConnection {
+	id: string;
+	sourceId: string;
+	targetId: string;
+	sourceName: string;
+	targetName: string;
+	attrMaps: Array<{ src: string; dst: string }>;
+	description?: string;
+}
+
+// Helper function to get edge description based on entity types
+const getEdgeDescription = (
+	sourceEntity: DataLineageEntity,
+	targetEntity: DataLineageEntity,
+	mainEntityId: string,
+): string => {
+	// Check if this is a transformation to/from the main entity
+	if (targetEntity.id === mainEntityId) {
+		return "Трансформация источника в модель";
+	}
+	if (sourceEntity.id === mainEntityId) {
+		return "Трансформация модели в витрину";
+	}
+	// Generic transformation
+	return "Трансформация данных";
+};
 
 // ============================================================================
 // Types
@@ -34,6 +64,7 @@ interface EntityNodeData {
 	isHighlighted: boolean;
 	highlightType: "none" | "selected" | "upstream" | "downstream";
 	onNodeClick: (id: string) => void;
+	onNodeDoubleClick: (id: string) => void;
 	upstreamCount: number;
 	downstreamCount: number;
 	[key: string]: unknown;
@@ -71,8 +102,14 @@ const HIGHLIGHT_COLORS = {
 // ============================================================================
 
 const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
-	const { entity, highlightType, onNodeClick, upstreamCount, downstreamCount } =
-		data;
+	const {
+		entity,
+		highlightType,
+		onNodeClick,
+		onNodeDoubleClick,
+		upstreamCount,
+		downstreamCount,
+	} = data;
 	const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 	const attrs = entity.attrSeq || [];
 	const visibleAttrs = attrs.slice(0, MAX_VISIBLE_ATTRS);
@@ -106,6 +143,7 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 				transition: "all 0.2s ease",
 			}}
 			onClick={() => onNodeClick(id)}
+			onDoubleClick={() => onNodeDoubleClick(id)}
 		>
 			{/* Header */}
 			<div
@@ -458,6 +496,15 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 	);
 	const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
 
+	// Dialog state
+	const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);
+	const [dialogEntity, setDialogEntity] = useState<DataLineageEntity | null>(
+		null,
+	);
+	const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+	const [selectedConnection, setSelectedConnection] =
+		useState<EntityConnection | null>(null);
+
 	const { fitView } = useReactFlow();
 
 	// Build lineage graph
@@ -517,10 +564,59 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 		return { upstreamNodes: upstream, downstreamNodes: downstream };
 	}, [selectedNode, lineageGraph]);
 
+	// Build connections for dialogs
+	const entityConnections = useMemo(() => {
+		const connections: EntityConnection[] = [];
+		const entityMap = new Map<string, DataLineageEntity>();
+		for (const e of filteredEntities) {
+			entityMap.set(e.id, e);
+		}
+
+		mappings.forEach((mapping) => {
+			if (!mapping.deps) return;
+			mapping.deps.forEach((dep) => {
+				if (
+					!relatedEntityIds.has(dep.entityId) ||
+					!relatedEntityIds.has(mapping.entityId)
+				)
+					return;
+				const sourceEntity = entityMap.get(dep.entityId);
+				const targetEntity = entityMap.get(mapping.entityId);
+				if (!sourceEntity || !targetEntity) return;
+
+				connections.push({
+					id: `${dep.entityId}->${mapping.entityId}`,
+					sourceId: dep.entityId,
+					targetId: mapping.entityId,
+					sourceName: sourceEntity.name || sourceEntity.id,
+					targetName: targetEntity.name || targetEntity.id,
+					attrMaps: dep.attrMaps || [],
+					description: getEdgeDescription(
+						sourceEntity,
+						targetEntity,
+						mainEntity.id,
+					),
+				});
+			});
+		});
+		return connections;
+	}, [mappings, filteredEntities, relatedEntityIds, mainEntity.id]);
+
 	// Handlers
 	const handleNodeClick = useCallback((id: string) => {
 		setSelectedNode(id);
 	}, []);
+
+	const handleNodeDoubleClick = useCallback(
+		(id: string) => {
+			const entity = filteredEntities.find((e) => e.id === id);
+			if (entity) {
+				setDialogEntity(entity);
+				setIsEntityDialogOpen(true);
+			}
+		},
+		[filteredEntities],
+	);
 
 	const handleOpenEntity = useCallback(
 		(entityId: string) => {
@@ -528,6 +624,23 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 			navigate(`/entity/${encodedId}`);
 		},
 		[navigate],
+	);
+
+	const handleOpenConnection = useCallback((connection: EntityConnection) => {
+		setSelectedConnection(connection);
+		setIsMappingDialogOpen(true);
+	}, []);
+
+	// Handler for edge double-click to open mapping dialog
+	const handleEdgeDoubleClick = useCallback(
+		(_event: React.MouseEvent, edge: Edge) => {
+			const connection = entityConnections.find((conn) => conn.id === edge.id);
+			if (connection) {
+				setSelectedConnection(connection);
+				setIsMappingDialogOpen(true);
+			}
+		},
+		[entityConnections],
 	);
 
 	// Create nodes
@@ -551,6 +664,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 					isHighlighted: highlightType !== "none",
 					highlightType,
 					onNodeClick: handleNodeClick,
+					onNodeDoubleClick: handleNodeDoubleClick,
 					upstreamCount: upstreamCounts.get(entity.id) || 0,
 					downstreamCount: downstreamCounts.get(entity.id) || 0,
 				},
@@ -564,7 +678,17 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 		upstreamCounts,
 		downstreamCounts,
 		handleNodeClick,
+		handleNodeDoubleClick,
 	]);
+
+	// Create a map of connections for quick lookup
+	const connectionMap = useMemo(() => {
+		const map = new Map<string, EntityConnection>();
+		entityConnections.forEach((conn) => {
+			map.set(conn.id, conn);
+		});
+		return map;
+	}, [entityConnections]);
 
 	// Create edges
 	const edges: Edge[] = useMemo(() => {
@@ -595,12 +719,28 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 					dep.entityId === selectedNode ||
 					mapping.entityId === selectedNode;
 
+				// Get description from connection
+				const connection = connectionMap.get(edgeId);
+				const label = connection?.description;
+
 				edgeList.push({
 					id: edgeId,
 					source: dep.entityId,
 					target: mapping.entityId,
 					type: "smoothstep",
 					animated: isHighlighted,
+					label,
+					labelStyle: {
+						fontSize: 10,
+						fontWeight: 500,
+						fill: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#666",
+					},
+					labelBgStyle: {
+						fill: "#fff",
+						fillOpacity: 0.9,
+					},
+					labelBgPadding: [4, 2] as [number, number],
+					labelBgBorderRadius: 4,
 					style: {
 						stroke: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
 						strokeWidth: isHighlighted ? 2 : 1,
@@ -619,6 +759,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 		relatedEntityIds,
 		upstreamNodes,
 		downstreamNodes,
+		connectionMap,
 		selectedNode,
 	]);
 
@@ -666,6 +807,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 				edges={flowEdges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
+				onEdgeDoubleClick={handleEdgeDoubleClick}
 				nodeTypes={nodeTypes}
 				fitView
 				minZoom={0.1}
@@ -756,43 +898,53 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 							padding: 8,
 							borderRadius: 6,
 							boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-							display: "flex",
-							gap: 10,
 							fontSize: 9,
 						}}
 					>
-						<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-							<span
-								style={{
-									width: 8,
-									height: 8,
-									background: HIGHLIGHT_COLORS.selected,
-									borderRadius: 2,
-								}}
-							/>
-							выбрано
+						<div style={{ display: "flex", gap: 10, marginBottom: 6 }}>
+							<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+								<span
+									style={{
+										width: 8,
+										height: 8,
+										background: HIGHLIGHT_COLORS.selected,
+										borderRadius: 2,
+									}}
+								/>
+								выбрано
+							</div>
+							<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+								<span
+									style={{
+										width: 8,
+										height: 8,
+										background: HIGHLIGHT_COLORS.upstream,
+										borderRadius: 2,
+									}}
+								/>
+								источники
+							</div>
+							<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+								<span
+									style={{
+										width: 8,
+										height: 8,
+										background: HIGHLIGHT_COLORS.downstream,
+										borderRadius: 2,
+									}}
+								/>
+								потребители
+							</div>
 						</div>
-						<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-							<span
-								style={{
-									width: 8,
-									height: 8,
-									background: HIGHLIGHT_COLORS.upstream,
-									borderRadius: 2,
-								}}
-							/>
-							источники
-						</div>
-						<div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-							<span
-								style={{
-									width: 8,
-									height: 8,
-									background: HIGHLIGHT_COLORS.downstream,
-									borderRadius: 2,
-								}}
-							/>
-							потребители
+						<div
+							style={{
+								borderTop: "1px solid #eee",
+								paddingTop: 4,
+								color: "#888",
+								fontSize: 8,
+							}}
+						>
+							💡 2× клик по узлу или связи — детали
 						</div>
 					</div>
 				</Panel>
@@ -877,6 +1029,36 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 						↗ Открыть карточку
 					</button>
 				</div>
+			)}
+
+			{/* Entity Details Dialog */}
+			{dialogEntity && (
+				<EntityDetailsDialog
+					open={isEntityDialogOpen}
+					onClose={() => {
+						setIsEntityDialogOpen(false);
+						setDialogEntity(null);
+					}}
+					entity={dialogEntity}
+					connections={entityConnections.filter(
+						(c) =>
+							c.sourceId === dialogEntity.id || c.targetId === dialogEntity.id,
+					)}
+					onOpenEntity={handleOpenEntity}
+					onOpenConnection={handleOpenConnection}
+				/>
+			)}
+
+			{/* Mapping Details Dialog */}
+			{selectedConnection && (
+				<MappingDetailsDialog
+					open={isMappingDialogOpen}
+					onClose={() => {
+						setIsMappingDialogOpen(false);
+						setSelectedConnection(null);
+					}}
+					connection={selectedConnection}
+				/>
 			)}
 		</div>
 	);

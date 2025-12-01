@@ -23,7 +23,7 @@ import { Home } from "@mui/icons-material";
 import { AttributesTable } from "@react-client/features/dataMart/components/AttributesTable";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { DataLineageEntity } from "@react-client/types/dataLineage";
-import { DataLineageGraph } from "@react-client/new_features/processes/organisms/DataLineageGraph";
+import { DataLineageGraph } from "@react-client/features/dataMart/components/DataLineageGraph";
 
 export const DataMartPreview: React.FC = () => {
 	const navigate = useNavigate();

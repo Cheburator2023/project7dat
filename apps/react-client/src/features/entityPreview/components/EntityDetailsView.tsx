@@ -1,5 +1,21 @@
-import React from "react";
-import { styled, Box, Typography, Chip, CardContent } from "@mui/material";
+import React, { useMemo } from "react";
+import {
+	styled,
+	Box,
+	Typography,
+	Chip,
+	Table,
+	TableBody,
+	TableCell,
+	TableContainer,
+	TableHead,
+	TableRow,
+	Paper,
+	Accordion,
+	AccordionSummary,
+	AccordionDetails,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type {
 	DataLineageEntity,
 	DataLineageMapping,
@@ -16,6 +32,15 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 	mappings,
 	allEntities = [],
 }) => {
+	const relatedMappings = useMemo(() => {
+		if (!entity) return [];
+		return mappings.filter(
+			(mapping) =>
+				mapping.entityId === entity.id ||
+				mapping.deps?.some((dep) => dep.entityId === entity.id),
+		);
+	}, [entity, mappings]);
+
 	if (!entity) {
 		return (
 			<Container>
@@ -28,127 +53,271 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 
 	return (
 		<Container>
-			<DetailsSection>
-				<div>
-					<CardContent>
-						<Typography variant="subtitle1" gutterBottom>
-							Детали сущности
-						</Typography>
-						<DetailRow>
-							<DetailLabel>ID:</DetailLabel>
-							<DetailValue>{entity.id}</DetailValue>
-						</DetailRow>
-						<DetailRow>
-							<DetailLabel>Имя:</DetailLabel>
-							<DetailValue>{entity.name || "Не указано"}</DetailValue>
-						</DetailRow>
-						<DetailRow>
-							<DetailLabel>Тип:</DetailLabel>
-							<DetailValue>
-								<Chip
-									label={entity.type}
-									size="small"
-									color={entity.type === "table" ? "primary" : "secondary"}
-								/>
-							</DetailValue>
-						</DetailRow>
-						{entity.namespace && (
-							<DetailRow>
-								<DetailLabel>Пространство имен:</DetailLabel>
-								<DetailValue>{entity.namespace}</DetailValue>
-							</DetailRow>
-						)}
-						<DetailRow>
-							<DetailLabel>Статус:</DetailLabel>
-							<DetailValue>
-								<Chip
-									label={entity.modified ? "Целевая" : "Исходная"}
-									size="small"
-									color={entity.modified ? "success" : "default"}
-								/>
-							</DetailValue>
-						</DetailRow>
-						{entity.attrSeq && entity.attrSeq.length > 0 && (
-							<DetailRow>
-								<DetailLabel>Атрибуты:</DetailLabel>
-								<DetailValue>{entity.attrSeq.length} атрибутов</DetailValue>
-							</DetailRow>
-						)}
-					</CardContent>
-				</div>
+			<ContentContainer>
+				{/* Basic Information */}
+				<CompactAccordion defaultExpanded>
+					<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
+						<AccordionTitle>Основная информация</AccordionTitle>
+					</CompactAccordionSummary>
+					<CompactAccordionDetails>
+						<TableContainer component={Paper} variant="outlined">
+							<Table size="small">
+								<TableBody>
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600, width: 180 }}
+										>
+											ID
+										</TableCell>
+										<TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
+											{entity.id}
+										</TableCell>
+									</TableRow>
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
+											Имя
+										</TableCell>
+										<TableCell>{entity.name || "Не указано"}</TableCell>
+									</TableRow>
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
+											Тип
+										</TableCell>
+										<TableCell>
+											<Chip
+												label={entity.type}
+												size="small"
+												color={
+													entity.type === "table" ? "primary" : "secondary"
+												}
+											/>
+										</TableCell>
+									</TableRow>
+									{entity.namespace && (
+										<TableRow>
+											<TableCell
+												component="th"
+												scope="row"
+												sx={{ fontWeight: 600 }}
+											>
+												Пространство имен
+											</TableCell>
+											<TableCell>{entity.namespace}</TableCell>
+										</TableRow>
+									)}
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
+											Статус
+										</TableCell>
+										<TableCell>
+											<Chip
+												label={entity.modified ? "Целевая" : "Исходная"}
+												size="small"
+												color={entity.modified ? "success" : "default"}
+											/>
+										</TableCell>
+									</TableRow>
+									{entity.attrSeq && entity.attrSeq.length > 0 && (
+										<TableRow>
+											<TableCell
+												component="th"
+												scope="row"
+												sx={{ fontWeight: 600 }}
+											>
+												Количество атрибутов
+											</TableCell>
+											<TableCell>{entity.attrSeq.length}</TableCell>
+										</TableRow>
+									)}
+								</TableBody>
+							</Table>
+						</TableContainer>
+					</CompactAccordionDetails>
+				</CompactAccordion>
 
+				{/* Related Entities */}
 				{allEntities.length > 1 && (
-					<div>
-						<CardContent>
-							<Typography variant="subtitle1" gutterBottom>
-								Связанные сущности
-							</Typography>
-							<Typography variant="body2" color="text.secondary">
-								{allEntities.length - 1} связанных сущностей
-							</Typography>
-							<Box sx={{ mt: 1 }}>
+					<CompactAccordion>
+						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
+							<AccordionTitle>
+								Связанные сущности ({allEntities.length - 1})
+							</AccordionTitle>
+						</CompactAccordionSummary>
+						<CompactAccordionDetails>
+							<Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
 								{allEntities
 									.filter((ent) => ent.id !== entity.id)
-									.slice(0, 5)
 									.map((ent) => (
 										<Chip
 											key={ent.id}
 											label={ent.name || ent.id}
 											size="small"
 											variant="outlined"
-											sx={{ mr: 0.5, mb: 0.5 }}
 										/>
 									))}
-								{allEntities.length > 6 && (
-									<Typography variant="caption" color="text.secondary">
-										и еще {allEntities.length - 6}...
-									</Typography>
-								)}
 							</Box>
-						</CardContent>
-					</div>
+						</CompactAccordionDetails>
+					</CompactAccordion>
 				)}
 
+				{/* Attributes */}
 				{entity.attrSeq && entity.attrSeq.length > 0 && (
-					<div>
-						<CardContent>
-							<Typography variant="subtitle1" gutterBottom>
-								Атрибуты сущности
-							</Typography>
-							<Box sx={{ mt: 1 }}>
-								{entity.attrSeq.map((attr, index) => (
-									<Box
-										key={index}
-										sx={{
-											mb: 1,
-											p: 1,
-											border: "1px solid",
-											borderColor: "divider",
-											borderRadius: 1,
-										}}
-									>
-										<Typography variant="body2" sx={{ fontWeight: 600 }}>
-											{attr.name}
-										</Typography>
-										<Typography variant="caption" color="text.secondary">
-											Тип: {attr.type}
-										</Typography>
-										{attr.comment && (
-											<Typography
-												variant="caption"
-												display="block"
-												color="text.secondary"
-											>
-												{attr.comment}
-											</Typography>
-										)}
-									</Box>
-								))}
-							</Box>
-						</CardContent>
-					</div>
+					<CompactAccordion defaultExpanded>
+						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
+							<AccordionTitle>
+								Атрибуты ({entity.attrSeq.length})
+							</AccordionTitle>
+						</CompactAccordionSummary>
+						<CompactAccordionDetails>
+							<TableContainer component={Paper} variant="outlined">
+								<Table size="small">
+									<TableHead>
+										<TableRow>
+											<TableCell sx={{ fontWeight: 600 }}>Имя</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>Тип</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>
+												Комментарий
+											</TableCell>
+										</TableRow>
+									</TableHead>
+									<TableBody>
+										{entity.attrSeq.map((attr, index) => (
+											<TableRow key={index}>
+												<TableCell
+													sx={{ fontFamily: "monospace", fontSize: 12 }}
+												>
+													{attr.name}
+												</TableCell>
+												<TableCell>
+													<Chip
+														label={attr.type}
+														size="small"
+														variant="outlined"
+													/>
+												</TableCell>
+												<TableCell>{attr.comment || "—"}</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</TableContainer>
+						</CompactAccordionDetails>
+					</CompactAccordion>
 				)}
-			</DetailsSection>
+
+				{/* Related Mappings */}
+				{relatedMappings.length > 0 && (
+					<CompactAccordion>
+						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
+							<AccordionTitle>
+								Связанные маппинги ({relatedMappings.length})
+							</AccordionTitle>
+						</CompactAccordionSummary>
+						<CompactAccordionDetails>
+							<TableContainer component={Paper} variant="outlined">
+								<Table size="small">
+									<TableHead>
+										<TableRow>
+											<TableCell sx={{ fontWeight: 600 }}>
+												ID маппинга
+											</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>
+												Целевая сущность
+											</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>
+												Зависимости
+											</TableCell>
+										</TableRow>
+									</TableHead>
+									<TableBody>
+										{relatedMappings.map((mapping) => (
+											<TableRow key={mapping.id}>
+												<TableCell>{mapping.id}</TableCell>
+												<TableCell
+													sx={{ fontFamily: "monospace", fontSize: 11 }}
+												>
+													{mapping.entityId}
+												</TableCell>
+												<TableCell>
+													{mapping.deps?.length || 0} зависимостей
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</TableContainer>
+						</CompactAccordionDetails>
+					</CompactAccordion>
+				)}
+
+				{/* Dependencies Details */}
+				{relatedMappings.some((m) => m.deps && m.deps.length > 0) && (
+					<CompactAccordion>
+						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
+							<AccordionTitle>Детали зависимостей</AccordionTitle>
+						</CompactAccordionSummary>
+						<CompactAccordionDetails>
+							{relatedMappings.map((mapping) =>
+								mapping.deps && mapping.deps.length > 0 ? (
+									<Box key={mapping.id} sx={{ mb: 2 }}>
+										<Typography variant="subtitle2" sx={{ mb: 1 }}>
+											Маппинг {mapping.id} → {mapping.entityId}
+										</Typography>
+										<TableContainer component={Paper} variant="outlined">
+											<Table size="small">
+												<TableHead>
+													<TableRow>
+														<TableCell sx={{ fontWeight: 600 }}>
+															Исходная сущность
+														</TableCell>
+														<TableCell sx={{ fontWeight: 600 }}>
+															Маппинги атрибутов
+														</TableCell>
+														<TableCell sx={{ fontWeight: 600 }}>
+															Зависимости атрибутов
+														</TableCell>
+													</TableRow>
+												</TableHead>
+												<TableBody>
+													{mapping.deps.map((dep, depIndex) => (
+														<TableRow key={depIndex}>
+															<TableCell
+																sx={{ fontFamily: "monospace", fontSize: 11 }}
+															>
+																{dep.entityId}
+															</TableCell>
+															<TableCell>
+																{dep.attrMaps?.length || 0} маппингов
+															</TableCell>
+															<TableCell>
+																{dep.atrDeps?.length || 0} зависимостей
+															</TableCell>
+														</TableRow>
+													))}
+												</TableBody>
+											</Table>
+										</TableContainer>
+									</Box>
+								) : null,
+							)}
+						</CompactAccordionDetails>
+					</CompactAccordion>
+				)}
+			</ContentContainer>
 		</Container>
 	);
 };
@@ -157,29 +326,45 @@ const Container = styled(Box)(({ theme }) => ({
 	height: "100%",
 	display: "flex",
 	flexDirection: "column",
-	padding: theme.spacing(2),
+	padding: theme.spacing(0.5),
 }));
 
-const DetailsSection = styled(Box)(({ theme }) => ({
+const ContentContainer = styled(Box)(({ theme }) => ({
 	flex: 1,
 	overflow: "auto",
 	display: "flex",
 	flexDirection: "column",
-	gap: theme.spacing(2),
+	gap: theme.spacing(0.5),
 }));
 
-const DetailRow = styled(Box)({
-	display: "flex",
-	alignItems: "center",
-	marginBottom: 8,
+const CompactAccordion = styled(Accordion)({
+	"&:before": { display: "none" },
+	boxShadow: "none",
+	border: "1px solid",
+	borderColor: "rgba(0, 0, 0, 0.12)",
+	borderRadius: "4px !important",
+	"&:not(:last-child)": { marginBottom: 0 },
+	"&.Mui-expanded": { margin: 0 },
 });
 
-const DetailLabel = styled(Typography)(({ theme }) => ({
-	minWidth: 120,
-	fontWeight: 500,
-	color: theme.vars?.palette?.text.secondary,
+const CompactAccordionSummary = styled(AccordionSummary)(({ theme }) => ({
+	minHeight: 32,
+	padding: theme.spacing(0, 1),
+	"&.Mui-expanded": { minHeight: 32 },
+	"& .MuiAccordionSummary-content": {
+		margin: theme.spacing(0.5, 0),
+		"&.Mui-expanded": { margin: theme.spacing(0.5, 0) },
+	},
+	"& .MuiAccordionSummary-expandIconWrapper": {
+		"& .MuiSvgIcon-root": { fontSize: 18 },
+	},
 }));
 
-const DetailValue = styled(Box)({
-	flex: 1,
+const CompactAccordionDetails = styled(AccordionDetails)(({ theme }) => ({
+	padding: theme.spacing(0.5, 1, 1, 1),
+}));
+
+const AccordionTitle = styled(Typography)({
+	fontSize: 12,
+	fontWeight: 600,
 });

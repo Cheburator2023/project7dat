@@ -12,8 +12,7 @@ import {
 	Divider,
 	Tooltip,
 	Paper,
-	Popper,
-	ClickAwayListener,
+	Modal,
 	FormControlLabel,
 	Checkbox,
 	Select,
@@ -99,6 +98,20 @@ import {
 	useProcessesStore,
 	type Process,
 } from "@react-client/stores/processesStore";
+import {
+	EntityDetailsDialog,
+	MappingDetailsDialog,
+} from "@react-client/features/entityPreview";
+
+// Connection type for dialogs
+interface EntityConnection {
+	id: string;
+	sourceId: string;
+	targetId: string;
+	sourceName: string;
+	targetName: string;
+	attrMaps: Array<{ src: string; dst: string }>;
+}
 
 // ============================================================================
 // Cross-Panel Selection Store (Zustand)
@@ -124,11 +137,20 @@ const initialFilters: FilterState = {
 	attrCountMax: "",
 };
 
+interface HoveredAttribute {
+	entityId: string;
+	attrName: string;
+}
+
 interface SelectionState {
 	// Selected entity/model/object IDs
 	selectedEntityId: string | null;
 	selectedGraphId: string | null;
 	selectedAttributeName: string | null;
+
+	// Hovered attribute for cross-node highlighting
+	hoveredAttribute: HoveredAttribute | null;
+	setHoveredAttribute: (attr: HoveredAttribute | null) => void;
 
 	// Highlight sets for different panels
 	highlightedEntities: Set<string>;
@@ -165,6 +187,8 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 	selectedEntityId: null,
 	selectedGraphId: null,
 	selectedAttributeName: null,
+	hoveredAttribute: null,
+	setHoveredAttribute: (attr) => set({ hoveredAttribute: attr }),
 	highlightedEntities: new Set(),
 	highlightedRows: new Set(),
 	highlightedCodeLines: new Set(),
@@ -966,16 +990,21 @@ const ProcessesPanel = memo(() => {
 const NODE_WIDTH = 280;
 const NODE_HEADER_HEIGHT = 60;
 const ATTR_ROW_HEIGHT = 22;
-const MAX_VISIBLE_ATTRS = 4;
+const MAX_VISIBLE_ATTRS = 50;
 
 interface EntityNodeData {
 	entity: DataLineageEntity;
 	highlightType: "none" | "selected" | "upstream" | "downstream";
 	onNodeClick: (id: string) => void;
 	onNodeDoubleClick: (id: string, graphId: string) => void;
+	onAttrHover: (entityId: string, attrName: string | null) => void;
 	graphId: string;
 	upstreamCount: number;
 	downstreamCount: number;
+	highlightedSourceAttrs?: Set<string>;
+	highlightedTargetAttrs?: Set<string>;
+	// Attributes highlighted due to hover on connected node
+	hoverHighlightedAttrs?: Set<string>;
 	[key: string]: unknown;
 }
 
@@ -991,14 +1020,27 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 		highlightType,
 		onNodeClick,
 		onNodeDoubleClick,
+		onAttrHover,
 		graphId,
 		upstreamCount,
 		downstreamCount,
+		highlightedSourceAttrs = new Set<string>(),
+		highlightedTargetAttrs = new Set<string>(),
+		hoverHighlightedAttrs = new Set<string>(),
 	} = data;
 	const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 	const attrs = entity.attrSeq || [];
-	const visibleAttrs = attrs.slice(0, MAX_VISIBLE_ATTRS);
-	const moreCount = attrs.length - MAX_VISIBLE_ATTRS;
+
+	// Show only related attributes (those that have mappings), limited by MAX_VISIBLE_ATTRS
+	const relatedAttrNames = new Set([
+		...highlightedSourceAttrs,
+		...highlightedTargetAttrs,
+	]);
+	const allRelatedAttrs = attrs.filter((attr) =>
+		relatedAttrNames.has(attr.name),
+	);
+	const visibleAttrs = allRelatedAttrs.slice(0, MAX_VISIBLE_ATTRS);
+	const moreCount = allRelatedAttrs.length - visibleAttrs.length;
 
 	const isDataMart = upstreamCount > 0 && downstreamCount === 0;
 	const isSource = upstreamCount === 0 && downstreamCount > 0;
@@ -1142,43 +1184,94 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 						</span>
 					)}
 					<span style={{ color: "#888", marginLeft: "auto" }}>
-						{attrs.length} атр.
+						{visibleAttrs.length}/{attrs.length} атр.
 					</span>
 				</div>
 			</div>
 
-			{/* Preview attributes */}
+			{/* Related attributes */}
 			{visibleAttrs.length > 0 && (
-				<div>
-					{visibleAttrs.map((attr, idx) => (
-						<div
-							key={attr.name}
-							style={{
-								display: "flex",
-								justifyContent: "space-between",
-								padding: "3px 12px",
-								fontSize: 10,
-								borderBottom:
-									idx < visibleAttrs.length - 1 ? "1px solid #f5f5f5" : "none",
-								background: idx % 2 === 0 ? "#fafafa" : "#fff",
-							}}
-						>
-							<span
+				<div onMouseLeave={() => onAttrHover(id, null)}>
+					{visibleAttrs.map((attr, idx) => {
+						const isSourceHighlighted = highlightedSourceAttrs.has(attr.name);
+						const isTargetHighlighted = highlightedTargetAttrs.has(attr.name);
+						const isHoverHighlighted = hoverHighlightedAttrs.has(attr.name);
+						const isHighlighted = isHoverHighlighted;
+						return (
+							<div
+								key={attr.name}
+								onMouseEnter={() => onAttrHover(id, attr.name)}
 								style={{
-									color: "#555",
-									whiteSpace: "nowrap",
-									overflow: "hidden",
-									textOverflow: "ellipsis",
-									flex: 1,
+									display: "flex",
+									justifyContent: "space-between",
+									padding: "3px 12px",
+									fontSize: 10,
+									borderBottom:
+										idx < visibleAttrs.length - 1
+											? "1px solid #f5f5f5"
+											: "none",
+									background: isHighlighted
+										? `${HIGHLIGHT_COLORS.selected}50`
+										: idx % 2 === 0
+											? "#fafafa"
+											: "#fff",
+									position: "relative",
+									cursor: "pointer",
+									transition: "background 0.15s ease",
 								}}
 							>
-								{attr.name}
-							</span>
-							<span style={{ color: "#999", marginLeft: 8, fontSize: 9 }}>
-								{attr.type}
-							</span>
-						</div>
-					))}
+								{/* Target handle for this attribute */}
+								<Handle
+									type="target"
+									position={Position.Left}
+									id={`attr-target-${attr.name}`}
+									style={{
+										background:
+											isTargetHighlighted || isHoverHighlighted
+												? HIGHLIGHT_COLORS.selected
+												: colors.border,
+										width: isHoverHighlighted ? 8 : 6,
+										height: isHoverHighlighted ? 8 : 6,
+										left: -3,
+										border: "1px solid #fff",
+										transition: "all 0.15s ease",
+									}}
+								/>
+								<span
+									style={{
+										color: isHighlighted ? "#333" : "#555",
+										whiteSpace: "nowrap",
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										flex: 1,
+										fontWeight: isHighlighted ? 600 : 400,
+									}}
+								>
+									{attr.name}
+								</span>
+								<span style={{ color: "#999", marginLeft: 8, fontSize: 9 }}>
+									{attr.type}
+								</span>
+								{/* Source handle for this attribute */}
+								<Handle
+									type="source"
+									position={Position.Right}
+									id={`attr-source-${attr.name}`}
+									style={{
+										background:
+											isSourceHighlighted || isHoverHighlighted
+												? HIGHLIGHT_COLORS.selected
+												: colors.border,
+										width: isHoverHighlighted ? 8 : 6,
+										height: isHoverHighlighted ? 8 : 6,
+										right: -3,
+										border: "1px solid #fff",
+										transition: "all 0.15s ease",
+									}}
+								/>
+							</div>
+						);
+					})}
 					{moreCount > 0 && (
 						<div
 							style={{
@@ -1195,25 +1288,29 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 				</div>
 			)}
 
-			{/* Handles */}
+			{/* Main entity-level handles (fallback when no attribute mapping) */}
 			<Handle
 				type="target"
 				position={Position.Left}
+				id="entity-target"
 				style={{
 					background: colors.border,
 					width: 10,
 					height: 10,
 					border: "2px solid #fff",
+					top: 30,
 				}}
 			/>
 			<Handle
 				type="source"
 				position={Position.Right}
+				id="entity-source"
 				style={{
 					background: colors.border,
 					width: 10,
 					height: 10,
 					border: "2px solid #fff",
+					top: 30,
 				}}
 			/>
 		</div>
@@ -1244,12 +1341,15 @@ const getLayoutedElements = (
 	});
 
 	nodes.forEach((node) => {
-		const attrCount = node.data.entity.attrSeq?.length || 0;
-		const visibleAttrs = Math.min(attrCount, MAX_VISIBLE_ATTRS);
+		// Calculate visible attrs count from related attributes (source + target), limited by MAX_VISIBLE_ATTRS
+		const sourceAttrs = node.data.highlightedSourceAttrs || new Set();
+		const targetAttrs = node.data.highlightedTargetAttrs || new Set();
+		const relatedAttrsCount = new Set([...sourceAttrs, ...targetAttrs]).size;
+		const visibleAttrsCount = Math.min(relatedAttrsCount, MAX_VISIBLE_ATTRS);
 		const height =
 			NODE_HEADER_HEIGHT +
-			visibleAttrs * ATTR_ROW_HEIGHT +
-			(attrCount > MAX_VISIBLE_ATTRS ? 24 : 0);
+			visibleAttrsCount * ATTR_ROW_HEIGHT +
+			(relatedAttrsCount > MAX_VISIBLE_ATTRS ? 24 : 0);
 		dagreGraph.setNode(node.id, { width: NODE_WIDTH, height });
 	});
 
@@ -1261,12 +1361,14 @@ const getLayoutedElements = (
 	return {
 		nodes: nodes.map((node) => {
 			const nodeWithPosition = dagreGraph.node(node.id);
-			const attrCount = node.data.entity.attrSeq?.length || 0;
-			const visibleAttrs = Math.min(attrCount, MAX_VISIBLE_ATTRS);
+			const sourceAttrs = node.data.highlightedSourceAttrs || new Set();
+			const targetAttrs = node.data.highlightedTargetAttrs || new Set();
+			const relatedAttrsCount = new Set([...sourceAttrs, ...targetAttrs]).size;
+			const visibleAttrsCount = Math.min(relatedAttrsCount, MAX_VISIBLE_ATTRS);
 			const height =
 				NODE_HEADER_HEIGHT +
-				visibleAttrs * ATTR_ROW_HEIGHT +
-				(attrCount > MAX_VISIBLE_ATTRS ? 24 : 0);
+				visibleAttrsCount * ATTR_ROW_HEIGHT +
+				(relatedAttrsCount > MAX_VISIBLE_ATTRS ? 24 : 0);
 			return {
 				...node,
 				position: {
@@ -1359,6 +1461,7 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 	}) => {
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
 		const { fitView } = useReactFlow();
+		const { hoveredAttribute, setHoveredAttribute } = useDashboardStore();
 
 		const lineageGraph = useMemo(
 			() => buildLineageGraph(data.mappings || []),
@@ -1418,11 +1521,102 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 			[onNodeDoubleClick],
 		);
 
+		const handleAttrHover = useCallback(
+			(entityId: string, attrName: string | null) => {
+				if (attrName) {
+					setHoveredAttribute({ entityId, attrName });
+				} else {
+					setHoveredAttribute(null);
+				}
+			},
+			[setHoveredAttribute],
+		);
+
+		// Build attribute connection map for hover highlighting
+		// Maps "entityId::attrName" -> Set of connected "entityId::attrName"
+		const attrConnectionMap = useMemo(() => {
+			const connections = new Map<string, Set<string>>();
+			(data.mappings || []).forEach((mapping) => {
+				if (!mapping.deps) return;
+				mapping.deps.forEach((dep) => {
+					if (!dep.attrMaps) return;
+					dep.attrMaps.forEach((attrMap) => {
+						const sourceKey = `${dep.entityId}::${attrMap.src}`;
+						const targetKey = `${mapping.entityId}::${attrMap.dst}`;
+						// Source -> Target
+						if (!connections.has(sourceKey)) {
+							connections.set(sourceKey, new Set());
+						}
+						connections.get(sourceKey)!.add(targetKey);
+						// Target -> Source (bidirectional for highlighting)
+						if (!connections.has(targetKey)) {
+							connections.set(targetKey, new Set());
+						}
+						connections.get(targetKey)!.add(sourceKey);
+					});
+				});
+			});
+			return connections;
+		}, [data.mappings]);
+
+		// Compute hover-highlighted attributes for each entity
+		const hoverHighlightedByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			if (!hoveredAttribute) return result;
+
+			const hoveredKey = `${hoveredAttribute.entityId}::${hoveredAttribute.attrName}`;
+			const connectedAttrs = attrConnectionMap.get(hoveredKey);
+
+			// Highlight the hovered attribute itself
+			if (!result.has(hoveredAttribute.entityId)) {
+				result.set(hoveredAttribute.entityId, new Set());
+			}
+			result.get(hoveredAttribute.entityId)!.add(hoveredAttribute.attrName);
+
+			// Highlight connected attributes
+			if (connectedAttrs) {
+				connectedAttrs.forEach((key) => {
+					const [entityId, attrName] = key.split("::");
+					if (!result.has(entityId)) {
+						result.set(entityId, new Set());
+					}
+					result.get(entityId)!.add(attrName);
+				});
+			}
+			return result;
+		}, [hoveredAttribute, attrConnectionMap]);
+
 		// Create nodes and edges
 		const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
 			const entityMap = new Map<string, DataLineageEntity>();
 			for (const entity of data.entities || [])
 				entityMap.set(entity.id, entity);
+
+			// Build attribute-level highlight maps for each entity
+			// Maps entity ID -> Set of source/target attr names that have edges
+			const entitySourceAttrs = new Map<string, Set<string>>();
+			const entityTargetAttrs = new Map<string, Set<string>>();
+
+			// Process mappings to find all attribute connections
+			(data.mappings || []).forEach((mapping) => {
+				if (!mapping.deps) return;
+				mapping.deps.forEach((dep) => {
+					if (!dep.attrMaps || dep.attrMaps.length === 0) return;
+					dep.attrMaps.forEach((attrMap) => {
+						// Source entity has this attr as source
+						if (!entitySourceAttrs.has(dep.entityId)) {
+							entitySourceAttrs.set(dep.entityId, new Set());
+						}
+						entitySourceAttrs.get(dep.entityId)!.add(attrMap.src);
+
+						// Target entity has this attr as target
+						if (!entityTargetAttrs.has(mapping.entityId)) {
+							entityTargetAttrs.set(mapping.entityId, new Set());
+						}
+						entityTargetAttrs.get(mapping.entityId)!.add(attrMap.dst);
+					});
+				});
+			});
 
 			const nodes: EntityNode[] = (data.entities || []).map((entity) => {
 				let highlightType: EntityNodeData["highlightType"] = "none";
@@ -1439,25 +1633,30 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 						highlightType,
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,
+						onAttrHover: handleAttrHover,
 						graphId,
 						upstreamCount: upstreamCounts.get(entity.id) || 0,
 						downstreamCount: downstreamCounts.get(entity.id) || 0,
+						highlightedSourceAttrs:
+							entitySourceAttrs.get(entity.id) || new Set<string>(),
+						highlightedTargetAttrs:
+							entityTargetAttrs.get(entity.id) || new Set<string>(),
+						hoverHighlightedAttrs:
+							hoverHighlightedByEntity.get(entity.id) || new Set<string>(),
 					},
 				};
 			});
 
 			const edges: Edge[] = [];
 			const edgeSet = new Set<string>();
+
 			(data.mappings || []).forEach((mapping) => {
 				if (!mapping.deps) return;
 				mapping.deps.forEach((dep) => {
-					const edgeId = `${dep.entityId}->${mapping.entityId}`;
-					if (edgeSet.has(edgeId)) return;
-					edgeSet.add(edgeId);
 					if (!entityMap.has(dep.entityId) || !entityMap.has(mapping.entityId))
 						return;
 
-					const isHighlighted =
+					const isEntityHighlighted =
 						(upstreamNodes.has(dep.entityId) &&
 							upstreamNodes.has(mapping.entityId)) ||
 						(downstreamNodes.has(dep.entityId) &&
@@ -1465,21 +1664,79 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 						dep.entityId === selectedEntityId ||
 						mapping.entityId === selectedEntityId;
 
-					edges.push({
-						id: edgeId,
-						source: dep.entityId,
-						target: mapping.entityId,
-						type: "smoothstep",
-						animated: isHighlighted,
-						style: {
-							stroke: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
-							strokeWidth: isHighlighted ? 2 : 1,
-						},
-						markerEnd: {
-							type: MarkerType.ArrowClosed,
-							color: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
-						},
-					});
+					// If we have attribute-level mappings, create edges for each attribute pair
+					if (dep.attrMaps && dep.attrMaps.length > 0) {
+						dep.attrMaps.forEach((attrMap, attrIdx) => {
+							const edgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
+							if (edgeSet.has(edgeId)) return;
+							edgeSet.add(edgeId);
+
+							// All related attributes are visible, so use attribute-level handles
+							const sourceHandle = `attr-source-${attrMap.src}`;
+							const targetHandle = `attr-target-${attrMap.dst}`;
+
+							// Use different colors for attribute edges
+							const attrColors = [
+								"#2196f3",
+								"#4caf50",
+								"#ff9800",
+								"#9c27b0",
+								"#00bcd4",
+								"#e91e63",
+							];
+							const edgeColor = isEntityHighlighted
+								? HIGHLIGHT_COLORS.downstream
+								: attrColors[attrIdx % attrColors.length];
+
+							edges.push({
+								id: edgeId,
+								source: dep.entityId,
+								target: mapping.entityId,
+								sourceHandle,
+								targetHandle,
+								type: "smoothstep",
+								animated: isEntityHighlighted,
+								style: {
+									stroke: edgeColor,
+									strokeWidth: isEntityHighlighted ? 2 : 1.5,
+									opacity: 0.8,
+								},
+								markerEnd: {
+									type: MarkerType.ArrowClosed,
+									color: edgeColor,
+									width: 12,
+									height: 12,
+								},
+							});
+						});
+					} else {
+						// Fallback to entity-level edge if no attribute mappings
+						const edgeId = `${dep.entityId}->${mapping.entityId}`;
+						if (edgeSet.has(edgeId)) return;
+						edgeSet.add(edgeId);
+
+						edges.push({
+							id: edgeId,
+							source: dep.entityId,
+							target: mapping.entityId,
+							sourceHandle: "entity-source",
+							targetHandle: "entity-target",
+							type: "smoothstep",
+							animated: isEntityHighlighted,
+							style: {
+								stroke: isEntityHighlighted
+									? HIGHLIGHT_COLORS.downstream
+									: "#b1b1b7",
+								strokeWidth: isEntityHighlighted ? 2 : 1,
+							},
+							markerEnd: {
+								type: MarkerType.ArrowClosed,
+								color: isEntityHighlighted
+									? HIGHLIGHT_COLORS.downstream
+									: "#b1b1b7",
+							},
+						});
+					}
 				});
 			});
 
@@ -1492,8 +1749,10 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 			downstreamNodes,
 			handleNodeClick,
 			handleNodeDblClick,
+			handleAttrHover,
 			upstreamCounts,
 			downstreamCounts,
+			hoverHighlightedByEntity,
 		]);
 
 		// Apply layout
@@ -1632,6 +1891,16 @@ const GraphPanel = memo(() => {
 		setUpstreamDownstream,
 	} = useDashboardStore();
 	const { data: jsonDataList, isLoading } = useJsonDataList();
+	const navigate = useNavigate();
+
+	// Dialog state
+	const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);
+	const [dialogEntity, setDialogEntity] = useState<DataLineageEntity | null>(
+		null,
+	);
+	const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+	const [selectedConnection, setSelectedConnection] =
+		useState<EntityConnection | null>(null);
 
 	// Auto-select first graph if none selected
 	const effectiveGraphId = useMemo(() => {
@@ -1648,7 +1917,34 @@ const GraphPanel = memo(() => {
 		return item?.data ?? null;
 	}, [jsonDataList, effectiveGraphId]);
 
-	const navigate = useNavigate();
+	// Build connections for dialogs
+	const entityConnections = useMemo(() => {
+		if (!currentSchema) return [];
+		const connections: EntityConnection[] = [];
+		const entityMap = new Map<string, DataLineageEntity>();
+		for (const e of currentSchema.entities || []) {
+			entityMap.set(e.id, e);
+		}
+
+		(currentSchema.mappings || []).forEach((mapping) => {
+			if (!mapping.deps) return;
+			mapping.deps.forEach((dep) => {
+				const sourceEntity = entityMap.get(dep.entityId);
+				const targetEntity = entityMap.get(mapping.entityId);
+				if (!sourceEntity || !targetEntity) return;
+
+				connections.push({
+					id: `${dep.entityId}->${mapping.entityId}`,
+					sourceId: dep.entityId,
+					targetId: mapping.entityId,
+					sourceName: sourceEntity.name || sourceEntity.id,
+					targetName: targetEntity.name || targetEntity.id,
+					attrMaps: dep.attrMaps || [],
+				});
+			});
+		});
+		return connections;
+	}, [currentSchema]);
 
 	const handleSelectEntity = useCallback(
 		(id: string | null) => selectEntity(id, effectiveGraphId),
@@ -1657,11 +1953,27 @@ const GraphPanel = memo(() => {
 
 	const handleNodeDoubleClick = useCallback(
 		(entityId: string, _graphId: string) => {
+			const entity = currentSchema?.entities?.find((e) => e.id === entityId);
+			if (entity) {
+				setDialogEntity(entity);
+				setIsEntityDialogOpen(true);
+			}
+		},
+		[currentSchema],
+	);
+
+	const handleOpenEntity = useCallback(
+		(entityId: string) => {
 			const encodedId = encodeURIComponent(entityId);
 			navigate(`/entity/${encodedId}`);
 		},
 		[navigate],
 	);
+
+	const handleOpenConnection = useCallback((connection: EntityConnection) => {
+		setSelectedConnection(connection);
+		setIsMappingDialogOpen(true);
+	}, []);
 
 	if (isLoading) {
 		return (
@@ -1694,6 +2006,36 @@ const GraphPanel = memo(() => {
 					onUpstreamDownstreamChange={setUpstreamDownstream}
 				/>
 			</ReactFlowProvider>
+
+			{/* Entity Details Dialog */}
+			{dialogEntity && (
+				<EntityDetailsDialog
+					open={isEntityDialogOpen}
+					onClose={() => {
+						setIsEntityDialogOpen(false);
+						setDialogEntity(null);
+					}}
+					entity={dialogEntity}
+					connections={entityConnections.filter(
+						(c) =>
+							c.sourceId === dialogEntity.id || c.targetId === dialogEntity.id,
+					)}
+					onOpenEntity={handleOpenEntity}
+					onOpenConnection={handleOpenConnection}
+				/>
+			)}
+
+			{/* Mapping Details Dialog */}
+			{selectedConnection && (
+				<MappingDetailsDialog
+					open={isMappingDialogOpen}
+					onClose={() => {
+						setIsMappingDialogOpen(false);
+						setSelectedConnection(null);
+					}}
+					connection={selectedConnection}
+				/>
+			)}
 		</Box>
 	);
 });
@@ -2015,200 +2357,20 @@ interface SearchResultItem {
 }
 
 // ============================================================================
-// Search Dropdown Component
-// ============================================================================
-
-const _SearchDropdown = memo(
-	({
-		entities,
-		query,
-		onSelect,
-		onClose,
-		anchorEl,
-	}: {
-		entities: EntityRow[];
-		query: string;
-		onSelect: (entity: EntityRow) => void;
-		onClose: () => void;
-		anchorEl: HTMLElement | null;
-	}) => {
-		const open = Boolean(anchorEl) && query.length > 0;
-		const q = query.toLowerCase();
-
-		// Find matching entities with matched field info
-		const results: SearchResultItem[] = useMemo(() => {
-			if (!q) return [];
-			const items: SearchResultItem[] = [];
-
-			entities.forEach((entity) => {
-				if (entity.name.toLowerCase().includes(q)) {
-					items.push({
-						...entity,
-						matchedField: "name",
-						matchedValue: entity.name,
-					});
-				} else if (entity.type.toLowerCase().includes(q)) {
-					items.push({
-						...entity,
-						matchedField: "type",
-						matchedValue: entity.type,
-					});
-				} else if (entity.namespace.toLowerCase().includes(q)) {
-					items.push({
-						...entity,
-						matchedField: "namespace",
-						matchedValue: entity.namespace,
-					});
-				}
-			});
-
-			return items.slice(0, 20); // Limit results
-		}, [entities, q]);
-
-		if (!open || results.length === 0) return null;
-
-		return (
-			<Popper
-				open={open}
-				anchorEl={anchorEl}
-				placement="bottom-start"
-				style={{ zIndex: 1300, width: anchorEl?.offsetWidth || 400 }}
-			>
-				<ClickAwayListener onClickAway={onClose}>
-					<Paper
-						elevation={8}
-						sx={{
-							maxHeight: 400,
-							overflow: "auto",
-							mt: 0.5,
-							border: 1,
-							borderColor: "divider",
-						}}
-					>
-						{results.map((result, idx) => {
-							const typeColor = TYPE_COLORS[result.type] || TYPE_COLORS.table;
-							return (
-								<Box
-									key={`${result.graphId}-${result.id}-${idx}`}
-									onClick={() => onSelect(result as unknown as EntityRow)}
-									sx={{
-										p: 1.5,
-										cursor: "pointer",
-										display: "flex",
-										alignItems: "center",
-										gap: 1,
-										borderBottom: 1,
-										borderColor: "divider",
-										"&:hover": { bgcolor: "action.hover" },
-										"&:last-child": { borderBottom: 0 },
-									}}
-								>
-									{/* Entity type badge */}
-									<Chip
-										label={result.type}
-										size="small"
-										sx={{
-											bgcolor: typeColor.bg,
-											color: typeColor.text,
-											fontWeight: 600,
-											fontSize: 10,
-											height: 20,
-										}}
-									/>
-
-									{/* Entity name */}
-									<Box sx={{ flex: 1, minWidth: 0 }}>
-										<Typography
-											variant="body2"
-											fontWeight={500}
-											noWrap
-											title={result.name}
-										>
-											{result.name}
-										</Typography>
-										{result.namespace && (
-											<Typography
-												variant="caption"
-												color="text.secondary"
-												noWrap
-												component="div"
-											>
-												{result.namespace}
-											</Typography>
-										)}
-									</Box>
-
-									{/* Matched field indicator */}
-									<Chip
-										label={`совпадение: ${result.matchedField}`}
-										size="small"
-										variant="outlined"
-										sx={{ fontSize: 9, height: 18 }}
-									/>
-
-									{/* Role badges */}
-									{result.isDataMart && (
-										<Chip
-											label="витрина"
-											size="small"
-											sx={{
-												bgcolor: "#f3e5f5",
-												color: "#9c27b0",
-												fontSize: 9,
-												height: 18,
-											}}
-										/>
-									)}
-									{result.isSource && (
-										<Chip
-											label="источник"
-											size="small"
-											sx={{
-												bgcolor: "#e0f2f1",
-												color: "#00897b",
-												fontSize: 9,
-												height: 18,
-											}}
-										/>
-									)}
-									{result.modified && (
-										<Chip
-											label="изм."
-											size="small"
-											sx={{
-												bgcolor: "#fff3e0",
-												color: "#f57c00",
-												fontSize: 9,
-												height: 18,
-											}}
-										/>
-									)}
-								</Box>
-							);
-						})}
-					</Paper>
-				</ClickAwayListener>
-			</Popper>
-		);
-	},
-);
-
-// ============================================================================
 // Advanced Filters Panel Component
 // ============================================================================
 
 const AdvancedFiltersPanel = memo(
 	({
 		filterOptions,
-		anchorEl,
+		open,
 		onClose,
 	}: {
 		filterOptions: { entityTypes: string[]; namespaces: string[] };
-		anchorEl: HTMLElement | null;
+		open: boolean;
 		onClose: () => void;
 	}) => {
 		const { filters, updateFilter, resetFilters } = useDashboardStore();
-		const open = Boolean(anchorEl);
 
 		const activeFilterCount = useMemo(() => {
 			let count = 0;
@@ -2221,208 +2383,201 @@ const AdvancedFiltersPanel = memo(
 			return count;
 		}, [filters]);
 
-		if (!open) return null;
-
 		return (
-			<Popper
-				open={open}
-				anchorEl={anchorEl}
-				placement="bottom-end"
-				style={{ zIndex: 1300 }}
-			>
-				<ClickAwayListener onClickAway={onClose}>
-					<Paper
-						elevation={8}
-						sx={{
-							p: 2,
-							width: "100%",
-							mt: 0.5,
-							border: 1,
-							borderColor: "divider",
-						}}
-					>
-						<Typography variant="subtitle2" fontWeight={600} mb={2}>
-							Расширенные фильтры
-						</Typography>
+			<Modal open={open} onClose={onClose}>
+				<Paper
+					elevation={8}
+					sx={{
+						position: "absolute",
+						top: "50%",
+						left: "50%",
+						transform: "translate(-50%, -50%)",
+						p: 3,
 
-						{/* Entity Type Filter */}
+						maxHeight: "90vh",
+						overflow: "auto",
+						borderRadius: 2,
+					}}
+				>
+					<Typography variant="subtitle2" fontWeight={600} mb={2}>
+						Расширенные фильтры
+					</Typography>
+
+					{/* Entity Type Filter */}
+					<Box mb={2}>
+						<Typography variant="caption" color="text.secondary" mb={0.5}>
+							Тип сущности
+						</Typography>
+						<Box display="flex" flexWrap="wrap" gap={0.5}>
+							{filterOptions.entityTypes.map((type) => {
+								const colors = TYPE_COLORS[type] || TYPE_COLORS.table;
+								const isSelected = filters.entityTypes.includes(type);
+								return (
+									<Chip
+										key={type}
+										label={type}
+										size="small"
+										onClick={() => {
+											const newTypes = isSelected
+												? filters.entityTypes.filter((t) => t !== type)
+												: [...filters.entityTypes, type];
+											updateFilter("entityTypes", newTypes);
+										}}
+										sx={{
+											bgcolor: isSelected ? colors.bg : "transparent",
+											color: isSelected ? colors.text : "text.secondary",
+											borderColor: isSelected ? colors.border : "divider",
+											border: 1,
+											fontWeight: isSelected ? 600 : 400,
+											cursor: "pointer",
+										}}
+									/>
+								);
+							})}
+						</Box>
+					</Box>
+
+					{/* Namespace Filter */}
+					{filterOptions.namespaces.length > 0 && (
 						<Box mb={2}>
 							<Typography variant="caption" color="text.secondary" mb={0.5}>
-								Тип сущности
+								Схема / Namespace
 							</Typography>
-							<Box display="flex" flexWrap="wrap" gap={0.5}>
-								{filterOptions.entityTypes.map((type) => {
-									const colors = TYPE_COLORS[type] || TYPE_COLORS.table;
-									const isSelected = filters.entityTypes.includes(type);
+							<Box
+								display="flex"
+								flexWrap="wrap"
+								gap={0.5}
+								maxHeight={80}
+								overflow="auto"
+							>
+								{filterOptions.namespaces.slice(0, 10).map((ns) => {
+									const isSelected = filters.namespaces.includes(ns);
 									return (
 										<Chip
-											key={type}
-											label={type}
+											key={ns}
+											label={ns}
 											size="small"
 											onClick={() => {
-												const newTypes = isSelected
-													? filters.entityTypes.filter((t) => t !== type)
-													: [...filters.entityTypes, type];
-												updateFilter("entityTypes", newTypes);
+												const newNs = isSelected
+													? filters.namespaces.filter((n) => n !== ns)
+													: [...filters.namespaces, ns];
+												updateFilter("namespaces", newNs);
 											}}
 											sx={{
-												bgcolor: isSelected ? colors.bg : "transparent",
-												color: isSelected ? colors.text : "text.secondary",
-												borderColor: isSelected ? colors.border : "divider",
+												bgcolor: isSelected ? "primary.light" : "transparent",
+												color: isSelected
+													? "primary.contrastText"
+													: "text.secondary",
 												border: 1,
+												borderColor: isSelected ? "primary.main" : "divider",
 												fontWeight: isSelected ? 600 : 400,
 												cursor: "pointer",
+												maxWidth: 120,
 											}}
+											title={ns}
 										/>
 									);
 								})}
 							</Box>
 						</Box>
+					)}
 
-						{/* Namespace Filter */}
-						{filterOptions.namespaces.length > 0 && (
-							<Box mb={2}>
-								<Typography variant="caption" color="text.secondary" mb={0.5}>
-									Схема / Namespace
-								</Typography>
-								<Box
-									display="flex"
-									flexWrap="wrap"
-									gap={0.5}
-									maxHeight={80}
-									overflow="auto"
-								>
-									{filterOptions.namespaces.slice(0, 10).map((ns) => {
-										const isSelected = filters.namespaces.includes(ns);
-										return (
-											<Chip
-												key={ns}
-												label={ns}
-												size="small"
-												onClick={() => {
-													const newNs = isSelected
-														? filters.namespaces.filter((n) => n !== ns)
-														: [...filters.namespaces, ns];
-													updateFilter("namespaces", newNs);
-												}}
-												sx={{
-													bgcolor: isSelected ? "primary.light" : "transparent",
-													color: isSelected
-														? "primary.contrastText"
-														: "text.secondary",
-													border: 1,
-													borderColor: isSelected ? "primary.main" : "divider",
-													fontWeight: isSelected ? 600 : 400,
-													cursor: "pointer",
-													maxWidth: 120,
-												}}
-												title={ns}
-											/>
-										);
-									})}
-								</Box>
-							</Box>
-						)}
-
-						{/* Modified Only */}
-						<FormControlLabel
-							control={
-								<Checkbox
-									size="small"
-									checked={filters.modifiedOnly}
-									onChange={(e) =>
-										updateFilter("modifiedOnly", e.target.checked)
-									}
-								/>
-							}
-							label={<Typography variant="body2">Только изменённые</Typography>}
-							sx={{ mb: 1 }}
-						/>
-
-						{/* Connection Filters */}
-						<Box display="flex" gap={1} mb={2}>
-							<Box flex={1}>
-								<Typography variant="caption" color="text.secondary">
-									Источники
-								</Typography>
-								<Select
-									size="small"
-									fullWidth
-									value={filters.hasUpstream}
-									onChange={(e) =>
-										updateFilter(
-											"hasUpstream",
-											e.target.value as FilterState["hasUpstream"],
-										)
-									}
-								>
-									<MenuItem value="any">Любые</MenuItem>
-									<MenuItem value="yes">Есть</MenuItem>
-									<MenuItem value="no">Нет</MenuItem>
-								</Select>
-							</Box>
-							<Box flex={1}>
-								<Typography variant="caption" color="text.secondary">
-									Потребители
-								</Typography>
-								<Select
-									size="small"
-									fullWidth
-									value={filters.hasDownstream}
-									onChange={(e) =>
-										updateFilter(
-											"hasDownstream",
-											e.target.value as FilterState["hasDownstream"],
-										)
-									}
-								>
-									<MenuItem value="any">Любые</MenuItem>
-									<MenuItem value="yes">Есть</MenuItem>
-									<MenuItem value="no">Нет</MenuItem>
-								</Select>
-							</Box>
-						</Box>
-
-						{/* Attribute Count Filter */}
-						<Box mb={2}>
-							<Typography variant="caption" color="text.secondary">
-								Кол-во атрибутов
-							</Typography>
-							<Box display="flex" gap={1}>
-								<TextField
-									size="small"
-									type="number"
-									placeholder="Мин"
-									value={filters.attrCountMin}
-									onChange={(e) => updateFilter("attrCountMin", e.target.value)}
-									sx={{ flex: 1 }}
-								/>
-								<TextField
-									size="small"
-									type="number"
-									placeholder="Макс"
-									value={filters.attrCountMax}
-									onChange={(e) => updateFilter("attrCountMax", e.target.value)}
-									sx={{ flex: 1 }}
-								/>
-							</Box>
-						</Box>
-
-						{/* Reset Button */}
-						{activeFilterCount > 0 && (
-							<Button
-								fullWidth
-								variant="outlined"
-								color="error"
+					{/* Modified Only */}
+					<FormControlLabel
+						control={
+							<Checkbox
 								size="small"
-								onClick={resetFilters}
+								checked={filters.modifiedOnly}
+								onChange={(e) => updateFilter("modifiedOnly", e.target.checked)}
+							/>
+						}
+						label={<Typography variant="body2">Только изменённые</Typography>}
+						sx={{ mb: 1 }}
+					/>
+
+					{/* Connection Filters */}
+					<Box display="flex" gap={1} mb={2}>
+						<Box flex={1}>
+							<Typography variant="caption" color="text.secondary">
+								Источники
+							</Typography>
+							<Select
+								size="small"
+								fullWidth
+								value={filters.hasUpstream}
+								onChange={(e) =>
+									updateFilter(
+										"hasUpstream",
+										e.target.value as FilterState["hasUpstream"],
+									)
+								}
 							>
-								Сбросить фильтры ({activeFilterCount})
-							</Button>
-						)}
-					</Paper>
-				</ClickAwayListener>
-			</Popper>
+								<MenuItem value="any">Любые</MenuItem>
+								<MenuItem value="yes">Есть</MenuItem>
+								<MenuItem value="no">Нет</MenuItem>
+							</Select>
+						</Box>
+						<Box flex={1}>
+							<Typography variant="caption" color="text.secondary">
+								Потребители
+							</Typography>
+							<Select
+								size="small"
+								fullWidth
+								value={filters.hasDownstream}
+								onChange={(e) =>
+									updateFilter(
+										"hasDownstream",
+										e.target.value as FilterState["hasDownstream"],
+									)
+								}
+							>
+								<MenuItem value="any">Любые</MenuItem>
+								<MenuItem value="yes">Есть</MenuItem>
+								<MenuItem value="no">Нет</MenuItem>
+							</Select>
+						</Box>
+					</Box>
+
+					{/* Attribute Count Filter */}
+					<Box mb={2}>
+						<Typography variant="caption" color="text.secondary">
+							Кол-во атрибутов
+						</Typography>
+						<Box display="flex" gap={1}>
+							<TextField
+								size="small"
+								type="number"
+								placeholder="Мин"
+								value={filters.attrCountMin}
+								onChange={(e) => updateFilter("attrCountMin", e.target.value)}
+								sx={{ flex: 1 }}
+							/>
+							<TextField
+								size="small"
+								type="number"
+								placeholder="Макс"
+								value={filters.attrCountMax}
+								onChange={(e) => updateFilter("attrCountMax", e.target.value)}
+								sx={{ flex: 1 }}
+							/>
+						</Box>
+					</Box>
+
+					{/* Reset Button */}
+					{activeFilterCount > 0 && (
+						<Button
+							fullWidth
+							variant="outlined"
+							color="error"
+							size="small"
+							onClick={resetFilters}
+						>
+							Сбросить фильтры ({activeFilterCount})
+						</Button>
+					)}
+				</Paper>
+			</Modal>
 		);
 	},
 );
@@ -2756,7 +2911,7 @@ export const DashboardPage = () => {
 					</Badge>
 					<AdvancedFiltersPanel
 						filterOptions={filterOptions}
-						anchorEl={filterAnchorEl}
+						open={Boolean(filterAnchorEl)}
 						onClose={() => setFilterAnchorEl(null)}
 					/>
 
