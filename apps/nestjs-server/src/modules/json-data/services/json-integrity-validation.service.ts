@@ -15,8 +15,14 @@ export class JsonIntegrityValidationService implements IJsonIntegrityValidator {
 
         this.validateReferentialIntegrity(data, issues);
 
+        // Отсутствие source entities НЕ считается критической ошибкой целостности
+        const hasCriticalIssues = issues.some(issue =>
+            !issue.includes('source entity не найдена') &&
+            !issue.includes('target entity не найдена')
+        );
+
         return {
-            isValid: issues.length === 0,
+            isValid: !hasCriticalIssues,
             issues,
         };
     }
@@ -29,6 +35,7 @@ export class JsonIntegrityValidationService implements IJsonIntegrityValidator {
         data.mappings.forEach((mapping: any, index: number) => {
             const targetEntity = data.entities.find((e: any) => e.id === mapping.entityId);
             if (!targetEntity) {
+                // Отсутствие target entity - предупреждение
                 issues.push(`Маппинг ${index}: target entity не найдена: ${mapping.entityId}`);
             }
 
@@ -50,6 +57,7 @@ export class JsonIntegrityValidationService implements IJsonIntegrityValidator {
     ): void {
         const sourceEntity = data.entities.find((e: any) => e.id === dep.entityId);
         if (!sourceEntity) {
+            // Отсутствие source entity - предупреждение
             issues.push(
                 `Маппинг ${mappingIndex}, зависимость ${depIndex}: source entity не найдена: ${dep.entityId}`,
             );
@@ -77,6 +85,7 @@ export class JsonIntegrityValidationService implements IJsonIntegrityValidator {
             if (sourceEntity && sourceEntity.attrSeq) {
                 const srcAttr = sourceEntity.attrSeq.find((a: any) => a.name === attrMap.src);
                 if (!srcAttr) {
+                    // Отсутствие source атрибута - критическая ошибка
                     issues.push(
                         `Маппинг ${mappingIndex}, зависимость ${depIndex}, attrMap ${attrMapIndex}: source атрибут не найден: ${attrMap.src}`,
                     );
@@ -86,6 +95,7 @@ export class JsonIntegrityValidationService implements IJsonIntegrityValidator {
             if (targetEntity && targetEntity.attrSeq) {
                 const dstAttr = targetEntity.attrSeq.find((a: any) => a.name === attrMap.dst);
                 if (!dstAttr) {
+                    // Отсутствие target атрибута - критическая ошибка
                     issues.push(
                         `Маппинг ${mappingIndex}, зависимость ${depIndex}, attrMap ${attrMapIndex}: target атрибут не найден: ${attrMap.dst}`,
                     );
@@ -109,6 +119,7 @@ export class JsonIntegrityValidationService implements IJsonIntegrityValidator {
             if (sourceEntity && sourceEntity.attrSeq) {
                 const srcAttr = sourceEntity.attrSeq.find((a: any) => a.name === attrDep.attr);
                 if (!srcAttr) {
+                    // Отсутствие source атрибута для функциональной зависимости - критическая ошибка
                     issues.push(
                         `Маппинг ${mappingIndex}, зависимость ${depIndex}, attrDep ${attrDepIndex}: source атрибут не найден: ${attrDep.attr}`,
                     );

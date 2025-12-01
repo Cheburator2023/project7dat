@@ -29,17 +29,20 @@ export class JsonValidationOrchestratorService {
     async validate(data: any): Promise<ComprehensiveValidationResponse> {
         this.logger.log("Запуск комплексной валидации JSON");
 
-        // Валидация структуры
-        const structureValidation = this.structureValidator.validateStructure(data);
+        // Сначала нормализуем данные
+        const normalizedData = this.structureValidator.normalizeJsonData(data);
 
-        // Валидация целостности
-        const integrityValidation = this.integrityValidator.validateIntegrity(data);
+        // Валидация структуры на нормализованных данных
+        const structureValidation = this.structureValidator.validateStructure(normalizedData);
 
-        // Валидация бизнес-правил
-        const businessRulesValidation = this.businessRulesValidator.validateBusinessRules(data);
+        // Валидация целостности на нормализованных данных
+        const integrityValidation = this.integrityValidator.validateIntegrity(normalizedData);
+
+        // Валидация бизнес-правил на нормализованных данных
+        const businessRulesValidation = this.businessRulesValidator.validateBusinessRules(normalizedData);
 
         // Валидация версии схемы
-        const schemaVersionValidation = this.schemaVersionValidator.validateSchemaVersion(data);
+        const schemaVersionValidation = this.schemaVersionValidator.validateSchemaVersion(normalizedData);
 
         // Проверка версии на совместимость
         const versionCompatibility = this.versioningService.validateVersionCompatibility(
@@ -48,18 +51,15 @@ export class JsonValidationOrchestratorService {
 
         // Проверка на рекурсию
         const recursionCheck = this.structureValidator.checkForRecursion(
-            data.entities || [],
-            data.mappings || [],
+            normalizedData.entities || [],
+            normalizedData.mappings || [],
         );
 
         // Проверка на дублирование
-        const duplicateCheck = this.structureValidator.checkForDuplicates(data);
-
-        // Нормализация данных
-        const normalizedData = this.structureValidator.normalizeJsonData(data);
+        const duplicateCheck = this.structureValidator.checkForDuplicates(normalizedData);
 
         // Статистика
-        const statistics = this.calculateStatistics(data);
+        const statistics = this.calculateStatistics(normalizedData);
 
         // Рекомендации
         const recommendations = this.generateRecommendations(
@@ -72,17 +72,13 @@ export class JsonValidationOrchestratorService {
             statistics,
         );
 
-        const isValid =
-            structureValidation.isValid &&
-            integrityValidation.isValid &&
-            businessRulesValidation.isValid &&
-            schemaVersionValidation.isValid &&
-            versionCompatibility.compatible &&
-            !recursionCheck.hasRecursion &&
-            !duplicateCheck.hasDuplicates;
+        // Данные считаются валидными если нет критических ошибок структуры
+        const hasCriticalErrors = structureValidation.errors.length > 0 ||
+            recursionCheck.hasRecursion ||
+            duplicateCheck.hasDuplicates;
 
         const response: ComprehensiveValidationResponse = {
-            isValid,
+            isValid: !hasCriticalErrors,
             validation: structureValidation,
             integrity: integrityValidation,
             schemaVersion: {
@@ -97,20 +93,23 @@ export class JsonValidationOrchestratorService {
             recommendations,
         };
 
-        this.logger.log(`Комплексная валидация завершена. Результат: ${isValid ? "VALID" : "INVALID"}`);
+        this.logger.log(`Комплексная валидация завершена. Результат: ${response.isValid ? "VALID" : "INVALID"}`);
 
         return response;
     }
 
     generateValidationReport(data: any): ValidationReport {
-        const structureValidation = this.structureValidator.validateStructure(data);
-        const integrityValidation = this.integrityValidator.validateIntegrity(data);
-        const schemaVersionValidation = this.schemaVersionValidator.validateSchemaVersion(data);
-        const statistics = this.calculateStatistics(data);
+        const normalizedData = this.structureValidator.normalizeJsonData(data);
+        const structureValidation = this.structureValidator.validateStructure(normalizedData);
+        const integrityValidation = this.integrityValidator.validateIntegrity(normalizedData);
+        const schemaVersionValidation = this.schemaVersionValidator.validateSchemaVersion(normalizedData);
+        const statistics = this.calculateStatistics(normalizedData);
+
+        const hasCriticalErrors = structureValidation.errors.length > 0;
 
         return {
             summary: {
-                isValid: structureValidation.isValid && integrityValidation.isValid && schemaVersionValidation.isValid,
+                isValid: !hasCriticalErrors,
                 entitiesCount: statistics.entitiesCount,
                 attributesCount: statistics.attributesCount,
                 mappingsCount: statistics.mappingsCount,
@@ -152,20 +151,43 @@ export class JsonValidationOrchestratorService {
         // Рекомендации по валидации
         if (structureValidation.warnings.length > 0) {
             recommendations.push(
-                "Обратите внимание на предупреждения валидации перед импортом",
+                "Обнаружены предупреждения валидации, которые будут автоматически обработаны",
             );
         }
 
-        if (!integrityValidation.isValid) {
+        if (structureValidation.errors.length > 0) {
             recommendations.push(
-                "Исправьте проблемы целостности данных перед импортом",
+                "Обнаружены критические ошибки валидации, требующие исправления",
             );
+        }
+
+        // Предупреждения о отсутствующих source entities - не критические
+        if (integrityValidation.issues.length > 0) {
+            const missingEntityWarnings = integrityValidation.issues.filter(issue =>
+                issue.includes('source entity не найдена') ||
+                issue.includes('target entity не найдена')
+            );
+            if (missingEntityWarnings.length > 0) {
+                recommendations.push(
+                    `Обнаружены отсутствующие сущности: ${missingEntityWarnings.length}. Они могут быть добавлены в последующих импортах.`,
+                );
+            }
+
+            const criticalIssues = integrityValidation.issues.filter(issue =>
+                !issue.includes('source entity не найдена') &&
+                !issue.includes('target entity не найдена')
+            );
+            if (criticalIssues.length > 0) {
+                recommendations.push(
+                    "Обнаружены критические проблемы целостности данных",
+                );
+            }
         }
 
         // Рекомендации по версионированию
         if (versionCompatibility.migrationRequired) {
             recommendations.push(
-                `Требуется миграция данных с версии ${versionCompatibility.incomingVersion}`,
+                `Данные будут автоматически мигрированы с версии ${versionCompatibility.incomingVersion} на ${versionCompatibility.currentVersion}`,
             );
         }
 
