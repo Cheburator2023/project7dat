@@ -2,7 +2,6 @@ import { create } from "zustand";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
-import { featureFlags } from "@react-client/config/featureFlags";
 
 export interface Process {
 	id: string;
@@ -2288,14 +2287,9 @@ export const useProcessesStore = create<ProcessesStore>()((set, get) => ({
 		setError(null);
 
 		try {
-			if (featureFlags.newJsonDataV2Enabled) {
-				const items = await jsonDataService.getAll();
-				const processes = items.map(mapJsonDataItemToProcess);
-				setProcesses(processes);
-			} else {
-				// fallback на старые моки, пока v2 не включен
-				setProcesses([]);
-			}
+			const items = await jsonDataService.getAll();
+			const processes = items.map(mapJsonDataItemToProcess);
+			setProcesses(processes);
 		} catch (error) {
 			setError(
 				error instanceof Error ? error.message : "Ошибка загрузки процессов",
@@ -2312,17 +2306,13 @@ export const useProcessesStore = create<ProcessesStore>()((set, get) => ({
 		setError(null);
 
 		try {
-			if (featureFlags.newJsonDataV2Enabled) {
-				// ищем процесс и берем его dataLineage, либо подгружаем по ID
-				const existing = processes.find((p) => p.id === processId);
-				if (existing?.dataLineage) {
-					setCurrentProcessData(existing.dataLineage);
-				} else {
-					const item = await jsonDataService.getById(processId);
-					setCurrentProcessData(item.data as DataLineageSchema);
-				}
+			// ищем процесс и берем его dataLineage, либо подгружаем по ID
+			const existing = processes.find((p) => p.id === processId);
+			if (existing?.dataLineage) {
+				setCurrentProcessData(existing.dataLineage);
 			} else {
-				setCurrentProcessData(null);
+				const item = await jsonDataService.getById(processId);
+				setCurrentProcessData(item.data as DataLineageSchema);
 			}
 		} catch (error) {
 			setError(

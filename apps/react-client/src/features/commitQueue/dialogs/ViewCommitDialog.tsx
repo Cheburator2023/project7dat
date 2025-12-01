@@ -14,7 +14,6 @@ import {
 } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { useCumulativeCommitData } from "@react-client/api/hooks";
-import { featureFlags } from "@react-client/config/featureFlags";
 
 interface CommitQueueItem {
 	id: string;
@@ -53,14 +52,13 @@ export const ViewCommitDialog: React.FC<ViewCommitDialogProps> = ({
 	commit,
 }) => {
 	const { mode } = useColorScheme();
-	const useV2Commits = featureFlags.newCommitsV2Enabled;
 	const commitId = commit?.id ?? "";
 	const {
 		data: cumulativeData,
 		isLoading,
 		error,
 	} = useCumulativeCommitData(commitId, {
-		enabled: useV2Commits && Boolean(commit?.isFromApi && commitId),
+		enabled: Boolean(commit?.isFromApi && commitId),
 	});
 
 	const getStatusColor = (status: string) => {
@@ -169,7 +167,7 @@ export const ViewCommitDialog: React.FC<ViewCommitDialogProps> = ({
 						<Typography variant="subtitle1" gutterBottom>
 							Содержимое
 						</Typography>
-						{useV2Commits && commit.isFromApi ? (
+						{commit.isFromApi ? (
 							isLoading ? (
 								<Box
 									sx={{

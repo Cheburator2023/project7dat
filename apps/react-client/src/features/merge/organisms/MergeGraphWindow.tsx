@@ -18,7 +18,6 @@ import type {
 } from "@data-lineage/shared-schemas";
 import { isDataLineageSchema } from "@data-lineage/shared-schemas";
 import { useApplyCommit, useApplyPartialCommit } from "@react-client/api/hooks";
-import { featureFlags } from "@react-client/config/featureFlags";
 
 type EntityDiffItem = {
 	id: string;
@@ -35,7 +34,6 @@ export const MergeGraphWindow: React.FC = () => {
 		confirmMerge,
 	} = useMergeStore();
 
-	const useV2Commits = featureFlags.newCommitsV2Enabled;
 	const applyPartialCommitMutation = useApplyPartialCommit();
 	const applyCommitMutation = useApplyCommit();
 	const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
@@ -154,7 +152,7 @@ export const MergeGraphWindow: React.FC = () => {
 	};
 
 	const handleConfirmMerge = () => {
-		if (!mergeData || !useV2Commits) return;
+		if (!mergeData) return;
 
 		applyPartialCommitMutation.mutate(
 			{
@@ -170,7 +168,7 @@ export const MergeGraphWindow: React.FC = () => {
 	};
 
 	const handleConfirmFullMerge = () => {
-		if (!mergeData || !useV2Commits) return;
+		if (!mergeData) return;
 
 		applyCommitMutation.mutate(mergeData.commitId, {
 			onSuccess: () => {
@@ -307,30 +305,29 @@ export const MergeGraphWindow: React.FC = () => {
 			</DialogContent>
 
 			<DialogActions sx={{ px: 3, pb: 2 }}>
-				{useV2Commits && (
-					<>
-						<Button
-							onClick={handleConfirmMerge}
-							variant="contained"
-							disabled={
-								applyPartialCommitMutation.isPending ||
-								applyCommitMutation.isPending
-							}
-						>
-							Частичный мердж
-						</Button>
-						<Button
-							onClick={handleConfirmFullMerge}
-							variant="outlined"
-							disabled={
-								applyPartialCommitMutation.isPending ||
-								applyCommitMutation.isPending
-							}
-						>
-							Полный мердж
-						</Button>
-					</>
-				)}
+				<>
+					<Button
+						onClick={handleConfirmMerge}
+						variant="contained"
+						disabled={
+							applyPartialCommitMutation.isPending ||
+							applyCommitMutation.isPending
+						}
+					>
+						Частичный мердж
+					</Button>
+					<Button
+						onClick={handleConfirmFullMerge}
+						variant="outlined"
+						disabled={
+							applyPartialCommitMutation.isPending ||
+							applyCommitMutation.isPending
+						}
+					>
+						Полный мердж
+					</Button>
+				</>
+
 				<Button onClick={handleClose} variant="text">
 					Закрыть
 				</Button>
