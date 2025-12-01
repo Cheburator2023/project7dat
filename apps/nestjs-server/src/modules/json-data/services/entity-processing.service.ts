@@ -84,7 +84,7 @@ export class EntityProcessingService {
             );
 
             // Поиск существующей сущности по full_name (уникальное поле)
-            let entity = await this.entityRepository.findOne({
+            let entity = await queryRunner.manager.findOne(EntityEntity, {
                 where: { full_name: entityData.id },
             });
 
@@ -142,7 +142,7 @@ export class EntityProcessingService {
 
         try {
             // Поиск существующего контейнера
-            let container = await this.entityContainerRepository.findOne({
+            let container = await queryRunner.manager.findOne(EntityContainerEntity, {
                 where: { value: entityData.namespace },
             });
 
@@ -204,7 +204,7 @@ export class EntityProcessingService {
         queryRunner: QueryRunner,
     ): Promise<void> {
         try {
-            const entity = await this.entityRepository.findOne({
+            const entity = await queryRunner.manager.findOne(EntityEntity, {
                 where: { full_name: entityData.id },
             });
 
@@ -214,7 +214,7 @@ export class EntityProcessingService {
             }
 
             // Проверяем, существует ли уже entity_map для этой сущности и процесса
-            const existingEntityMap = await this.entityMapRepository.findOne({
+            const existingEntityMap = await queryRunner.manager.findOne(EntityMapEntity, {
                 where: {
                     entity_id: entity.entity_id,
                     process_id: processId,
@@ -256,13 +256,13 @@ export class EntityProcessingService {
                 attrData.type,
             );
 
-        // Поиск существующего атрибута
-        const existingAttribute = await this.attributeRepository.findOne({
-            where: {
-                entity_id: entityId,
-                name: attrData.name,
-            },
-        });
+            // Поиск существующего атрибута
+            const existingAttribute = await queryRunner.manager.findOne(AttributeEntity, {
+                where: {
+                    entity_id: entityId,
+                    name: attrData.name,
+                },
+            });
 
         if (!existingAttribute) {
             this.logger.log(

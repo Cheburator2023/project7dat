@@ -11,6 +11,7 @@ export * from './responses/validation-response.dto';
 export * from './responses/json-import-response.dto';
 export * from './responses/json-commit-response.dto';
 export * from './responses/json-data-response.dto';
+export * from './responses/json-export-response.dto';
 
 // Base DTO
 export * from './base/json-commit-base.dto';
