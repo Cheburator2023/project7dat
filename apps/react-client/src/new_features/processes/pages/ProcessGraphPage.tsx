@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import { ArrowBack, Home } from "@mui/icons-material";
 import { useProcessesStore } from "@react-client/stores/processesStore";
-import { featureFlags } from "@react-client/config/featureFlags";
 import { DataLineageGraph } from "@react-client/new_features/processes/organisms/DataLineageGraph";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 
@@ -43,7 +42,7 @@ export const ProcessGraphPage = () => {
 	}, [processes.length, loadProcesses]);
 
 	useEffect(() => {
-		if (featureFlags.newJsonDataV2Enabled && processId) {
+		if (processId) {
 			void loadProcessData(processId);
 		}
 	}, [processId, loadProcessData]);
@@ -150,17 +149,9 @@ export const ProcessGraphPage = () => {
 						subheader="Визуализация связей между объектами процесса"
 					/>
 					<CardContent>
-						{(
-							featureFlags.newJsonDataV2Enabled
-								? currentProcessData
-								: process.dataLineage
-						) ? (
+						{currentProcessData ? (
 							<DataLineageGraph
-								data={
-									(featureFlags.newJsonDataV2Enabled
-										? currentProcessData
-										: process.dataLineage) as any
-								}
+								data={currentProcessData}
 								onNodeSelect={setSelectedEntity}
 							/>
 						) : (

@@ -35,7 +35,6 @@ import { Close, Visibility, ExpandMore, ExpandLess } from "@mui/icons-material";
 
 import { ObjectDetailsDialog } from "../molecules/ObjectDetailsDialog";
 import { ConnectionDetailsDialog } from "../molecules/ConnectionDetailsDialog";
-import { featureFlags } from "@react-client/config/featureFlags";
 import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import type {
@@ -453,12 +452,7 @@ export const ModelGraphWindow = ({
 
 	useEffect(() => {
 		if (!isOpen) return;
-		if (!featureFlags.newJsonDataV2Enabled) {
-			setSchema(null);
-			setError(null);
-			setIsLoading(false);
-			return;
-		}
+
 		const graphId: string | undefined =
 			(model as JsonDataItem | any).graphId ?? model.graphId;
 		if (!graphId) {
@@ -501,7 +495,7 @@ export const ModelGraphWindow = ({
 
 	// Build full graph with all entities and connections
 	const { allObjects, allConnections } = useMemo(() => {
-		if (!schema || !featureFlags.newJsonDataV2Enabled) {
+		if (!schema) {
 			return { allObjects: [], allConnections: [] };
 		}
 
@@ -1046,13 +1040,7 @@ export const ModelGraphWindow = ({
 							Граф связей
 						</Typography>
 						<Divider sx={{ mb: 2 }} />
-						{!featureFlags.newJsonDataV2Enabled && (
-							<Alert severity="info" sx={{ mb: 2 }}>
-								Граф связей доступен только при включенном флаге
-								newJsonDataV2Enabled
-							</Alert>
-						)}
-						{schema && featureFlags.newJsonDataV2Enabled && (
+						{schema && (
 							<Box
 								sx={{ mb: 2, p: 1, bgcolor: "action.hover", borderRadius: 1 }}
 							>
@@ -1063,25 +1051,18 @@ export const ModelGraphWindow = ({
 								</Typography>
 							</Box>
 						)}
-						{objects.length === 0 &&
-							!isLoading &&
-							!error &&
-							featureFlags.newJsonDataV2Enabled &&
-							schema && (
-								<Alert severity="info" sx={{ mb: 2 }}>
-									Для данной модели нет связей с другими объектами. Всего
-									сущностей в схеме: {schema.entities?.length || 0}
-								</Alert>
-							)}
-						{!schema &&
-							!isLoading &&
-							!error &&
-							featureFlags.newJsonDataV2Enabled && (
-								<Alert severity="warning" sx={{ mb: 2 }}>
-									Не удалось загрузить схему данных для модели. GraphId:{" "}
-									{model.graphId || "отсутствует"}
-								</Alert>
-							)}
+						{objects.length === 0 && !isLoading && !error && schema && (
+							<Alert severity="info" sx={{ mb: 2 }}>
+								Для данной модели нет связей с другими объектами. Всего
+								сущностей в схеме: {schema.entities?.length || 0}
+							</Alert>
+						)}
+						{!schema && !isLoading && !error && (
+							<Alert severity="warning" sx={{ mb: 2 }}>
+								Не удалось загрузить схему данных для модели. GraphId:{" "}
+								{model.graphId || "отсутствует"}
+							</Alert>
+						)}
 					</Paper>
 
 					<Box

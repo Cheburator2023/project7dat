@@ -12,7 +12,6 @@ import {
 	Alert,
 } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
-import { featureFlags } from "@react-client/config/featureFlags";
 import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
 import { DataLineageGraph } from "@react-client/new_features/processes/organisms/DataLineageGraph";
@@ -42,12 +41,6 @@ export function ProcessGraphWindow({
 
 	useEffect(() => {
 		if (!open) return;
-		if (!featureFlags.newJsonDataV2Enabled) {
-			setSchema(null);
-			setError(null);
-			setIsLoading(false);
-			return;
-		}
 
 		let cancelled = false;
 		setIsLoading(true);
