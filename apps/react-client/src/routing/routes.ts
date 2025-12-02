@@ -54,18 +54,6 @@ export const routes = {
 		disabled: false,
 		showInNavbar: true,
 	},
-	processes: {
-		name: "Процессы",
-		rootPath: "/processes",
-		disabled: false,
-		showInNavbar: true,
-	},
-	processGraph: {
-		name: "Граф объектов",
-		rootPath: "/processes/:processId/graph",
-		disabled: false,
-		showInNavbar: false,
-	},
 	commitQueue: {
 		name: "Очередь коммитов",
 		rootPath: "/commit-queue",

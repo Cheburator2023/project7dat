@@ -891,7 +891,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 				</Panel>
 
 				{/* Legend */}
-				<Panel position="bottom-left">
+				{/* <Panel position="bottom-left">
 					<div
 						style={{
 							background: "#fff",
@@ -947,7 +947,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 							💡 2× клик по узлу или связи — детали
 						</div>
 					</div>
-				</Panel>
+				</Panel> */}
 			</ReactFlow>
 
 			{/* Selected Entity Info */}
