@@ -559,3 +559,7 @@ body {
 div.MuiPopper-root::before {
 	background-color: transparent;
 }
+
+div.flexlayout__tabset_tabbar_outer.flexlayout__tabset-selected {
+	background-color: #72bdff1c !important;
+}

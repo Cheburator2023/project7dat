@@ -302,15 +302,8 @@ export const ObjectDetailsDialog = ({
 							justifyContent: "space-between",
 							alignItems: "center",
 							pt: 2,
-							borderTop: 1,
-							borderColor: "divider",
 						}}
 					>
-						<Typography variant="body2" color="text.secondary">
-							{viewMode === "attributes"
-								? `Показано ${filteredAttributes.length} из ${object.attributes.length} атрибутов`
-								: `Показано ${filteredConnections.length} из ${connections.length} связей`}
-						</Typography>
 						{viewMode === "connections" && filteredConnections.length > 0 && (
 							<Typography variant="caption" color="text.secondary">
 								Дважды кликните по связи для просмотра деталей
@@ -319,11 +312,6 @@ export const ObjectDetailsDialog = ({
 					</Box>
 				</Stack>
 			</DialogContent>
-			<DialogActions>
-				<Button variant="outlined" onClick={onClose} startIcon={<CloseIcon />}>
-					Закрыть
-				</Button>
-			</DialogActions>
 		</Dialog>
 	);
 };

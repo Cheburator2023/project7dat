@@ -58,8 +58,8 @@ export const EntityJsonEditor: React.FC<EntityJsonEditorProps> = ({
 
 	return (
 		<Container>
-			<Header>
-				<HeaderContent>
+			<JsonContainer>
+				<CopyButton>
 					<Tooltip title={copied ? "Скопировано!" : "Скопировать JSON"}>
 						<IconButton
 							onClick={handleCopy}
@@ -69,9 +69,7 @@ export const EntityJsonEditor: React.FC<EntityJsonEditorProps> = ({
 							{copied ? <CheckIcon /> : <ContentCopyIcon />}
 						</IconButton>
 					</Tooltip>
-				</HeaderContent>
-			</Header>
-			<JsonContainer>
+				</CopyButton>
 				<pre dangerouslySetInnerHTML={{ __html: highlightedJson }} />
 			</JsonContainer>
 		</Container>
@@ -85,20 +83,15 @@ const Container = styled(Box)(({ theme }) => ({
 	padding: theme.spacing(2),
 }));
 
-const Header = styled(Box)(({ theme }) => ({
-	marginBottom: theme.spacing(2),
-	borderBottom: `1px solid ${theme.vars?.palette?.divider}`,
-	paddingBottom: theme.spacing(1),
-}));
-
-const HeaderContent = styled(Box)(({ theme }) => ({
-	display: "flex",
-	justifyContent: "space-between",
-	alignItems: "flex-start",
-	gap: theme.spacing(2),
+const CopyButton = styled(Box)(({ theme }) => ({
+	position: "absolute",
+	top: theme.spacing(1),
+	right: theme.spacing(1),
+	zIndex: 1,
 }));
 
 const JsonContainer = styled(Box)(({ theme }) => ({
+	position: "relative",
 	flex: 1,
 	overflow: "auto",
 	backgroundColor: theme.vars?.palette?.background.default,
