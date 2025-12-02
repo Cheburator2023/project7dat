@@ -354,12 +354,6 @@ export const MappingDetailsDialog = ({
 					</Box>
 				</Stack>
 			</DialogContent>
-
-			<DialogActions sx={{ px: 3, py: 2 }}>
-				<Button variant="outlined" onClick={onClose} startIcon={<CloseIcon />}>
-					Закрыть
-				</Button>
-			</DialogActions>
 		</Dialog>
 	);
 };

@@ -289,12 +289,6 @@ export const ConnectionDetailsDialog = ({
 					</Box>
 				</Stack>
 			</DialogContent>
-
-			<DialogActions>
-				<Button variant="outlined" onClick={onClose} startIcon={<CloseIcon />}>
-					Закрыть
-				</Button>
-			</DialogActions>
 		</Dialog>
 	);
 };

@@ -521,11 +521,6 @@ export const EntityDetailsDialog = ({
 							borderColor: "divider",
 						}}
 					>
-						<Typography variant="body2" color="text.secondary">
-							{viewMode === "attributes"
-								? `Показано ${filteredAttributes.length} из ${attributes.length} атрибутов`
-								: `Показано ${filteredConnections.length} из ${connections.length} связей`}
-						</Typography>
 						{viewMode === "connections" && filteredConnections.length > 0 && (
 							<Typography variant="caption" color="text.secondary">
 								Кликните по связи для просмотра маппинга
@@ -534,11 +529,6 @@ export const EntityDetailsDialog = ({
 					</Box>
 				</Stack>
 			</DialogContent>
-			<DialogActions sx={{ px: 3, py: 2 }}>
-				<Button variant="outlined" onClick={onClose} startIcon={<CloseIcon />}>
-					Закрыть
-				</Button>
-			</DialogActions>
 		</Dialog>
 	);
 };
