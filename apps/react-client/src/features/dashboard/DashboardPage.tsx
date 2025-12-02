@@ -102,6 +102,7 @@ import {
 	EntityDetailsDialog,
 	MappingDetailsDialog,
 } from "@react-client/features/entityPreview";
+import { Card } from "@react-client/common/muiCustom/Card";
 
 // Connection type for dialogs
 interface EntityConnection {
@@ -137,7 +138,7 @@ const initialFilters: FilterState = {
 	attrCountMax: "",
 };
 
-interface HoveredAttribute {
+interface HighlightedAttribute {
 	entityId: string;
 	attrName: string;
 }
@@ -149,8 +150,12 @@ interface SelectionState {
 	selectedAttributeName: string | null;
 
 	// Hovered attribute for cross-node highlighting
-	hoveredAttribute: HoveredAttribute | null;
-	setHoveredAttribute: (attr: HoveredAttribute | null) => void;
+	hoveredAttribute: HighlightedAttribute | null;
+	setHoveredAttribute: (attr: HighlightedAttribute | null) => void;
+
+	// Clicked/selected attribute for persistent cross-node highlighting
+	selectedAttribute: HighlightedAttribute | null;
+	setSelectedAttribute: (attr: HighlightedAttribute | null) => void;
 
 	// Highlight sets for different panels
 	highlightedEntities: Set<string>;
@@ -189,6 +194,8 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 	selectedAttributeName: null,
 	hoveredAttribute: null,
 	setHoveredAttribute: (attr) => set({ hoveredAttribute: attr }),
+	selectedAttribute: null,
+	setSelectedAttribute: (attr) => set({ selectedAttribute: attr }),
 	highlightedEntities: new Set(),
 	highlightedRows: new Set(),
 	highlightedCodeLines: new Set(),
@@ -262,6 +269,17 @@ interface ObjectRow {
 	parentEntity: string;
 	dataType?: string;
 	description: string;
+}
+
+interface LinkRow {
+	id: string;
+	graphId: string;
+	sourceEntity: string;
+	sourceName: string;
+	targetEntity: string;
+	targetName: string;
+	attrMappingsCount: number;
+	attrMaps: Array<{ src: string; dst: string }>;
 }
 
 // ============================================================================
@@ -649,7 +667,7 @@ const EntitiesPanel = memo(() => {
 });
 
 // ============================================================================
-// Objects Panel Component (Attributes Table)
+// Objects Panel Component (Attributes/Links Table)
 // ============================================================================
 
 const ObjectsPanel = memo(() => {
@@ -666,7 +684,16 @@ const ObjectsPanel = memo(() => {
 
 	const { data: jsonDataList, isLoading } = useJsonDataList();
 
-	// Transform data to object rows
+	// View mode toggle: "attributes" or "links"
+	const [viewMode, setViewMode] = useState<"attributes" | "links">(
+		"attributes",
+	);
+
+	// State for mapping dialog
+	const [selectedLink, setSelectedLink] = useState<LinkRow | null>(null);
+	const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+
+	// Transform data to object rows (attributes)
 	const objects: ObjectRow[] = useMemo(() => {
 		if (!jsonDataList) return [];
 
@@ -702,6 +729,45 @@ const ObjectsPanel = memo(() => {
 		return rows;
 	}, [jsonDataList]);
 
+	// Transform data to link rows (connections)
+	const links: LinkRow[] = useMemo(() => {
+		if (!jsonDataList) return [];
+
+		const rows: LinkRow[] = [];
+		jsonDataList.forEach((item: JsonDataItem) => {
+			const schema = item.data as DataLineageSchema | undefined;
+			if (!schema) return;
+
+			const entityMap = new Map<string, DataLineageEntity>();
+			for (const entity of schema.entities || []) {
+				entityMap.set(entity.id, entity);
+			}
+
+			(schema.mappings || []).forEach((mapping: DataLineageMapping) => {
+				if (!mapping.deps) return;
+				mapping.deps.forEach((dep) => {
+					const sourceEntity = entityMap.get(dep.entityId);
+					const targetEntity = entityMap.get(mapping.entityId);
+					if (!sourceEntity || !targetEntity) return;
+
+					const attrMaps = dep.attrMaps || [];
+					rows.push({
+						id: `${item.id}::${dep.entityId}->${mapping.entityId}`,
+						graphId: item.id,
+						sourceEntity: dep.entityId,
+						sourceName: sourceEntity.name || sourceEntity.id,
+						targetEntity: mapping.entityId,
+						targetName: targetEntity.name || targetEntity.id,
+						attrMappingsCount: attrMaps.length,
+						attrMaps,
+					});
+				});
+			});
+		});
+
+		return rows;
+	}, [jsonDataList]);
+
 	// Filter by selected entity and search
 	const filteredObjects = useMemo(() => {
 		let filtered = objects;
@@ -725,6 +791,32 @@ const ObjectsPanel = memo(() => {
 		return filtered;
 	}, [objects, selectedEntityId, globalSearchQuery]);
 
+	// Filter links by selected entity and search
+	const filteredLinks = useMemo(() => {
+		let filtered = links;
+
+		// Filter by selected entity (show links where entity is source or target)
+		if (selectedEntityId) {
+			filtered = filtered.filter(
+				(l) =>
+					l.sourceEntity === selectedEntityId ||
+					l.targetEntity === selectedEntityId,
+			);
+		}
+
+		// Filter by search
+		if (globalSearchQuery) {
+			const q = globalSearchQuery.toLowerCase();
+			filtered = filtered.filter(
+				(l) =>
+					l.sourceName.toLowerCase().includes(q) ||
+					l.targetName.toLowerCase().includes(q),
+			);
+		}
+
+		return filtered;
+	}, [links, selectedEntityId, globalSearchQuery]);
+
 	// Navigate to object page
 	const handleNavigateToObject = useCallback(
 		(data: ObjectRow) => {
@@ -734,30 +826,15 @@ const ObjectsPanel = memo(() => {
 		[navigate],
 	);
 
-	const columnDefs: ColDef<ObjectRow>[] = useMemo(
+	// Handle link click to open mapping dialog
+	const handleLinkClick = useCallback((link: LinkRow) => {
+		setSelectedLink(link);
+		setIsMappingDialogOpen(true);
+	}, []);
+
+	// Column definitions for attributes
+	const attributeColumnDefs: ColDef<ObjectRow>[] = useMemo(
 		() => [
-			// {
-			// 	headerName: "",
-			// 	field: "id",
-			// 	width: 50,
-			// 	pinned: "left",
-			// 	sortable: false,
-			// 	filter: false,
-			// 	cellRenderer: (params: any) => (
-			// 		<Tooltip title="Открыть карточку">
-			// 			<IconButton
-			// 				size="small"
-			// 				color="primary"
-			// 				onClick={(e) => {
-			// 					e.stopPropagation();
-			// 					handleNavigateToObject(params.data);
-			// 				}}
-			// 			>
-			// 				<VisibilityIcon fontSize="small" />
-			// 			</IconButton>
-			// 		</Tooltip>
-			// 	),
-			// },
 			{
 				field: "name",
 				headerName: "Объект",
@@ -796,7 +873,58 @@ const ObjectsPanel = memo(() => {
 				flex: 1,
 			},
 		],
-		[handleNavigateToObject],
+		[],
+	);
+
+	// Column definitions for links
+	const linkColumnDefs: ColDef<LinkRow>[] = useMemo(
+		() => [
+			{
+				field: "sourceName",
+				headerName: "Источник",
+				flex: 1,
+				cellRenderer: ({ value }: { value: string }) => (
+					<Typography variant="body2" fontWeight={500}>
+						{value}
+					</Typography>
+				),
+			},
+			{
+				headerName: "",
+				width: 50,
+				cellRenderer: () => (
+					<Typography color="text.secondary" sx={{ textAlign: "center" }}>
+						→
+					</Typography>
+				),
+				sortable: false,
+				filter: false,
+			},
+			{
+				field: "targetName",
+				headerName: "Цель",
+				flex: 1,
+				cellRenderer: ({ value }: { value: string }) => (
+					<Typography variant="body2" fontWeight={500}>
+						{value}
+					</Typography>
+				),
+			},
+			{
+				field: "attrMappingsCount",
+				headerName: "Маппинги",
+				width: 100,
+				cellRenderer: ({ value }: { value: number }) => (
+					<Chip
+						label={value}
+						size="small"
+						color={value > 0 ? "primary" : "default"}
+						variant="outlined"
+					/>
+				),
+			},
+		],
+		[],
 	);
 
 	const handleRowClicked = useCallback(
@@ -817,6 +945,15 @@ const ObjectsPanel = memo(() => {
 		[handleNavigateToObject],
 	);
 
+	const handleLinkRowClicked = useCallback(
+		(event: RowClickedEvent<LinkRow>) => {
+			if (event.data) {
+				handleLinkClick(event.data);
+			}
+		},
+		[handleLinkClick],
+	);
+
 	const getRowStyle = useCallback(
 		(params: { data?: ObjectRow }) => {
 			if (params.data?.name === selectedAttributeName) {
@@ -835,6 +972,18 @@ const ObjectsPanel = memo(() => {
 		);
 	}
 
+	// Convert LinkRow to EntityConnection for MappingDetailsDialog
+	const selectedConnection: EntityConnection | null = selectedLink
+		? {
+				id: selectedLink.id,
+				sourceId: selectedLink.sourceEntity,
+				targetId: selectedLink.targetEntity,
+				sourceName: selectedLink.sourceName,
+				targetName: selectedLink.targetName,
+				attrMaps: selectedLink.attrMaps,
+			}
+		: null;
+
 	return (
 		<Box
 			sx={{
@@ -844,35 +993,93 @@ const ObjectsPanel = memo(() => {
 				flexDirection: "column",
 			}}
 		>
-			{selectedEntityId && (
-				<Box
-					sx={{
-						p: 1,
-						bgcolor: "action.hover",
-						borderBottom: 1,
-						borderColor: "divider",
-					}}
-				>
-					<Typography variant="caption">
-						Показаны объекты для: <strong>{selectedEntityId}</strong>
-					</Typography>
-				</Box>
-			)}
-			<Box sx={{ flex: 1 }}>
-				<AgGridReact
-					rowData={filteredObjects}
-					columnDefs={columnDefs}
-					theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-					onRowClicked={handleRowClicked}
-					onRowDoubleClicked={handleRowDoubleClicked}
-					getRowStyle={getRowStyle}
-					rowSelection="single"
-					suppressCellFocus
-					animateRows
-					rowHeight={28}
-					headerHeight={32}
+			{/* Header with toggle and info */}
+			<Box
+				sx={{
+					p: 1,
+					bgcolor: "action.hover",
+					borderBottom: 1,
+					borderColor: "divider",
+					display: "flex",
+					alignItems: "center",
+					gap: 2,
+				}}
+			>
+				<FormControlLabel
+					control={
+						<Checkbox
+							size="small"
+							checked={viewMode === "links"}
+							onChange={(e) =>
+								setViewMode(e.target.checked ? "links" : "attributes")
+							}
+						/>
+					}
+					label={
+						<Typography variant="caption">
+							{viewMode === "links" ? "Связи" : "Атрибуты"}
+						</Typography>
+					}
+					sx={{ m: 0 }}
 				/>
+				{selectedEntityId && (
+					<Typography variant="caption" color="text.secondary">
+						Фильтр: <strong>{selectedEntityId}</strong>
+					</Typography>
+				)}
+				<Typography
+					variant="caption"
+					color="text.secondary"
+					sx={{ ml: "auto" }}
+				>
+					{viewMode === "attributes"
+						? `${filteredObjects.length} объектов`
+						: `${filteredLinks.length} связей`}
+				</Typography>
 			</Box>
+
+			{/* Table content */}
+			<Box sx={{ flex: 1 }}>
+				{viewMode === "attributes" ? (
+					<AgGridReact
+						rowData={filteredObjects}
+						columnDefs={attributeColumnDefs}
+						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+						onRowClicked={handleRowClicked}
+						onRowDoubleClicked={handleRowDoubleClicked}
+						getRowStyle={getRowStyle}
+						rowSelection="single"
+						suppressCellFocus
+						animateRows
+						rowHeight={28}
+						headerHeight={32}
+					/>
+				) : (
+					<AgGridReact
+						rowData={filteredLinks}
+						columnDefs={linkColumnDefs}
+						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+						onRowClicked={handleLinkRowClicked}
+						rowSelection="single"
+						suppressCellFocus
+						animateRows
+						rowHeight={28}
+						headerHeight={32}
+					/>
+				)}
+			</Box>
+
+			{/* Mapping Details Dialog */}
+			{selectedConnection && (
+				<MappingDetailsDialog
+					open={isMappingDialogOpen}
+					onClose={() => {
+						setIsMappingDialogOpen(false);
+						setSelectedLink(null);
+					}}
+					connection={selectedConnection}
+				/>
+			)}
 		</Box>
 	);
 });
@@ -998,6 +1205,7 @@ interface EntityNodeData {
 	onNodeClick: (id: string) => void;
 	onNodeDoubleClick: (id: string, graphId: string) => void;
 	onAttrHover: (entityId: string, attrName: string | null) => void;
+	onAttrClick: (entityId: string, attrName: string) => void;
 	graphId: string;
 	upstreamCount: number;
 	downstreamCount: number;
@@ -1005,6 +1213,8 @@ interface EntityNodeData {
 	highlightedTargetAttrs?: Set<string>;
 	// Attributes highlighted due to hover on connected node
 	hoverHighlightedAttrs?: Set<string>;
+	// Attributes highlighted due to click/selection on connected node
+	selectedHighlightedAttrs?: Set<string>;
 	[key: string]: unknown;
 }
 
@@ -1021,12 +1231,14 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 		onNodeClick,
 		onNodeDoubleClick,
 		onAttrHover,
+		onAttrClick,
 		graphId,
 		upstreamCount,
 		downstreamCount,
 		highlightedSourceAttrs = new Set<string>(),
 		highlightedTargetAttrs = new Set<string>(),
 		hoverHighlightedAttrs = new Set<string>(),
+		selectedHighlightedAttrs = new Set<string>(),
 	} = data;
 	const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 	const attrs = entity.attrSeq || [];
@@ -1196,11 +1408,18 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 						const isSourceHighlighted = highlightedSourceAttrs.has(attr.name);
 						const isTargetHighlighted = highlightedTargetAttrs.has(attr.name);
 						const isHoverHighlighted = hoverHighlightedAttrs.has(attr.name);
-						const isHighlighted = isHoverHighlighted;
+						const isSelectedHighlighted = selectedHighlightedAttrs.has(
+							attr.name,
+						);
+						const isHighlighted = isHoverHighlighted || isSelectedHighlighted;
 						return (
 							<div
 								key={attr.name}
 								onMouseEnter={() => onAttrHover(id, attr.name)}
+								onClick={(e) => {
+									e.stopPropagation();
+									onAttrClick(id, attr.name);
+								}}
 								style={{
 									display: "flex",
 									justifyContent: "space-between",
@@ -1210,11 +1429,13 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 										idx < visibleAttrs.length - 1
 											? "1px solid #f5f5f5"
 											: "none",
-									background: isHighlighted
-										? `${HIGHLIGHT_COLORS.selected}50`
-										: idx % 2 === 0
-											? "#fafafa"
-											: "#fff",
+									background: isSelectedHighlighted
+										? `${HIGHLIGHT_COLORS.selected}70`
+										: isHoverHighlighted
+											? `${HIGHLIGHT_COLORS.selected}30`
+											: idx % 2 === 0
+												? "#fafafa"
+												: "#fff",
 									position: "relative",
 									cursor: "pointer",
 									transition: "background 0.15s ease",
@@ -1227,11 +1448,11 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 									id={`attr-target-${attr.name}`}
 									style={{
 										background:
-											isTargetHighlighted || isHoverHighlighted
+											isTargetHighlighted || isHighlighted
 												? HIGHLIGHT_COLORS.selected
 												: colors.border,
-										width: isHoverHighlighted ? 8 : 6,
-										height: isHoverHighlighted ? 8 : 6,
+										width: isHighlighted ? 8 : 6,
+										height: isHighlighted ? 8 : 6,
 										left: -3,
 										border: "1px solid #fff",
 										transition: "all 0.15s ease",
@@ -1259,11 +1480,11 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 									id={`attr-source-${attr.name}`}
 									style={{
 										background:
-											isSourceHighlighted || isHoverHighlighted
+											isSourceHighlighted || isHighlighted
 												? HIGHLIGHT_COLORS.selected
 												: colors.border,
-										width: isHoverHighlighted ? 8 : 6,
-										height: isHoverHighlighted ? 8 : 6,
+										width: isHighlighted ? 8 : 6,
+										height: isHighlighted ? 8 : 6,
 										right: -3,
 										border: "1px solid #fff",
 										transition: "all 0.15s ease",
@@ -1448,6 +1669,7 @@ interface GraphPanelInnerProps {
 		upstream: Set<string>,
 		downstream: Set<string>,
 	) => void;
+	onEdgeClick?: (sourceId: string, targetId: string) => void;
 }
 
 const GraphPanelInner = memo<GraphPanelInnerProps>(
@@ -1458,10 +1680,20 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 		onSelectEntity,
 		onNodeDoubleClick,
 		onUpstreamDownstreamChange,
+		onEdgeClick,
 	}) => {
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
+		// Graph mode: "entities" = compact (entity-level edges), "attributes" = detailed (attribute-level edges)
+		const [graphMode, setGraphMode] = useState<"entities" | "attributes">(
+			"attributes",
+		);
 		const { fitView } = useReactFlow();
-		const { hoveredAttribute, setHoveredAttribute } = useDashboardStore();
+		const {
+			hoveredAttribute,
+			setHoveredAttribute,
+			selectedAttribute,
+			setSelectedAttribute,
+		} = useDashboardStore();
 
 		const lineageGraph = useMemo(
 			() => buildLineageGraph(data.mappings || []),
@@ -1521,6 +1753,16 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 			[onNodeDoubleClick],
 		);
 
+		// Handle edge click to show mapping details
+		const handleEdgeClick = useCallback(
+			(_event: React.MouseEvent, edge: Edge) => {
+				if (onEdgeClick && edge.source && edge.target) {
+					onEdgeClick(edge.source, edge.target);
+				}
+			},
+			[onEdgeClick],
+		);
+
 		const handleAttrHover = useCallback(
 			(entityId: string, attrName: string | null) => {
 				if (attrName) {
@@ -1530,6 +1772,21 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			},
 			[setHoveredAttribute],
+		);
+
+		const handleAttrClick = useCallback(
+			(entityId: string, attrName: string) => {
+				// Toggle selection: if clicking same attribute, deselect; otherwise select new one
+				if (
+					selectedAttribute?.entityId === entityId &&
+					selectedAttribute?.attrName === attrName
+				) {
+					setSelectedAttribute(null);
+				} else {
+					setSelectedAttribute({ entityId, attrName });
+				}
+			},
+			[selectedAttribute, setSelectedAttribute],
 		);
 
 		// Build attribute connection map for hover highlighting
@@ -1586,11 +1843,56 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 			return result;
 		}, [hoveredAttribute, attrConnectionMap]);
 
+		// Compute selected/clicked-highlighted attributes for each entity
+		const selectedHighlightedByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			if (!selectedAttribute) return result;
+
+			const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
+			const connectedAttrs = attrConnectionMap.get(selectedKey);
+
+			// Highlight the selected attribute itself
+			if (!result.has(selectedAttribute.entityId)) {
+				result.set(selectedAttribute.entityId, new Set());
+			}
+			result.get(selectedAttribute.entityId)!.add(selectedAttribute.attrName);
+
+			// Highlight connected attributes
+			if (connectedAttrs) {
+				connectedAttrs.forEach((key) => {
+					const [entityId, attrName] = key.split("::");
+					if (!result.has(entityId)) {
+						result.set(entityId, new Set());
+					}
+					result.get(entityId)!.add(attrName);
+				});
+			}
+			return result;
+		}, [selectedAttribute, attrConnectionMap]);
+
 		// Create nodes and edges
 		const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
+			// Deduplicate entities by ID (keep first occurrence)
+			const seenEntityIds = new Set<string>();
+			const uniqueEntities: DataLineageEntity[] = [];
+			for (const entity of data.entities || []) {
+				if (!entity.id) {
+					console.warn(
+						"[Graph] Entity with null/undefined ID skipped:",
+						entity,
+					);
+					continue;
+				}
+				if (seenEntityIds.has(entity.id)) {
+					console.warn("[Graph] Duplicate entity ID skipped:", entity.id);
+					continue;
+				}
+				seenEntityIds.add(entity.id);
+				uniqueEntities.push(entity);
+			}
+
 			const entityMap = new Map<string, DataLineageEntity>();
-			for (const entity of data.entities || [])
-				entityMap.set(entity.id, entity);
+			for (const entity of uniqueEntities) entityMap.set(entity.id, entity);
 
 			// Build attribute-level highlight maps for each entity
 			// Maps entity ID -> Set of source/target attr names that have edges
@@ -1618,7 +1920,7 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 				});
 			});
 
-			const nodes: EntityNode[] = (data.entities || []).map((entity) => {
+			const nodes: EntityNode[] = uniqueEntities.map((entity) => {
 				let highlightType: EntityNodeData["highlightType"] = "none";
 				if (entity.id === selectedEntityId) highlightType = "selected";
 				else if (upstreamNodes.has(entity.id)) highlightType = "upstream";
@@ -1634,6 +1936,7 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,
 						onAttrHover: handleAttrHover,
+						onAttrClick: handleAttrClick,
 						graphId,
 						upstreamCount: upstreamCounts.get(entity.id) || 0,
 						downstreamCount: downstreamCounts.get(entity.id) || 0,
@@ -1643,9 +1946,34 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 							entityTargetAttrs.get(entity.id) || new Set<string>(),
 						hoverHighlightedAttrs:
 							hoverHighlightedByEntity.get(entity.id) || new Set<string>(),
+						selectedHighlightedAttrs:
+							selectedHighlightedByEntity.get(entity.id) || new Set<string>(),
 					},
 				};
 			});
+
+			// Build a map of all attributes each entity actually has
+			const entityAttrNames = new Map<string, Set<string>>();
+			for (const entity of uniqueEntities) {
+				const attrNames = new Set((entity.attrSeq || []).map((a) => a.name));
+				entityAttrNames.set(entity.id, attrNames);
+			}
+
+			// Build a map of actually visible attributes per entity (respecting MAX_VISIBLE_ATTRS)
+			const visibleAttrsPerEntity = new Map<string, Set<string>>();
+			for (const entity of uniqueEntities) {
+				const sourceAttrs = entitySourceAttrs.get(entity.id) || new Set();
+				const targetAttrs = entityTargetAttrs.get(entity.id) || new Set();
+				const relatedAttrNames = new Set([...sourceAttrs, ...targetAttrs]);
+				const attrs = entity.attrSeq || [];
+				const allRelatedAttrs = attrs.filter((attr) =>
+					relatedAttrNames.has(attr.name),
+				);
+				const visibleAttrs = allRelatedAttrs
+					.slice(0, MAX_VISIBLE_ATTRS)
+					.map((a) => a.name);
+				visibleAttrsPerEntity.set(entity.id, new Set(visibleAttrs));
+			}
 
 			const edges: Edge[] = [];
 			const edgeSet = new Set<string>();
@@ -1653,27 +1981,91 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 			(data.mappings || []).forEach((mapping) => {
 				if (!mapping.deps) return;
 				mapping.deps.forEach((dep) => {
-					if (!entityMap.has(dep.entityId) || !entityMap.has(mapping.entityId))
+					// Skip if source or target entity doesn't exist in graph
+					if (!dep.entityId || !mapping.entityId) {
+						console.warn(
+							"[Graph] Mapping with null entityId skipped:",
+							dep.entityId,
+							"->",
+							mapping.entityId,
+						);
 						return;
+					}
+					if (
+						!entityMap.has(dep.entityId) ||
+						!entityMap.has(mapping.entityId)
+					) {
+						// Entity referenced in mapping but not in entities list
+						return;
+					}
 
-					const isEntityHighlighted =
-						(upstreamNodes.has(dep.entityId) &&
-							upstreamNodes.has(mapping.entityId)) ||
-						(downstreamNodes.has(dep.entityId) &&
-							downstreamNodes.has(mapping.entityId)) ||
-						dep.entityId === selectedEntityId ||
-						mapping.entityId === selectedEntityId;
+					// Determine edge highlight type based on upstream/downstream relationship
+					// Edge goes from dep.entityId (source) -> mapping.entityId (target)
+					let edgeHighlightType: "none" | "upstream" | "downstream" = "none";
 
-					// If we have attribute-level mappings, create edges for each attribute pair
-					if (dep.attrMaps && dep.attrMaps.length > 0) {
+					if (dep.entityId === selectedEntityId) {
+						// Source is selected -> edge goes downstream
+						edgeHighlightType = "downstream";
+					} else if (mapping.entityId === selectedEntityId) {
+						// Target is selected -> edge comes from upstream
+						edgeHighlightType = "upstream";
+					} else if (
+						upstreamNodes.has(dep.entityId) &&
+						upstreamNodes.has(mapping.entityId)
+					) {
+						// Both source and target are upstream
+						edgeHighlightType = "upstream";
+					} else if (
+						downstreamNodes.has(dep.entityId) &&
+						downstreamNodes.has(mapping.entityId)
+					) {
+						// Both source and target are downstream
+						edgeHighlightType = "downstream";
+					}
+
+					const isEntityHighlighted = edgeHighlightType !== "none";
+					const edgeHighlightColor =
+						edgeHighlightType === "upstream"
+							? HIGHLIGHT_COLORS.upstream
+							: edgeHighlightType === "downstream"
+								? HIGHLIGHT_COLORS.downstream
+								: "#b1b1b7";
+
+					// In "entities" mode: always use entity-level edges
+					// In "attributes" mode: use attribute-level edges when available
+					if (
+						graphMode === "attributes" &&
+						dep.attrMaps &&
+						dep.attrMaps.length > 0
+					) {
+						const sourceVisibleAttrs =
+							visibleAttrsPerEntity.get(dep.entityId) || new Set();
+						const targetVisibleAttrs =
+							visibleAttrsPerEntity.get(mapping.entityId) || new Set();
+
 						dep.attrMaps.forEach((attrMap, attrIdx) => {
 							const edgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
 							if (edgeSet.has(edgeId)) return;
 							edgeSet.add(edgeId);
 
-							// All related attributes are visible, so use attribute-level handles
-							const sourceHandle = `attr-source-${attrMap.src}`;
-							const targetHandle = `attr-target-${attrMap.dst}`;
+							// Check if entity actually has the attribute AND it's visible
+							const srcEntityHasAttr =
+								entityAttrNames.get(dep.entityId)?.has(attrMap.src) ?? false;
+							const dstEntityHasAttr =
+								entityAttrNames.get(mapping.entityId)?.has(attrMap.dst) ??
+								false;
+							const srcVisible =
+								srcEntityHasAttr && sourceVisibleAttrs.has(attrMap.src);
+							const dstVisible =
+								dstEntityHasAttr && targetVisibleAttrs.has(attrMap.dst);
+
+							// Use entity-level handles if attributes aren't visible
+							const sourceHandle = srcVisible
+								? `attr-source-${attrMap.src}`
+								: "entity-source";
+							const targetHandle = dstVisible
+								? `attr-target-${attrMap.dst}`
+								: "entity-target";
 
 							// Use different colors for attribute edges
 							const attrColors = [
@@ -1685,7 +2077,7 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 								"#e91e63",
 							];
 							const edgeColor = isEntityHighlighted
-								? HIGHLIGHT_COLORS.downstream
+								? edgeHighlightColor
 								: attrColors[attrIdx % attrColors.length];
 
 							edges.push({
@@ -1707,13 +2099,23 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 									width: 12,
 									height: 12,
 								},
+								// Show label if either attribute is not visible
+								label:
+									!srcVisible || !dstVisible
+										? `${attrMap.src} → ${attrMap.dst}`
+										: undefined,
+								labelStyle: { fontSize: 8, fill: "#666" },
+								labelBgStyle: { fill: "#fff", fillOpacity: 0.8 },
 							});
 						});
 					} else {
-						// Fallback to entity-level edge if no attribute mappings
+						// Entity-level edge (used in "entities" mode or when no attribute mappings)
 						const edgeId = `${dep.entityId}->${mapping.entityId}`;
 						if (edgeSet.has(edgeId)) return;
 						edgeSet.add(edgeId);
+
+						// Count attribute mappings for label
+						const attrCount = dep.attrMaps?.length || 0;
 
 						edges.push({
 							id: edgeId,
@@ -1724,17 +2126,20 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 							type: "smoothstep",
 							animated: isEntityHighlighted,
 							style: {
-								stroke: isEntityHighlighted
-									? HIGHLIGHT_COLORS.downstream
-									: "#b1b1b7",
+								stroke: edgeHighlightColor,
 								strokeWidth: isEntityHighlighted ? 2 : 1,
 							},
 							markerEnd: {
 								type: MarkerType.ArrowClosed,
-								color: isEntityHighlighted
-									? HIGHLIGHT_COLORS.downstream
-									: "#b1b1b7",
+								color: edgeHighlightColor,
 							},
+							// Show mapping count in entities mode
+							label:
+								graphMode === "entities" && attrCount > 0
+									? `${attrCount} маппингов`
+									: undefined,
+							labelStyle: { fontSize: 9, fill: "#666" },
+							labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
 						});
 					}
 				});
@@ -1744,15 +2149,18 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [
 			data,
 			graphId,
+			graphMode,
 			selectedEntityId,
 			upstreamNodes,
 			downstreamNodes,
 			handleNodeClick,
 			handleNodeDblClick,
 			handleAttrHover,
+			handleAttrClick,
 			upstreamCounts,
 			downstreamCounts,
 			hoverHighlightedByEntity,
+			selectedHighlightedByEntity,
 		]);
 
 		// Apply layout
@@ -1785,7 +2193,9 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
+				onEdgeClick={handleEdgeClick}
 				nodeTypes={graphNodeTypes}
+				nodesDraggable={false}
 				fitView
 				minZoom={0.1}
 				maxZoom={2}
@@ -1823,24 +2233,48 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 						<div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
 							{data.entities?.length || 0} сущностей
 						</div>
-						<button
-							onClick={() =>
-								setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
-							}
-							style={{
-								padding: "6px 12px",
-								border: "1px solid #ddd",
-								borderRadius: 6,
-								background: "#fff",
-								cursor: "pointer",
-								fontSize: 11,
-							}}
-						>
-							{layoutDirection === "LR" ? "↔ Горизонтально" : "↕ Вертикально"}
-						</button>
+						<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+							<button
+								onClick={() =>
+									setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
+								}
+								style={{
+									padding: "6px 12px",
+									border: "1px solid #ddd",
+									borderRadius: 6,
+									background: "#fff",
+									cursor: "pointer",
+									fontSize: 11,
+								}}
+							>
+								{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
+							</button>
+							<button
+								onClick={() =>
+									setGraphMode(
+										graphMode === "entities" ? "attributes" : "entities",
+									)
+								}
+								style={{
+									padding: "6px 12px",
+									border: "1px solid #ddd",
+									borderRadius: 6,
+									background: graphMode === "attributes" ? "#e3f2fd" : "#fff",
+									cursor: "pointer",
+									fontSize: 11,
+								}}
+								title={
+									graphMode === "attributes"
+										? "Показаны связи атрибутов"
+										: "Показаны связи объектов"
+								}
+							>
+								{graphMode === "attributes" ? "🔗 Атрибуты" : "📦 Объекты"}
+							</button>
+						</div>
 					</div>
 				</Panel>
-				<Panel position="bottom-left">
+				{/* <Panel position="bottom-left">
 					<div
 						style={{
 							background: "#fff",
@@ -1871,7 +2305,7 @@ const GraphPanelInner = memo<GraphPanelInnerProps>(
 							</div>
 						))}
 					</div>
-				</Panel>
+				</Panel> */}
 			</ReactFlow>
 		);
 	},
@@ -1975,6 +2409,20 @@ const GraphPanel = memo(() => {
 		setIsMappingDialogOpen(true);
 	}, []);
 
+	// Handle edge click in graph to show mapping details
+	const handleEdgeClick = useCallback(
+		(sourceId: string, targetId: string) => {
+			const connection = entityConnections.find(
+				(c) => c.sourceId === sourceId && c.targetId === targetId,
+			);
+			if (connection) {
+				setSelectedConnection(connection);
+				setIsMappingDialogOpen(true);
+			}
+		},
+		[entityConnections],
+	);
+
 	if (isLoading) {
 		return (
 			<Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
@@ -2004,6 +2452,7 @@ const GraphPanel = memo(() => {
 					onSelectEntity={handleSelectEntity}
 					onNodeDoubleClick={handleNodeDoubleClick}
 					onUpstreamDownstreamChange={setUpstreamDownstream}
+					onEdgeClick={handleEdgeClick}
 				/>
 			</ReactFlowProvider>
 
@@ -2230,6 +2679,503 @@ const SelectionInfoPanel = memo(() => {
 });
 
 // ============================================================================
+// Debug Panel - Graph Analysis
+// ============================================================================
+
+interface DebugIssue {
+	type: "error" | "warning";
+	category: string;
+	message: string;
+	location: string;
+	details?: string;
+}
+
+// JSON Schema type for inferred schema
+type JsonSchemaType =
+	| { type: "null" }
+	| { type: "boolean" }
+	| { type: "integer" }
+	| { type: "number" }
+	| { type: "string" }
+	| { type: "array"; items: JsonSchemaType }
+	| { type: "object"; properties: Record<string, JsonSchemaType> }
+	| { type: "mixed"; types: string[] };
+
+// Infer JSON schema from a value by analyzing its structure
+function inferJsonSchema(value: unknown, maxDepth = 5): JsonSchemaType {
+	if (maxDepth <= 0) {
+		return { type: "object", properties: {} };
+	}
+
+	if (value === null || value === undefined) {
+		return { type: "null" };
+	}
+
+	if (typeof value === "boolean") {
+		return { type: "boolean" };
+	}
+
+	if (typeof value === "number") {
+		return Number.isInteger(value) ? { type: "integer" } : { type: "number" };
+	}
+
+	if (typeof value === "string") {
+		return { type: "string" };
+	}
+
+	if (Array.isArray(value)) {
+		if (value.length === 0) {
+			return { type: "array", items: { type: "null" } };
+		}
+		// Merge schemas from all array items
+		const itemSchemas = value
+			.slice(0, 10)
+			.map((item) => inferJsonSchema(item, maxDepth - 1));
+		const mergedItems = mergeSchemas(itemSchemas);
+		return { type: "array", items: mergedItems };
+	}
+
+	if (typeof value === "object") {
+		const properties: Record<string, JsonSchemaType> = {};
+		for (const [key, val] of Object.entries(value)) {
+			properties[key] = inferJsonSchema(val, maxDepth - 1);
+		}
+		return { type: "object", properties };
+	}
+
+	return { type: "string" };
+}
+
+// Merge multiple schemas into one (for array items)
+function mergeSchemas(schemas: JsonSchemaType[]): JsonSchemaType {
+	if (schemas.length === 0) return { type: "null" };
+	if (schemas.length === 1) return schemas[0];
+
+	const types = new Set<string>();
+	const allProperties: Record<string, JsonSchemaType[]> = {};
+	const arrayItems: JsonSchemaType[] = [];
+
+	for (const schema of schemas) {
+		types.add(schema.type);
+		if (schema.type === "object" && "properties" in schema) {
+			for (const [key, val] of Object.entries(schema.properties)) {
+				if (!allProperties[key]) allProperties[key] = [];
+				allProperties[key].push(val);
+			}
+		}
+		if (schema.type === "array" && "items" in schema) {
+			arrayItems.push(schema.items);
+		}
+	}
+
+	// If all same type
+	if (types.size === 1) {
+		const type = schemas[0].type;
+		if (type === "object") {
+			const mergedProps: Record<string, JsonSchemaType> = {};
+			for (const [key, vals] of Object.entries(allProperties)) {
+				mergedProps[key] = mergeSchemas(vals);
+			}
+			return { type: "object", properties: mergedProps };
+		}
+		if (type === "array" && arrayItems.length > 0) {
+			return { type: "array", items: mergeSchemas(arrayItems) };
+		}
+		return schemas[0];
+	}
+
+	return { type: "mixed", types: [...types] };
+}
+
+// Format schema as readable JSON string
+function formatSchema(schema: JsonSchemaType, indent = 0): string {
+	const pad = "  ".repeat(indent);
+	const pad1 = "  ".repeat(indent + 1);
+
+	if (schema.type === "object" && "properties" in schema) {
+		const props = Object.entries(schema.properties);
+		if (props.length === 0) return `${pad}{ "type": "object" }`;
+		const propsStr = props
+			.map(([key, val]) => {
+				if (val.type === "object" || val.type === "array") {
+					return `${pad1}"${key}": {\n${formatSchema(val, indent + 2)}\n${pad1}}`;
+				}
+				return `${pad1}"${key}": { "type": "${val.type}"${val.type === "mixed" && "types" in val ? `, "types": [${val.types.map((t) => `"${t}"`).join(", ")}]` : ""} }`;
+			})
+			.join(",\n");
+		return `${pad}"type": "object",\n${pad}"properties": {\n${propsStr}\n${pad}}`;
+	}
+
+	if (schema.type === "array" && "items" in schema) {
+		if (schema.items.type === "object" || schema.items.type === "array") {
+			return `${pad}"type": "array",\n${pad}"items": {\n${formatSchema(schema.items, indent + 1)}\n${pad}}`;
+		}
+		return `${pad}"type": "array",\n${pad}"items": { "type": "${schema.items.type}" }`;
+	}
+
+	if (schema.type === "mixed" && "types" in schema) {
+		return `${pad}"type": "mixed",\n${pad}"types": [${schema.types.map((t) => `"${t}"`).join(", ")}]`;
+	}
+
+	return `${pad}"type": "${schema.type}"`;
+}
+
+// Shared hook for graph analysis (used by both IssuesPanel and SchemaPanel)
+// If graphId is provided, only analyze that specific graph
+function useGraphAnalysis(graphId?: string | null) {
+	const { data: jsonDataList } = useJsonDataList();
+
+	return useMemo(() => {
+		const issues: DebugIssue[] = [];
+		const seenIssues = new Set<string>(); // For deduplication
+
+		const addIssue = (issue: DebugIssue) => {
+			const key = `${issue.type}:${issue.category}:${issue.message}:${issue.location}`;
+			if (!seenIssues.has(key)) {
+				seenIssues.add(key);
+				issues.push(issue);
+			}
+		};
+
+		if (!jsonDataList) return { issues, schema: { type: "null" as const } };
+
+		// Deduplicate jsonDataList by item.id
+		const seenGraphIds = new Set<string>();
+		let uniqueJsonDataList = jsonDataList.filter((item) => {
+			if (seenGraphIds.has(item.id)) {
+				return false;
+			}
+			seenGraphIds.add(item.id);
+			return true;
+		});
+
+		// If graphId is specified, filter to only that graph
+		if (graphId) {
+			uniqueJsonDataList = uniqueJsonDataList.filter(
+				(item) => item.id === graphId,
+			);
+		}
+
+		uniqueJsonDataList.forEach((item: JsonDataItem, graphIdx: number) => {
+			const graphData = item.data as DataLineageSchema | undefined;
+			if (!graphData) {
+				addIssue({
+					type: "error",
+					category: "Graph",
+					message: "Graph data is null/undefined",
+					location: `Graph #${graphIdx} (${item.id})`,
+				});
+				return;
+			}
+
+			const entities = graphData.entities || [];
+			const mappings = graphData.mappings || [];
+
+			// Track seen IDs for duplicates
+			const seenEntityIds = new Map<string, number[]>();
+			const entityAttrMap = new Map<string, Set<string>>();
+
+			// Analyze entities
+			entities.forEach((entity, entityIdx) => {
+				// Check for null/undefined ID
+				if (!entity.id) {
+					addIssue({
+						type: "error",
+						category: "Entity ID",
+						message: "Entity has null/undefined ID",
+						location: `Graph "${item.id}" → entities[${entityIdx}]`,
+						details: JSON.stringify(entity, null, 2).slice(0, 200),
+					});
+					return;
+				}
+
+				// Check for duplicate IDs
+				if (seenEntityIds.has(entity.id)) {
+					addIssue({
+						type: "error",
+						category: "Дубли",
+						message: `Entity ID "${entity.id}" appears ${seenEntityIds.get(entity.id)!.length} times`,
+						location: `Graph "${item.id}"`,
+						details: `Indices: ${seenEntityIds.get(entity.id)!.join(", ")}`,
+					});
+					seenEntityIds.get(entity.id)!.push(entityIdx);
+				} else {
+					seenEntityIds.set(entity.id, [entityIdx]);
+				}
+
+				// Track attributes for this entity
+				const attrNames = new Set<string>();
+				const seenAttrNames = new Map<string, number[]>();
+
+				(entity.attrSeq || []).forEach((attr, attrIdx) => {
+					if (!attr.name) {
+						addIssue({
+							type: "warning",
+							category: "Attribute",
+							message: "Attribute has null/undefined name",
+							location: `Graph "${item.id}" → entities[${entityIdx}] "${entity.id}" → attrSeq[${attrIdx}]`,
+						});
+						return;
+					}
+
+					if (seenAttrNames.has(attr.name)) {
+						seenAttrNames.get(attr.name)!.push(attrIdx);
+					} else {
+						seenAttrNames.set(attr.name, [attrIdx]);
+					}
+					attrNames.add(attr.name);
+				});
+
+				// Report duplicate attributes
+				seenAttrNames.forEach((indices, attrName) => {
+					if (indices.length > 1) {
+						addIssue({
+							type: "warning",
+							category: "Duplicate Attribute",
+							message: `Attribute "${attrName}" appears ${indices.length} times`,
+							location: `Graph "${item.id}" → entities[${entityIdx}] "${entity.id}"`,
+							details: `Indices: ${indices.join(", ")}`,
+						});
+					}
+				});
+
+				entityAttrMap.set(entity.id, attrNames);
+			});
+
+			// Report duplicate entity IDs
+			seenEntityIds.forEach((indices, entityId) => {
+				if (indices.length > 1) {
+					addIssue({
+						type: "error",
+						category: "Дубли",
+						message: `Entity ID "${entityId}" appears ${indices.length} times`,
+						location: `Graph "${item.id}"`,
+						details: `Indices: ${indices.join(", ")}`,
+					});
+				}
+			});
+
+			// Analyze mappings
+			mappings.forEach((mapping, mappingIdx) => {
+				if (!mapping.entityId) {
+					addIssue({
+						type: "error",
+						category: "Mapping",
+						message: "Mapping has null/undefined entityId",
+						location: `Graph "${item.id}" → mappings[${mappingIdx}]`,
+					});
+					return;
+				}
+
+				// Check if target entity exists
+				if (!seenEntityIds.has(mapping.entityId)) {
+					addIssue({
+						type: "warning",
+						category: "Orphan Mapping",
+						message: `Mapping target entity "${mapping.entityId}" not in entities list`,
+						location: `Graph "${item.id}" → mappings[${mappingIdx}]`,
+					});
+				}
+
+				(mapping.deps || []).forEach((dep, depIdx) => {
+					if (!dep.entityId) {
+						addIssue({
+							type: "error",
+							category: "Dependency",
+							message: "Dependency has null/undefined entityId",
+							location: `Graph "${item.id}" → mappings[${mappingIdx}] → deps[${depIdx}]`,
+						});
+						return;
+					}
+
+					// Check if source entity exists
+					if (!seenEntityIds.has(dep.entityId)) {
+						addIssue({
+							type: "warning",
+							category: "Orphan Dependency",
+							message: `Dependency source entity "${dep.entityId}" not in entities list`,
+							location: `Graph "${item.id}" → mappings[${mappingIdx}] → deps[${depIdx}]`,
+						});
+					}
+
+					// Check attribute mappings
+					(dep.attrMaps || []).forEach((attrMap, attrMapIdx) => {
+						const srcEntityAttrs = entityAttrMap.get(dep.entityId);
+						const dstEntityAttrs = entityAttrMap.get(mapping.entityId);
+
+						if (srcEntityAttrs && !srcEntityAttrs.has(attrMap.src)) {
+							addIssue({
+								type: "warning",
+								category: "Отсутствует источник",
+								message: `Source attr "${attrMap.src}" not in entity "${dep.entityId}"`,
+								location: `Graph "${item.id}" → mappings[${mappingIdx}] → deps[${depIdx}] → attrMaps[${attrMapIdx}]`,
+							});
+						}
+
+						if (dstEntityAttrs && !dstEntityAttrs.has(attrMap.dst)) {
+							addIssue({
+								type: "warning",
+								category: "Missing Target Attr",
+								message: `Target attr "${attrMap.dst}" not in entity "${mapping.entityId}"`,
+								location: `Graph "${item.id}" → mappings[${mappingIdx}] → deps[${depIdx}] → attrMaps[${attrMapIdx}]`,
+							});
+						}
+					});
+				});
+			});
+		});
+
+		// Infer unified schema from all graphs (use deduplicated list)
+		const allGraphData = uniqueJsonDataList
+			.map((item) => item.data)
+			.filter(Boolean);
+		const unifiedSchema =
+			allGraphData.length > 0
+				? inferJsonSchema(allGraphData[0], 6)
+				: { type: "null" as const };
+
+		return { issues, schema: unifiedSchema };
+	}, [jsonDataList, graphId]);
+}
+
+// Issues Panel - shows validation errors and warnings for current graph
+const IssuesPanel = memo(() => {
+	const { selectedGraphId } = useDashboardStore();
+	const { data: jsonDataList } = useJsonDataList();
+
+	// Auto-select first graph if none selected (same logic as GraphPanel)
+	const effectiveGraphId = useMemo(() => {
+		if (selectedGraphId) return selectedGraphId;
+		if (jsonDataList && jsonDataList.length > 0) return jsonDataList[0].id;
+		return null;
+	}, [selectedGraphId, jsonDataList]);
+
+	const analysis = useGraphAnalysis(effectiveGraphId);
+
+	const errorCount = analysis.issues.filter((i) => i.type === "error").length;
+	const warningCount = analysis.issues.filter(
+		(i) => i.type === "warning",
+	).length;
+
+	return (
+		<Box sx={{ p: 2, height: "100%", overflow: "auto", fontSize: 12 }}>
+			{/* Summary */}
+			<Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+				<Chip
+					label={`${errorCount} ошибок`}
+					color={errorCount > 0 ? "error" : "default"}
+					size="small"
+				/>
+				<Chip
+					label={`${warningCount} предупреждений`}
+					color={warningCount > 0 ? "warning" : "default"}
+					size="small"
+				/>
+			</Box>
+
+			{/* Issues List */}
+			<Flex gap={10} flexDirection="column">
+				{analysis.issues.length === 0 ? (
+					<Alert severity="success" sx={{ fontSize: 11 }}>
+						Проблем не обнаружено!
+					</Alert>
+				) : (
+					analysis.issues.map((issue, idx) => (
+						<Card key={idx}>
+							<Box
+								sx={{
+									display: "flex",
+									gap: 1,
+									alignItems: "center",
+									mb: 0.5,
+								}}
+							>
+								<Chip
+									label={issue.category}
+									size="small"
+									color={issue.type === "error" ? "error" : "warning"}
+									sx={{ fontSize: 10, height: 20 }}
+								/>
+								<Typography
+									variant="body2"
+									sx={{ fontWeight: 500, fontSize: 11 }}
+								>
+									{issue.message}
+								</Typography>
+							</Box>
+							<Typography
+								variant="caption"
+								sx={{
+									fontFamily: "monospace",
+									fontSize: 10,
+									color: "text.secondary",
+									display: "block",
+								}}
+							>
+								📍 {issue.location}
+							</Typography>
+							{issue.details && (
+								<Box
+									component="pre"
+									sx={{
+										mt: 0.5,
+										p: 0.5,
+										bgcolor: "grey.100",
+										borderRadius: 0.5,
+										fontSize: 9,
+										overflow: "auto",
+										maxHeight: 60,
+									}}
+								>
+									{issue.details}
+								</Box>
+							)}
+						</Card>
+					))
+				)}
+			</Flex>
+		</Box>
+	);
+});
+
+// Schema Panel - shows inferred JSON schema for current graph
+const SchemaPanel = memo(() => {
+	const { selectedGraphId } = useDashboardStore();
+	const { data: jsonDataList } = useJsonDataList();
+
+	// Auto-select first graph if none selected (same logic as GraphPanel)
+	const effectiveGraphId = useMemo(() => {
+		if (selectedGraphId) return selectedGraphId;
+		if (jsonDataList && jsonDataList.length > 0) return jsonDataList[0].id;
+		return null;
+	}, [selectedGraphId, jsonDataList]);
+
+	const analysis = useGraphAnalysis(effectiveGraphId);
+
+	return (
+		<Box sx={{ p: 2, height: "100%", overflow: "auto", fontSize: 12 }}>
+			<Box
+				component="pre"
+				sx={{
+					p: 1.5,
+					bgcolor: "grey.50",
+					borderRadius: 1,
+					fontSize: 10,
+					fontFamily: "monospace",
+					overflow: "auto",
+					border: "1px solid",
+					borderColor: "divider",
+					whiteSpace: "pre-wrap",
+					wordBreak: "break-word",
+				}}
+			>
+				{`{\n${formatSchema(analysis.schema, 1)}\n}`}
+			</Box>
+		</Box>
+	);
+});
+
+// ============================================================================
 // FlexLayout Configuration
 // ============================================================================
 
@@ -2318,6 +3264,18 @@ const flexLayoutJson: IJsonModel = {
 								name: "ℹ️ Информация",
 								component: "selection-info",
 								id: "selection-info-tab",
+							},
+							{
+								type: "tab",
+								name: "⚠️ Ошибки",
+								component: "issues",
+								id: "issues-tab",
+							},
+							{
+								type: "tab",
+								name: "📋 Схема",
+								component: "schema",
+								id: "schema-tab",
 							},
 						],
 					},
@@ -2813,6 +3771,10 @@ export const DashboardPage = () => {
 				return <CodeEditorPanel />;
 			case "commit-history":
 				return <CommitHistory />;
+			case "issues":
+				return <IssuesPanel />;
+			case "schema":
+				return <SchemaPanel />;
 			default:
 				return <div>Unknown component: {component}</div>;
 		}
@@ -2884,13 +3846,6 @@ export const DashboardPage = () => {
 								},
 							}}
 						/>
-						{/* <SearchDropdown
-							entities={allEntities}
-							query={globalSearchQuery}
-							onSelect={handleSearchResultSelect}
-							onClose={() => setSearchAnchorEl(null)}
-							anchorEl={searchAnchorEl}
-						/> */}
 					</Box>
 
 					{/* Filter Button */}
@@ -3065,6 +4020,7 @@ const FlexLayoutWrapper = styled("div")(({ theme }) => ({
 	"& .flexlayout__tab_button_content": {
 		padding: "4px 9px",
 		borderRadius: "8px",
+		fontSize: "10px",
 		backgroundColor: "#488ecb1a",
 	},
 }));
