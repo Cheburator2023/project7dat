@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Typography } from "@mui/material";
 import { HIGHLIGHT_COLORS } from "../constants";
+import { Flex } from "@react-client/common/primitives/Flex";
 
 interface ConnectionCountProps {
 	count: number;
@@ -16,7 +17,18 @@ export const ConnectionCount = memo(
 				? HIGHLIGHT_COLORS.upstream
 				: HIGHLIGHT_COLORS.downstream;
 
-		return <Typography sx={{ color, fontWeight: 500 }}>{count}</Typography>;
+		return (
+			<Flex
+				justifyContent="center"
+				alignItems="center"
+				width="100%"
+				height="100%"
+			>
+				<Typography sx={{ color, fontWeight: 500, fontSize: "11px" }}>
+					{count}
+				</Typography>
+			</Flex>
+		);
 	},
 );
 

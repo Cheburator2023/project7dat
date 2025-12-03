@@ -563,3 +563,7 @@ div.MuiPopper-root::before {
 div.flexlayout__tabset_tabbar_outer.flexlayout__tabset-selected {
 	background-color: #72bdff1c !important;
 }
+
+.ag-cell {
+	font-size: 11px;
+}

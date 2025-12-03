@@ -13,6 +13,9 @@ import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 
+// Variable to control layout saving - set to false to turn off local storage saving
+const enableLayoutSaving = false;
+
 const flexLayoutJson = {
 	global: {
 		tabEnableClose: false,
@@ -82,13 +85,15 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 
 	const { entityId: urlEntityId } = useParams<{ entityId: string }>();
 	const [model, _setModel] = useState(() => {
-		try {
-			const savedLayout = localStorage.getItem("entity-preview-layout");
-			if (savedLayout) {
-				return Model.fromJson(JSON.parse(savedLayout));
+		if (enableLayoutSaving) {
+			try {
+				const savedLayout = localStorage.getItem("entity-preview-layout");
+				if (savedLayout) {
+					return Model.fromJson(JSON.parse(savedLayout));
+				}
+			} catch (error) {
+				console.warn("Failed to load layout from localStorage:", error);
 			}
-		} catch (error) {
-			console.warn("Failed to load layout from localStorage:", error);
 		}
 		return Model.fromJson(flexLayoutJson);
 	});
@@ -171,21 +176,23 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		(action: Action) => {
 			const result = action;
 
-			setTimeout(() => {
-				try {
-					const layoutJson = model.toJson();
-					localStorage.setItem(
-						"entity-preview-layout",
-						JSON.stringify(layoutJson),
-					);
-				} catch (error) {
-					console.warn("Failed to save layout to localStorage:", error);
-				}
-			}, 0);
+			if (enableLayoutSaving) {
+				setTimeout(() => {
+					try {
+						const layoutJson = model.toJson();
+						localStorage.setItem(
+							"entity-preview-layout",
+							JSON.stringify(layoutJson),
+						);
+					} catch (error) {
+						console.warn("Failed to save layout to localStorage:", error);
+					}
+				}, 0);
+			}
 
 			return result;
 		},
-		[model],
+		[model, enableLayoutSaving],
 	);
 
 	if (isPending) {
