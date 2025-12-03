@@ -1,5 +1,6 @@
 import { memo } from "react";
-import { Box, Chip } from "@mui/material";
+import { Chip } from "@mui/material";
+import { Flex } from "@react-client/common/primitives/Flex";
 
 interface EntityBadgesProps {
 	isDataMart?: boolean;
@@ -12,7 +13,12 @@ export const EntityBadges = memo(
 		if (!isDataMart && !isSource && !modified) return null;
 
 		return (
-			<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+			<Flex
+				justifyContent="center"
+				alignItems="center"
+				width="100%"
+				height="100%"
+			>
 				{isDataMart && (
 					<Chip
 						label="витрина"
@@ -49,7 +55,7 @@ export const EntityBadges = memo(
 						}}
 					/>
 				)}
-			</Box>
+			</Flex>
 		);
 	},
 );

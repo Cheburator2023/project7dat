@@ -114,16 +114,17 @@ export const flexLayoutJson: IJsonModel = {
 						children: [
 							{
 								type: "tab",
-								name: "✏️ Редактор",
-								component: "code-editor",
-								id: "code-editor-tab",
-							},
-							{
-								type: "tab",
 								name: "ℹ️ Информация",
 								component: "selection-info",
 								id: "selection-info-tab",
 							},
+							{
+								type: "tab",
+								name: "✏️ Редактор",
+								component: "code-editor",
+								id: "code-editor-tab",
+							},
+
 							{
 								type: "tab",
 								name: "⚠️ Ошибки",

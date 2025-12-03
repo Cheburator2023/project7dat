@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { Box, Typography, Chip, Divider } from "@mui/material";
-import { Hub as HubIcon } from "@mui/icons-material";
 
 import { useDashboardStore } from "../stores";
 import { HIGHLIGHT_COLORS } from "../constants";
@@ -16,10 +15,6 @@ export const SelectionInfoPanel = memo(() => {
 
 	return (
 		<Box sx={{ p: 2, height: "100%", overflow: "auto" }}>
-			<Typography variant="h6" gutterBottom>
-				Информация о выборе
-			</Typography>
-
 			{selectedEntityId ? (
 				<Box>
 					<Box sx={{ mb: 2 }}>
@@ -89,7 +84,6 @@ export const SelectionInfoPanel = memo(() => {
 				</Box>
 			) : (
 				<Box sx={{ textAlign: "center", py: 4 }}>
-					<HubIcon sx={{ fontSize: 48, color: "text.secondary", mb: 2 }} />
 					<Typography color="text.secondary">
 						Выберите сущность для просмотра информации о связях
 					</Typography>
@@ -98,5 +92,3 @@ export const SelectionInfoPanel = memo(() => {
 		</Box>
 	);
 });
-
-SelectionInfoPanel.displayName = "SelectionInfoPanel";

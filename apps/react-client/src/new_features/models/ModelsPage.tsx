@@ -4,12 +4,11 @@ import {
 	TextField,
 	InputAdornment,
 	Chip,
-	IconButton,
 	Alert,
 	CircularProgress,
 } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
-import { Search, Visibility } from "@mui/icons-material";
+import { Search } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
 import {
@@ -314,25 +313,6 @@ export const ModelsPage = () => {
 			width: 140,
 			type: "dateColumn",
 		},
-		{
-			headerName: "Действия",
-			width: 100,
-			cellRenderer: (params: any) => (
-				<IconButton
-					size="small"
-					onClick={() => {
-						setSelectedModel(params.data);
-						setIsGraphOpen(true);
-					}}
-					sx={{ color: "primary.main" }}
-				>
-					<Visibility fontSize="small" />
-				</IconButton>
-			),
-			sortable: false,
-			filter: false,
-			pinned: "right",
-		},
 	];
 
 	return (
@@ -378,7 +358,12 @@ export const ModelsPage = () => {
 					paginationPageSizeSelector={[10, 20, 50, 100]}
 					animateRows={true}
 					rowSelection="single"
-					suppressRowClickSelection={true}
+					onRowDoubleClicked={(event) => {
+						if (event.data) {
+							setSelectedModel(event.data);
+							setIsGraphOpen(true);
+						}
+					}}
 					// getRowHeight={() => "auto"}
 					domLayout="normal"
 				/>

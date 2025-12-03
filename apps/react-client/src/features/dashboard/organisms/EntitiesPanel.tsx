@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/suspicious/useIterableCallbackReturn: forEach with early returns */
 import { memo, useCallback, useMemo } from "react";
-import { Box, Typography, Chip } from "@mui/material";
+import { Box, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
@@ -179,12 +179,8 @@ export const EntitiesPanel = memo(() => {
 				field: "name",
 				headerName: "Сущность",
 				flex: 2,
-				width: 180,
-				cellRenderer: ({ value }: { value: string }) => (
-					<Typography variant="body2" fontWeight={500}>
-						{value}
-					</Typography>
-				),
+				minWidth: 180,
+				cellRenderer: ({ value }: { value: string }) => value,
 			},
 			{
 				field: "isDataMart",
@@ -216,12 +212,19 @@ export const EntitiesPanel = memo(() => {
 				headerName: "Атр.",
 				width: 70,
 				cellRenderer: ({ value }: { value: number }) => (
-					<Chip label={value} size="small" variant="outlined" />
+					<Chip
+						sx={{
+							fontSize: "11px",
+						}}
+						label={value}
+						size="small"
+						variant="outlined"
+					/>
 				),
 			},
 			{
 				field: "upstreamCount",
-				headerName: "↑",
+				headerName: "Upstream",
 				width: 60,
 				cellRenderer: ({ value }: { value: number }) => (
 					<ConnectionCount count={value} direction="upstream" />
@@ -229,7 +232,7 @@ export const EntitiesPanel = memo(() => {
 			},
 			{
 				field: "downstreamCount",
-				headerName: "↓",
+				headerName: "Downstream",
 				width: 60,
 				cellRenderer: ({ value }: { value: number }) => (
 					<ConnectionCount count={value} direction="downstream" />

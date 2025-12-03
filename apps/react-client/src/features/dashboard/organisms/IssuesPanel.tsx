@@ -41,9 +41,9 @@ function analyzeSchema(
 		if (!entity.id) {
 			addIssue({
 				type: "error",
-				category: "Entity ID",
-				message: "Entity has null/undefined ID",
-				location: `Graph "${gId}" → entities[${entityIdx}]`,
+				category: "ID Сущности",
+				message: "У сущности отсутствует ID",
+				location: `сущности[${entityIdx}]`,
 				details: JSON.stringify(entity, null, 2).slice(0, 200),
 			});
 			return;
@@ -64,9 +64,9 @@ function analyzeSchema(
 			if (!attr.name) {
 				addIssue({
 					type: "warning",
-					category: "Attribute",
-					message: "Attribute has null/undefined name",
-					location: `Graph "${gId}" → entities[${entityIdx}] "${entity.id}" → attrSeq[${attrIdx}]`,
+					category: "Атрибут",
+					message: "У атрибута отсутствует имя",
+					location: `сущности[${entityIdx}] "${entity.id}" → attrSeq[${attrIdx}]`,
 				});
 				return;
 			}
@@ -84,10 +84,10 @@ function analyzeSchema(
 			if (indices.length > 1) {
 				addIssue({
 					type: "warning",
-					category: "Duplicate Attribute",
-					message: `Attribute "${attrName}" appears ${indices.length} times`,
-					location: `Graph "${gId}" → entities[${entityIdx}] "${entity.id}"`,
-					details: `Indices: ${indices.join(", ")}`,
+					category: "Дубликат Атрибута",
+					message: `Атрибут "${attrName}" встречается ${indices.length} раз(а)`,
+					location: `сущности[${entityIdx}] "${entity.id}"`,
+					details: `Индексы: ${indices.join(", ")}`,
 				});
 			}
 		});
@@ -100,10 +100,10 @@ function analyzeSchema(
 		if (indices.length > 1) {
 			addIssue({
 				type: "error",
-				category: "Дубли",
-				message: `Entity ID "${entityId}" appears ${indices.length} times`,
-				location: `Graph "${gId}"`,
-				details: `Indices: ${indices.join(", ")}`,
+				category: "Дубликаты ID",
+				message: `ID сущности "${entityId}" встречается ${indices.length} раз(а)`,
+				location: "",
+				details: `Индексы: ${indices.join(", ")}`,
 			});
 		}
 	});
@@ -113,9 +113,9 @@ function analyzeSchema(
 		if (!mapping.entityId) {
 			addIssue({
 				type: "error",
-				category: "Mapping",
-				message: "Mapping has null/undefined entityId",
-				location: `Graph "${gId}" → mappings[${mappingIdx}]`,
+				category: "Маппинг",
+				message: "У маппинга отсутствует entityId",
+				location: `маппинги[${mappingIdx}]`,
 			});
 			return;
 		}
@@ -124,9 +124,9 @@ function analyzeSchema(
 		if (!seenEntityIds.has(mapping.entityId)) {
 			addIssue({
 				type: "warning",
-				category: "Orphan Mapping",
-				message: `Mapping target entity "${mapping.entityId}" not in entities list`,
-				location: `Graph "${gId}" → mappings[${mappingIdx}]`,
+				category: "Не найден маппинг",
+				message: `Целевая сущность маппинга "${mapping.entityId}" не найдена в списке сущностей`,
+				location: `маппинги[${mappingIdx}]`,
 			});
 		}
 
@@ -134,9 +134,9 @@ function analyzeSchema(
 			if (!dep.entityId) {
 				addIssue({
 					type: "error",
-					category: "Dependency",
-					message: "Dependency has null/undefined entityId",
-					location: `Graph "${gId}" → mappings[${mappingIdx}] → deps[${depIdx}]`,
+					category: "Зависимость",
+					message: "У зависимости отсутствует entityId",
+					location: `маппинги[${mappingIdx}] → зависимости[${depIdx}]`,
 				});
 				return;
 			}
@@ -145,9 +145,9 @@ function analyzeSchema(
 			if (!seenEntityIds.has(dep.entityId)) {
 				addIssue({
 					type: "warning",
-					category: "Orphan Dependency",
-					message: `Dependency source entity "${dep.entityId}" not in entities list`,
-					location: `Graph "${gId}" → mappings[${mappingIdx}] → deps[${depIdx}]`,
+					category: "Не найдена зависимость",
+					message: `Исходная сущность зависимости "${dep.entityId}" не найдена в списке сущностей`,
+					location: `маппинги[${mappingIdx}] → зависимости[${depIdx}]`,
 				});
 			}
 
@@ -159,18 +159,18 @@ function analyzeSchema(
 				if (srcEntityAttrs && !srcEntityAttrs.has(attrMap.src)) {
 					addIssue({
 						type: "warning",
-						category: "Отсутствует источник",
-						message: `Source attr "${attrMap.src}" not in entity "${dep.entityId}"`,
-						location: `Graph "${gId}" → mappings[${mappingIdx}] → deps[${depIdx}] → attrMaps[${attrMapIdx}]`,
+						category: "Отсутствует Исходный Атрибут",
+						message: `Исходный атрибут "${attrMap.src}" не найден в сущности "${dep.entityId}"`,
+						location: `маппинги[${mappingIdx}] → зависимости[${depIdx}] → attrMaps[${attrMapIdx}]`,
 					});
 				}
 
 				if (dstEntityAttrs && !dstEntityAttrs.has(attrMap.dst)) {
 					addIssue({
 						type: "warning",
-						category: "Missing Target Attr",
-						message: `Target attr "${attrMap.dst}" not in entity "${mapping.entityId}"`,
-						location: `Graph "${gId}" → mappings[${mappingIdx}] → deps[${depIdx}] → attrMaps[${attrMapIdx}]`,
+						category: "Отсутствует Целевой Атрибут",
+						message: `Целевой атрибут "${attrMap.dst}" не найден в сущности "${mapping.entityId}"`,
+						location: `маппинги[${mappingIdx}] → зависимости[${depIdx}] → attrMaps[${attrMapIdx}]`,
 					});
 				}
 			});
@@ -216,39 +216,30 @@ export const IssuesPanel = memo(() => {
 					</Alert>
 				) : (
 					issues.map((issue, idx) => (
-						<Card key={idx}>
-							<Box
-								sx={{
-									display: "flex",
-									gap: 1,
-									alignItems: "center",
-									mb: 0.5,
-								}}
-							>
-								<Chip
-									label={issue.category}
-									size="small"
-									color={issue.type === "error" ? "error" : "warning"}
-									sx={{ fontSize: 10, height: 20 }}
-								/>
+						<Card key={idx} title={issue.location}>
+							<Flex gap={6} flexDirection="column">
+								<div>
+									<Chip
+										label={issue.category}
+										size="small"
+										color={issue.type === "error" ? "error" : "warning"}
+										sx={{ fontSize: 10, height: 20 }}
+									/>
+								</div>
 								<Typography
 									variant="body2"
 									sx={{ fontWeight: 500, fontSize: 11 }}
 								>
 									{issue.message}
 								</Typography>
-							</Box>
-							<Typography
-								variant="caption"
-								sx={{
-									fontFamily: "monospace",
-									fontSize: 10,
-									color: "text.secondary",
-									display: "block",
-								}}
-							>
-								{issue.location}
-							</Typography>
+								<Typography
+									variant="body2"
+									sx={{ fontWeight: 500, fontSize: 11 }}
+								>
+									{issue.location}
+								</Typography>
+							</Flex>
+
 							{issue.details && (
 								<Box
 									component="pre"
