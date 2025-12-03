@@ -31,10 +31,15 @@ export const getLayoutedElements = (
 	});
 
 	nodes.forEach((node) => {
-		// Calculate visible attrs count from related attributes (source + target), limited by MAX_VISIBLE_ATTRS
+		// Calculate visible attrs count from related attributes (source + target + selected), limited by MAX_VISIBLE_ATTRS
 		const sourceAttrs = node.data.highlightedSourceAttrs || new Set();
 		const targetAttrs = node.data.highlightedTargetAttrs || new Set();
-		const relatedAttrsCount = new Set([...sourceAttrs, ...targetAttrs]).size;
+		const selectedAttrs = node.data.selectedHighlightedAttrs || new Set();
+		const relatedAttrsCount = new Set([
+			...sourceAttrs,
+			...targetAttrs,
+			...selectedAttrs,
+		]).size;
 		const visibleAttrsCount = Math.min(relatedAttrsCount, MAX_VISIBLE_ATTRS);
 		const height =
 			NODE_HEADER_HEIGHT +
@@ -53,7 +58,12 @@ export const getLayoutedElements = (
 			const nodeWithPosition = dagreGraph.node(node.id);
 			const sourceAttrs = node.data.highlightedSourceAttrs || new Set();
 			const targetAttrs = node.data.highlightedTargetAttrs || new Set();
-			const relatedAttrsCount = new Set([...sourceAttrs, ...targetAttrs]).size;
+			const selectedAttrs = node.data.selectedHighlightedAttrs || new Set();
+			const relatedAttrsCount = new Set([
+				...sourceAttrs,
+				...targetAttrs,
+				...selectedAttrs,
+			]).size;
 			const visibleAttrsCount = Math.min(relatedAttrsCount, MAX_VISIBLE_ATTRS);
 			const height =
 				NODE_HEADER_HEIGHT +

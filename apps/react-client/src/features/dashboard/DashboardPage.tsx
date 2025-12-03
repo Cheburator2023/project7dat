@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams, useLocation } from "react-router";
 import { Box } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
@@ -18,11 +19,38 @@ import {
 import { flexLayoutJson } from "./constants";
 
 export { useDashboardStore } from "./stores";
+import { useDashboardStore } from "./stores";
 
 export const DashboardPage = () => {
+	const [, setSearchParams] = useSearchParams();
+	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore();
+
 	const isPersistEnabled = usePanelSettingsStore((state) =>
 		state.isPanelPersistEnabled("dashboard"),
 	);
+
+	const location = useLocation();
+
+	// Parse URL params for entity/attribute highlighting on navigation from entity page
+	useEffect(() => {
+		const params = new URLSearchParams(location.search);
+		const entityId = params.get("entityId");
+		const attrName = params.get("attrName");
+
+		if (entityId && attrName) {
+			// Use atomic method to set both entity and attribute together
+			selectEntityWithAttribute(entityId, attrName);
+			setZoomToNode(entityId);
+
+			// Clear URL params after processing
+			setSearchParams({}, { replace: true });
+		}
+	}, [
+		location.search,
+		setSearchParams,
+		selectEntityWithAttribute,
+		setZoomToNode,
+	]);
 
 	const [model] = useState(() => {
 		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();

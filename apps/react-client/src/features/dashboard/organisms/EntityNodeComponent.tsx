@@ -30,9 +30,11 @@ export const EntityNodeComponent = memo(
 
 		// Show only related attributes (those that have mappings), limited by MAX_VISIBLE_ATTRS
 		// Or show all attrs if showAllAttrs is true (for entity preview page)
+		// Also include selected highlighted attrs so they're always visible when navigating from entity page
 		const relatedAttrNames = new Set([
 			...highlightedSourceAttrs,
 			...highlightedTargetAttrs,
+			...selectedHighlightedAttrs,
 		]);
 		const allRelatedAttrs = showAllAttrs
 			? attrs
