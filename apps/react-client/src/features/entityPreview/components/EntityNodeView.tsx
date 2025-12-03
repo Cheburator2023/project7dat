@@ -23,7 +23,22 @@ import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
+import {
+	Menu,
+	MenuItem,
+	ListItemIcon,
+	ListItemText,
+	Divider,
+} from "@mui/material";
+import {
+	Code,
+	ContentCopy,
+	OpenInNew,
+	CenterFocusStrong,
+	Info,
+} from "@mui/icons-material";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDashboardStore } from "@react-client/features/dashboard/stores";
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 
@@ -101,19 +116,44 @@ const HIGHLIGHT_COLORS = {
 // Custom Node Component
 // ============================================================================
 
+const DEFAULT_VISIBLE_ATTRS = 10;
+
 const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 	const {
 		entity,
 		highlightType,
 		onNodeClick,
 		onNodeDoubleClick,
+		onAttrHover,
+		onAttrClick,
 		upstreamCount,
 		downstreamCount,
-	} = data;
+		hoverHighlightedAttrs = new Set<string>(),
+		selectedHighlightedAttrs = new Set<string>(),
+	} = data as any;
+	const [isExpanded, setIsExpanded] = useState(false);
 	const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 	const attrs = entity.attrSeq || [];
-	const visibleAttrs = attrs.slice(0, MAX_VISIBLE_ATTRS);
-	const moreCount = attrs.length - MAX_VISIBLE_ATTRS;
+
+	// Sort attrs: related (with mappings) first, then others
+	const srcAttrs = (data.highlightedSourceAttrs || new Set()) as Set<string>;
+	const tgtAttrs = (data.highlightedTargetAttrs || new Set()) as Set<string>;
+	const sortedAttrs = useMemo(() => {
+		const relatedNames = new Set<string>();
+		srcAttrs.forEach((name) => {
+			relatedNames.add(name);
+		});
+		tgtAttrs.forEach((name) => {
+			relatedNames.add(name);
+		});
+		const related = attrs.filter((a: any) => relatedNames.has(a.name));
+		const others = attrs.filter((a: any) => !relatedNames.has(a.name));
+		return [...related, ...others];
+	}, [attrs, srcAttrs, tgtAttrs]);
+
+	const maxAttrs = isExpanded ? sortedAttrs.length : DEFAULT_VISIBLE_ATTRS;
+	const visibleAttrs = sortedAttrs.slice(0, maxAttrs);
+	const moreCount = sortedAttrs.length - DEFAULT_VISIBLE_ATTRS;
 
 	// Витрина = есть источники, но нет потребителей (конечная точка данных)
 	const isDataMart = upstreamCount > 0 && downstreamCount === 0;
@@ -268,47 +308,84 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 
 			{/* Preview attributes */}
 			{visibleAttrs.length > 0 && (
-				<div>
-					{visibleAttrs.map((attr, idx) => (
-						<div
-							key={attr.name}
-							style={{
-								display: "flex",
-								justifyContent: "space-between",
-								padding: "2px 10px",
-								fontSize: 9,
-								borderBottom:
-									idx < visibleAttrs.length - 1 ? "1px solid #f5f5f5" : "none",
-								background: idx % 2 === 0 ? "#fafafa" : "#fff",
-							}}
-						>
-							<span
-								style={{
-									color: "#555",
-									whiteSpace: "nowrap",
-									overflow: "hidden",
-									textOverflow: "ellipsis",
-									flex: 1,
+				<div onMouseLeave={() => onAttrHover?.(id, null)}>
+					{visibleAttrs.map((attr, idx) => {
+						const isHoverHighlighted = hoverHighlightedAttrs.has(attr.name);
+						const isSelectedHighlighted = selectedHighlightedAttrs.has(
+							attr.name,
+						);
+						const isHighlighted = isHoverHighlighted || isSelectedHighlighted;
+
+						return (
+							<div
+								key={attr.name}
+								onMouseEnter={() => onAttrHover?.(id, attr.name)}
+								onClick={(e) => {
+									e.stopPropagation();
+									onAttrClick?.(id, attr.name);
 								}}
+								style={{
+									display: "flex",
+									justifyContent: "space-between",
+									padding: "3px 10px",
+									fontSize: 10,
+									borderBottom:
+										idx < visibleAttrs.length - 1
+											? "1px solid #f5f5f5"
+											: "none",
+									background: isSelectedHighlighted
+										? `${HIGHLIGHT_COLORS.selected}70`
+										: isHoverHighlighted
+											? `${HIGHLIGHT_COLORS.upstream}30`
+											: idx % 2 === 0
+												? "#fafafa"
+												: "#fff",
+									cursor: "pointer",
+									transition: "background 0.15s ease",
+								}}
+								title={`${attr.name}: ${attr.type}${isHighlighted ? " (выделен)" : ""}`}
 							>
-								{attr.name}
-							</span>
-							<span style={{ color: "#999", marginLeft: 8, fontSize: 8 }}>
-								{attr.type}
-							</span>
-						</div>
-					))}
+								<span
+									style={{
+										color: isHighlighted ? "#333" : "#555",
+										fontWeight: isHighlighted ? 600 : 400,
+										whiteSpace: "nowrap",
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										flex: 1,
+									}}
+								>
+									{attr.name}
+								</span>
+								<span style={{ color: "#999", marginLeft: 8, fontSize: 9 }}>
+									{attr.type}
+								</span>
+							</div>
+						);
+					})}
 					{moreCount > 0 && (
 						<div
+							onClick={(e) => {
+								e.stopPropagation();
+								setIsExpanded(!isExpanded);
+							}}
 							style={{
-								padding: "3px 10px",
-								fontSize: 9,
+								padding: "4px 10px",
+								fontSize: 10,
 								color: "#1976d2",
 								background: "#f8f9fa",
 								textAlign: "center",
+								cursor: "pointer",
+								fontWeight: 500,
+								borderTop: "1px solid #e0e0e0",
 							}}
+							title={
+								isExpanded
+									? "Свернуть атрибуты"
+									: `Показать все ${attrs.length} атрибутов`
+							}
 						>
-							+{moreCount} ещё...
+							{isExpanded ? "▲ Свернуть" : `▼ Ещё ${moreCount} атрибутов...`}
 						</div>
 					)}
 				</div>
@@ -484,17 +561,36 @@ interface EntityGraphInnerProps {
 	onEntitiesCalculated?: (entities: DataLineageEntity[]) => void;
 }
 
-const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
+interface EntityGraphInnerExtendedProps extends EntityGraphInnerProps {
+	highlightedAttr?: string | null;
+}
+
+const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	mainEntity,
 	allEntities,
 	mappings,
 	onEntitiesCalculated,
+	highlightedAttr,
 }) => {
 	const navigate = useNavigate();
 	const [selectedNode, setSelectedNode] = useState<string | null>(
 		mainEntity.id,
 	);
 	const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
+
+	// Attribute hover/selection state (like Dashboard)
+	const [hoveredAttribute, setHoveredAttribute] = useState<{
+		entityId: string;
+		attrName: string;
+	} | null>(null);
+	const [selectedAttribute, setSelectedAttributeLocal] = useState<{
+		entityId: string;
+		attrName: string;
+	} | null>(
+		highlightedAttr
+			? { entityId: mainEntity.id, attrName: highlightedAttr }
+			: null,
+	);
 
 	// Dialog state
 	const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);
@@ -505,7 +601,19 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 	const [selectedConnection, setSelectedConnection] =
 		useState<EntityConnection | null>(null);
 
-	const { fitView } = useReactFlow();
+	// Context menu state
+	const [contextMenu, setContextMenu] = useState<{
+		entityId: string;
+		entityName: string;
+		entityType: string;
+		x: number;
+		y: number;
+	} | null>(null);
+
+	const { fitView, setCenter, getNode } = useReactFlow();
+	const { setRevealPosition } = useDataLineageStore();
+	const { setZoomToNode, selectEntity, setSelectedAttribute } =
+		useDashboardStore();
 
 	// Build lineage graph
 	const lineageGraph = useMemo(() => buildLineageGraph(mappings), [mappings]);
@@ -631,6 +739,117 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 		setIsMappingDialogOpen(true);
 	}, []);
 
+	// Attribute hover handler
+	const handleAttrHover = useCallback(
+		(entityId: string, attrName: string | null) => {
+			if (attrName) {
+				setHoveredAttribute({ entityId, attrName });
+			} else {
+				setHoveredAttribute(null);
+			}
+		},
+		[],
+	);
+
+	// Attribute click handler (toggle selection)
+	const handleAttrClick = useCallback(
+		(entityId: string, attrName: string) => {
+			if (
+				selectedAttribute?.entityId === entityId &&
+				selectedAttribute?.attrName === attrName
+			) {
+				setSelectedAttributeLocal(null);
+			} else {
+				setSelectedAttributeLocal({ entityId, attrName });
+			}
+		},
+		[selectedAttribute],
+	);
+
+	// Build attribute-level highlight maps for each entity (which attrs have mappings)
+	const { entitySourceAttrs, entityTargetAttrs } = useMemo(() => {
+		const sourceAttrs = new Map<string, Set<string>>();
+		const targetAttrs = new Map<string, Set<string>>();
+		mappings.forEach((mapping) => {
+			if (!mapping.deps) return;
+			mapping.deps.forEach((dep) => {
+				if (!dep.attrMaps || dep.attrMaps.length === 0) return;
+				dep.attrMaps.forEach((attrMap) => {
+					// Source entity has this attr as source
+					if (!sourceAttrs.has(dep.entityId)) {
+						sourceAttrs.set(dep.entityId, new Set());
+					}
+					sourceAttrs.get(dep.entityId)!.add(attrMap.src);
+					// Target entity has this attr as target
+					if (!targetAttrs.has(mapping.entityId)) {
+						targetAttrs.set(mapping.entityId, new Set());
+					}
+					targetAttrs.get(mapping.entityId)!.add(attrMap.dst);
+				});
+			});
+		});
+		return { entitySourceAttrs: sourceAttrs, entityTargetAttrs: targetAttrs };
+	}, [mappings]);
+
+	// Build attribute connection map for highlighting
+	const attrConnectionMap = useMemo(() => {
+		const map = new Map<string, Set<string>>();
+		mappings.forEach((mapping) => {
+			if (!mapping.deps) return;
+			mapping.deps.forEach((dep) => {
+				dep.attrMaps?.forEach((am) => {
+					const srcKey = `${dep.entityId}::${am.src}`;
+					const dstKey = `${mapping.entityId}::${am.dst}`;
+					if (!map.has(srcKey)) map.set(srcKey, new Set());
+					if (!map.has(dstKey)) map.set(dstKey, new Set());
+					map.get(srcKey)!.add(dstKey);
+					map.get(dstKey)!.add(srcKey);
+				});
+			});
+		});
+		return map;
+	}, [mappings]);
+
+	// Compute hover-highlighted attributes
+	const hoverHighlightedByEntity = useMemo(() => {
+		const result = new Map<string, Set<string>>();
+		if (!hoveredAttribute) return result;
+		const hoveredKey = `${hoveredAttribute.entityId}::${hoveredAttribute.attrName}`;
+		const connectedAttrs = attrConnectionMap.get(hoveredKey);
+		if (!result.has(hoveredAttribute.entityId)) {
+			result.set(hoveredAttribute.entityId, new Set());
+		}
+		result.get(hoveredAttribute.entityId)!.add(hoveredAttribute.attrName);
+		if (connectedAttrs) {
+			for (const connKey of connectedAttrs) {
+				const [entId, attrName] = connKey.split("::");
+				if (!result.has(entId)) result.set(entId, new Set());
+				result.get(entId)!.add(attrName);
+			}
+		}
+		return result;
+	}, [hoveredAttribute, attrConnectionMap]);
+
+	// Compute selected-highlighted attributes
+	const selectedHighlightedByEntity = useMemo(() => {
+		const result = new Map<string, Set<string>>();
+		if (!selectedAttribute) return result;
+		const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
+		const connectedAttrs = attrConnectionMap.get(selectedKey);
+		if (!result.has(selectedAttribute.entityId)) {
+			result.set(selectedAttribute.entityId, new Set());
+		}
+		result.get(selectedAttribute.entityId)!.add(selectedAttribute.attrName);
+		if (connectedAttrs) {
+			for (const connKey of connectedAttrs) {
+				const [entId, attrName] = connKey.split("::");
+				if (!result.has(entId)) result.set(entId, new Set());
+				result.get(entId)!.add(attrName);
+			}
+		}
+		return result;
+	}, [selectedAttribute, attrConnectionMap]);
+
 	// Handler for edge double-click to open mapping dialog
 	const handleEdgeDoubleClick = useCallback(
 		(_event: React.MouseEvent, edge: Edge) => {
@@ -642,6 +861,121 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 		},
 		[entityConnections],
 	);
+
+	// Context menu handlers
+	const handleNodeContextMenu = useCallback(
+		(event: React.MouseEvent, node: Node) => {
+			event.preventDefault();
+			const entityNode = node as unknown as EntityNode;
+			setContextMenu({
+				entityId: node.id,
+				entityName: entityNode.data.entity.name || entityNode.data.entity.id,
+				entityType: entityNode.data.entity.type,
+				x: event.clientX,
+				y: event.clientY,
+			});
+		},
+		[],
+	);
+
+	const handleCloseContextMenu = useCallback(() => {
+		setContextMenu(null);
+	}, []);
+
+	const handleContextMenuViewDetails = useCallback(() => {
+		if (contextMenu) {
+			const entity = filteredEntities.find(
+				(e) => e.id === contextMenu.entityId,
+			);
+			if (entity) {
+				setDialogEntity(entity);
+				setIsEntityDialogOpen(true);
+			}
+		}
+		setContextMenu(null);
+	}, [contextMenu, filteredEntities]);
+
+	const handleContextMenuGoToEntity = useCallback(() => {
+		if (contextMenu) {
+			const encodedId = encodeURIComponent(contextMenu.entityId);
+			navigate(`/entity/${encodedId}`);
+		}
+		setContextMenu(null);
+	}, [contextMenu, navigate]);
+
+	const handleContextMenuOpenInNewTab = useCallback(() => {
+		if (contextMenu) {
+			const encodedId = encodeURIComponent(contextMenu.entityId);
+			window.open(`/entity/${encodedId}`, "_blank");
+		}
+		setContextMenu(null);
+	}, [contextMenu]);
+
+	const handleContextMenuShowInEditor = useCallback(() => {
+		if (contextMenu) {
+			setRevealPosition({ nodeId: contextMenu.entityId, from: "graph" });
+		}
+		setContextMenu(null);
+	}, [contextMenu, setRevealPosition]);
+
+	const handleContextMenuCopyId = useCallback(() => {
+		if (contextMenu) {
+			navigator.clipboard.writeText(contextMenu.entityId);
+		}
+		setContextMenu(null);
+	}, [contextMenu]);
+
+	const handleContextMenuZoomToNode = useCallback(() => {
+		if (contextMenu) {
+			const node = getNode(contextMenu.entityId);
+			if (node) {
+				const x = node.position.x + (node.measured?.width ?? 260) / 2;
+				const y = node.position.y + (node.measured?.height ?? 100) / 2;
+				setCenter(x, y, { zoom: 1.2, duration: 500 });
+			}
+		}
+		setContextMenu(null);
+	}, [contextMenu, getNode, setCenter]);
+
+	const handleContextMenuZoomInDashboard = useCallback(() => {
+		if (contextMenu) {
+			setZoomToNode(contextMenu.entityId);
+			navigate("/");
+		}
+		setContextMenu(null);
+	}, [contextMenu, setZoomToNode, navigate]);
+
+	// Open entity page with selected attribute highlight
+	const handleGoToEntityWithSelectedAttr = useCallback(() => {
+		if (contextMenu && selectedAttribute) {
+			const encodedId = encodeURIComponent(contextMenu.entityId);
+			navigate(
+				`/entity/${encodedId}?highlightAttr=${encodeURIComponent(selectedAttribute.attrName)}`,
+			);
+		}
+		setContextMenu(null);
+	}, [contextMenu, selectedAttribute, navigate]);
+
+	// Open Dashboard with entity and selected attribute highlight
+	const handleGoToDashboardWithSelectedAttr = useCallback(() => {
+		if (contextMenu && selectedAttribute) {
+			selectEntity(contextMenu.entityId);
+			setZoomToNode(contextMenu.entityId);
+			setSelectedAttribute({
+				entityId: contextMenu.entityId,
+				attrName: selectedAttribute.attrName,
+			});
+			navigate("/");
+		}
+		setContextMenu(null);
+	}, [
+		contextMenu,
+		selectedAttribute,
+		navigate,
+		selectEntity,
+		setZoomToNode,
+		setSelectedAttribute,
+	]);
 
 	// Create nodes
 	const nodes: EntityNode[] = useMemo(() => {
@@ -655,6 +989,9 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 				highlightType = "downstream";
 			}
 
+			// Show all attrs for main entity
+			const isMainEntity = entity.id === mainEntity.id;
+
 			return {
 				id: entity.id,
 				type: "entityNode",
@@ -665,8 +1002,18 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 					highlightType,
 					onNodeClick: handleNodeClick,
 					onNodeDoubleClick: handleNodeDoubleClick,
+					onAttrHover: handleAttrHover,
+					onAttrClick: handleAttrClick,
+					graphId: mainEntity.id,
 					upstreamCount: upstreamCounts.get(entity.id) || 0,
 					downstreamCount: downstreamCounts.get(entity.id) || 0,
+					highlightedSourceAttrs:
+						entitySourceAttrs.get(entity.id) || new Set<string>(),
+					highlightedTargetAttrs:
+						entityTargetAttrs.get(entity.id) || new Set<string>(),
+					hoverHighlightedAttrs: hoverHighlightedByEntity.get(entity.id),
+					selectedHighlightedAttrs: selectedHighlightedByEntity.get(entity.id),
+					showAllAttrs: isMainEntity,
 				},
 			};
 		});
@@ -679,6 +1026,13 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 		downstreamCounts,
 		handleNodeClick,
 		handleNodeDoubleClick,
+		handleAttrHover,
+		handleAttrClick,
+		mainEntity.id,
+		entitySourceAttrs,
+		entityTargetAttrs,
+		hoverHighlightedByEntity,
+		selectedHighlightedByEntity,
 	]);
 
 	// Create a map of connections for quick lookup
@@ -808,6 +1162,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
 				onEdgeDoubleClick={handleEdgeDoubleClick}
+				onNodeContextMenu={handleNodeContextMenu}
 				nodeTypes={nodeTypes}
 				fitView
 				minZoom={0.1}
@@ -1060,6 +1415,97 @@ const EntityGraphInner: React.FC<EntityGraphInnerProps> = ({
 					connection={selectedConnection}
 				/>
 			)}
+
+			{/* Context Menu */}
+			<Menu
+				open={contextMenu !== null}
+				onClose={handleCloseContextMenu}
+				anchorReference="anchorPosition"
+				anchorPosition={
+					contextMenu !== null
+						? { top: contextMenu.y, left: contextMenu.x }
+						: undefined
+				}
+			>
+				{contextMenu && (
+					<MenuItem disabled sx={{ opacity: "1 !important" }}>
+						<ListItemText
+							primary={contextMenu.entityName}
+							secondary={contextMenu.entityType}
+							primaryTypographyProps={{ fontWeight: 600, fontSize: 13 }}
+							secondaryTypographyProps={{ fontSize: 11 }}
+						/>
+					</MenuItem>
+				)}
+				<Divider />
+				<MenuItem onClick={handleContextMenuViewDetails}>
+					<ListItemIcon>
+						<Info fontSize="small" />
+					</ListItemIcon>
+					<ListItemText primary="Подробности" />
+				</MenuItem>
+				<MenuItem onClick={handleContextMenuGoToEntity}>
+					<ListItemIcon>
+						<OpenInNew fontSize="small" />
+					</ListItemIcon>
+					<ListItemText primary="Открыть страницу" />
+				</MenuItem>
+				<MenuItem onClick={handleContextMenuOpenInNewTab}>
+					<ListItemIcon>
+						<OpenInNew fontSize="small" />
+					</ListItemIcon>
+					<ListItemText primary="Открыть в новой вкладке" />
+				</MenuItem>
+				{selectedAttribute &&
+					contextMenu?.entityId === selectedAttribute.entityId && (
+						<MenuItem onClick={handleGoToEntityWithSelectedAttr}>
+							<ListItemIcon>
+								<OpenInNew fontSize="small" />
+							</ListItemIcon>
+							<ListItemText
+								primary="Открыть с выделением атрибута"
+								secondary={selectedAttribute.attrName}
+							/>
+						</MenuItem>
+					)}
+				{selectedAttribute &&
+					contextMenu?.entityId === selectedAttribute.entityId && (
+						<MenuItem onClick={handleGoToDashboardWithSelectedAttr}>
+							<ListItemIcon>
+								<CenterFocusStrong fontSize="small" />
+							</ListItemIcon>
+							<ListItemText
+								primary="В Dashboard с выделением"
+								secondary={selectedAttribute.attrName}
+							/>
+						</MenuItem>
+					)}
+				<Divider />
+				<MenuItem onClick={handleContextMenuZoomToNode}>
+					<ListItemIcon>
+						<CenterFocusStrong fontSize="small" />
+					</ListItemIcon>
+					<ListItemText primary="Центрировать" />
+				</MenuItem>
+				<MenuItem onClick={handleContextMenuZoomInDashboard}>
+					<ListItemIcon>
+						<CenterFocusStrong fontSize="small" />
+					</ListItemIcon>
+					<ListItemText primary="Показать в Dashboard" />
+				</MenuItem>
+				<MenuItem onClick={handleContextMenuShowInEditor}>
+					<ListItemIcon>
+						<Code fontSize="small" />
+					</ListItemIcon>
+					<ListItemText primary="Показать в редакторе" />
+				</MenuItem>
+				<MenuItem onClick={handleContextMenuCopyId}>
+					<ListItemIcon>
+						<ContentCopy fontSize="small" />
+					</ListItemIcon>
+					<ListItemText primary="Копировать ID" />
+				</MenuItem>
+			</Menu>
 		</div>
 	);
 };
@@ -1072,12 +1518,14 @@ interface EntityNodeViewProps {
 	entity: DataLineageEntity | null;
 	mappings: DataLineageMapping[];
 	onEntitiesCalculated?: (entities: DataLineageEntity[]) => void;
+	highlightedAttr?: string | null;
 }
 
 export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 	entity,
 	mappings,
 	onEntitiesCalculated,
+	highlightedAttr,
 }) => {
 	const { currentGraph } = useDataLineageStore();
 
@@ -1111,6 +1559,7 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 					allEntities={allEntities.length > 0 ? allEntities : [entity]}
 					mappings={mappings}
 					onEntitiesCalculated={onEntitiesCalculated}
+					highlightedAttr={highlightedAttr}
 				/>
 			</ReactFlowProvider>
 		</div>

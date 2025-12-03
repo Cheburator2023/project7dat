@@ -23,19 +23,22 @@ export const EntityNodeComponent = memo(
 			selectedHighlightedAttrs = new Set<string>(),
 			isSearchActive = false,
 			isSearchMatch = false,
+			showAllAttrs = false,
 		} = data;
 		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 		const attrs = entity.attrSeq || [];
 
 		// Show only related attributes (those that have mappings), limited by MAX_VISIBLE_ATTRS
+		// Or show all attrs if showAllAttrs is true (for entity preview page)
 		const relatedAttrNames = new Set([
 			...highlightedSourceAttrs,
 			...highlightedTargetAttrs,
 		]);
-		const allRelatedAttrs = attrs.filter((attr) =>
-			relatedAttrNames.has(attr.name),
-		);
-		const visibleAttrs = allRelatedAttrs.slice(0, MAX_VISIBLE_ATTRS);
+		const allRelatedAttrs = showAllAttrs
+			? attrs
+			: attrs.filter((attr) => relatedAttrNames.has(attr.name));
+		const maxAttrs = showAllAttrs ? 20 : MAX_VISIBLE_ATTRS;
+		const visibleAttrs = allRelatedAttrs.slice(0, maxAttrs);
 		const moreCount = allRelatedAttrs.length - visibleAttrs.length;
 
 		const isDataMart = upstreamCount > 0 && downstreamCount === 0;

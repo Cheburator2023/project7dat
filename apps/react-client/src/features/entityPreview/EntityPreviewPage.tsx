@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
-import { CircularProgress, styled } from "@mui/material";
+import { CircularProgress, styled, Box, Alert } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
@@ -9,7 +9,7 @@ import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "./components/EntityJsonEditor";
 import { EntityNodeView } from "./components/EntityNodeView";
 import { EntityDetailsView } from "./components/EntityDetailsView";
-import { useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
@@ -86,6 +86,18 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	);
 
 	const { entityId: urlEntityId } = useParams<{ entityId: string }>();
+	const [searchParams, setSearchParams] = useSearchParams();
+
+	// Get highlighted attribute from URL
+	const highlightedAttr = searchParams.get("highlightAttr");
+
+	// Clear highlight after some time or on user action
+	const handleClearHighlight = useCallback(() => {
+		setSearchParams((prev) => {
+			prev.delete("highlightAttr");
+			return prev;
+		});
+	}, [setSearchParams]);
 	const [model, _setModel] = useState(() => {
 		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
 		if (isPanelPersistEnabled("entity-preview")) {
@@ -149,6 +161,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 								entity={selectedEntity}
 								mappings={relatedMappings}
 								onEntitiesCalculated={setCalculatedEntities}
+								highlightedAttr={highlightedAttr}
 							/>
 						</EntityContainer>
 					);
@@ -230,10 +243,17 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	return (
 		<div>
 			<Header>
-				{/* <div>
-					Просмотр сущности: {selectedEntity.namespace ? `${selectedEntity.namespace}.` : ""}
-				{selectedEntity.name}
-				</div> */}
+				{highlightedAttr && (
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
+						<Alert
+							severity="info"
+							sx={{ py: 0, px: 1 }}
+							onClose={handleClearHighlight}
+						>
+							Выделен атрибут: <strong>{highlightedAttr}</strong>
+						</Alert>
+					</Box>
+				)}
 			</Header>
 			<Wrapper id="entity_preview_container">
 				<FlexLayoutContainer>

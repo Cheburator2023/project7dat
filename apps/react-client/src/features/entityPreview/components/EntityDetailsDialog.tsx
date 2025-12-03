@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useNavigate } from "react-router";
 import {
 	Dialog,
 	DialogContent,
 	DialogTitle,
-	DialogActions,
-	Button,
 	Box,
 	TextField,
 	Table,
@@ -21,6 +20,7 @@ import {
 	InputAdornment,
 	IconButton,
 	Paper,
+	Tooltip,
 } from "@mui/material";
 import {
 	Close as CloseIcon,
@@ -31,9 +31,11 @@ import {
 	TableChart as TableChartIcon,
 	ViewModule as ViewModuleIcon,
 	HelpOutline as HelpOutlineIcon,
+	Home as HomeIcon,
 } from "@mui/icons-material";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { Spacer } from "@react-client/common/primitives/Spacer";
+import { useDashboardStore } from "@react-client/features/dashboard/stores";
 
 interface EntityConnection {
 	id: string;
@@ -78,8 +80,56 @@ export const EntityDetailsDialog = ({
 	onOpenEntity,
 	onOpenConnection,
 }: EntityDetailsDialogProps) => {
+	const navigate = useNavigate();
+	const {
+		setZoomToNode,
+		selectEntity,
+		setSelectedAttribute,
+		setHighlightedMapping,
+	} = useDashboardStore();
 	const [viewMode, setViewMode] = useState<ViewMode>("attributes");
 	const [searchTerm, setSearchTerm] = useState("");
+
+	// Navigate to dashboard with attribute highlight
+	const handleOpenAttrInDashboard = useCallback(
+		(attrName: string) => {
+			selectEntity(entity.id);
+			setZoomToNode(entity.id);
+			setSelectedAttribute({ entityId: entity.id, attrName });
+			onClose();
+			navigate("/");
+		},
+		[
+			entity.id,
+			navigate,
+			selectEntity,
+			setZoomToNode,
+			setSelectedAttribute,
+			onClose,
+		],
+	);
+
+	// Navigate to dashboard with mapping highlight
+	const handleOpenMappingInDashboard = useCallback(
+		(
+			sourceEntityId: string,
+			targetEntityId: string,
+			sourceAttr?: string,
+			targetAttr?: string,
+		) => {
+			setHighlightedMapping({
+				sourceEntityId,
+				targetEntityId,
+				sourceAttr,
+				targetAttr,
+			});
+			selectEntity(targetEntityId);
+			setZoomToNode(targetEntityId);
+			onClose();
+			navigate("/");
+		},
+		[navigate, selectEntity, setZoomToNode, setHighlightedMapping, onClose],
+	);
 
 	const attributes = entity.attrSeq || [];
 
@@ -345,6 +395,15 @@ export const EntityDetailsDialog = ({
 											>
 												Комментарий
 											</TableCell>
+											<TableCell
+												sx={{
+													bgcolor: "grey.100",
+													fontWeight: 600,
+													borderBottom: "2px solid",
+													borderBottomColor: "grey.300",
+													width: 60,
+												}}
+											/>
 										</TableRow>
 									</TableHead>
 									<TableBody>
@@ -382,6 +441,19 @@ export const EntityDetailsDialog = ({
 													<Typography variant="body2" color="text.secondary">
 														{attr.comment || "—"}
 													</Typography>
+												</TableCell>
+												<TableCell>
+													<Tooltip title="Показать в Dashboard">
+														<IconButton
+															size="small"
+															color="secondary"
+															onClick={() =>
+																handleOpenAttrInDashboard(attr.name)
+															}
+														>
+															<HomeIcon fontSize="small" />
+														</IconButton>
+													</Tooltip>
 												</TableCell>
 											</TableRow>
 										))}
@@ -464,21 +536,39 @@ export const EntityDetailsDialog = ({
 													/>
 												</TableCell>
 												<TableCell>
-													<IconButton
-														size="small"
-														color="primary"
-														onClick={(e) => {
-															e.stopPropagation();
-															const relatedId =
-																conn.sourceId === entity.id
-																	? conn.targetId
-																	: conn.sourceId;
-															onOpenEntity?.(relatedId);
-														}}
-														title="Открыть связанную сущность"
-													>
-														<OpenInNewIcon fontSize="small" />
-													</IconButton>
+													<Box sx={{ display: "flex", gap: 0.5 }}>
+														<Tooltip title="Открыть связанную сущность">
+															<IconButton
+																size="small"
+																color="primary"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	const relatedId =
+																		conn.sourceId === entity.id
+																			? conn.targetId
+																			: conn.sourceId;
+																	onOpenEntity?.(relatedId);
+																}}
+															>
+																<OpenInNewIcon fontSize="small" />
+															</IconButton>
+														</Tooltip>
+														<Tooltip title="Показать маппинг в Dashboard">
+															<IconButton
+																size="small"
+																color="secondary"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	handleOpenMappingInDashboard(
+																		conn.sourceId,
+																		conn.targetId,
+																	);
+																}}
+															>
+																<HomeIcon fontSize="small" />
+															</IconButton>
+														</Tooltip>
+													</Box>
 												</TableCell>
 											</TableRow>
 										))}

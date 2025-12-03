@@ -57,6 +57,22 @@ interface SelectionState {
 	// Zoom to node in graph
 	zoomToNodeId: string | null;
 	setZoomToNode: (nodeId: string | null) => void;
+
+	// Highlight specific attribute mapping (for navigation with highlighting)
+	highlightedMapping: {
+		sourceEntityId: string;
+		targetEntityId: string;
+		sourceAttr?: string;
+		targetAttr?: string;
+	} | null;
+	setHighlightedMapping: (
+		mapping: {
+			sourceEntityId: string;
+			targetEntityId: string;
+			sourceAttr?: string;
+			targetAttr?: string;
+		} | null,
+	) => void;
 }
 
 export const useDashboardStore = create<SelectionState>((set) => ({
@@ -118,4 +134,7 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 
 	zoomToNodeId: null,
 	setZoomToNode: (nodeId) => set({ zoomToNodeId: nodeId }),
+
+	highlightedMapping: null,
+	setHighlightedMapping: (mapping) => set({ highlightedMapping: mapping }),
 }));
