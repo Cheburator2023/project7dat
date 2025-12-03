@@ -8,8 +8,6 @@ import {
 	MenuItem,
 } from "@mui/material";
 import {
-	CallMade,
-	CallReceived,
 	Code,
 	ContentCopy,
 	AccountTree as GraphIcon,
@@ -63,6 +61,10 @@ export const GraphPanel = memo(() => {
 		x: number;
 		y: number;
 	} | null>(null);
+
+	// Attribute submenu state
+	const [attrSubmenuAnchor, setAttrSubmenuAnchor] =
+		useState<HTMLElement | null>(null);
 
 	// Build connections for dialogs
 	const entityConnections = useMemo(() => {
@@ -214,6 +216,21 @@ export const GraphPanel = memo(() => {
 		handleCloseContextMenu();
 	}, [contextMenu?.entityId, handleOpenEntity, handleCloseContextMenu]);
 
+	// Open entity page with attribute highlight
+	const handleGoToEntityWithHighlight = useCallback(
+		(attrName?: string) => {
+			if (contextMenu?.entityId) {
+				const encodedId = encodeURIComponent(contextMenu.entityId);
+				const url = attrName
+					? `/entity/${encodedId}?highlightAttr=${encodeURIComponent(attrName)}`
+					: `/entity/${encodedId}`;
+				navigate(url);
+			}
+			handleCloseContextMenu();
+		},
+		[contextMenu?.entityId, navigate, handleCloseContextMenu],
+	);
+
 	const handleShowInEditor = useCallback(() => {
 		if (contextMenu?.entityId) {
 			setRevealPosition({ nodeId: contextMenu.entityId, from: "graph" });
@@ -327,6 +344,17 @@ export const GraphPanel = memo(() => {
 					</ListItemIcon>
 					<ListItemText primary="Открыть в новой вкладке" />
 				</MenuItem>
+				{contextMenuEntity?.attrSeq && contextMenuEntity.attrSeq.length > 0 && (
+					<MenuItem onClick={(e) => setAttrSubmenuAnchor(e.currentTarget)}>
+						<ListItemIcon>
+							<GraphIcon fontSize="small" />
+						</ListItemIcon>
+						<ListItemText
+							primary="Открыть с выделением атрибута →"
+							secondary={`${contextMenuEntity.attrSeq.length} атрибутов`}
+						/>
+					</MenuItem>
+				)}
 				<Divider />
 				<MenuItem onClick={handleShowInEditor}>
 					<ListItemIcon>
@@ -352,6 +380,32 @@ export const GraphPanel = memo(() => {
 						<ListItemText primary="Показать маппинги" />
 					</MenuItem>
 				)}
+			</Menu>
+
+			{/* Attribute Submenu */}
+			<Menu
+				open={Boolean(attrSubmenuAnchor)}
+				anchorEl={attrSubmenuAnchor}
+				onClose={() => setAttrSubmenuAnchor(null)}
+				anchorOrigin={{ vertical: "top", horizontal: "right" }}
+				transformOrigin={{ vertical: "top", horizontal: "left" }}
+			>
+				{contextMenuEntity?.attrSeq?.map((attr) => (
+					<MenuItem
+						key={attr.name}
+						onClick={() => {
+							handleGoToEntityWithHighlight(attr.name);
+							setAttrSubmenuAnchor(null);
+						}}
+					>
+						<ListItemText
+							primary={attr.name}
+							secondary={attr.type}
+							primaryTypographyProps={{ fontSize: 13, fontFamily: "monospace" }}
+							secondaryTypographyProps={{ fontSize: 10 }}
+						/>
+					</MenuItem>
+				))}
 			</Menu>
 
 			{/* Entity Details Dialog */}

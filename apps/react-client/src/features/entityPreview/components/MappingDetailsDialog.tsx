@@ -1,9 +1,9 @@
+import { useCallback } from "react";
+import { useNavigate } from "react-router";
 import {
 	Dialog,
 	DialogContent,
 	DialogTitle,
-	DialogActions,
-	Button,
 	Box,
 	Table,
 	TableBody,
@@ -21,8 +21,11 @@ import {
 	ArrowForward as ArrowRightIcon,
 	Shuffle as ShuffleIcon,
 	AccountTree as AccountTreeIcon,
+	Home as HomeIcon,
+	OpenInNew as OpenInNewIcon,
 } from "@mui/icons-material";
 import { Spacer } from "@react-client/common/primitives/Spacer";
+import { useDashboardStore } from "@react-client/features/dashboard/stores";
 
 interface EntityConnection {
 	id: string;
@@ -45,6 +48,65 @@ export const MappingDetailsDialog = ({
 	onClose,
 	connection,
 }: MappingDetailsDialogProps) => {
+	const navigate = useNavigate();
+	const {
+		setZoomToNode,
+		selectEntity,
+		setSelectedAttribute,
+		setHighlightedMapping,
+	} = useDashboardStore();
+
+	// Navigate to entity page with attribute highlight
+	const handleGoToEntityPage = useCallback(
+		(entityId: string, attrName?: string) => {
+			const encodedId = encodeURIComponent(entityId);
+			const url = attrName
+				? `/entity/${encodedId}?highlightAttr=${encodeURIComponent(attrName)}`
+				: `/entity/${encodedId}`;
+			onClose();
+			navigate(url);
+		},
+		[navigate, onClose],
+	);
+
+	// Navigate to Dashboard with attribute highlight
+	const handleGoToDashboard = useCallback(
+		(entityId: string, attrName?: string) => {
+			selectEntity(entityId);
+			setZoomToNode(entityId);
+			if (attrName) {
+				setSelectedAttribute({ entityId, attrName });
+			}
+			onClose();
+			navigate("/");
+		},
+		[navigate, onClose, selectEntity, setZoomToNode, setSelectedAttribute],
+	);
+
+	// Navigate to Dashboard with mapping highlight
+	const handleGoToDashboardWithMapping = useCallback(
+		(sourceAttr: string, targetAttr: string) => {
+			setHighlightedMapping({
+				sourceEntityId: connection.sourceId,
+				targetEntityId: connection.targetId,
+				sourceAttr,
+				targetAttr,
+			});
+			selectEntity(connection.targetId);
+			setZoomToNode(connection.targetId);
+			onClose();
+			navigate("/");
+		},
+		[
+			navigate,
+			onClose,
+			connection,
+			selectEntity,
+			setZoomToNode,
+			setHighlightedMapping,
+		],
+	);
+
 	return (
 		<Dialog
 			open={open}
@@ -135,14 +197,38 @@ export const MappingDetailsDialog = ({
 						<Box display="flex" alignItems="stretch">
 							{/* Источник */}
 							<Box flex={1} p={2.5}>
-								<Typography
-									variant="caption"
-									color="success.main"
-									fontWeight={600}
-									sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+								<Box
+									sx={{
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "space-between",
+									}}
 								>
-									Источник
-								</Typography>
+									<Typography
+										variant="caption"
+										color="success.main"
+										fontWeight={600}
+										sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+									>
+										Источник
+									</Typography>
+									<Box sx={{ display: "flex", gap: 0.5 }}>
+										<IconButton
+											size="small"
+											title="Открыть страницу"
+											onClick={() => handleGoToEntityPage(connection.sourceId)}
+										>
+											<OpenInNewIcon fontSize="small" />
+										</IconButton>
+										<IconButton
+											size="small"
+											title="Показать в Dashboard"
+											onClick={() => handleGoToDashboard(connection.sourceId)}
+										>
+											<HomeIcon fontSize="small" />
+										</IconButton>
+									</Box>
+								</Box>
 								<Typography variant="h6" fontWeight={600} sx={{ mt: 0.5 }}>
 									{connection.sourceName}
 								</Typography>
@@ -179,14 +265,38 @@ export const MappingDetailsDialog = ({
 
 							{/* Цель */}
 							<Box flex={1} p={2.5}>
-								<Typography
-									variant="caption"
-									color="primary.main"
-									fontWeight={600}
-									sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+								<Box
+									sx={{
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "space-between",
+									}}
 								>
-									Цель
-								</Typography>
+									<Typography
+										variant="caption"
+										color="primary.main"
+										fontWeight={600}
+										sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+									>
+										Цель
+									</Typography>
+									<Box sx={{ display: "flex", gap: 0.5 }}>
+										<IconButton
+											size="small"
+											title="Открыть страницу"
+											onClick={() => handleGoToEntityPage(connection.targetId)}
+										>
+											<OpenInNewIcon fontSize="small" />
+										</IconButton>
+										<IconButton
+											size="small"
+											title="Показать в Dashboard"
+											onClick={() => handleGoToDashboard(connection.targetId)}
+										>
+											<HomeIcon fontSize="small" />
+										</IconButton>
+									</Box>
+								</Box>
 								<Typography variant="h6" fontWeight={600} sx={{ mt: 0.5 }}>
 									{connection.targetName}
 								</Typography>
@@ -283,28 +393,72 @@ export const MappingDetailsDialog = ({
 														<Chip
 															label={mapping.src}
 															size="small"
+															clickable
+															title="Клик - страница, Shift - Dashboard"
+															onClick={(e) => {
+																if (e.shiftKey) {
+																	handleGoToDashboard(
+																		connection.sourceId,
+																		mapping.src,
+																	);
+																} else {
+																	handleGoToEntityPage(
+																		connection.sourceId,
+																		mapping.src,
+																	);
+																}
+															}}
 															sx={{
 																bgcolor: "success.50",
 																color: "success.700",
 																fontFamily: "monospace",
 																fontWeight: 500,
+																cursor: "pointer",
 															}}
 														/>
 													</TableCell>
 													<TableCell align="center">
-														<ArrowRightIcon
-															sx={{ color: "primary.main", fontSize: 18 }}
-														/>
+														<IconButton
+															size="small"
+															title="Показать маппинг в Dashboard"
+															onClick={() =>
+																handleGoToDashboardWithMapping(
+																	mapping.src,
+																	mapping.dst,
+																)
+															}
+														>
+															<HomeIcon
+																fontSize="small"
+																sx={{ color: "primary.main" }}
+															/>
+														</IconButton>
 													</TableCell>
 													<TableCell>
 														<Chip
 															label={mapping.dst}
 															size="small"
+															clickable
+															title="Клик - страница, Shift - Dashboard"
+															onClick={(e) => {
+																if (e.shiftKey) {
+																	handleGoToDashboard(
+																		connection.targetId,
+																		mapping.dst,
+																	);
+																} else {
+																	handleGoToEntityPage(
+																		connection.targetId,
+																		mapping.dst,
+																	);
+																}
+															}}
 															sx={{
 																bgcolor: "primary.50",
 																color: "primary.700",
 																fontFamily: "monospace",
 																fontWeight: 500,
+																cursor: "pointer",
 															}}
 														/>
 													</TableCell>

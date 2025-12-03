@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
+import { useNavigate } from "react-router";
 import {
 	styled,
 	Box,
@@ -14,12 +15,17 @@ import {
 	Accordion,
 	AccordionSummary,
 	AccordionDetails,
+	Link,
+	Tooltip,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import HomeIcon from "@mui/icons-material/Home";
 import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
+import { useDashboardStore } from "@react-client/features/dashboard/stores";
 
 interface EntityDetailsViewProps {
 	entity: DataLineageEntity | null;
@@ -32,6 +38,14 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 	mappings,
 	allEntities = [],
 }) => {
+	const navigate = useNavigate();
+	const {
+		setZoomToNode,
+		selectEntity,
+		setHighlightedMapping,
+		setSelectedAttribute,
+	} = useDashboardStore();
+
 	const relatedMappings = useMemo(() => {
 		if (!entity) return [];
 		return mappings.filter(
@@ -40,6 +54,52 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 				mapping.deps?.some((dep) => dep.entityId === entity.id),
 		);
 	}, [entity, mappings]);
+
+	// Navigate to entity page with optional attribute highlight
+	const handleOpenEntityPage = useCallback(
+		(entityId: string, attrName?: string) => {
+			const encodedId = encodeURIComponent(entityId);
+			const url = attrName
+				? `/entity/${encodedId}?highlightAttr=${encodeURIComponent(attrName)}`
+				: `/entity/${encodedId}`;
+			navigate(url);
+		},
+		[navigate],
+	);
+
+	// Navigate to dashboard with entity and attribute highlight
+	const handleOpenInDashboard = useCallback(
+		(entityId: string, attrName?: string) => {
+			selectEntity(entityId);
+			setZoomToNode(entityId);
+			if (attrName) {
+				setSelectedAttribute({ entityId, attrName });
+			}
+			navigate("/");
+		},
+		[navigate, selectEntity, setZoomToNode, setSelectedAttribute],
+	);
+
+	// Navigate with mapping highlight
+	const handleOpenMappingInDashboard = useCallback(
+		(
+			sourceEntityId: string,
+			targetEntityId: string,
+			sourceAttr?: string,
+			targetAttr?: string,
+		) => {
+			setHighlightedMapping({
+				sourceEntityId,
+				targetEntityId,
+				sourceAttr,
+				targetAttr,
+			});
+			selectEntity(targetEntityId);
+			setZoomToNode(targetEntityId);
+			navigate("/");
+		},
+		[navigate, selectEntity, setZoomToNode, setHighlightedMapping],
+	);
 
 	if (!entity) {
 		return (
@@ -162,12 +222,25 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 								{allEntities
 									.filter((ent) => ent.id !== entity.id)
 									.map((ent) => (
-										<Chip
+										<Tooltip
 											key={ent.id}
-											label={ent.name || ent.id}
-											size="small"
-											variant="outlined"
-										/>
+											title="Клик - страница, Shift+клик - Dashboard"
+										>
+											<Chip
+												label={ent.name || ent.id}
+												size="small"
+												variant="outlined"
+												clickable
+												onClick={(e) => {
+													if (e.shiftKey) {
+														handleOpenInDashboard(ent.id);
+													} else {
+														handleOpenEntityPage(ent.id);
+													}
+												}}
+												sx={{ cursor: "pointer" }}
+											/>
+										</Tooltip>
 									))}
 							</Box>
 						</CompactAccordionDetails>
@@ -241,19 +314,65 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 											<TableCell sx={{ fontWeight: 600 }}>
 												Зависимости
 											</TableCell>
+											<TableCell sx={{ fontWeight: 600, width: 80 }}>
+												Действия
+											</TableCell>
 										</TableRow>
 									</TableHead>
 									<TableBody>
 										{relatedMappings.map((mapping) => (
 											<TableRow key={mapping.id}>
 												<TableCell>{mapping.id}</TableCell>
-												<TableCell
-													sx={{ fontFamily: "monospace", fontSize: 11 }}
-												>
-													{mapping.entityId}
+												<TableCell>
+													<Link
+														component="button"
+														variant="body2"
+														sx={{ fontFamily: "monospace", fontSize: 11 }}
+														onClick={() =>
+															handleOpenEntityPage(mapping.entityId)
+														}
+													>
+														{mapping.entityId}
+													</Link>
 												</TableCell>
 												<TableCell>
 													{mapping.deps?.length || 0} зависимостей
+												</TableCell>
+												<TableCell>
+													<Box sx={{ display: "flex", gap: 0.5 }}>
+														<Tooltip title="Открыть страницу">
+															<OpenInNewIcon
+																fontSize="small"
+																sx={{
+																	cursor: "pointer",
+																	color: "primary.main",
+																}}
+																onClick={() =>
+																	handleOpenEntityPage(mapping.entityId)
+																}
+															/>
+														</Tooltip>
+														<Tooltip title="Показать в Dashboard">
+															<HomeIcon
+																fontSize="small"
+																sx={{
+																	cursor: "pointer",
+																	color: "secondary.main",
+																}}
+																onClick={() => {
+																	const sourceId = mapping.deps?.[0]?.entityId;
+																	if (sourceId) {
+																		handleOpenMappingInDashboard(
+																			sourceId,
+																			mapping.entityId,
+																		);
+																	} else {
+																		handleOpenInDashboard(mapping.entityId);
+																	}
+																}}
+															/>
+														</Tooltip>
+													</Box>
 												</TableCell>
 											</TableRow>
 										))}
@@ -266,7 +385,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 
 				{/* Dependencies Details */}
 				{relatedMappings.some((m) => m.deps && m.deps.length > 0) && (
-					<CompactAccordion>
+					<CompactAccordion defaultExpanded>
 						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
 							<AccordionTitle>Детали зависимостей</AccordionTitle>
 						</CompactAccordionSummary>
@@ -274,43 +393,124 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 							{relatedMappings.map((mapping) =>
 								mapping.deps && mapping.deps.length > 0 ? (
 									<Box key={mapping.id} sx={{ mb: 2 }}>
-										<Typography variant="subtitle2" sx={{ mb: 1 }}>
-											Маппинг {mapping.id} → {mapping.entityId}
-										</Typography>
-										<TableContainer component={Paper} variant="outlined">
-											<Table size="small">
-												<TableHead>
-													<TableRow>
-														<TableCell sx={{ fontWeight: 600 }}>
-															Исходная сущность
-														</TableCell>
-														<TableCell sx={{ fontWeight: 600 }}>
-															Маппинги атрибутов
-														</TableCell>
-														<TableCell sx={{ fontWeight: 600 }}>
-															Зависимости атрибутов
-														</TableCell>
-													</TableRow>
-												</TableHead>
-												<TableBody>
-													{mapping.deps.map((dep, depIndex) => (
-														<TableRow key={depIndex}>
-															<TableCell
-																sx={{ fontFamily: "monospace", fontSize: 11 }}
-															>
-																{dep.entityId}
-															</TableCell>
-															<TableCell>
-																{dep.attrMaps?.length || 0} маппингов
-															</TableCell>
-															<TableCell>
-																{dep.atrDeps?.length || 0} зависимостей
-															</TableCell>
-														</TableRow>
-													))}
-												</TableBody>
-											</Table>
-										</TableContainer>
+										<Box
+											sx={{
+												display: "flex",
+												alignItems: "center",
+												gap: 1,
+												mb: 1,
+											}}
+										>
+											<Typography variant="subtitle2">
+												Маппинг {mapping.id}:
+											</Typography>
+											<Link
+												component="button"
+												variant="body2"
+												onClick={() => handleOpenEntityPage(mapping.entityId)}
+											>
+												{mapping.entityId}
+											</Link>
+											<Tooltip title="Показать в Dashboard">
+												<HomeIcon
+													fontSize="small"
+													sx={{ cursor: "pointer", color: "secondary.main" }}
+													onClick={() =>
+														handleOpenInDashboard(mapping.entityId)
+													}
+												/>
+											</Tooltip>
+										</Box>
+										{mapping.deps.map((dep, depIndex) => (
+											<Box
+												key={depIndex}
+												sx={{
+													mb: 1.5,
+													pl: 1,
+													borderLeft: "2px solid",
+													borderColor: "primary.light",
+												}}
+											>
+												<Box
+													sx={{
+														display: "flex",
+														alignItems: "center",
+														gap: 1,
+														mb: 0.5,
+													}}
+												>
+													<Typography variant="caption" color="text.secondary">
+														Источник:
+													</Typography>
+													<Link
+														component="button"
+														variant="body2"
+														sx={{ fontSize: 11 }}
+														onClick={() => handleOpenEntityPage(dep.entityId)}
+													>
+														{dep.entityId}
+													</Link>
+													<Tooltip title="Показать в Dashboard">
+														<HomeIcon
+															fontSize="small"
+															sx={{
+																cursor: "pointer",
+																color: "secondary.main",
+																fontSize: 14,
+															}}
+															onClick={() =>
+																handleOpenMappingInDashboard(
+																	dep.entityId,
+																	mapping.entityId,
+																)
+															}
+														/>
+													</Tooltip>
+												</Box>
+												{/* Attribute Mappings */}
+												{dep.attrMaps && dep.attrMaps.length > 0 && (
+													<Box sx={{ ml: 1 }}>
+														<Typography
+															variant="caption"
+															color="text.secondary"
+															sx={{ display: "block", mb: 0.5 }}
+														>
+															Маппинги атрибутов ({dep.attrMaps.length}):
+														</Typography>
+														<Box
+															sx={{
+																display: "flex",
+																flexWrap: "wrap",
+																gap: 0.5,
+															}}
+														>
+															{dep.attrMaps.map((attrMap, idx) => (
+																<Tooltip
+																	key={idx}
+																	title={`${attrMap.src} → ${attrMap.dst}. Клик - выделить в Dashboard`}
+																>
+																	<Chip
+																		size="small"
+																		label={`${attrMap.src} → ${attrMap.dst}`}
+																		variant="outlined"
+																		clickable
+																		sx={{ fontSize: 10 }}
+																		onClick={() =>
+																			handleOpenMappingInDashboard(
+																				dep.entityId,
+																				mapping.entityId,
+																				attrMap.src,
+																				attrMap.dst,
+																			)
+																		}
+																	/>
+																</Tooltip>
+															))}
+														</Box>
+													</Box>
+												)}
+											</Box>
+										))}
 									</Box>
 								) : null,
 							)}
