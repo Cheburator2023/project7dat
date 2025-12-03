@@ -363,6 +363,8 @@ export class JsonCommitController {
 					left,
 					right,
 				},
+				// Включаем структурированные изменения если они есть
+				changes: commit.changes || null,
 			};
 		});
 
@@ -504,6 +506,7 @@ export class JsonCommitController {
 					left,
 					right,
 				},
+				changes: commit.changes || null,
 			};
 		});
 
@@ -643,6 +646,7 @@ export class JsonCommitController {
 					left,
 					right,
 				},
+				changes: commit.changes || null,
 			};
 		});
 
@@ -708,6 +712,7 @@ export class JsonCommitController {
 					left,
 					right,
 				},
+				changes: commit.changes || null,
 			};
 		} catch (error) {
 			console.error(

@@ -32,6 +32,7 @@ export { useCommitList } from "./useCommitList";
 export { useCommitSearch } from "./useCommitSearch";
 export { useAllCommitsFromAllGraphs } from "./useAllCommitsFromAllGraphs";
 export { useCumulativeCommitData } from "./useCumulativeCommitData";
+export { useCommitById, COMMIT_BY_ID_QUERY_KEY } from "./useCommitById";
 export { useApplyCommit } from "./useApplyCommit";
 export { useApplyPartialCommit } from "./useApplyPartialCommit";
 export {

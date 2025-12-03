@@ -7,7 +7,10 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { JsonCommitEntity } from "../entities/json-commit.entity";
+import {
+	JsonCommitEntity,
+	type CommitChangesData,
+} from "../entities/json-commit.entity";
 import { JsonDataEntity } from "../entities/json-data.entity";
 import { GetCommitListInput } from "../schemas/json-commit.schema";
 import * as fuzzysort from "fuzzysort";
@@ -98,8 +101,9 @@ export class JsonCommitService {
 
 		// Create initial commit with full data
 		const diff = { _type: "initial", data: initialData };
-		let result: any;
-		let graphName = "";
+
+		// Вычисляем структурированные изменения (для initial commit - все добавлено)
+		const changes = this.calculateStructuredChanges(null, initialData);
 
 		const jsonData = await this.jsonDataRepository.findOne({
 			where: { id: graphId },
@@ -107,11 +111,12 @@ export class JsonCommitService {
 		if (!jsonData) {
 			throw new NotFoundException(`JSON с ID ${graphId} не найден`);
 		}
-		graphName = jsonData.name;
+		const graphName = jsonData.name;
 
 		const commit = this.commitRepository.create({
 			message,
 			diff,
+			changes,
 			graphId,
 			version: jsonData.version,
 			status: "LOADED_VALIDATED",
@@ -124,7 +129,7 @@ export class JsonCommitService {
 			`[JsonCommitService] Начальный коммит сохранен в БД:`,
 			savedCommit.id,
 		);
-		result = {
+		const result = {
 			...savedCommit,
 			short_id: this.generateShortId(savedCommit.id),
 		};
@@ -171,8 +176,8 @@ export class JsonCommitService {
 			);
 		}
 
-		let result: any;
-		let graphName = "";
+		// Вычисляем структурированные изменения
+		const changes = this.calculateStructuredChanges(previousData, newData);
 
 		const jsonData = await this.jsonDataRepository.findOne({
 			where: { id: graphId },
@@ -180,11 +185,12 @@ export class JsonCommitService {
 		if (!jsonData) {
 			throw new NotFoundException(`JSON с ID ${graphId} не найден`);
 		}
-		graphName = jsonData.name;
+		const graphName = jsonData.name;
 
 		const commit = this.commitRepository.create({
 			message,
 			diff,
+			changes,
 			graphId,
 			version: jsonData.version,
 			status: "LOADED_VALIDATED",
@@ -194,7 +200,7 @@ export class JsonCommitService {
 
 		const savedCommit = await this.commitRepository.save(commit);
 		console.log(`[JsonCommitService] Коммит сохранен в БД:`, savedCommit.id);
-		result = {
+		const result = {
 			...savedCommit,
 			short_id: this.generateShortId(savedCommit.id),
 		};
@@ -600,5 +606,256 @@ export class JsonCommitService {
 		});
 
 		return await this.commitRepository.save(commit);
+	}
+
+	/**
+	 * Вычисляет структурированные изменения между двумя версиями данных.
+	 * Определяет какие entities и mappings были добавлены, удалены или изменены.
+	 */
+	calculateStructuredChanges(
+		previousData: Record<string, any> | null,
+		newData: Record<string, any>,
+	): CommitChangesData {
+		const changes: CommitChangesData = {
+			entities: { added: [], removed: [], modified: [] },
+			mappings: { added: [], removed: [], modified: [] },
+			summary: {
+				totalChanges: 0,
+				entities: { added: 0, removed: 0, modified: 0 },
+				mappings: { added: 0, removed: 0, modified: 0 },
+			},
+		};
+
+		// Если нет предыдущих данных - все сущности и маппинги добавлены
+		if (!previousData) {
+			const entities = newData.entities || [];
+			const mappings = newData.mappings || [];
+
+			for (const entity of entities) {
+				changes.entities.added.push({
+					id: entity.id,
+					type: entity.type,
+					name: entity.name,
+					namespace: entity.namespace,
+					data: entity,
+				});
+			}
+
+			for (const mapping of mappings) {
+				changes.mappings.added.push({
+					id: mapping.id,
+					entityId: mapping.entityId,
+					data: mapping,
+				});
+			}
+
+			this.updateSummary(changes);
+			return changes;
+		}
+
+		// Сравниваем entities
+		this.compareEntities(
+			previousData.entities || [],
+			newData.entities || [],
+			changes,
+		);
+
+		// Сравниваем mappings
+		this.compareMappings(
+			previousData.mappings || [],
+			newData.mappings || [],
+			changes,
+		);
+
+		this.updateSummary(changes);
+		return changes;
+	}
+
+	/**
+	 * Сравнивает массивы entities и заполняет структуру изменений
+	 */
+	private compareEntities(
+		oldEntities: any[],
+		newEntities: any[],
+		changes: CommitChangesData,
+	): void {
+		const oldMap = new Map<string, any>();
+		const newMap = new Map<string, any>();
+
+		for (const entity of oldEntities) {
+			if (entity?.id) oldMap.set(entity.id, entity);
+		}
+
+		for (const entity of newEntities) {
+			if (entity?.id) newMap.set(entity.id, entity);
+		}
+
+		// Найти добавленные и измененные
+		for (const [id, newEntity] of newMap.entries()) {
+			const oldEntity = oldMap.get(id);
+
+			if (!oldEntity) {
+				// Добавлена новая сущность
+				changes.entities.added.push({
+					id: newEntity.id,
+					type: newEntity.type,
+					name: newEntity.name,
+					namespace: newEntity.namespace,
+					data: newEntity,
+				});
+			} else {
+				// Проверяем изменения
+				const fieldChanges = this.compareObjects(oldEntity, newEntity);
+				if (fieldChanges.length > 0) {
+					changes.entities.modified.push({
+						id: newEntity.id,
+						type: newEntity.type,
+						name: newEntity.name,
+						changes: fieldChanges,
+						oldData: oldEntity,
+						newData: newEntity,
+					});
+				}
+			}
+		}
+
+		// Найти удаленные
+		for (const [id, oldEntity] of oldMap.entries()) {
+			if (!newMap.has(id)) {
+				changes.entities.removed.push({
+					id: oldEntity.id,
+					type: oldEntity.type,
+					name: oldEntity.name,
+				});
+			}
+		}
+	}
+
+	/**
+	 * Сравнивает массивы mappings и заполняет структуру изменений
+	 */
+	private compareMappings(
+		oldMappings: any[],
+		newMappings: any[],
+		changes: CommitChangesData,
+	): void {
+		const oldMap = new Map<number, any>();
+		const newMap = new Map<number, any>();
+
+		for (const mapping of oldMappings) {
+			if (mapping?.id !== undefined) oldMap.set(mapping.id, mapping);
+		}
+
+		for (const mapping of newMappings) {
+			if (mapping?.id !== undefined) newMap.set(mapping.id, mapping);
+		}
+
+		// Найти добавленные и измененные
+		for (const [id, newMapping] of newMap.entries()) {
+			const oldMapping = oldMap.get(id);
+
+			if (!oldMapping) {
+				// Добавлен новый маппинг
+				changes.mappings.added.push({
+					id: newMapping.id,
+					entityId: newMapping.entityId,
+					data: newMapping,
+				});
+			} else {
+				// Проверяем изменения
+				const fieldChanges = this.compareObjects(oldMapping, newMapping);
+				if (fieldChanges.length > 0) {
+					changes.mappings.modified.push({
+						id: newMapping.id,
+						entityId: newMapping.entityId,
+						changes: fieldChanges,
+						oldData: oldMapping,
+						newData: newMapping,
+					});
+				}
+			}
+		}
+
+		// Найти удаленные
+		for (const [id, oldMapping] of oldMap.entries()) {
+			if (!newMap.has(id)) {
+				changes.mappings.removed.push({
+					id: oldMapping.id,
+					entityId: oldMapping.entityId,
+				});
+			}
+		}
+	}
+
+	/**
+	 * Сравнивает два объекта и возвращает список изменений полей
+	 */
+	private compareObjects(
+		oldObj: Record<string, any>,
+		newObj: Record<string, any>,
+	): Array<{ field: string; oldValue: any; newValue: any }> {
+		const changes: Array<{ field: string; oldValue: any; newValue: any }> = [];
+		const allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+
+		for (const key of allKeys) {
+			const oldValue = oldObj[key];
+			const newValue = newObj[key];
+
+			// Глубокое сравнение значений
+			if (!this.deepEqual(oldValue, newValue)) {
+				changes.push({
+					field: key,
+					oldValue,
+					newValue,
+				});
+			}
+		}
+
+		return changes;
+	}
+
+	/**
+	 * Глубокое сравнение двух значений
+	 */
+	private deepEqual(a: any, b: any): boolean {
+		if (a === b) return true;
+		if (a === null || b === null) return a === b;
+		if (typeof a !== typeof b) return false;
+
+		if (typeof a === "object") {
+			if (Array.isArray(a) !== Array.isArray(b)) return false;
+
+			if (Array.isArray(a)) {
+				if (a.length !== b.length) return false;
+				return a.every((item, index) => this.deepEqual(item, b[index]));
+			}
+
+			const keysA = Object.keys(a);
+			const keysB = Object.keys(b);
+			if (keysA.length !== keysB.length) return false;
+
+			return keysA.every((key) => this.deepEqual(a[key], b[key]));
+		}
+
+		return false;
+	}
+
+	/**
+	 * Обновляет summary в структуре изменений
+	 */
+	private updateSummary(changes: CommitChangesData): void {
+		changes.summary.entities.added = changes.entities.added.length;
+		changes.summary.entities.removed = changes.entities.removed.length;
+		changes.summary.entities.modified = changes.entities.modified.length;
+		changes.summary.mappings.added = changes.mappings.added.length;
+		changes.summary.mappings.removed = changes.mappings.removed.length;
+		changes.summary.mappings.modified = changes.mappings.modified.length;
+		changes.summary.totalChanges =
+			changes.summary.entities.added +
+			changes.summary.entities.removed +
+			changes.summary.entities.modified +
+			changes.summary.mappings.added +
+			changes.summary.mappings.removed +
+			changes.summary.mappings.modified;
 	}
 }

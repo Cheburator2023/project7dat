@@ -54,11 +54,64 @@ export interface CommitJsonDataRequest {
 	data: Record<string, any>;
 }
 
+/**
+ * Структура изменений коммита
+ */
+export interface CommitChanges {
+	entities: {
+		added: Array<{
+			id: string;
+			type: string;
+			name: string | null;
+			namespace?: string;
+			data: Record<string, any>;
+		}>;
+		removed: Array<{
+			id: string;
+			type?: string;
+			name?: string | null;
+		}>;
+		modified: Array<{
+			id: string;
+			type: string;
+			name: string | null;
+			changes: Array<{ field: string; oldValue: any; newValue: any }>;
+			oldData?: Record<string, any>;
+			newData?: Record<string, any>;
+		}>;
+	};
+	mappings: {
+		added: Array<{
+			id: number;
+			entityId: string;
+			data: Record<string, any>;
+		}>;
+		removed: Array<{
+			id: number;
+			entityId?: string;
+		}>;
+		modified: Array<{
+			id: number;
+			entityId: string;
+			changes: Array<{ field: string; oldValue: any; newValue: any }>;
+			oldData?: Record<string, any>;
+			newData?: Record<string, any>;
+		}>;
+	};
+	summary: {
+		totalChanges: number;
+		entities: { added: number; removed: number; modified: number };
+		mappings: { added: number; removed: number; modified: number };
+	};
+}
+
 export interface JsonCommitItem {
 	id: string;
 	short_id: string;
 	message: string;
 	diff: Record<string, any>;
+	/** Структурированные изменения коммита */
+	changes?: CommitChanges | null;
 	fullData?: DataLineageSchema; // Optional since individual commits don't include fullData
 	graphId: string;
 	author?: {
@@ -66,6 +119,7 @@ export interface JsonCommitItem {
 		username: string;
 		email: string;
 	};
+	authorName?: string;
 	createdAt: string;
 }
 
