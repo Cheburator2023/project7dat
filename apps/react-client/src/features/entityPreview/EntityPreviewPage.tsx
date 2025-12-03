@@ -4,6 +4,7 @@ import { Layout, Model, TabNode, Action } from "flexlayout-react";
 import { CircularProgress, styled } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
 import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "./components/EntityJsonEditor";
 import { EntityNodeView } from "./components/EntityNodeView";
@@ -12,9 +13,6 @@ import { useParams } from "react-router";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
-
-// Variable to control layout saving - set to false to turn off local storage saving
-const enableLayoutSaving = false;
 
 const flexLayoutJson = {
 	global: {
@@ -83,9 +81,14 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		DataLineageEntity[]
 	>([]);
 
+	const isPersistEnabled = usePanelSettingsStore((state) =>
+		state.isPanelPersistEnabled("entity-preview"),
+	);
+
 	const { entityId: urlEntityId } = useParams<{ entityId: string }>();
 	const [model, _setModel] = useState(() => {
-		if (enableLayoutSaving) {
+		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
+		if (isPanelPersistEnabled("entity-preview")) {
 			try {
 				const savedLayout = localStorage.getItem("entity-preview-layout");
 				if (savedLayout) {
@@ -176,7 +179,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		(action: Action) => {
 			const result = action;
 
-			if (enableLayoutSaving) {
+			if (isPersistEnabled) {
 				setTimeout(() => {
 					try {
 						const layoutJson = model.toJson();
@@ -192,7 +195,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 
 			return result;
 		},
-		[model, enableLayoutSaving],
+		[model, isPersistEnabled],
 	);
 
 	if (isPending) {

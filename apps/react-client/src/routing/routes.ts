@@ -88,4 +88,10 @@ export const routes = {
 		disabled: false,
 		showInNavbar: true,
 	},
+	settings: {
+		name: "Настройки",
+		rootPath: "/settings",
+		disabled: false,
+		showInNavbar: false,
+	},
 };

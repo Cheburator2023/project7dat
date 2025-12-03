@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
+import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
 
 import {
 	EntitiesPanel,
@@ -14,13 +15,18 @@ import {
 	SchemaPanel,
 	DashboardHeader,
 } from "./organisms";
-import { flexLayoutJson, PERSIST_LAYOUT_TO_STORAGE } from "./constants";
+import { flexLayoutJson } from "./constants";
 
 export { useDashboardStore } from "./stores";
 
 export const DashboardPage = () => {
+	const isPersistEnabled = usePanelSettingsStore((state) =>
+		state.isPanelPersistEnabled("dashboard"),
+	);
+
 	const [model] = useState(() => {
-		if (PERSIST_LAYOUT_TO_STORAGE) {
+		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
+		if (isPanelPersistEnabled("dashboard")) {
 			try {
 				const savedLayout = localStorage.getItem("dashboard2-flex-layout");
 				if (savedLayout) {
@@ -60,7 +66,7 @@ export const DashboardPage = () => {
 
 	const onAction = useCallback(
 		(action: Action) => {
-			if (PERSIST_LAYOUT_TO_STORAGE) {
+			if (isPersistEnabled) {
 				setTimeout(() => {
 					try {
 						const layoutJson = model.toJson();
@@ -76,7 +82,7 @@ export const DashboardPage = () => {
 
 			return action;
 		},
-		[model],
+		[model, isPersistEnabled],
 	);
 
 	return (

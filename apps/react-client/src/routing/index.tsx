@@ -15,6 +15,7 @@ import { GraphChangelogPage } from "@react-client/new_features/changelog/GraphCh
 import { ModelsPage } from "@react-client/new_features/models/ModelsPage";
 import { DataMartPreview } from "@react-client/features/dataMart/pages/DataMartPreview";
 import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
+import { SettingsPage } from "@react-client/features/settings/SettingsPage";
 
 export const Routing = () => (
 	<Routes>
@@ -45,6 +46,7 @@ export const Routing = () => (
 			path={routes.dataMartPreview.rootPath}
 			element={<DataMartPreview />}
 		/>
+		<Route path={routes.settings.rootPath} element={<SettingsPage />} />
 		<Route path="*" element={<Page404 />} />
 	</Routes>
 );

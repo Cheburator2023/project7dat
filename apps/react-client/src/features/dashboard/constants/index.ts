@@ -42,8 +42,6 @@ export const ATTR_EDGE_COLORS = [
 // FlexLayout Configuration
 // ============================================================================
 
-export const PERSIST_LAYOUT_TO_STORAGE = false;
-
 export const flexLayoutJson: IJsonModel = {
 	global: {
 		tabEnableClose: false,
