@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/useIterableCallbackReturn: forEach with early returns */
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo, useEffect } from "react";
 import { Box, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +28,7 @@ import {
 	ConnectionCount,
 } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
+import { fuzzySearchEntities } from "../utils";
 import type { EntityRow } from "../types";
 
 export const EntitiesPanel = memo(() => {
@@ -42,6 +43,7 @@ export const EntitiesPanel = memo(() => {
 		globalSearchQuery,
 		selectEntity,
 		filters,
+		setSearchMatchedEntities,
 	} = useDashboardStore();
 
 	// Use currentSchema hook to get data synced with editor
@@ -99,20 +101,41 @@ export const EntitiesPanel = memo(() => {
 		return rows;
 	}, [currentSchema, effectiveGraphId]);
 
+	// Fuzzy search entities
+	const fuzzyResults = useMemo(() => {
+		return fuzzySearchEntities(entities, globalSearchQuery);
+	}, [entities, globalSearchQuery]);
+
+	// Create a map of entity id to highlights for rendering
+	const highlightsMap = useMemo(() => {
+		const map = new Map<string, Map<string, string>>();
+		for (const result of fuzzyResults) {
+			if (result.highlights.size > 0) {
+				map.set(result.item.id, result.highlights);
+			}
+		}
+		return map;
+	}, [fuzzyResults]);
+
+	// Update search matched entities in store for graph highlighting
+	useEffect(() => {
+		if (globalSearchQuery) {
+			const matchedEntities = new Map<string, number>();
+			for (const result of fuzzyResults) {
+				if (result.score > -10000) {
+					matchedEntities.set(result.item.id, result.score);
+				}
+			}
+			setSearchMatchedEntities(matchedEntities);
+		} else {
+			setSearchMatchedEntities(new Map());
+		}
+	}, [fuzzyResults, globalSearchQuery, setSearchMatchedEntities]);
+
 	// Filter entities based on search and advanced filters
 	const filteredEntities = useMemo(() => {
-		let result = entities;
-
-		// Text search filter
-		if (globalSearchQuery) {
-			const q = globalSearchQuery.toLowerCase();
-			result = result.filter(
-				(e) =>
-					e.name.toLowerCase().includes(q) ||
-					e.namespace.toLowerCase().includes(q) ||
-					e.type.toLowerCase().includes(q),
-			);
-		}
+		// Get items from fuzzy results (already sorted by score)
+		let result = fuzzyResults.map((r) => r.item);
 
 		// Entity type filter
 		if (filters.entityTypes.length > 0) {
@@ -161,7 +184,7 @@ export const EntitiesPanel = memo(() => {
 		}
 
 		return result;
-	}, [entities, globalSearchQuery, filters]);
+	}, [fuzzyResults, filters]);
 
 	// Navigate to entity page
 	const handleNavigateToEntity = useCallback(
@@ -180,7 +203,19 @@ export const EntitiesPanel = memo(() => {
 				headerName: "Сущность",
 				flex: 2,
 				minWidth: 180,
-				cellRenderer: ({ value }: { value: string }) => value,
+				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+					const highlights = highlightsMap.get(data.id);
+					const highlightedName = highlights?.get("name");
+					if (highlightedName) {
+						return (
+							<span
+								dangerouslySetInnerHTML={{ __html: highlightedName }}
+								style={{ display: "block" }}
+							/>
+						);
+					}
+					return value;
+				},
 			},
 			{
 				field: "isDataMart",
@@ -206,6 +241,19 @@ export const EntitiesPanel = memo(() => {
 				field: "namespace",
 				headerName: "Namespace",
 				flex: 1,
+				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+					const highlights = highlightsMap.get(data.id);
+					const highlightedNs = highlights?.get("namespace");
+					if (highlightedNs) {
+						return (
+							<span
+								dangerouslySetInnerHTML={{ __html: highlightedNs }}
+								style={{ display: "block" }}
+							/>
+						);
+					}
+					return value;
+				},
 			},
 			{
 				field: "attributeCount",
@@ -239,7 +287,7 @@ export const EntitiesPanel = memo(() => {
 				),
 			},
 		],
-		[],
+		[highlightsMap],
 	);
 
 	const handleRowClicked = useCallback(

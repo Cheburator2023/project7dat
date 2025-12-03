@@ -28,6 +28,7 @@ import { useDashboardStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { LoadingSpinner, ObjectTypeChip } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
+import { fuzzySearchObjects, fuzzySearchLinks } from "../utils";
 import type { ObjectRow, LinkRow, EntityConnection } from "../types";
 
 export const ObjectsPanel = memo(() => {
@@ -122,54 +123,67 @@ export const ObjectsPanel = memo(() => {
 		return rows;
 	}, [currentSchema, effectiveGraphId]);
 
-	// Filter by selected entity and search
+	// Filter by selected entity first
+	const entityFilteredObjects = useMemo(() => {
+		if (selectedEntityId) {
+			return objects.filter((o) => o.parentEntity === selectedEntityId);
+		}
+		return objects;
+	}, [objects, selectedEntityId]);
+
+	// Fuzzy search objects
+	const fuzzyObjectResults = useMemo(() => {
+		return fuzzySearchObjects(entityFilteredObjects, globalSearchQuery);
+	}, [entityFilteredObjects, globalSearchQuery]);
+
+	// Create highlights map for objects
+	const objectHighlightsMap = useMemo(() => {
+		const map = new Map<string, Map<string, string>>();
+		for (const result of fuzzyObjectResults) {
+			if (result.highlights.size > 0) {
+				map.set(result.item.id, result.highlights);
+			}
+		}
+		return map;
+	}, [fuzzyObjectResults]);
+
+	// Get filtered objects (sorted by fuzzy score)
 	const filteredObjects = useMemo(() => {
-		let filtered = objects;
+		return fuzzyObjectResults.map((r) => r.item);
+	}, [fuzzyObjectResults]);
 
-		// Filter by selected entity
+	// Filter links by selected entity first
+	const entityFilteredLinks = useMemo(() => {
 		if (selectedEntityId) {
-			filtered = filtered.filter((o) => o.parentEntity === selectedEntityId);
-		}
-
-		// Filter by search
-		if (globalSearchQuery) {
-			const q = globalSearchQuery.toLowerCase();
-			filtered = filtered.filter(
-				(o) =>
-					o.name.toLowerCase().includes(q) ||
-					o.description.toLowerCase().includes(q) ||
-					(o.dataType && o.dataType.toLowerCase().includes(q)),
-			);
-		}
-
-		return filtered;
-	}, [objects, selectedEntityId, globalSearchQuery]);
-
-	// Filter links by selected entity and search
-	const filteredLinks = useMemo(() => {
-		let filtered = links;
-
-		// Filter by selected entity (show links where entity is source or target)
-		if (selectedEntityId) {
-			filtered = filtered.filter(
+			return links.filter(
 				(l) =>
 					l.sourceEntity === selectedEntityId ||
 					l.targetEntity === selectedEntityId,
 			);
 		}
+		return links;
+	}, [links, selectedEntityId]);
 
-		// Filter by search
-		if (globalSearchQuery) {
-			const q = globalSearchQuery.toLowerCase();
-			filtered = filtered.filter(
-				(l) =>
-					l.sourceName.toLowerCase().includes(q) ||
-					l.targetName.toLowerCase().includes(q),
-			);
+	// Fuzzy search links
+	const fuzzyLinkResults = useMemo(() => {
+		return fuzzySearchLinks(entityFilteredLinks, globalSearchQuery);
+	}, [entityFilteredLinks, globalSearchQuery]);
+
+	// Create highlights map for links
+	const linkHighlightsMap = useMemo(() => {
+		const map = new Map<string, Map<string, string>>();
+		for (const result of fuzzyLinkResults) {
+			if (result.highlights.size > 0) {
+				map.set(result.item.id, result.highlights);
+			}
 		}
+		return map;
+	}, [fuzzyLinkResults]);
 
-		return filtered;
-	}, [links, selectedEntityId, globalSearchQuery]);
+	// Get filtered links (sorted by fuzzy score)
+	const filteredLinks = useMemo(() => {
+		return fuzzyLinkResults.map((r) => r.item);
+	}, [fuzzyLinkResults]);
 
 	// Navigate to object page
 	const handleNavigateToObject = useCallback(
@@ -193,6 +207,19 @@ export const ObjectsPanel = memo(() => {
 				field: "name",
 				headerName: "Объект",
 				flex: 2,
+				cellRenderer: ({ value, data }: { value: string; data: ObjectRow }) => {
+					const highlights = objectHighlightsMap.get(data.id);
+					const highlightedName = highlights?.get("name");
+					if (highlightedName) {
+						return (
+							<span
+								dangerouslySetInnerHTML={{ __html: highlightedName }}
+								style={{ display: "block" }}
+							/>
+						);
+					}
+					return value;
+				},
 			},
 			{
 				field: "objectType",
@@ -213,9 +240,22 @@ export const ObjectsPanel = memo(() => {
 				field: "description",
 				headerName: "Описание",
 				flex: 1,
+				cellRenderer: ({ value, data }: { value: string; data: ObjectRow }) => {
+					const highlights = objectHighlightsMap.get(data.id);
+					const highlightedDesc = highlights?.get("description");
+					if (highlightedDesc) {
+						return (
+							<span
+								dangerouslySetInnerHTML={{ __html: highlightedDesc }}
+								style={{ display: "block" }}
+							/>
+						);
+					}
+					return value;
+				},
 			},
 		],
-		[],
+		[objectHighlightsMap],
 	);
 
 	// Column definitions for links
@@ -225,11 +265,24 @@ export const ObjectsPanel = memo(() => {
 				field: "sourceName",
 				headerName: "Источник",
 				flex: 1,
-				cellRenderer: ({ value }: { value: string }) => (
-					<Typography variant="body2" fontWeight={500}>
-						{value}
-					</Typography>
-				),
+				cellRenderer: ({ value, data }: { value: string; data: LinkRow }) => {
+					const highlights = linkHighlightsMap.get(data.id);
+					const highlightedSource = highlights?.get("sourceName");
+					if (highlightedSource) {
+						return (
+							<Typography
+								variant="body2"
+								fontWeight={500}
+								dangerouslySetInnerHTML={{ __html: highlightedSource }}
+							/>
+						);
+					}
+					return (
+						<Typography variant="body2" fontWeight={500}>
+							{value}
+						</Typography>
+					);
+				},
 			},
 			{
 				headerName: "",
@@ -246,11 +299,24 @@ export const ObjectsPanel = memo(() => {
 				field: "targetName",
 				headerName: "Цель",
 				flex: 1,
-				cellRenderer: ({ value }: { value: string }) => (
-					<Typography variant="body2" fontWeight={500}>
-						{value}
-					</Typography>
-				),
+				cellRenderer: ({ value, data }: { value: string; data: LinkRow }) => {
+					const highlights = linkHighlightsMap.get(data.id);
+					const highlightedTarget = highlights?.get("targetName");
+					if (highlightedTarget) {
+						return (
+							<Typography
+								variant="body2"
+								fontWeight={500}
+								dangerouslySetInnerHTML={{ __html: highlightedTarget }}
+							/>
+						);
+					}
+					return (
+						<Typography variant="body2" fontWeight={500}>
+							{value}
+						</Typography>
+					);
+				},
 			},
 			{
 				field: "attrMappingsCount",
@@ -266,7 +332,7 @@ export const ObjectsPanel = memo(() => {
 				),
 			},
 		],
-		[],
+		[linkHighlightsMap],
 	);
 
 	const handleRowClicked = useCallback(

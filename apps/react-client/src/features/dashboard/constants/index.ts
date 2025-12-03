@@ -27,6 +27,7 @@ export const HIGHLIGHT_COLORS = {
 	selected: "#ffc107",
 	upstream: "#4caf50",
 	downstream: "#2196f3",
+	searchMatch: "#ff5722", // Orange for search matches
 } as const;
 
 export const ATTR_EDGE_COLORS = [
