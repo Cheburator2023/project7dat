@@ -4,6 +4,7 @@ import { Layout, Model, TabNode, Action } from "flexlayout-react";
 import { CircularProgress, styled } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
+import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
 import { useJsonDataList } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import {
@@ -13,9 +14,6 @@ import {
 	ObjectGraphView,
 } from "./components";
 import type { ObjectItem, AttributeConnection } from "./types";
-
-// Variable to control layout saving - set to true to enable local storage saving
-const enableLayoutSaving = false;
 
 const flexLayoutJson = {
 	global: {
@@ -173,8 +171,13 @@ export const ObjectCardPage: React.FC = () => {
 	const { objectId } = useParams<{ objectId: string }>();
 	const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
+	const isPersistEnabled = usePanelSettingsStore((state) =>
+		state.isPanelPersistEnabled("object-card"),
+	);
+
 	const [model, _setModel] = useState(() => {
-		if (enableLayoutSaving) {
+		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
+		if (isPanelPersistEnabled("object-card")) {
 			try {
 				const savedLayout = localStorage.getItem("object-card-layout");
 				if (savedLayout) {
@@ -293,7 +296,7 @@ export const ObjectCardPage: React.FC = () => {
 		(action: Action) => {
 			const result = action;
 
-			if (enableLayoutSaving) {
+			if (isPersistEnabled) {
 				setTimeout(() => {
 					try {
 						const layoutJson = model.toJson();
@@ -309,7 +312,7 @@ export const ObjectCardPage: React.FC = () => {
 
 			return result;
 		},
-		[model],
+		[model, isPersistEnabled],
 	);
 
 	if (isLoading) {

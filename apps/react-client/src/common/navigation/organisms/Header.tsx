@@ -2,6 +2,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { Divider, IconButton, Typography } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
@@ -121,6 +122,13 @@ export function Header({
 
 							<NotificationButton />
 							<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
+							<IconButton
+								onClick={() => navigate("/settings")}
+								title="Настройки"
+								data-test-id="header--SettingsButton-0"
+							>
+								<SettingsIcon />
+							</IconButton>
 						</Flex>
 					</Flex>
 				</Card>
