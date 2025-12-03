@@ -346,11 +346,6 @@ export const MappingDetailsDialog = ({
 						<Typography variant="body2" color="text.secondary">
 							Всего маппингов: {connection.attrMaps.length}
 						</Typography>
-						{connection.attrMaps.length > 0 && (
-							<Typography variant="caption" color="text.secondary">
-								Прямое соответствие атрибутов
-							</Typography>
-						)}
 					</Box>
 				</Stack>
 			</DialogContent>

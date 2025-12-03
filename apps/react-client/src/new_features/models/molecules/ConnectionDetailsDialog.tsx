@@ -274,11 +274,6 @@ export const ConnectionDetailsDialog = ({
 								? `Маппингов: ${connection.mappings.length}`
 								: `Функций: ${connection.functions?.length || 0}`}
 						</Typography>
-						{viewMode === "mapping" && connection.mappings.length > 0 && (
-							<Typography variant="caption" color="text.secondary">
-								Прямое соответствие атрибутов
-							</Typography>
-						)}
 						{viewMode === "functions" &&
 							connection.functions &&
 							connection.functions.length > 0 && (
