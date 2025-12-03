@@ -16,7 +16,7 @@ import type {
 	DataLineageSchema,
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
-
+import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 import { useDashboardStore } from "../stores";
 import { graphNodeTypes } from "./EntityNodeComponent";
 import {
@@ -82,6 +82,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			zoomToNodeId,
 			setZoomToNode,
 		} = useDashboardStore();
+
+		const { showFullGraphByDefault } = useGraphSettingsStore();
 
 		const lineageGraph = useMemo(
 			() => buildLineageGraph(data.mappings || []),
@@ -277,7 +279,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
 			// Deduplicate entities by ID (keep first occurrence)
 			const seenEntityIds = new Set<string>();
-			const uniqueEntities: DataLineageEntity[] = [];
+			const allUniqueEntities: DataLineageEntity[] = [];
 			for (const entity of data.entities || []) {
 				if (!entity.id) {
 					console.warn(
@@ -291,7 +293,41 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 					continue;
 				}
 				seenEntityIds.add(entity.id);
-				uniqueEntities.push(entity);
+				allUniqueEntities.push(entity);
+			}
+
+			// Filter entities based on showFullGraphByDefault setting
+			// When disabled, only show entities that match the search query
+			const hasActiveSearch =
+				!!globalSearchQuery && searchMatchedEntities.size > 0;
+			let uniqueEntities: DataLineageEntity[];
+
+			if (showFullGraphByDefault) {
+				// Show all entities
+				uniqueEntities = allUniqueEntities;
+			} else if (hasActiveSearch) {
+				// Only show matched entities and their connected entities (upstream/downstream of selected)
+				const matchedIds = new Set(searchMatchedEntities.keys());
+				// Also include selected entity and its upstream/downstream
+				if (selectedEntityId) {
+					matchedIds.add(selectedEntityId);
+					for (const id of upstreamNodes) matchedIds.add(id);
+					for (const id of downstreamNodes) matchedIds.add(id);
+				}
+				uniqueEntities = allUniqueEntities.filter((e) => matchedIds.has(e.id));
+			} else {
+				// No search active and showFullGraphByDefault is false - show empty graph
+				// But still show selected entity and its connections if any
+				if (selectedEntityId) {
+					const visibleIds = new Set([selectedEntityId]);
+					for (const id of upstreamNodes) visibleIds.add(id);
+					for (const id of downstreamNodes) visibleIds.add(id);
+					uniqueEntities = allUniqueEntities.filter((e) =>
+						visibleIds.has(e.id),
+					);
+				} else {
+					uniqueEntities = [];
+				}
 			}
 
 			const entityMap = new Map<string, DataLineageEntity>();
@@ -566,6 +602,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			selectedHighlightedByEntity,
 			searchMatchedEntities,
 			globalSearchQuery,
+			showFullGraphByDefault,
 		]);
 
 		// Apply layout

@@ -17,6 +17,7 @@ import {
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
+import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 
 export const SettingsPage = () => {
 	const {
@@ -27,6 +28,9 @@ export const SettingsPage = () => {
 		resetPanelState,
 		resetAllPanels,
 	} = usePanelSettingsStore();
+
+	const { showFullGraphByDefault, setShowFullGraphByDefault } =
+		useGraphSettingsStore();
 
 	const handleResetPanel = (panelId: string, panelName: string) => {
 		if (
@@ -53,6 +57,36 @@ export const SettingsPage = () => {
 			<Header title="Настройки" />
 
 			<Box sx={{ p: 2, maxWidth: 900, margin: "0 auto" }}>
+				{/* Настройки графа */}
+				<Card sx={{ mb: 3 }}>
+					<CardContent>
+						<Typography variant="h6" gutterBottom>
+							Панель графа
+						</Typography>
+						<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+							Настройки отображения графа зависимостей на главной странице.
+						</Typography>
+						<FormControlLabel
+							control={
+								<Switch
+									checked={showFullGraphByDefault}
+									onChange={(e) => setShowFullGraphByDefault(e.target.checked)}
+								/>
+							}
+							label="Показывать полный граф по умолчанию"
+						/>
+						<Typography
+							variant="body2"
+							color="text.secondary"
+							sx={{ mt: 1, ml: 4 }}
+						>
+							{showFullGraphByDefault
+								? "Граф отображается полностью при загрузке, затем фильтруется по поиску."
+								: "Граф пустой при загрузке. Ноды появляются по мере ввода поискового запроса."}
+						</Typography>
+					</CardContent>
+				</Card>
+
 				{/* Глобальная настройка */}
 				<Card sx={{ mb: 3 }}>
 					<CardContent>
