@@ -601,6 +601,7 @@ export class JsonCommitService {
 			id: commitData.id,
 			message: commitData.message,
 			diff: commitData.diff,
+			changes: commitData.changes || null,
 			graphId,
 			createdAt: commitData.createdAt,
 		});
