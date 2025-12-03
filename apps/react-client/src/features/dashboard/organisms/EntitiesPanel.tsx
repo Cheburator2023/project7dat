@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/useIterableCallbackReturn: forEach with early returns */
-import { memo, useCallback, useMemo, useEffect } from "react";
+import { memo, useCallback, useMemo, useEffect, useState } from "react";
 import { Box, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +8,7 @@ import type {
 	ColDef,
 	RowClickedEvent,
 	RowDoubleClickedEvent,
+	CellContextMenuEvent,
 } from "ag-grid-community";
 import {
 	agGridCustomMUITheme,
@@ -29,7 +30,8 @@ import {
 } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
 import { fuzzySearchEntities } from "../utils";
-import type { EntityRow } from "../types";
+import { EntityContextMenu, type EntityContextMenuState } from "../molecules";
+import type { EntityRow, EntityConnection } from "../types";
 
 export const EntitiesPanel = memo(() => {
 	const { mode } = useColorScheme();
@@ -308,6 +310,69 @@ export const EntitiesPanel = memo(() => {
 		[handleNavigateToEntity],
 	);
 
+	// Context menu state
+	const [contextMenu, setContextMenu] = useState<EntityContextMenuState | null>(
+		null,
+	);
+
+	const handleCellContextMenu = useCallback(
+		(event: CellContextMenuEvent<EntityRow>) => {
+			event.event?.preventDefault();
+			if (event.data) {
+				const mouseEvent = event.event as MouseEvent;
+				setContextMenu({
+					entityId: event.data.id,
+					entityName: event.data.name,
+					entityType: event.data.type,
+					x: mouseEvent.clientX,
+					y: mouseEvent.clientY,
+				});
+			}
+		},
+		[],
+	);
+
+	const handleCloseContextMenu = useCallback(() => {
+		setContextMenu(null);
+	}, []);
+
+	// Get entity for context menu
+	const contextMenuEntity = useMemo(() => {
+		if (!contextMenu || !currentSchema) return null;
+		return (
+			currentSchema.entities?.find((e) => e.id === contextMenu.entityId) || null
+		);
+	}, [contextMenu, currentSchema]);
+
+	// Build connections for context menu
+	const entityConnections: EntityConnection[] = useMemo(() => {
+		if (!currentSchema) return [];
+		const connections: EntityConnection[] = [];
+		const entityMap = new Map<string, { name: string; id: string }>();
+		for (const e of currentSchema.entities || []) {
+			entityMap.set(e.id, { name: e.name || e.id, id: e.id });
+		}
+
+		for (const mapping of currentSchema.mappings || []) {
+			if (!mapping.deps) continue;
+			for (const dep of mapping.deps) {
+				const sourceEntity = entityMap.get(dep.entityId);
+				const targetEntity = entityMap.get(mapping.entityId);
+				if (!sourceEntity || !targetEntity) continue;
+
+				connections.push({
+					id: `${dep.entityId}->${mapping.entityId}`,
+					sourceId: dep.entityId,
+					targetId: mapping.entityId,
+					sourceName: sourceEntity.name,
+					targetName: targetEntity.name,
+					attrMaps: dep.attrMaps || [],
+				});
+			}
+		}
+		return connections;
+	}, [currentSchema]);
+
 	const getRowStyle = useCallback(
 		(params: { data?: EntityRow }) => {
 			const entityId = params.data?.id;
@@ -343,12 +408,21 @@ export const EntitiesPanel = memo(() => {
 				theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
 				onRowClicked={handleRowClicked}
 				onRowDoubleClicked={handleRowDoubleClicked}
+				onCellContextMenu={handleCellContextMenu}
+				preventDefaultOnContextMenu
 				getRowStyle={getRowStyle}
 				rowSelection="single"
 				suppressCellFocus
 				animateRows
 				rowHeight={28}
 				headerHeight={32}
+			/>
+
+			<EntityContextMenu
+				contextMenu={contextMenu}
+				onClose={handleCloseContextMenu}
+				entity={contextMenuEntity}
+				connections={entityConnections}
 			/>
 		</Box>
 	);

@@ -71,7 +71,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		const [graphMode, setGraphMode] = useState<"entities" | "attributes">(
 			"attributes",
 		);
-		const { fitView } = useReactFlow();
+		const { fitView, setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
@@ -79,6 +79,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			setSelectedAttribute,
 			searchMatchedEntities,
 			globalSearchQuery,
+			zoomToNodeId,
+			setZoomToNode,
 		} = useDashboardStore();
 
 		const lineageGraph = useMemo(
@@ -589,6 +591,20 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			);
 			return () => clearTimeout(timer);
 		}, [layoutDirection, fitView, data]);
+
+		// Handle zoom to node request from context menu
+		useEffect(() => {
+			if (zoomToNodeId) {
+				const node = getNode(zoomToNodeId);
+				if (node) {
+					const x = node.position.x + (node.measured?.width ?? 280) / 2;
+					const y = node.position.y + (node.measured?.height ?? 100) / 2;
+					setCenter(x, y, { zoom: 1.2, duration: 500 });
+				}
+				// Reset after zooming
+				setZoomToNode(null);
+			}
+		}, [zoomToNodeId, getNode, setCenter, setZoomToNode]);
 
 		return (
 			<ReactFlow
