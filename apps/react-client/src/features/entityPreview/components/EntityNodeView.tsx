@@ -94,7 +94,7 @@ type EntityNode = Node<EntityNodeData, "entityNode">;
 const NODE_WIDTH = 260;
 const NODE_HEADER_HEIGHT = 56;
 const ATTR_ROW_HEIGHT = 20;
-const MAX_VISIBLE_ATTRS = 3;
+const LAYOUT_VISIBLE_ATTRS = 10; // Match DEFAULT_VISIBLE_ATTRS for accurate layout
 
 const TYPE_COLORS: Record<
 	string,
@@ -126,12 +126,13 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 		onNodeDoubleClick,
 		onAttrHover,
 		onAttrClick,
+		onExpandToggle,
+		isExpanded = false,
 		upstreamCount,
 		downstreamCount,
 		hoverHighlightedAttrs = new Set<string>(),
 		selectedHighlightedAttrs = new Set<string>(),
 	} = data as any;
-	const [isExpanded, setIsExpanded] = useState(false);
 	const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 	const attrs = entity.attrSeq || [];
 
@@ -367,7 +368,7 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 						<div
 							onClick={(e) => {
 								e.stopPropagation();
-								setIsExpanded(!isExpanded);
+								onExpandToggle?.(id, !isExpanded);
 							}}
 							style={{
 								padding: "4px 10px",
@@ -430,25 +431,30 @@ const getLayoutedElements = (
 	nodes: EntityNode[],
 	edges: Edge[],
 	direction: "LR" | "TB" = "LR",
+	expandedNodes: Set<string> = new Set(),
 ) => {
 	const dagreGraph = new dagre.graphlib.Graph();
 	dagreGraph.setDefaultEdgeLabel(() => ({}));
 
 	dagreGraph.setGraph({
 		rankdir: direction,
-		nodesep: 60,
-		ranksep: 120,
+		nodesep: 100, // Increased to prevent vertical overlap
+		ranksep: 150, // Increased horizontal separation
 		marginx: 40,
 		marginy: 40,
 	});
 
 	nodes.forEach((node) => {
 		const attrCount = node.data.entity.attrSeq?.length || 0;
-		const visibleAttrs = Math.min(attrCount, MAX_VISIBLE_ATTRS);
+		const isExpanded = expandedNodes.has(node.id);
+		// Use full attr count if expanded, otherwise LAYOUT_VISIBLE_ATTRS
+		const visibleAttrs = isExpanded
+			? attrCount
+			: Math.min(attrCount, LAYOUT_VISIBLE_ATTRS);
 		const height =
 			NODE_HEADER_HEIGHT +
 			visibleAttrs * ATTR_ROW_HEIGHT +
-			(attrCount > MAX_VISIBLE_ATTRS ? 20 : 0);
+			(attrCount > LAYOUT_VISIBLE_ATTRS ? 24 : 0);
 
 		dagreGraph.setNode(node.id, { width: NODE_WIDTH, height });
 	});
@@ -462,11 +468,14 @@ const getLayoutedElements = (
 	const layoutedNodes = nodes.map((node) => {
 		const nodeWithPosition = dagreGraph.node(node.id);
 		const attrCount = node.data.entity.attrSeq?.length || 0;
-		const visibleAttrs = Math.min(attrCount, MAX_VISIBLE_ATTRS);
+		const isExpanded = expandedNodes.has(node.id);
+		const visibleAttrs = isExpanded
+			? attrCount
+			: Math.min(attrCount, LAYOUT_VISIBLE_ATTRS);
 		const height =
 			NODE_HEADER_HEIGHT +
 			visibleAttrs * ATTR_ROW_HEIGHT +
-			(attrCount > MAX_VISIBLE_ATTRS ? 20 : 0);
+			(attrCount > LAYOUT_VISIBLE_ATTRS ? 24 : 0);
 
 		return {
 			...node,
@@ -578,6 +587,9 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	);
 	const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
 
+	// Expanded nodes state for layout recalculation
+	const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
 	// Attribute hover/selection state (like Dashboard)
 	const [hoveredAttribute, setHoveredAttribute] = useState<{
 		entityId: string;
@@ -612,8 +624,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 
 	const { fitView, setCenter, getNode } = useReactFlow();
 	const { setRevealPosition } = useDataLineageStore();
-	const { setZoomToNode, selectEntity, setSelectedAttribute } =
-		useDashboardStore();
+	const { setZoomToNode } = useDashboardStore();
 
 	// Build lineage graph
 	const lineageGraph = useMemo(() => buildLineageGraph(mappings), [mappings]);
@@ -764,6 +775,22 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 			}
 		},
 		[selectedAttribute],
+	);
+
+	// Expand/collapse handler for nodes
+	const handleExpandToggle = useCallback(
+		(nodeId: string, expanded: boolean) => {
+			setExpandedNodes((prev) => {
+				const next = new Set(prev);
+				if (expanded) {
+					next.add(nodeId);
+				} else {
+					next.delete(nodeId);
+				}
+				return next;
+			});
+		},
+		[],
 	);
 
 	// Build attribute-level highlight maps for each entity (which attrs have mappings)
@@ -956,26 +983,16 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		setContextMenu(null);
 	}, [contextMenu, selectedAttribute, navigate]);
 
-	// Open Dashboard with entity and selected attribute highlight
+	// Open Dashboard with entity and selected attribute highlight via URL params
 	const handleGoToDashboardWithSelectedAttr = useCallback(() => {
 		if (contextMenu && selectedAttribute) {
-			selectEntity(contextMenu.entityId);
-			setZoomToNode(contextMenu.entityId);
-			setSelectedAttribute({
-				entityId: contextMenu.entityId,
-				attrName: selectedAttribute.attrName,
-			});
-			navigate("/");
+			const params = new URLSearchParams();
+			params.set("entityId", contextMenu.entityId);
+			params.set("attrName", selectedAttribute.attrName);
+			navigate(`/?${params.toString()}`);
 		}
 		setContextMenu(null);
-	}, [
-		contextMenu,
-		selectedAttribute,
-		navigate,
-		selectEntity,
-		setZoomToNode,
-		setSelectedAttribute,
-	]);
+	}, [contextMenu, selectedAttribute, navigate]);
 
 	// Create nodes
 	const nodes: EntityNode[] = useMemo(() => {
@@ -1004,6 +1021,8 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 					onNodeDoubleClick: handleNodeDoubleClick,
 					onAttrHover: handleAttrHover,
 					onAttrClick: handleAttrClick,
+					onExpandToggle: handleExpandToggle,
+					isExpanded: expandedNodes.has(entity.id),
 					graphId: mainEntity.id,
 					upstreamCount: upstreamCounts.get(entity.id) || 0,
 					downstreamCount: downstreamCounts.get(entity.id) || 0,
@@ -1028,6 +1047,8 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		handleNodeDoubleClick,
 		handleAttrHover,
 		handleAttrClick,
+		handleExpandToggle,
+		expandedNodes,
 		mainEntity.id,
 		entitySourceAttrs,
 		entityTargetAttrs,
@@ -1117,10 +1138,10 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		selectedNode,
 	]);
 
-	// Apply layout
+	// Apply layout (recalculates when expandedNodes changes)
 	const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
-		return getLayoutedElements(nodes, edges, layoutDirection);
-	}, [nodes, edges, layoutDirection]);
+		return getLayoutedElements(nodes, edges, layoutDirection, expandedNodes);
+	}, [nodes, edges, layoutDirection, expandedNodes]);
 
 	const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(
 		layoutedNodes as Node[],

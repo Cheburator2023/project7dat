@@ -35,6 +35,11 @@ interface SelectionState {
 
 	// Actions
 	selectEntity: (entityId: string | null, graphId?: string | null) => void;
+	selectEntityWithAttribute: (
+		entityId: string,
+		attrName: string,
+		graphId?: string | null,
+	) => void;
 	selectAttribute: (attrName: string | null) => void;
 	highlightEntity: (entityId: string) => void;
 	clearHighlights: () => void;
@@ -98,6 +103,15 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 			selectedEntityId: entityId,
 			selectedGraphId: graphId ?? state.selectedGraphId,
 			selectedAttributeName: null,
+			highlightedEntities: entityId ? new Set([entityId]) : new Set(),
+		})),
+
+	selectEntityWithAttribute: (entityId, attrName, graphId = null) =>
+		set((state) => ({
+			selectedEntityId: entityId,
+			selectedGraphId: graphId ?? state.selectedGraphId,
+			selectedAttributeName: attrName,
+			selectedAttribute: { entityId, attrName },
 			highlightedEntities: entityId ? new Set([entityId]) : new Set(),
 		})),
 
