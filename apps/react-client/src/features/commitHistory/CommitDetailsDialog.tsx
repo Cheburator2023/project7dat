@@ -19,7 +19,12 @@ import type {
 	DataLineageMapping,
 } from "@data-lineage/shared-schemas";
 import { isDataLineageSchema } from "@data-lineage/shared-schemas";
-import { useCumulativeCommitData } from "@react-client/api/hooks";
+import {
+	useCumulativeCommitData,
+	useCommitById,
+} from "@react-client/api/hooks";
+import { CommitChangesView } from "../commits/components/CommitChangesView";
+import { ChangesSummaryBadge } from "../commits/components/ChangesSummaryBadge";
 
 interface CommitDetailsDialogProps {
 	open: boolean;
@@ -74,6 +79,14 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 	} = useCumulativeCommitData(selectedCommitId || "", {
 		enabled: Boolean(selectedCommitId),
 	});
+
+	// Получаем данные коммита с структурированными изменениями
+	const { data: commitData, isLoading: isLoadingCommit } = useCommitById(
+		selectedCommitId || "",
+		{
+			enabled: Boolean(selectedCommitId),
+		},
+	);
 
 	const baselineSchema: DataLineageSchema | null = useMemo(() => {
 		if (currentGraph && isDataLineageSchema(currentGraph)) {
@@ -183,7 +196,9 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 				</Box>
 			</DialogTitle>
 			<DialogContent dividers>
-				{isLoadingCumulative && <Typography>Загрузка...</Typography>}
+				{(isLoadingCumulative || isLoadingCommit) && (
+					<Typography>Загрузка...</Typography>
+				)}
 				{cumulativeError && (
 					<Typography color="error">
 						Ошибка загрузки данных: {cumulativeError.message}
@@ -191,7 +206,23 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 				)}
 				{cumulativeData && (
 					<Box>
+						{/* Структурированные изменения коммита */}
+						{commitData?.changes && (
+							<Box sx={{ mb: 3 }}>
+								<Typography variant="h6" gutterBottom>
+									Структурированные изменения
+								</Typography>
+								<ChangesSummaryBadge changes={commitData.changes} />
+								<Box sx={{ mt: 2 }}>
+									<CommitChangesView changes={commitData.changes} showDetails />
+								</Box>
+							</Box>
+						)}
+
 						<Box sx={{ mb: 3, maxHeight: "300px", overflow: "auto" }}>
+							<Typography variant="h6" gutterBottom>
+								Полный diff
+							</Typography>
 							<ReactDiffViewer
 								oldValue={oldValue}
 								newValue={newValue}
@@ -204,7 +235,7 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 							/>
 						</Box>
 
-						{baselineSchema && targetSchema && entityDiffItems.length > 0 && (
+						{baselineSchema && targetSchema && entityDiffItems?.length > 0 && (
 							<Box sx={{ mb: 3 }}>
 								<Typography variant="h6" gutterBottom>
 									Изменения по сущностям
@@ -291,10 +322,11 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 						)}
 
 						<Typography variant="h6" gutterBottom>
-							История изменений ({cumulativeData.commits.length} коммитов):
+							История изменений ({cumulativeData?.commits?.length || 0}{" "}
+							коммитов):
 						</Typography>
 						<Box sx={{ maxHeight: "400px", overflow: "auto" }}>
-							{cumulativeData.commits.map((commit, _index) => (
+							{cumulativeData?.commits?.map((commit, _index) => (
 								<Box
 									key={commit.id}
 									sx={{ mb: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}
