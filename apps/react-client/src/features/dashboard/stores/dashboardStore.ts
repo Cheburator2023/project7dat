@@ -53,6 +53,10 @@ interface SelectionState {
 		upstream: Set<string>,
 		downstream: Set<string>,
 	) => void;
+
+	// Zoom to node in graph
+	zoomToNodeId: string | null;
+	setZoomToNode: (nodeId: string | null) => void;
 }
 
 export const useDashboardStore = create<SelectionState>((set) => ({
@@ -111,4 +115,7 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 
 	setUpstreamDownstream: (upstream, downstream) =>
 		set({ upstreamEntities: upstream, downstreamEntities: downstream }),
+
+	zoomToNodeId: null,
+	setZoomToNode: (nodeId) => set({ zoomToNodeId: nodeId }),
 }));

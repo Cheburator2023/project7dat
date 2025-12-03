@@ -13,6 +13,7 @@ import type {
 	ColDef,
 	RowClickedEvent,
 	RowDoubleClickedEvent,
+	CellContextMenuEvent,
 } from "ag-grid-community";
 import {
 	agGridCustomMUITheme,
@@ -29,6 +30,7 @@ import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { LoadingSpinner, ObjectTypeChip } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
 import { fuzzySearchObjects, fuzzySearchLinks } from "../utils";
+import { EntityContextMenu, type EntityContextMenuState } from "../molecules";
 import type { ObjectRow, LinkRow, EntityConnection } from "../types";
 
 export const ObjectsPanel = memo(() => {
@@ -362,6 +364,69 @@ export const ObjectsPanel = memo(() => {
 		[handleLinkClick],
 	);
 
+	// Context menu state
+	const [contextMenu, setContextMenu] = useState<EntityContextMenuState | null>(
+		null,
+	);
+
+	const handleCellContextMenu = useCallback(
+		(event: CellContextMenuEvent<ObjectRow>) => {
+			event.event?.preventDefault();
+			if (event.data) {
+				const mouseEvent = event.event as MouseEvent;
+				setContextMenu({
+					entityId: event.data.parentEntity,
+					entityName: event.data.name,
+					entityType: event.data.objectType,
+					x: mouseEvent.clientX,
+					y: mouseEvent.clientY,
+				});
+			}
+		},
+		[],
+	);
+
+	const handleCloseContextMenu = useCallback(() => {
+		setContextMenu(null);
+	}, []);
+
+	// Get entity for context menu
+	const contextMenuEntity = useMemo(() => {
+		if (!contextMenu || !currentSchema) return null;
+		return (
+			currentSchema.entities?.find((e) => e.id === contextMenu.entityId) || null
+		);
+	}, [contextMenu, currentSchema]);
+
+	// Build connections for context menu
+	const entityConnections: EntityConnection[] = useMemo(() => {
+		if (!currentSchema) return [];
+		const connections: EntityConnection[] = [];
+		const entityMap = new Map<string, { name: string; id: string }>();
+		for (const e of currentSchema.entities || []) {
+			entityMap.set(e.id, { name: e.name || e.id, id: e.id });
+		}
+
+		for (const mapping of currentSchema.mappings || []) {
+			if (!mapping.deps) continue;
+			for (const dep of mapping.deps) {
+				const sourceEntity = entityMap.get(dep.entityId);
+				const targetEntity = entityMap.get(mapping.entityId);
+				if (!sourceEntity || !targetEntity) continue;
+
+				connections.push({
+					id: `${dep.entityId}->${mapping.entityId}`,
+					sourceId: dep.entityId,
+					targetId: mapping.entityId,
+					sourceName: sourceEntity.name,
+					targetName: targetEntity.name,
+					attrMaps: dep.attrMaps || [],
+				});
+			}
+		}
+		return connections;
+	}, [currentSchema]);
+
 	const getRowStyle = useCallback(
 		(params: { data?: ObjectRow }) => {
 			if (params.data?.name === selectedAttributeName) {
@@ -451,6 +516,8 @@ export const ObjectsPanel = memo(() => {
 						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
 						onRowClicked={handleRowClicked}
 						onRowDoubleClicked={handleRowDoubleClicked}
+						onCellContextMenu={handleCellContextMenu}
+						preventDefaultOnContextMenu
 						getRowStyle={getRowStyle}
 						rowSelection="single"
 						suppressCellFocus
@@ -472,6 +539,13 @@ export const ObjectsPanel = memo(() => {
 					/>
 				)}
 			</Box>
+
+			<EntityContextMenu
+				contextMenu={contextMenu}
+				onClose={handleCloseContextMenu}
+				entity={contextMenuEntity}
+				connections={entityConnections}
+			/>
 
 			{/* Mapping Details Dialog */}
 			{selectedConnection && (
