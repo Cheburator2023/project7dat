@@ -25,6 +25,10 @@ interface SelectionState {
 	highlightedRows: Set<string>;
 	highlightedCodeLines: Set<number>;
 
+	// Fuzzy search matched entities (for graph highlighting)
+	searchMatchedEntities: Map<string, number>; // entityId -> score
+	setSearchMatchedEntities: (matches: Map<string, number>) => void;
+
 	// Filter state
 	globalSearchQuery: string;
 	filters: FilterState;
@@ -62,6 +66,9 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 	highlightedEntities: new Set(),
 	highlightedRows: new Set(),
 	highlightedCodeLines: new Set(),
+	searchMatchedEntities: new Map(),
+	setSearchMatchedEntities: (matches) =>
+		set({ searchMatchedEntities: matches }),
 	globalSearchQuery: "",
 	upstreamEntities: new Set(),
 	downstreamEntities: new Set(),

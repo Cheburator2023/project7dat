@@ -77,6 +77,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			setHoveredAttribute,
 			selectedAttribute,
 			setSelectedAttribute,
+			searchMatchedEntities,
+			globalSearchQuery,
 		} = useDashboardStore();
 
 		const lineageGraph = useMemo(
@@ -319,11 +321,18 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 
+			const isSearchActive =
+				!!globalSearchQuery && searchMatchedEntities.size > 0;
+
 			const nodes: EntityNode[] = uniqueEntities.map((entity) => {
 				let highlightType: EntityNodeData["highlightType"] = "none";
+				const searchScore = searchMatchedEntities.get(entity.id);
+				const isSearchMatch = globalSearchQuery && searchScore !== undefined;
+
 				if (entity.id === selectedEntityId) highlightType = "selected";
 				else if (upstreamNodes.has(entity.id)) highlightType = "upstream";
 				else if (downstreamNodes.has(entity.id)) highlightType = "downstream";
+				else if (isSearchMatch) highlightType = "searchMatch";
 
 				return {
 					id: entity.id,
@@ -347,6 +356,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 							hoverHighlightedByEntity.get(entity.id) || new Set<string>(),
 						selectedHighlightedAttrs:
 							selectedHighlightedByEntity.get(entity.id) || new Set<string>(),
+						isSearchActive,
+						isSearchMatch: !!isSearchMatch,
 					},
 				};
 			});
@@ -551,6 +562,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			downstreamCounts,
 			hoverHighlightedByEntity,
 			selectedHighlightedByEntity,
+			searchMatchedEntities,
+			globalSearchQuery,
 		]);
 
 		// Apply layout

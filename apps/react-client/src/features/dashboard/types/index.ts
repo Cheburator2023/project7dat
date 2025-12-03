@@ -91,7 +91,12 @@ export interface HighlightedAttribute {
 
 export interface EntityNodeData {
 	entity: DataLineageEntity;
-	highlightType: "none" | "selected" | "upstream" | "downstream";
+	highlightType:
+		| "none"
+		| "selected"
+		| "upstream"
+		| "downstream"
+		| "searchMatch";
 	onNodeClick: (id: string) => void;
 	onNodeDoubleClick: (id: string, graphId: string) => void;
 	onAttrHover: (entityId: string, attrName: string | null) => void;
@@ -103,6 +108,9 @@ export interface EntityNodeData {
 	highlightedTargetAttrs?: Set<string>;
 	hoverHighlightedAttrs?: Set<string>;
 	selectedHighlightedAttrs?: Set<string>;
+	isSearchActive?: boolean; // Whether global search is active
+	isSearchMatch?: boolean; // Whether this entity matches the search
+	searchMatchScore?: number; // Fuzzy search score for this entity
 	[key: string]: unknown;
 }
 

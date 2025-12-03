@@ -21,6 +21,8 @@ export const EntityNodeComponent = memo(
 			highlightedTargetAttrs = new Set<string>(),
 			hoverHighlightedAttrs = new Set<string>(),
 			selectedHighlightedAttrs = new Set<string>(),
+			isSearchActive = false,
+			isSearchMatch = false,
 		} = data;
 		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 		const attrs = entity.attrSeq || [];
@@ -39,11 +41,19 @@ export const EntityNodeComponent = memo(
 		const isDataMart = upstreamCount > 0 && downstreamCount === 0;
 		const isSource = upstreamCount === 0 && downstreamCount > 0;
 
+		const isSearchMatchHighlight = highlightType === "searchMatch";
 		const borderColor =
 			highlightType !== "none"
 				? HIGHLIGHT_COLORS[highlightType as keyof typeof HIGHLIGHT_COLORS]
 				: colors.border;
-		const borderWidth = highlightType !== "none" ? 13 : 3;
+		// Search matches get a pulsing glow effect via different border width
+		const borderWidth =
+			highlightType !== "none" ? (isSearchMatchHighlight ? 6 : 13) : 3;
+
+		// Dim non-matching nodes when search is active
+		const shouldDim =
+			isSearchActive && !isSearchMatch && highlightType === "none";
+		const nodeOpacity = shouldDim ? 0.3 : 1;
 
 		return (
 			<div
@@ -58,6 +68,7 @@ export const EntityNodeComponent = memo(
 							: "0 2px 8px rgba(0,0,0,0.1)",
 					overflow: "hidden",
 					cursor: "pointer",
+					opacity: nodeOpacity,
 					transition: "all 0.2s ease",
 				}}
 				onClick={() => onNodeClick(id)}

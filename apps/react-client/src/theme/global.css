@@ -567,3 +567,17 @@ div.flexlayout__tabset_tabbar_outer.flexlayout__tabset-selected {
 .ag-cell {
 	font-size: 11px;
 }
+
+/* Fuzzy search highlight styles */
+mark {
+	background-color: #ffeb3b;
+	color: inherit;
+	padding: 0 2px;
+	border-radius: 2px;
+	font-weight: 600;
+}
+
+[data-theme="dark"] mark {
+	background-color: #ff9800;
+	color: #000;
+}
