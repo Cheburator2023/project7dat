@@ -11,13 +11,13 @@ import { useColorScheme } from "@mui/material/styles";
 import { Search } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
+import { useNavigate } from "react-router-dom";
 import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
-import { ModelGraphWindow } from "./organisms/ModelGraphWindow";
 import { DataLineageEntity } from "@data-lineage/shared-schemas";
 import { useJsonDataList } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
@@ -118,10 +118,9 @@ const TagsRenderer = ({ value }: { value: string[] }) => {
 
 export const ModelsPage = () => {
 	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedModel, setSelectedModel] = useState<Model | null>(null);
-	const [isGraphOpen, setIsGraphOpen] = useState(false);
 	const { mode } = useColorScheme();
 	const { data: jsonDataList, isLoading, error } = useJsonDataList();
+	const navigate = useNavigate();
 
 	const baseModels = useMemo<Model[]>(() => {
 		if (!jsonDataList) {
@@ -360,26 +359,13 @@ export const ModelsPage = () => {
 					rowSelection="single"
 					onRowDoubleClicked={(event) => {
 						if (event.data) {
-							setSelectedModel(event.data);
-							setIsGraphOpen(true);
+							const encodedId = encodeURIComponent(event.data.id);
+							navigate(`/entity/${encodedId}`);
 						}
 					}}
-					// getRowHeight={() => "auto"}
 					domLayout="normal"
 				/>
 			</Box>
-
-			{/* Graph Window */}
-			{selectedModel && (
-				<ModelGraphWindow
-					isOpen={isGraphOpen}
-					onClose={() => {
-						setIsGraphOpen(false);
-						setSelectedModel(null);
-					}}
-					model={selectedModel}
-				/>
-			)}
 		</div>
 	);
 };
