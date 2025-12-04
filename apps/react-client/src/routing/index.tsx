@@ -16,6 +16,7 @@ import { ModelsPage } from "@react-client/new_features/models/ModelsPage";
 import { DataMartPreview } from "@react-client/features/dataMart/pages/DataMartPreview";
 import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { SettingsPage } from "@react-client/features/settings/SettingsPage";
+import { DashboardBuilderPage } from "@react-client/features/dashboardBuilder/DashboardBuilderPage";
 
 export const Routing = () => (
 	<Routes>
@@ -47,6 +48,10 @@ export const Routing = () => (
 			element={<DataMartPreview />}
 		/>
 		<Route path={routes.settings.rootPath} element={<SettingsPage />} />
+		<Route
+			path={routes.dashboardBuilder.rootPath}
+			element={<DashboardBuilderPage />}
+		/>
 		<Route path="*" element={<Page404 />} />
 	</Routes>
 );
