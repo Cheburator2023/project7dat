@@ -1170,6 +1170,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				<ContentColumn $depth={node.depth}>
 					<IconButton
 						size="small"
+						disabled
 						onClick={(e) => {
 							e.stopPropagation();
 							handleToggleExpand();

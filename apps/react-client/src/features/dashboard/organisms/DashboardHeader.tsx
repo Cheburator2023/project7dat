@@ -1,29 +1,28 @@
 import { memo, useState, useCallback, useMemo } from "react";
-import { Divider, IconButton, Button } from "@mui/material";
 import {
-	Download as DownloadIcon,
-	FileUpload as FileUploadIcon,
-	Refresh as RefreshIcon,
-	Add as AddIcon,
-} from "@mui/icons-material";
+	Divider,
+	IconButton,
+	Button,
+	Select,
+	MenuItem,
+	type SelectChangeEvent,
+} from "@mui/material";
+import { Refresh as RefreshIcon } from "@mui/icons-material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { useEditorStore } from "@react-client/stores/editorStore";
 import { CommitDialog } from "@react-client/features/commitHistory/CommitDialog";
 import { EntityPreviewNavigationButton } from "@react-client/features/entityPreview/EntityPreviewNavigationButton";
 import {
 	useCurrentDataLineageGraph,
 	useCommitList,
-	useInitializeJsonGraph,
 	DATA_LINEAGE_QUERY_KEYS,
 } from "@react-client/api/hooks";
 import { useJsonDataList } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
-import { dataLineageExampleData } from "@react-client/examples/dataLineageExampleData";
 import type {
 	DataLineageGraph,
 	DataLineageSchema,
@@ -40,38 +39,118 @@ import {
 } from "../utils";
 import type { EntityRow } from "../types";
 
+// S2T format conversion utilities
+interface S2TFormat {
+	generatedAt: string;
+	format: string;
+	desc?: { appId?: string; appName?: string };
+	entities?: Array<{
+		id: string;
+		name: string | null;
+		type: string;
+		namespace?: string;
+		modified?: boolean;
+		description?: string;
+		attrSeq?: Array<{ name: string; type: string; comment?: string }>;
+	}>;
+	mappings?: Array<{
+		id: number;
+		entityId: string;
+		deps?: Array<{
+			entityId: string;
+			attrMaps?: Array<{ src: string; dst: string }>;
+			atrDeps?: Array<{ attr: string; linkTypes?: Array<string> }>;
+		}>;
+	}>;
+}
+
+const convertGraphToS2T = (graph: DataLineageGraph): S2TFormat => {
+	return {
+		generatedAt: new Date().toISOString(),
+		format: "S2T-JSON",
+		desc: graph.desc,
+		entities: graph.entities?.map((entity) => ({
+			id: entity.id,
+			name: entity.name,
+			type: entity.type,
+			namespace: entity.namespace,
+			modified: entity.modified,
+			description: entity.description,
+			attrSeq: entity.attrSeq,
+		})),
+		mappings: graph.mappings?.map((mapping) => ({
+			id: mapping.id,
+			entityId: mapping.entityId,
+			deps: mapping.deps?.map((dep) => ({
+				entityId: dep.entityId,
+				attrMaps: dep.attrMaps,
+				atrDeps: dep.atrDeps,
+			})),
+		})),
+	};
+};
+
+const convertS2TToGraph = (s2t: S2TFormat): DataLineageGraph => {
+	return {
+		desc: {
+			appId: s2t.desc?.appId ?? "imported",
+			appName: s2t.desc?.appName ?? "Imported S2T",
+		},
+		entities:
+			s2t.entities?.map((entity) => ({
+				id: entity.id,
+				name: entity.name,
+				type:
+					(entity.type as "table" | "view" | "rdd" | "unresolved") || "table",
+				namespace: entity.namespace,
+				modified: entity.modified ?? false,
+				description: entity.description,
+				attrSeq: entity.attrSeq,
+			})) ?? [],
+		mappings:
+			s2t.mappings?.map((mapping, index) => ({
+				id: mapping.id ?? index,
+				entityId: mapping.entityId,
+				deps: mapping.deps?.map((dep) => ({
+					entityId: dep.entityId,
+					attrMaps: dep.attrMaps,
+					atrDeps: dep.atrDeps?.map((atrDep) => ({
+						attr: atrDep.attr,
+						linkTypes: atrDep.linkTypes as Array<
+							"window" | "join" | "where" | "groupby"
+						>,
+					})),
+				})),
+			})) ?? [],
+		failedMappings: [],
+	};
+};
+
 export const DashboardHeader = memo(() => {
 	// Data lineage store for commit functionality
 	const {
 		currentGraphId,
+		currentGraph,
 		hasUnsavedChanges,
 		discardChanges,
-		initializeGraph,
 		setCurrentGraph,
 		markAsChanged,
-		setCurrentGraphId,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			currentGraphId: state.currentGraphId,
+			currentGraph: state.currentGraph,
 			hasUnsavedChanges: state.hasUnsavedChanges,
 			discardChanges: state.discardChanges,
-			initializeGraph: state.initializeGraph,
 			setCurrentGraph: state.setCurrentGraph,
 			markAsChanged: state.markAsChanged,
-			setCurrentGraphId: state.setCurrentGraphId,
 		})),
 	);
 
-	// Editor store for export
-	const { exportToFile } = useEditorStore();
-
 	// Commit dialog state
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
-	const [isInitializing, setIsInitializing] = useState(false);
 
 	// Query client and mutations
 	const queryClient = useQueryClient();
-	const initializeGraphMutation = useInitializeJsonGraph();
 	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph();
 	const { refetch: refetchCommitList } = useCommitList({
 		graphId: currentGraphId || undefined,
@@ -147,38 +226,94 @@ export const DashboardHeader = memo(() => {
 		}
 	}, [queryClient, currentGraphId, refetchCommitList]);
 
-	// Import/Export handlers
-	const handleImport = useCallback(() => {
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = ".json";
-		input.onchange = (event) => {
-			const file = (event.target as HTMLInputElement).files?.[0];
-			if (file) {
-				const reader = new FileReader();
-				reader.onload = (e) => {
-					try {
-						const content = e.target?.result as string;
-						const parsedData = JSON.parse(content);
-						// Update current graph with imported data and mark as changed
-						// This will trigger updates in all panels (editor, graph, etc.)
-						setCurrentGraph(parsedData as DataLineageGraph);
-						// Ensure hasUnsavedChanges is true so "Создать коммит" button appears
-						markAsChanged();
-					} catch (error) {
-						console.error("Ошибка при парсинге JSON:", error);
-						alert("Ошибка при загрузке файла. Проверьте формат JSON.");
-					}
-				};
-				reader.readAsText(file);
-			}
-		};
-		input.click();
-	}, [setCurrentGraph, markAsChanged]);
+	// Import handler with format support
+	const handleImport = useCallback(
+		(format: "json" | "s2t") => {
+			const input = document.createElement("input");
+			input.type = "file";
+			input.accept = ".json";
+			input.onchange = (event) => {
+				const file = (event.target as HTMLInputElement).files?.[0];
+				if (file) {
+					const reader = new FileReader();
+					reader.onload = (e) => {
+						try {
+							const content = e.target?.result as string;
+							const parsedData = JSON.parse(content);
 
-	const handleExport = useCallback(() => {
-		exportToFile();
-	}, [exportToFile]);
+							let graphData: DataLineageGraph;
+							if (format === "s2t") {
+								// Convert S2T format to DataLineageGraph
+								graphData = convertS2TToGraph(parsedData);
+							} else {
+								graphData = parsedData as DataLineageGraph;
+							}
+
+							setCurrentGraph(graphData);
+							markAsChanged();
+						} catch (error) {
+							console.error("Ошибка при парсинге JSON:", error);
+							alert("Ошибка при загрузке файла. Проверьте формат JSON.");
+						}
+					};
+					reader.readAsText(file);
+				}
+			};
+			input.click();
+		},
+		[setCurrentGraph, markAsChanged],
+	);
+
+	// Export handler with format support
+	const handleExport = useCallback(
+		(format: "json" | "s2t") => {
+			if (!currentGraph) {
+				alert("Нет данных для экспорта");
+				return;
+			}
+
+			let exportData: unknown;
+			let filename: string;
+
+			if (format === "s2t") {
+				exportData = convertGraphToS2T(currentGraph);
+				filename = `dl_s2t_export_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+			} else {
+				exportData = currentGraph;
+				filename = `dl_json_export_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+			}
+
+			const dataStr = JSON.stringify(exportData, null, 2);
+			const dataBlob = new Blob([dataStr], { type: "application/json" });
+			const url = URL.createObjectURL(dataBlob);
+
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = filename;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+		},
+		[currentGraph],
+	);
+
+	// Import/Export format selection handlers
+	const handleImportFormatChange = useCallback(
+		(event: SelectChangeEvent<string>) => {
+			const format = event.target.value as "json" | "s2t";
+			handleImport(format);
+		},
+		[handleImport],
+	);
+
+	const handleExportFormatChange = useCallback(
+		(event: SelectChangeEvent<string>) => {
+			const format = event.target.value as "json" | "s2t";
+			handleExport(format);
+		},
+		[handleExport],
+	);
 
 	// Manual reload handler
 	const handleManualLoad = useCallback(async () => {
@@ -191,24 +326,6 @@ export const DashboardHeader = memo(() => {
 			console.error("Ошибка при загрузке данных:", error);
 		}
 	}, [refetchCurrentGraph, currentGraphId, refetchCommitList]);
-
-	// Initialize new graph handler
-	const handleInitializeGraph = useCallback(async () => {
-		setIsInitializing(true);
-		try {
-			const result = await initializeGraphMutation.mutateAsync({
-				data: dataLineageExampleData,
-			});
-			initializeGraph(result.data as DataLineageGraph);
-			setCurrentGraphId(result.id);
-			setTimeout(() => {
-				setIsInitializing(false);
-			}, 100);
-		} catch (error) {
-			console.error("Failed to initialize graph:", error);
-			setIsInitializing(false);
-		}
-	}, [initializeGraphMutation, initializeGraph, setCurrentGraphId]);
 
 	return (
 		<>
@@ -243,28 +360,46 @@ export const DashboardHeader = memo(() => {
 						</Flex>
 					)}
 
-					{/* Initialize new JSON button */}
-					<Button
-						variant="outlined"
-						size="small"
-						startIcon={<AddIcon />}
-						onClick={handleInitializeGraph}
-						disabled={isInitializing}
-						title="Инициализация графа"
-					>
-						{isInitializing ? "Инициализация..." : "Новый JSON"}
-					</Button>
-
 					{/* Entity preview navigation */}
-					<EntityPreviewNavigationButton />
+					{/* <EntityPreviewNavigationButton /> */}
 
-					{/* Import/Export buttons */}
-					<IconButton onClick={handleImport} title="Импорт JSON из файла">
-						<FileUploadIcon />
-					</IconButton>
-					<IconButton onClick={handleExport} title="Экспорт JSON в файл">
-						<DownloadIcon />
-					</IconButton>
+					{/* Import format selector */}
+					<Select
+						value=""
+						onChange={handleImportFormatChange}
+						displayEmpty
+						size="small"
+						title="Импорт из файла"
+						renderValue={() => "Импорт"}
+						sx={{
+							minWidth: 40,
+							"& svg": {
+								display: "none",
+							},
+						}}
+					>
+						<MenuItem value="json">JSON</MenuItem>
+						<MenuItem value="s2t">S2T</MenuItem>
+					</Select>
+
+					{/* Export format selector */}
+					<Select
+						value=""
+						onChange={handleExportFormatChange}
+						displayEmpty
+						size="small"
+						title="Экспорт в файл"
+						renderValue={() => "Экспорт"}
+						sx={{
+							minWidth: 40,
+							"& svg": {
+								display: "none",
+							},
+						}}
+					>
+						<MenuItem value="json">JSON</MenuItem>
+						<MenuItem value="s2t">S2T</MenuItem>
+					</Select>
 
 					{/* Refresh button */}
 					<IconButton
