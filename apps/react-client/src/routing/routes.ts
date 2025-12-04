@@ -94,4 +94,10 @@ export const routes = {
 		disabled: false,
 		showInNavbar: false,
 	},
+	dashboardBuilder: {
+		name: "Конструктор дашборда",
+		rootPath: "/dashboard-builder",
+		disabled: false,
+		showInNavbar: true,
+	},
 };
