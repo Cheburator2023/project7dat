@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, useMemo } from "react";
-import { Divider, Tooltip, IconButton, Button } from "@mui/material";
+import { Divider, IconButton, Button } from "@mui/material";
 import {
 	Download as DownloadIcon,
 	FileUpload as FileUploadIcon,
@@ -44,24 +44,26 @@ export const DashboardHeader = memo(() => {
 	// Data lineage store for commit functionality
 	const {
 		currentGraphId,
-		currentGraph,
 		hasUnsavedChanges,
 		discardChanges,
 		initializeGraph,
+		setCurrentGraph,
+		markAsChanged,
 		setCurrentGraphId,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			currentGraphId: state.currentGraphId,
-			currentGraph: state.currentGraph,
 			hasUnsavedChanges: state.hasUnsavedChanges,
 			discardChanges: state.discardChanges,
 			initializeGraph: state.initializeGraph,
+			setCurrentGraph: state.setCurrentGraph,
+			markAsChanged: state.markAsChanged,
 			setCurrentGraphId: state.setCurrentGraphId,
 		})),
 	);
 
-	// Editor store for import/export
-	const { importFromFile, exportToFile } = useEditorStore();
+	// Editor store for export
+	const { exportToFile } = useEditorStore();
 
 	// Commit dialog state
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
@@ -147,9 +149,32 @@ export const DashboardHeader = memo(() => {
 
 	// Import/Export handlers
 	const handleImport = useCallback(() => {
-		if (!currentGraph) return;
-		importFromFile();
-	}, [currentGraph, importFromFile]);
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = ".json";
+		input.onchange = (event) => {
+			const file = (event.target as HTMLInputElement).files?.[0];
+			if (file) {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					try {
+						const content = e.target?.result as string;
+						const parsedData = JSON.parse(content);
+						// Update current graph with imported data and mark as changed
+						// This will trigger updates in all panels (editor, graph, etc.)
+						setCurrentGraph(parsedData as DataLineageGraph);
+						// Ensure hasUnsavedChanges is true so "Создать коммит" button appears
+						markAsChanged();
+					} catch (error) {
+						console.error("Ошибка при парсинге JSON:", error);
+						alert("Ошибка при загрузке файла. Проверьте формат JSON.");
+					}
+				};
+				reader.readAsText(file);
+			}
+		};
+		input.click();
+	}, [setCurrentGraph, markAsChanged]);
 
 	const handleExport = useCallback(() => {
 		exportToFile();
@@ -234,23 +259,20 @@ export const DashboardHeader = memo(() => {
 					<EntityPreviewNavigationButton />
 
 					{/* Import/Export buttons */}
-					<Tooltip title="Импорт JSON из файла">
-						<IconButton onClick={handleImport} disabled={!currentGraph}>
-							<FileUploadIcon />
-						</IconButton>
-					</Tooltip>
-					<Tooltip title="Экспорт JSON в файл">
-						<IconButton onClick={handleExport}>
-							<DownloadIcon />
-						</IconButton>
-					</Tooltip>
+					<IconButton onClick={handleImport} title="Импорт JSON из файла">
+						<FileUploadIcon />
+					</IconButton>
+					<IconButton onClick={handleExport} title="Экспорт JSON в файл">
+						<DownloadIcon />
+					</IconButton>
 
 					{/* Refresh button */}
-					<Tooltip title="Загрузить текущее состояние">
-						<IconButton onClick={handleManualLoad}>
-							<RefreshIcon />
-						</IconButton>
-					</Tooltip>
+					<IconButton
+						onClick={handleManualLoad}
+						title="Загрузить текущее состояние"
+					>
+						<RefreshIcon />
+					</IconButton>
 				</Flex>
 			</Header>
 
