@@ -17,6 +17,8 @@ import {
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { JsonCommitService } from "./json-commit.service";
 import { ChangelogService } from "../../changelog/services/changelog.service";
+import { ChangelogMemoryStorageService } from "../../changelog/services/changelog-memory-storage.service";
+import { SnapshotEntity } from "../../snapshots/entities/snapshot.entity";
 import { VersionInfoDto } from "../dto/version-info.dto";
 import { JsonCommitEntity } from "../entities/json-commit.entity";
 import { CommitStatus } from "../dto/commit-status.dto";
@@ -30,9 +32,13 @@ export class JsonDataService {
 		@Optional()
 		@InjectRepository(JsonCommitEntity)
 		private readonly commitRepository: Repository<JsonCommitEntity>,
+		@Optional()
+		@InjectRepository(SnapshotEntity)
+		private readonly snapshotRepository: Repository<SnapshotEntity>,
 		readonly _configService: ConfigService,
 		private readonly jsonCommitService: JsonCommitService,
 		private readonly changelogService: ChangelogService,
+		private readonly changelogMemoryStorage: ChangelogMemoryStorageService,
 	) {}
 
 	async createGraphData(
@@ -602,5 +608,47 @@ export class JsonDataService {
 		);
 
 		return result;
+	}
+
+	/**
+	 * Сбрасывает все данные базы до исходного состояния.
+	 * Удаляет все JSON данные, коммиты, снепшоты и очищает changelog.
+	 * ВНИМАНИЕ: Этот метод предназначен только для тестирования!
+	 */
+	async resetAllData(): Promise<{
+		deletedJsonData: number;
+		deletedCommits: number;
+		deletedSnapshots: number;
+		changelogCleared: boolean;
+	}> {
+		console.log("[JsonDataService] Начинаем сброс всех данных...");
+
+		// Удаляем все коммиты
+		const commitsResult = await this.commitRepository.delete({});
+		const deletedCommits = commitsResult.affected || 0;
+		console.log(`[JsonDataService] Удалено коммитов: ${deletedCommits}`);
+
+		// Удаляем все JSON данные
+		const jsonDataResult = await this.jsonDataRepository.delete({});
+		const deletedJsonData = jsonDataResult.affected || 0;
+		console.log(`[JsonDataService] Удалено JSON данных: ${deletedJsonData}`);
+
+		// Удаляем все снепшоты
+		const snapshotsResult = await this.snapshotRepository.delete({});
+		const deletedSnapshots = snapshotsResult.affected || 0;
+		console.log(`[JsonDataService] Удалено снепшотов: ${deletedSnapshots}`);
+
+		// Очищаем changelog (in-memory storage)
+		await this.changelogMemoryStorage.clear();
+		console.log("[JsonDataService] Changelog очищен");
+
+		console.log("[JsonDataService] Сброс данных завершен");
+
+		return {
+			deletedJsonData,
+			deletedCommits,
+			deletedSnapshots,
+			changelogCleared: true,
+		};
 	}
 }
