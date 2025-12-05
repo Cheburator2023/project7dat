@@ -22,11 +22,17 @@ export const routes = {
 		name: "Реестр снепшотов",
 		rootPath: "/snapshots",
 		disabled: false,
-		showInNavbar: true,
+		showInNavbar: false,
 	},
 	jsonData: {
-		name: "JSON Реестр",
+		name: "Формат JSON",
 		rootPath: "/json-data",
+		disabled: false,
+		showInNavbar: true,
+	},
+	s2tData: {
+		name: "Формат S2T",
+		rootPath: "/s2t-data",
 		disabled: false,
 		showInNavbar: true,
 	},
@@ -51,6 +57,12 @@ export const routes = {
 	models: {
 		name: "Модели",
 		rootPath: "/models",
+		disabled: false,
+		showInNavbar: true,
+	},
+	modelServices: {
+		name: "Модельные сервисы",
+		rootPath: "/model-services",
 		disabled: false,
 		showInNavbar: true,
 	},
