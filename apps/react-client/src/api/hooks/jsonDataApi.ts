@@ -261,4 +261,13 @@ export const jsonDataService = {
 		jsonCommitApi
 			.get(`/commits/${commitId}/cumulative`)
 			.then((response) => response.data),
+
+	resetDatabase: (): Promise<{
+		success: boolean;
+		message: string;
+		deletedJsonData: number;
+		deletedCommits: number;
+		deletedSnapshots: number;
+		changelogCleared: boolean;
+	}> => jsonDataApi.post("/reset").then((response) => response.data),
 };

@@ -50,3 +50,6 @@ export { useRestoreSnapshot } from "./useRestoreSnapshot";
 
 // Changelog hooks
 export { useChangelog } from "./useChangelog";
+
+// Database management hooks
+export { useResetDatabase } from "./useResetDatabase";
