@@ -112,14 +112,14 @@ export function MenuContent() {
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
-					<ListItemButton data-test-id="menu-content--ListItemButton-backend">
+					<ListItemButton data-test-id="menu-content--ListItemButton-backend" disabled>
 						<ListItemText
 							primary={"Сервисы и продукты"}
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
 					<ListItem
-						sx={{ display: "block", mb: 0.2 }}
+						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() =>
 							handler(routes.modelServices.rootPath.replace("/", ""))
 						}
@@ -139,7 +139,7 @@ export function MenuContent() {
 						</ListItemButton>
 					</ListItem>
 					<ListItem
-						sx={{ display: "block", mb: 0.2 }}
+						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.models.rootPath.replace("/", ""))}
 						data-test-id="menu-content--ListItem-backend"
 					>
@@ -156,7 +156,7 @@ export function MenuContent() {
 						</ListItemButton>
 					</ListItem>
 					<ListItem
-						sx={{ display: "block", mb: 0.2 }}
+						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.objects.rootPath.replace("/", ""))}
 						data-test-id="menu-content--ListItem-backend"
 					>
@@ -179,14 +179,14 @@ export function MenuContent() {
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
-					<ListItemButton data-test-id="menu-content--ListItemButton-backend">
+					<ListItemButton data-test-id="menu-content--ListItemButton-backend" disabled>
 						<ListItemText
 							primary={"Отчеты"}
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
 					<ListItem
-						sx={{ display: "block", mb: 0.2 }}
+						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.jsonData.rootPath.replace("/", ""))}
 						data-test-id="menu-content--ListItem-backend"
 					>
@@ -203,7 +203,7 @@ export function MenuContent() {
 						</ListItemButton>
 					</ListItem>
 					<ListItem
-						sx={{ display: "block", mb: 0.2 }}
+						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.s2tData.rootPath.replace("/", ""))}
 						data-test-id="menu-content--ListItem-backend"
 					>
@@ -226,14 +226,14 @@ export function MenuContent() {
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
-					<ListItemButton data-test-id="menu-content--ListItemButton-backend">
+					<ListItemButton data-test-id="menu-content--ListItemButton-backend" disabled>
 						<ListItemText
 							primary={"Импорт данных"}
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
 					<ListItem
-						sx={{ display: "block", mb: 0.2 }}
+						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.allCommits.rootPath.replace("/", ""))}
 						data-test-id="menu-content--ListItem-backend"
 					>
