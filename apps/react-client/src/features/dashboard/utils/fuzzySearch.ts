@@ -84,7 +84,8 @@ export function fuzzySearchEntities<
 			const nameScore = a[0]?.score ?? Number.NEGATIVE_INFINITY;
 			const namespaceScore = a[1]?.score ?? Number.NEGATIVE_INFINITY;
 			const typeScore = a[2]?.score ?? Number.NEGATIVE_INFINITY;
-			return Math.max(nameScore * 1.5, namespaceScore, typeScore * 0.8);
+			const originalIdScore = a[3]?.score ?? Number.NEGATIVE_INFINITY;
+			return Math.max(nameScore * 1.5, namespaceScore, typeScore * 0.8, originalIdScore);
 		},
 	});
 
@@ -105,8 +106,8 @@ export function fuzzySearchEntities<
 			highlights.set("type", highlightMatches(result[2], result.obj.item.type));
 		}
 
-		if (result[2]) {
-			highlights.set("originalId", highlightMatches(result[2], result.obj.item.id));
+		if (result[3]) {
+			highlights.set("originalId", highlightMatches(result[3], result.obj.item.id));
 		}
 
 
