@@ -68,7 +68,7 @@ export const routes = {
 	},
 	commitQueue: {
 		name: "Очередь коммитов",
-		rootPath: "/commit-queue",
+		rootPath: "/import-data/commit-queue",
 		disabled: true,
 		showInNavbar: false,
 	},

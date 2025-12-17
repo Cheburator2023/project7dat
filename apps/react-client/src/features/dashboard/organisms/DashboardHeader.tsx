@@ -15,7 +15,6 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { CommitDialog } from "@react-client/features/commitHistory/CommitDialog";
-import { EntityPreviewNavigationButton } from "@react-client/features/entityPreview/EntityPreviewNavigationButton";
 import {
 	useCurrentDataLineageGraph,
 	useCommitList,
