@@ -346,6 +346,24 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 								}}
 								title={`${attr.name}: ${attr.type}${isHighlighted ? " (выделен)" : ""}`}
 							>
+								{/* Target handle for this attribute */}
+								<Handle
+									type="target"
+									position={Position.Left}
+									id={`attr-target-${attr.name}`}
+									style={{
+										background:
+											isHighlighted
+												? HIGHLIGHT_COLORS.selected
+												: colors.border,
+										width: isHighlighted ? 8 : 6,
+										height: isHighlighted ? 8 : 6,
+										left: -3,
+										border: "1px solid #fff",
+										transition: "all 0.15s ease",
+									}}
+								/>
+
 								<span
 									style={{
 										color: isHighlighted ? "#333" : "#555",
@@ -361,6 +379,24 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 								<span style={{ color: "#999", marginLeft: 8, fontSize: 9 }}>
 									{attr.type}
 								</span>
+
+								{/* Source handle for this attribute */}
+								<Handle
+									type="source"
+									position={Position.Right}
+									id={`attr-source-${attr.name}`}
+									style={{
+										background:
+											isHighlighted
+												? HIGHLIGHT_COLORS.selected
+												: colors.border,
+										width: isHighlighted ? 8 : 6,
+										height: isHighlighted ? 8 : 6,
+										right: -3,
+										border: "1px solid #fff",
+										transition: "all 0.15s ease",
+									}}
+								/>
 							</div>
 						);
 					})}
@@ -485,7 +521,6 @@ const getLayoutedElements = (
 			},
 		};
 	});
-
 	return { nodes: layoutedNodes, edges };
 };
 
@@ -769,8 +804,10 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 				selectedAttribute?.entityId === entityId &&
 				selectedAttribute?.attrName === attrName
 			) {
+				setAttrEdges([])
 				setSelectedAttributeLocal(null);
 			} else {
+				setAttrEdges([])
 				setSelectedAttributeLocal({ entityId, attrName });
 			}
 		},
@@ -857,6 +894,8 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		return result;
 	}, [hoveredAttribute, attrConnectionMap]);
 
+	const [attrEdges, setAttrEdges]=useState<Edge[]>([])
+
 	// Compute selected-highlighted attributes
 	const selectedHighlightedByEntity = useMemo(() => {
 		const result = new Map<string, Set<string>>();
@@ -872,6 +911,18 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 				const [entId, attrName] = connKey.split("::");
 				if (!result.has(entId)) result.set(entId, new Set());
 				result.get(entId)!.add(attrName);
+
+				setAttrEdges((prev)=>[...prev,{
+					id: selectedKey+'->'+connKey,
+					source:selectedAttribute.entityId ,
+					target: entId,
+					type: "default",
+					animated: true,
+					style: {
+						stroke: HIGHLIGHT_COLORS.selected ,
+						strokeWidth: 3
+					}
+				}])
 			}
 		}
 		return result;
@@ -1070,66 +1121,73 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		const edgeList: Edge[] = [];
 		const edgeSet = new Set<string>();
 
-		mappings.forEach((mapping) => {
-			if (!mapping.deps) return;
+		attrEdges.forEach((attr)=>edgeList.push(attr))
 
-			mapping.deps.forEach((dep) => {
-				// Only include edges between filtered entities
-				if (
-					!relatedEntityIds.has(dep.entityId) ||
-					!relatedEntityIds.has(mapping.entityId)
-				) {
-					return;
-				}
+		if(attrEdges.length === 0 ) {
+			mappings.forEach((mapping) => {
+				if (!mapping.deps) return;
 
-				const edgeId = `${dep.entityId}->${mapping.entityId}`;
-				if (edgeSet.has(edgeId)) return;
-				edgeSet.add(edgeId);
+				mapping.deps.forEach((dep) => {
+					// Only include edges between filtered entities
+					if (
+						!relatedEntityIds.has(dep.entityId) ||
+						!relatedEntityIds.has(mapping.entityId)
+					) {
+						return;
+					}
 
-				const isHighlighted =
-					(upstreamNodes.has(dep.entityId) &&
-						upstreamNodes.has(mapping.entityId)) ||
-					(downstreamNodes.has(dep.entityId) &&
-						downstreamNodes.has(mapping.entityId)) ||
-					dep.entityId === selectedNode ||
-					mapping.entityId === selectedNode;
+					const edgeId = `${dep.entityId}->${mapping.entityId}`;
+					if (edgeSet.has(edgeId)) return;
+					edgeSet.add(edgeId);
 
-				// Get description from connection
-				const connection = connectionMap.get(edgeId);
-				const label = connection?.description;
+					const isHighlighted =
+						(upstreamNodes.has(dep.entityId) &&
+							upstreamNodes.has(mapping.entityId)) ||
+						(downstreamNodes.has(dep.entityId) &&
+							downstreamNodes.has(mapping.entityId)) ||
+						dep.entityId === selectedNode ||
+						mapping.entityId === selectedNode;
 
-				edgeList.push({
-					id: edgeId,
-					source: dep.entityId,
-					target: mapping.entityId,
-					type: "smoothstep",
-					animated: isHighlighted,
-					label,
-					labelStyle: {
-						fontSize: 10,
-						fontWeight: 500,
-						fill: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#666",
-					},
-					labelBgStyle: {
-						fill: "#fff",
-						fillOpacity: 0.9,
-					},
-					labelBgPadding: [4, 2] as [number, number],
-					labelBgBorderRadius: 4,
-					style: {
-						stroke: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
-						strokeWidth: isHighlighted ? 2 : 1,
-					},
-					markerEnd: {
-						type: MarkerType.ArrowClosed,
-						color: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
-					},
+					const isSelected = (dep.entityId === selectedAttribute?.entityId || mapping.entityId === selectedAttribute?.entityId ) && attrEdges.length === 0 ;
+
+					// Get description from connection
+					const connection = connectionMap.get(edgeId);
+					const label = connection?.description;
+
+					edgeList.push({
+						id: edgeId,
+						source: dep.entityId,
+						target: mapping.entityId,
+						type: "smoothstep",
+						animated: isHighlighted,
+						label,
+						labelStyle: {
+							fontSize: 10,
+							fontWeight: 500,
+							fill: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#666",
+						},
+						labelBgStyle: {
+							fill: "#fff",
+							fillOpacity: 0.9,
+						},
+						labelBgPadding: [4, 2] as [number, number],
+						labelBgBorderRadius: 4,
+						style: {
+							stroke:isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
+							strokeWidth: isHighlighted ? 2 : 1,
+						},
+						markerEnd: {
+							type: MarkerType.ArrowClosed,
+							color: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
+						},
+					});
 				});
 			});
-		});
+		}
 
 		return edgeList;
 	}, [
+		attrEdges,
 		mappings,
 		relatedEntityIds,
 		upstreamNodes,
@@ -1141,7 +1199,9 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	// Apply layout (recalculates when expandedNodes changes)
 	const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
 		return getLayoutedElements(nodes, edges, layoutDirection, expandedNodes);
-	}, [nodes, edges, layoutDirection, expandedNodes]);
+	}, [
+		nodes, edges, layoutDirection, expandedNodes, selectedNode
+	]);
 
 	const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(
 		layoutedNodes as Node[],

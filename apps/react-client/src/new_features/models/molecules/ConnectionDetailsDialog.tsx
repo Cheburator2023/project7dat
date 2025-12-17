@@ -3,8 +3,6 @@ import {
 	Dialog,
 	DialogContent,
 	DialogTitle,
-	DialogActions,
-	Button,
 	Box,
 	Table,
 	TableBody,
