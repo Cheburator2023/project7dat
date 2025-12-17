@@ -15,11 +15,21 @@ export class CreateProcessTypeTable1760000000010 implements MigrationInterface {
             )
         `);
 
-		await queryRunner.query(`COMMENT ON TABLE process_type IS 'Справочник типов процессов'`);
-		await queryRunner.query(`COMMENT ON COLUMN process_type.process_type_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN process_type.change_id IS 'Идентификатор изменения'`);
-		await queryRunner.query(`COMMENT ON COLUMN process_type.name IS 'Наименование типа процесса'`);
-		await queryRunner.query(`COMMENT ON COLUMN process_type.description IS 'Описание типа процесса'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE process_type IS 'Справочник типов процессов'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process_type.process_type_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process_type.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process_type.name IS 'Наименование типа процесса'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process_type.description IS 'Описание типа процесса'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

@@ -19,18 +19,38 @@ export class CreateAttributeTable1760000000009 implements MigrationInterface {
 				)
 		`);
 
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_attribute_entity_id ON attribute(entity_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_attribute_change_id ON attribute(change_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_attribute_type_id ON attribute(type_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_attribute_name ON attribute(name)`);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_attribute_entity_id ON attribute(entity_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_attribute_change_id ON attribute(change_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_attribute_type_id ON attribute(type_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_attribute_name ON attribute(name)`,
+		);
 
 		await queryRunner.query(`COMMENT ON TABLE attribute IS 'Атрибуты таблиц'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute.attribute_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute.change_id IS 'Идентификатор изменения'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute.type_id IS 'Тип атрибута'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute.name IS 'Наименование атрибута'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute.entity_id IS 'Идентификатор таблицы'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute.description IS 'Описание атрибута'`);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute.attribute_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute.type_id IS 'Тип атрибута'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute.name IS 'Наименование атрибута'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute.entity_id IS 'Идентификатор таблицы'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute.description IS 'Описание атрибута'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

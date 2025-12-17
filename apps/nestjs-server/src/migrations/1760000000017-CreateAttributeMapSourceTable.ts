@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateAttributeMapSourceTable1760000000017 implements MigrationInterface {
+export class CreateAttributeMapSourceTable1760000000017
+	implements MigrationInterface
+{
 	name = "CreateAttributeMapSourceTable1760000000017";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
@@ -16,10 +18,18 @@ export class CreateAttributeMapSourceTable1760000000017 implements MigrationInte
 				)
 		`);
 
-		await queryRunner.query(`COMMENT ON TABLE attribute_map_source IS 'Маппинг атрибута источника (источник + идентификатор его маппинга на target)'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute_map_source.attribute_map_id IS 'Идентификатор общего маппинга атрибута'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute_map_source.source_attribute_id IS 'Идентификатор атрибута источника'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute_map_source.change_id IS 'Идентификатор изменения'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE attribute_map_source IS 'Маппинг атрибута источника (источник + идентификатор его маппинга на target)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_map_source.attribute_map_id IS 'Идентификатор общего маппинга атрибута'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_map_source.source_attribute_id IS 'Идентификатор атрибута источника'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_map_source.change_id IS 'Идентификатор изменения'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

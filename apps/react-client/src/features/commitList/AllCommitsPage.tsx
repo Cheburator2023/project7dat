@@ -7,10 +7,12 @@ import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
-import { useCommitList } from "@react-client/api/hooks/useCommitList";
-import { useAllCommitsFromAllGraphs } from "@react-client/api/hooks/useAllCommitsFromAllGraphs";
-import type { JsonCommitItem } from "@react-client/api/jsonDataApi";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import {
+	useAllCommitsFromAllGraphs,
+	useCommitList,
+} from "@react-client/api/hooks";
+import type { JsonCommitItem } from "@react-client/api/hooks/jsonDataApi";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { JsonDiffViewerCell } from "@react-client/common/grid/JsonDiffViewerCell";
@@ -20,27 +22,28 @@ export const AllCommitsPage: React.FC = () => {
 	const [_refreshKey, setRefreshKey] = useState(0);
 	const [showAllGraphs, setShowAllGraphs] = useState(false);
 
-	const {
-		data: singleGraphCommitsResponse,
-		isLoading: isLoadingSingle,
-		error: errorSingle,
-		refetch: refetchSingle,
-	} = useCommitList({
+	const singleGraphQuery = useCommitList({
 		page: 1,
-		enabled: !showAllGraphs,
 		limit: 100,
+		enabled: !showAllGraphs,
 	});
 
-	const {
-		data: allGraphsCommitsResponse,
-		isLoading: isLoadingAll,
-		error: errorAll,
-		refetch: refetchAll,
-	} = useAllCommitsFromAllGraphs({
+	const allGraphsQuery = useAllCommitsFromAllGraphs({
 		page: 1,
-		enabled: showAllGraphs,
 		limit: 100,
+		enabled: showAllGraphs,
 	});
+
+	const singleGraphCommitsResponse = singleGraphQuery.data;
+	const allGraphsCommitsResponse = allGraphsQuery.data;
+
+	const isLoadingSingle = singleGraphQuery.isLoading;
+	const isLoadingAll = allGraphsQuery.isLoading;
+
+	const errorSingle = singleGraphQuery.error;
+	const errorAll = allGraphsQuery.error;
+	const refetchSingle = singleGraphQuery.refetch;
+	const refetchAll = allGraphsQuery.refetch;
 
 	const commitsList = showAllGraphs
 		? allGraphsCommitsResponse?.data || []

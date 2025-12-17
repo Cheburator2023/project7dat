@@ -19,6 +19,7 @@ export interface DataLineageEntity {
   type: 'table' | 'view' | 'rdd' | 'unresolved';
   namespace?: string;
   name: string | null;
+  entity_change?: string;
   attrSeq?: Array<{
     name: string;
     type: string;

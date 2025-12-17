@@ -8,6 +8,13 @@
 		"lint": {
 			"dependsOn": []
 		},
+		"dev:god": {
+			"dependsOn": [],
+			"persistent": true,
+			"cache": false,
+			"passThroughEnv": ["NODE_ENV"],
+			"env": ["NODE_ENV"]
+		},
 		"dev": {
 			"dependsOn": [],
 			"persistent": true,

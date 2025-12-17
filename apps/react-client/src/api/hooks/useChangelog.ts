@@ -3,7 +3,7 @@ import {
 	changelogApi,
 	type ChangelogResponse,
 	type GetChangelogParams,
-} from "../changelogApi";
+} from "./changelogApi";
 
 export const useChangelog = () => {
 	const [loading, setLoading] = useState(false);

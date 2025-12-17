@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateAttributeMapTable1760000000016 implements MigrationInterface {
+export class CreateAttributeMapTable1760000000016
+	implements MigrationInterface
+{
 	name = "CreateAttributeMapTable1760000000016";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
@@ -17,14 +19,28 @@ export class CreateAttributeMapTable1760000000016 implements MigrationInterface 
 				)
 		`);
 
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_attribute_map_entity_map ON attribute_map(entity_map_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_attribute_map_attribute ON attribute_map(attribute_id)`);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_attribute_map_entity_map ON attribute_map(entity_map_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_attribute_map_attribute ON attribute_map(attribute_id)`,
+		);
 
-		await queryRunner.query(`COMMENT ON TABLE attribute_map IS 'Общий маппинг атрибута (связка атрибут - его маппинг)'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute_map.attribute_map_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute_map.entity_map_id IS 'Идентификатор маппинга таблицы'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute_map.attribute_id IS 'Идентификатор атрибута'`);
-		await queryRunner.query(`COMMENT ON COLUMN attribute_map.change_id IS 'Идентификатор изменения'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE attribute_map IS 'Общий маппинг атрибута (связка атрибут - его маппинг)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_map.attribute_map_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_map.entity_map_id IS 'Идентификатор маппинга таблицы'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_map.attribute_id IS 'Идентификатор атрибута'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN attribute_map.change_id IS 'Идентификатор изменения'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

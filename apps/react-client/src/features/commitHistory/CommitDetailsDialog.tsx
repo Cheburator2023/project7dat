@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
 	Box,
 	Typography,
@@ -12,8 +12,19 @@ import {
 } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
-import { useCumulativeCommitData } from "@react-client/api/hooks";
 import { fastStringify } from "@react-client/shared/src";
+import type {
+	DataLineageSchema,
+	DataLineageEntity,
+	DataLineageMapping,
+} from "@data-lineage/shared-schemas";
+import { isDataLineageSchema } from "@data-lineage/shared-schemas";
+import {
+	useCumulativeCommitData,
+	useCommitById,
+} from "@react-client/api/hooks";
+import { CommitChangesView } from "../commits/components/CommitChangesView";
+import { ChangesSummaryBadge } from "../commits/components/ChangesSummaryBadge";
 
 interface CommitDetailsDialogProps {
 	open: boolean;
@@ -22,6 +33,36 @@ interface CommitDetailsDialogProps {
 	currentGraph: any;
 }
 
+type EntityDiffItem = {
+	id: string;
+	name: string;
+	inBaseline: boolean;
+	inTarget: boolean;
+};
+
+const buildEntityView = (
+	schema: DataLineageSchema | null,
+	entityId: string | null,
+): {
+	entity: DataLineageEntity | null;
+	mappings: DataLineageMapping[];
+} | null => {
+	if (!schema || !entityId) {
+		return null;
+	}
+
+	const entity = schema.entities.find((item) => item.id === entityId) ?? null;
+
+	const mappings =
+		schema.mappings?.filter(
+			(mapping) =>
+				mapping.entityId === entityId ||
+				mapping.deps?.some((dep) => dep.entityId === entityId),
+		) ?? [];
+
+	return { entity, mappings };
+};
+
 export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 	open,
 	onClose,
@@ -29,6 +70,7 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 	currentGraph,
 }) => {
 	const { mode } = useColorScheme();
+	const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
 	const {
 		data: cumulativeData,
@@ -38,12 +80,99 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 		enabled: Boolean(selectedCommitId),
 	});
 
+	// Получаем данные коммита с структурированными изменениями
+	const { data: commitData, isLoading: isLoadingCommit } = useCommitById(
+		selectedCommitId || "",
+		{
+			enabled: Boolean(selectedCommitId),
+		},
+	);
+
+	const baselineSchema: DataLineageSchema | null = useMemo(() => {
+		if (currentGraph && isDataLineageSchema(currentGraph)) {
+			return currentGraph as DataLineageSchema;
+		}
+		return null;
+	}, [currentGraph]);
+
+	const targetSchema: DataLineageSchema | null = useMemo(() => {
+		if (cumulativeData?.fullData) {
+			return cumulativeData.fullData;
+		}
+		return null;
+	}, [cumulativeData]);
+
+	const entityDiffItems: EntityDiffItem[] = useMemo(() => {
+		if (!baselineSchema && !targetSchema) {
+			return [];
+		}
+
+		const map = new Map<
+			string,
+			{ baseline?: DataLineageEntity; target?: DataLineageEntity }
+		>();
+
+		if (baselineSchema) {
+			baselineSchema.entities.forEach((entity) => {
+				const existing = map.get(entity.id) ?? {};
+				map.set(entity.id, { ...existing, baseline: entity });
+			});
+		}
+
+		if (targetSchema) {
+			targetSchema.entities.forEach((entity) => {
+				const existing = map.get(entity.id) ?? {};
+				map.set(entity.id, { ...existing, target: entity });
+			});
+		}
+
+		return Array.from(map.entries())
+			.map(([id, value]) => {
+				const name = value.target?.name ?? value.baseline?.name ?? id;
+				return {
+					id,
+					name: name ?? id,
+					inBaseline: Boolean(value.baseline),
+					inTarget: Boolean(value.target),
+				};
+			})
+			.sort((a, b) => a.name.localeCompare(b.name));
+	}, [baselineSchema, targetSchema]);
+
+	const effectiveSelectedEntityId = useMemo(() => {
+		if (
+			selectedEntityId &&
+			entityDiffItems.some((item) => item.id === selectedEntityId)
+		) {
+			return selectedEntityId;
+		}
+		return entityDiffItems[0]?.id ?? null;
+	}, [selectedEntityId, entityDiffItems]);
+
+	const baselineEntityView = useMemo(
+		() => buildEntityView(baselineSchema, effectiveSelectedEntityId),
+		[baselineSchema, effectiveSelectedEntityId],
+	);
+
+	const targetEntityView = useMemo(
+		() => buildEntityView(targetSchema, effectiveSelectedEntityId),
+		[targetSchema, effectiveSelectedEntityId],
+	);
+
 	const oldValue = currentGraph
 		? fastStringify(currentGraph, { space: 2 })
 		: "";
 
 	const newValue = cumulativeData?.fullData
 		? fastStringify(cumulativeData.fullData, { space: 2 })
+		: "";
+
+	const entityOldValue = baselineEntityView
+		? fastStringify(baselineEntityView, { space: 2 })
+		: "";
+
+	const entityNewValue = targetEntityView
+		? fastStringify(targetEntityView, { space: 2 })
 		: "";
 
 	return (
@@ -67,7 +196,9 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 				</Box>
 			</DialogTitle>
 			<DialogContent dividers>
-				{isLoadingCumulative && <Typography>Загрузка...</Typography>}
+				{(isLoadingCumulative || isLoadingCommit) && (
+					<Typography>Загрузка...</Typography>
+				)}
 				{cumulativeError && (
 					<Typography color="error">
 						Ошибка загрузки данных: {cumulativeError.message}
@@ -75,7 +206,23 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 				)}
 				{cumulativeData && (
 					<Box>
+						{/* Структурированные изменения коммита */}
+						{commitData?.changes && (
+							<Box sx={{ mb: 3 }}>
+								<Typography variant="h6" gutterBottom>
+									Структурированные изменения
+								</Typography>
+								<ChangesSummaryBadge changes={commitData.changes} />
+								<Box sx={{ mt: 2 }}>
+									<CommitChangesView changes={commitData.changes} showDetails />
+								</Box>
+							</Box>
+						)}
+
 						<Box sx={{ mb: 3, maxHeight: "300px", overflow: "auto" }}>
+							<Typography variant="h6" gutterBottom>
+								Полный diff
+							</Typography>
 							<ReactDiffViewer
 								oldValue={oldValue}
 								newValue={newValue}
@@ -88,11 +235,98 @@ export const CommitDetailsDialog: React.FC<CommitDetailsDialogProps> = ({
 							/>
 						</Box>
 
+						{baselineSchema && targetSchema && entityDiffItems?.length > 0 && (
+							<Box sx={{ mb: 3 }}>
+								<Typography variant="h6" gutterBottom>
+									Изменения по сущностям
+								</Typography>
+								<Box
+									sx={{
+										display: "flex",
+										gap: 2,
+										maxHeight: "400px",
+									}}
+								>
+									<Box
+										sx={{
+											minWidth: 260,
+											maxHeight: "400px",
+											overflow: "auto",
+											borderRight: "1px solid #e0e0e0",
+											pr: 1,
+										}}
+									>
+										{entityDiffItems.map((item) => {
+											const isSelected = item.id === effectiveSelectedEntityId;
+											const status = item.inBaseline
+												? item.inTarget
+													? "modified"
+													: "removed"
+												: item.inTarget
+													? "new"
+													: "unknown";
+											const color =
+												status === "new"
+													? "success"
+													: status === "removed"
+														? "error"
+														: "primary";
+											const prefix =
+												status === "new"
+													? "[NEW] "
+													: status === "removed"
+														? "[REM] "
+														: status === "modified"
+															? "[MOD] "
+															: "";
+
+											return (
+												<Button
+													key={item.id}
+													size="small"
+													variant={isSelected ? "contained" : "text"}
+													color={color}
+													onClick={() => setSelectedEntityId(item.id)}
+													sx={{
+														justifyContent: "flex-start",
+														width: "100%",
+														mb: 0.5,
+													}}
+												>
+													{prefix}
+													{item.name}
+												</Button>
+											);
+										})}
+									</Box>
+									<Box sx={{ flex: 1, overflow: "auto" }}>
+										{effectiveSelectedEntityId ? (
+											<ReactDiffViewer
+												oldValue={entityOldValue}
+												newValue={entityNewValue}
+												splitView
+												compareMethod={DiffMethod.CHARS}
+												useDarkTheme={mode === "dark"}
+												showDiffOnly={false}
+												leftTitle="Состояние в снепшоте"
+												rightTitle="Состояние на выбранном коммите"
+											/>
+										) : (
+											<Typography variant="body2" color="text.secondary">
+												Нет сущностей для сравнения
+											</Typography>
+										)}
+									</Box>
+								</Box>
+							</Box>
+						)}
+
 						<Typography variant="h6" gutterBottom>
-							История изменений ({cumulativeData.commits.length} коммитов):
+							История изменений ({cumulativeData?.commits?.length || 0}{" "}
+							коммитов):
 						</Typography>
 						<Box sx={{ maxHeight: "400px", overflow: "auto" }}>
-							{cumulativeData.commits.map((commit, _index) => (
+							{cumulativeData?.commits?.map((commit, _index) => (
 								<Box
 									key={commit.id}
 									sx={{ mb: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}

@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityMapSourceTable1760000000015 implements MigrationInterface {
+export class CreateEntityMapSourceTable1760000000015
+	implements MigrationInterface
+{
 	name = "CreateEntityMapSourceTable1760000000015";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
@@ -16,13 +18,25 @@ export class CreateEntityMapSourceTable1760000000015 implements MigrationInterfa
 				)
 		`);
 
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_map_source_entity_map ON entity_map_source(entity_map_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_map_source_source_entity ON entity_map_source(source_entity_id)`);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_map_source_entity_map ON entity_map_source(entity_map_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_map_source_source_entity ON entity_map_source(source_entity_id)`,
+		);
 
-		await queryRunner.query(`COMMENT ON TABLE entity_map_source IS 'Связь маппинга сущности с сущностями-источниками'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_map_source.entity_map_id IS 'Идентификатор маппинга таблицы'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_map_source.source_entity_id IS 'Идентификатор сущности-источника'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_map_source.change_id IS 'Идентификатор изменения'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE entity_map_source IS 'Связь маппинга сущности с сущностями-источниками'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_map_source.entity_map_id IS 'Идентификатор маппинга таблицы'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_map_source.source_entity_id IS 'Идентификатор сущности-источника'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_map_source.change_id IS 'Идентификатор изменения'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

@@ -1,7 +1,6 @@
 import { DynamicModule, Module, Provider } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { IDatabaseProvider } from "./interfaces/database.interface";
-import { MemoryStorageProvider } from "./providers/memory-storage.provider";
 import { DatabaseProvider } from "./providers/database-storage.provider";
 import { MemoryStorageService } from "./service/memory-storage.service";
 
@@ -12,7 +11,7 @@ export class DatabaseModule {
 			provide: "DATABASE_PROVIDER",
 			useFactory: (
 				configService: ConfigService,
-				memoryStorageService: MemoryStorageService,
+				_memoryStorageService: MemoryStorageService,
 			): IDatabaseProvider => {
 				return new DatabaseProvider(configService);
 			},

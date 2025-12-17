@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityAttributeMapTable1760000000018 implements MigrationInterface {
+export class CreateEntityAttributeMapTable1760000000018
+	implements MigrationInterface
+{
 	name = "CreateEntityAttributeMapTable1760000000018";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
@@ -18,11 +20,21 @@ export class CreateEntityAttributeMapTable1760000000018 implements MigrationInte
 				)
 		`);
 
-		await queryRunner.query(`COMMENT ON TABLE entity_attribute_map IS 'Маппинг функциональных атрибутов источника (функции join, where, group by etc.)'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_attribute_map.entity_map_id IS 'Идентификатор общего маппинга в таблице attribute_map'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_attribute_map.source_attribute_id IS 'Идентификатор атрибута источника'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_attribute_map.deptype_id IS 'Идентификатор функции'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_attribute_map.change_id IS 'Идентификатор изменения'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE entity_attribute_map IS 'Маппинг функциональных атрибутов источника (функции join, where, group by etc.)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_attribute_map.entity_map_id IS 'Идентификатор общего маппинга в таблице attribute_map'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_attribute_map.source_attribute_id IS 'Идентификатор атрибута источника'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_attribute_map.deptype_id IS 'Идентификатор функции'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_attribute_map.change_id IS 'Идентификатор изменения'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

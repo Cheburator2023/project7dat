@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityContainerTypeTable1760000000005 implements MigrationInterface {
+export class CreateEntityContainerTypeTable1760000000005
+	implements MigrationInterface
+{
 	name = "CreateEntityContainerTypeTable1760000000005";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
@@ -15,11 +17,21 @@ export class CreateEntityContainerTypeTable1760000000005 implements MigrationInt
                 )
         `);
 
-		await queryRunner.query(`COMMENT ON TABLE entity_container_type IS 'Справочник типов контейнеров .'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container_type.entity_container_type_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container_type.change_id IS 'Идентификатор изменения'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container_type.value IS 'Наименование типа'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container_type.description IS 'Описание типа'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE entity_container_type IS 'Справочник типов контейнеров .'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container_type.entity_container_type_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container_type.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container_type.value IS 'Наименование типа'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container_type.description IS 'Описание типа'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {
