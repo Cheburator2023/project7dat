@@ -2,19 +2,16 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
 import { EntityEntity } from "../entities/entity.entity";
-import { EntityMapEntity } from "../entities/entity-map.entity";
 
 @Injectable()
 export class DependencyCheckService {
-	private readonly logger = new Logger(DependencyCheckService.name);
+    private readonly logger = new Logger(DependencyCheckService.name);
 
-	constructor(
-		@InjectRepository(EntityEntity)
-		private readonly entityRepository: Repository<EntityEntity>,
-		@InjectRepository(EntityMapEntity)
-		readonly _entityMapRepository: Repository<EntityMapEntity>,
-		private readonly dataSource: DataSource,
-	) {}
+    constructor(
+        @InjectRepository(EntityEntity)
+        private readonly entityRepository: Repository<EntityEntity>,
+        private readonly dataSource: DataSource,
+    ) {}
 
 	/**
 	 * Проверка на использование витрин в других процессах
@@ -68,7 +65,7 @@ export class DependencyCheckService {
 				conflicts,
 			};
 		} catch (error) {
-			this.logger.error("Ошибка при проверке зависимостей:", error);
+            this.logger.error("Ошибка при проверке зависимостей:", error);
 			return {
 				hasConflicts: false,
 				conflicts: [],
@@ -76,36 +73,108 @@ export class DependencyCheckService {
 		}
 	}
 
-	/**
-	 * Проверка безопасности удаления/обновления связей
-	 */
-	async isSafeToUpdate(
-		targetEntities: string[],
-		sourceProcessId?: number,
-	): Promise<{ safe: boolean; warnings: string[] }> {
-		const warnings: string[] = [];
+    /**
+     * Проверка рекурсивных зависимостей
+     */
+    async checkForRecursion(
+        entities: any[],
+        mappings: any[],
+    ): Promise<{ hasRecursion: boolean; cycles: string[][] }> {
+        const graph = new Map<string, string[]>();
+        const cycles: string[][] = [];
 
-		const usageCheck = await this.checkMartUsage(
-			targetEntities,
-			sourceProcessId,
-		);
+        // Построение графа зависимостей
+        entities.forEach((entity) => {
+            graph.set(entity.id, []);
+        });
 
-		if (usageCheck.hasConflicts) {
-			for (const conflict of usageCheck.conflicts) {
-				warnings.push(
-					`Сущность "${conflict.entityName}" используется в процессах: ${conflict.processes.join(", ")}. ` +
-						`Обновление может повлиять на эти процессы.`,
-				);
-			}
-		}
+        mappings.forEach((mapping) => {
+            if (mapping.deps && Array.isArray(mapping.deps)) {
+                mapping.deps.forEach((dep: any) => {
+                    const source = dep.entityId;
+                    const target = mapping.entityId;
 
-		return {
-			safe: warnings.length === 0,
-			warnings,
-		};
-	}
+                    if (graph.has(source)) {
+                        graph.get(source)!.push(target);
+                    }
+                });
+            }
+        });
 
-	/**
+        // Поиск циклов с помощью DFS
+        const visited = new Set<string>();
+        const recursionStack = new Set<string>();
+
+        const dfs = (node: string, path: string[]): boolean => {
+            if (recursionStack.has(node)) {
+                cycles.push([...path, node]);
+                return true;
+            }
+
+            if (visited.has(node)) {
+                return false;
+            }
+
+            visited.add(node);
+            recursionStack.add(node);
+            path.push(node);
+
+            const neighbors = graph.get(node) || [];
+            let hasCycle = false;
+
+            for (const neighbor of neighbors) {
+                if (dfs(neighbor, path)) {
+                    hasCycle = true;
+                }
+            }
+
+            path.pop();
+            recursionStack.delete(node);
+            return hasCycle;
+        };
+
+        let hasRecursion = false;
+        for (const node of graph.keys()) {
+            if (!visited.has(node)) {
+                if (dfs(node, [])) {
+                    hasRecursion = true;
+                }
+            }
+        }
+
+        return {
+            hasRecursion,
+            cycles,
+        };
+    }
+
+    /**
+     * Проверка безопасности удаления/обновления связей
+     */
+    async isSafeToUpdate(
+        targetEntities: string[],
+        sourceProcessId?: number,
+    ): Promise<{ safe: boolean; warnings: string[] }> {
+        const warnings: string[] = [];
+
+        const usageCheck = await this.checkMartUsage(targetEntities, sourceProcessId);
+
+        if (usageCheck.hasConflicts) {
+            for (const conflict of usageCheck.conflicts) {
+                warnings.push(
+                    `Сущность "${conflict.entityName}" используется в процессах: ${conflict.processes.join(", ")}. ` +
+                    `Обновление может повлиять на эти процессы.`,
+                );
+            }
+        }
+
+        return {
+            safe: warnings.length === 0,
+            warnings,
+        };
+    }
+
+    /**
 	 * Получение всех процессов, использующих указанные сущности
 	 */
 	async getProcessesUsingEntities(
@@ -142,10 +211,10 @@ export class DependencyCheckService {
 				}
 			}
 
-			return result;
-		} catch (error) {
-			this.logger.error("Ошибка при получении процессов:", error);
-			return result;
-		}
-	}
+            return result;
+        } catch (error) {
+            this.logger.error("Ошибка при получении процессов:", error);
+            return result;
+        }
+    }
 }

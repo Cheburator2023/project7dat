@@ -1,5 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsObject, IsString, IsOptional, IsBoolean } from "class-validator";
+import { IsObject, IsString, IsOptional, IsBoolean, IsEnum } from "class-validator";
+
+export enum JsonSourceType {
+    SURM = 'SURM',
+    DAPP = 'DAPP',
+    DL = 'DL'
+}
 
 export class JsonImportRequestDto {
 	@ApiProperty({
@@ -31,4 +37,23 @@ export class JsonImportRequestDto {
 	@IsOptional()
 	@IsBoolean()
 	validated?: boolean;
+
+    @ApiProperty({
+        description: "Тип источника JSON данных",
+        enum: JsonSourceType,
+        example: JsonSourceType.SURM,
+        required: false,
+    })
+    @IsOptional()
+    @IsEnum(JsonSourceType)
+    sourceType?: JsonSourceType;
+
+    @ApiProperty({
+        description: "Версия схемы JSON",
+        example: "1.0",
+        required: false,
+    })
+    @IsOptional()
+    @IsString()
+    schemaVersion?: string;
 }
