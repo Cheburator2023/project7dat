@@ -10,8 +10,10 @@ import {
 	Chip,
 	Divider,
 	Paper,
+	CircularProgress,
 } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
+import { useCumulativeCommitData } from "@react-client/api/hooks";
 
 interface CommitQueueItem {
 	id: string;
@@ -24,6 +26,7 @@ interface CommitQueueItem {
 	fileName?: string;
 	fileSize?: number;
 	processName?: string;
+	isFromApi?: boolean;
 }
 
 interface ViewCommitDialogProps {
@@ -49,6 +52,14 @@ export const ViewCommitDialog: React.FC<ViewCommitDialogProps> = ({
 	commit,
 }) => {
 	const { mode } = useColorScheme();
+	const commitId = commit?.id ?? "";
+	const {
+		data: cumulativeData,
+		isLoading,
+		error,
+	} = useCumulativeCommitData(commitId, {
+		enabled: Boolean(commit?.isFromApi && commitId),
+	});
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
@@ -84,64 +95,6 @@ export const ViewCommitDialog: React.FC<ViewCommitDialogProps> = ({
 		if (bytes < 1024) return `${bytes} B`;
 		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 		return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-	};
-
-	// Макетное содержимое JSON файла
-	const mockJsonContent = {
-		metadata: {
-			version: "1.0",
-			timestamp: commit?.uploadDate,
-			author: commit?.author,
-			processName: commit?.processName,
-		},
-		desc: {
-			appName: commit?.processName || "unknown_process",
-			description: commit?.description,
-		},
-		data: {
-			entities: [
-				{
-					id: "entity_1",
-					type: "model",
-					name: "user_profile",
-					attributes: [
-						{ name: "user_id", type: "string", required: true },
-						{ name: "email", type: "string", required: true },
-						{ name: "created_at", type: "datetime", required: true },
-						{ name: "last_login", type: "datetime", required: false },
-					],
-				},
-				{
-					id: "entity_2",
-					type: "feature",
-					name: "user_activity_score",
-					calculation: "SUM(daily_actions) / COUNT(days)",
-					dependencies: ["user_profile", "user_actions"],
-				},
-			],
-			relationships: [
-				{
-					from: "user_profile",
-					to: "user_actions",
-					type: "one_to_many",
-					foreignKey: "user_id",
-				},
-			],
-		},
-		validation: {
-			rules: [
-				{
-					field: "user_id",
-					rule: "not_null",
-					message: "User ID cannot be null",
-				},
-				{
-					field: "email",
-					rule: "email_format",
-					message: "Email must be in valid format",
-				},
-			],
-		},
 	};
 
 	if (!commit) return null;
@@ -214,7 +167,42 @@ export const ViewCommitDialog: React.FC<ViewCommitDialogProps> = ({
 						<Typography variant="subtitle1" gutterBottom>
 							Содержимое
 						</Typography>
-						<JsonViewer>{JSON.stringify(mockJsonContent, null, 2)}</JsonViewer>
+						{commit.isFromApi ? (
+							isLoading ? (
+								<Box
+									sx={{
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										height: 200,
+									}}
+								>
+									<CircularProgress size={24} />
+								</Box>
+							) : error ? (
+								<JsonViewer>
+									{`Ошибка загрузки содержимого коммита: ${error.message}`}
+								</JsonViewer>
+							) : cumulativeData ? (
+								<JsonViewer>
+									{JSON.stringify(
+										cumulativeData.fullData ??
+											cumulativeData.targetCommit?.diff ??
+											{},
+										null,
+										2,
+									)}
+								</JsonViewer>
+							) : (
+								<JsonViewer>
+									{"Данные содержимого коммита недоступны"}
+								</JsonViewer>
+							)
+						) : (
+							<JsonViewer>
+								{"Предпросмотр содержимого доступен только для коммитов v2"}
+							</JsonViewer>
+						)}
 					</Box>
 
 					{/* Результаты валидации */}

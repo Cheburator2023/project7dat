@@ -1,4 +1,5 @@
-import { Box, Chip, Paper, Typography } from "@mui/material";
+import { Box, Chip, Paper, Typography, IconButton } from "@mui/material";
+import { ExpandMore, ExpandLess } from "@mui/icons-material";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import type { DataLineageNode } from "@react-client/types/dataLineage";
 import { Handle, type NodeProps, Position } from "@xyflow/react";
@@ -37,6 +38,8 @@ export const DataLineageNodeComponent = memo(
 		const nodeColor = getNodeColor(node.type);
 		const visibleTags = node.metadata.tags.slice(0, 2);
 		const extraTagsCount = Math.max(0, node.metadata.tags.length - 2);
+		const hasChildren = data.hasChildren || false;
+		const isExpanded = data.isExpanded || false;
 
 		const handleClick = () => {
 			selectNode(id);
@@ -53,8 +56,47 @@ export const DataLineageNodeComponent = memo(
 			>
 				<Box
 					className="data-lineage-node__header"
-					style={{ backgroundColor: nodeColor }}
-				/>
+					style={{
+						backgroundColor: nodeColor,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "space-between",
+						padding: "4px 8px",
+					}}
+				>
+					<Typography
+						variant="caption"
+						sx={{ color: "white", fontWeight: "bold" }}
+					>
+						{node.type.toUpperCase()}
+					</Typography>
+					{hasChildren && (
+						<IconButton
+							size="small"
+							title={
+								isExpanded
+									? "Свернуть связи (Ctrl+Click или двойной клик)"
+									: "Развернуть связи (Ctrl+Click или двойной клик)"
+							}
+							sx={{
+								color: "white",
+								padding: "2px",
+								"&:hover": {
+									backgroundColor: "rgba(255, 255, 255, 0.2)",
+								},
+							}}
+							onClick={(e) => {
+								e.stopPropagation();
+							}}
+						>
+							{isExpanded ? (
+								<ExpandLess fontSize="small" />
+							) : (
+								<ExpandMore fontSize="small" />
+							)}
+						</IconButton>
+					)}
+				</Box>
 				<Box className="data-lineage-node__content">
 					<Typography variant="subtitle2" className="data-lineage-node__title">
 						{node.name}

@@ -20,20 +20,46 @@ export class CreateEntityTable1760000000007 implements MigrationInterface {
 				)
 		`);
 
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_full_name ON entity(full_name)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_name ON entity(name)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_change_id ON entity(change_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_container_id ON entity(entity_container_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_type_id ON entity(entity_type_id)`);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_full_name ON entity(full_name)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_name ON entity(name)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_change_id ON entity(change_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_container_id ON entity(entity_container_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_type_id ON entity(entity_type_id)`,
+		);
 
-		await queryRunner.query(`COMMENT ON TABLE entity IS 'Сущность (таблица, представление)'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity.entity_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity.change_id IS 'Идентификатор изменения'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity.entity_type_id IS 'Тип таблицы'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity.entity_container_id IS 'Идентификатор БД/Модели'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity.name IS 'Наименование витрины'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity.full_name IS 'Уникальное полное наименование витрины (схема + витрина)'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity.description IS 'Описание витрины'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE entity IS 'Сущность (таблица, представление)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity.entity_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity.entity_type_id IS 'Тип таблицы'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity.entity_container_id IS 'Идентификатор БД/Модели'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity.name IS 'Наименование витрины'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity.full_name IS 'Уникальное полное наименование витрины (схема + витрина)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity.description IS 'Описание витрины'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

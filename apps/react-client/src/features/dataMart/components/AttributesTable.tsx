@@ -95,7 +95,7 @@ export const AttributesTable: React.FC<AttributesTableProps> = ({
 					}
 					rowData={filteredEntities.map((entity, index) => ({
 						...entity,
-						id: `${entity.id}-${index}`,
+						id: `${entity.id || entity.name}-${index}`,
 						originalId: entity.id,
 					}))}
 					columnDefs={columnDefs}

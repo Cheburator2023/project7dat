@@ -1,1 +1,6 @@
+# Cross-platform PATH fix for GUI apps
+case "$(uname -s)" in
+  Darwin*|Linux*) export PATH="/usr/local/bin:$PATH" ;;
+esac
+
 npx --no -- commitlint -c -g ./.commitlint.config.cjs --edit ${1}

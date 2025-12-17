@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateDependencyTypeTable1760000000013 implements MigrationInterface {
+export class CreateDependencyTypeTable1760000000013
+	implements MigrationInterface
+{
 	name = "CreateDependencyTypeTable1760000000013";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
@@ -14,11 +16,21 @@ export class CreateDependencyTypeTable1760000000013 implements MigrationInterfac
 				)
 		`);
 
-		await queryRunner.query(`COMMENT ON TABLE dependency_type IS 'Справочник типов зависимостей (join, where, group by и т.д.)'`);
-		await queryRunner.query(`COMMENT ON COLUMN dependency_type.deptype_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN dependency_type.change_id IS 'Идентификатор изменения'`);
-		await queryRunner.query(`COMMENT ON COLUMN dependency_type.name IS 'Наименование типа зависимости'`);
-		await queryRunner.query(`COMMENT ON COLUMN dependency_type.description IS 'Описание типа зависимости'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE dependency_type IS 'Справочник типов зависимостей (join, where, group by и т.д.)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN dependency_type.deptype_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN dependency_type.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN dependency_type.name IS 'Наименование типа зависимости'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN dependency_type.description IS 'Описание типа зависимости'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

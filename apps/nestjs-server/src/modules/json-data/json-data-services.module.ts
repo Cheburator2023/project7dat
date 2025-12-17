@@ -8,23 +8,19 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 
 @Module({})
 export class JsonDataServicesModule {
-    static forRoot(): DynamicModule {
-        const imports = [
-            TypeOrmModule.forFeature([JsonDataEntity, JsonCommitEntity]),
-            ConfigModule,
-        ];
+	static forRoot(): DynamicModule {
+		const imports = [
+			TypeOrmModule.forFeature([JsonDataEntity, JsonCommitEntity]),
+			ConfigModule,
+		];
 
-        const providers = [
-            JsonDataService,
-            JsonCommitService,
-            ConfigService,
-        ];
+		const providers = [JsonDataService, JsonCommitService, ConfigService];
 
-        return {
-            module: JsonDataServicesModule,
-            imports,
-            providers,
-            exports: [JsonDataService, JsonCommitService],
-        };
-    }
+		return {
+			module: JsonDataServicesModule,
+			imports,
+			providers,
+			exports: [JsonDataService, JsonCommitService],
+		};
+	}
 }

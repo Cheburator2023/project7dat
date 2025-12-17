@@ -3,7 +3,7 @@ import {
 	useQueryClient,
 	type UseMutationResult,
 } from "@tanstack/react-query";
-import { snapshotService } from "../snapshotApi";
+import { snapshotService } from "./snapshotApi";
 import { CURRENT_JSON_DATA_QUERY_KEY } from "./useCurrentJsonData";
 import { JSON_DATA_LIST_QUERY_KEY } from "./useJsonDataList";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";

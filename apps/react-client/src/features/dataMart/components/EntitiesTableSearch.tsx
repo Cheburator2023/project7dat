@@ -17,7 +17,7 @@ interface EntitiesTableProps {
 	showType: boolean;
 }
 
-export const EntitiesTableSearch: React.FC = ({
+export const EntitiesTableSearch = ({
 	entities,
 	showType,
 }: EntitiesTableProps) => {

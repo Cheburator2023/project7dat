@@ -4,6 +4,7 @@ import { App } from "./App";
 
 import { reportWebVitals } from "./reportWebVitals";
 import { AuthProvider } from "@react-client/common/AuthProvider";
+import { globalStyles } from "@react-client/theme/GlobalStyle";
 
 (window as any).urlConfig = {
 	SUM_FRONTEND: "http://test.host:8002/test",
@@ -20,6 +21,7 @@ const root = ReactDOM.createRoot(
 
 root.render(
 	<AuthProvider token={"test-token"}>
+		{globalStyles}
 		<App />
 	</AuthProvider>,
 );

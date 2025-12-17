@@ -19,15 +19,17 @@ export class DatabaseSchemaService {
 	) {}
 
 	private async ensureConnection(): Promise<void> {
-		if (!this.dataSource) {
+		if (this.dataSource) {
+			return;
+		}
+
+		try {
 			await this.databaseProvider.connect();
-			try {
-                this.dataSource = this.databaseProvider.getDataSource();
-			} catch (_error) {
-				throw new Error(
-					"Схема базы данных недоступна в режиме in-memory storage",
-				);
-			}
+			this.dataSource = this.databaseProvider.getDataSource();
+		} catch (_error) {
+			throw new Error(
+				"Схема базы данных недоступна в режиме in-memory storage",
+			);
 		}
 	}
 

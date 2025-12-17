@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateEntityContainerTable1760000000006 implements MigrationInterface {
+export class CreateEntityContainerTable1760000000006
+	implements MigrationInterface
+{
 	name = "CreateEntityContainerTable1760000000006";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
@@ -19,15 +21,31 @@ export class CreateEntityContainerTable1760000000006 implements MigrationInterfa
 				)
 		`);
 
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_container_value ON entity_container(value)`);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_container_value ON entity_container(value)`,
+		);
 
-		await queryRunner.query(`COMMENT ON TABLE entity_container IS 'Контейнер, верхнеуровневые сущности (модель, БД) .'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container.entity_container_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container.change_id IS 'Идентификатор изменения'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container.entity_container_type_id IS 'Тип контейнера'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container.description IS 'Описание БД'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container.value IS 'Наименование БД'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_container.system_id IS 'Идентификатор системы'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE entity_container IS 'Контейнер, верхнеуровневые сущности (модель, БД) .'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container.entity_container_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container.entity_container_type_id IS 'Тип контейнера'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container.description IS 'Описание БД'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container.value IS 'Наименование БД'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_container.system_id IS 'Идентификатор системы'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

@@ -494,4 +494,34 @@ export class JsonDataController {
 			id: result.id,
 		};
 	}
+
+	@Post("reset")
+	@ApiOperation({
+		summary: "Сбросить все данные базы (только для тестирования)",
+		description:
+			"Удаляет все JSON документы, коммиты, снепшоты и очищает changelog. ВНИМАНИЕ: Это действие необратимо!",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Все данные успешно удалены",
+		schema: {
+			type: "object",
+			properties: {
+				success: { type: "boolean", example: true },
+				message: { type: "string", example: "Все данные успешно сброшены" },
+				deletedJsonData: { type: "number", example: 5 },
+				deletedCommits: { type: "number", example: 15 },
+				deletedSnapshots: { type: "number", example: 3 },
+				changelogCleared: { type: "boolean", example: true },
+			},
+		},
+	})
+	async resetAllData() {
+		const result = await this.jsonDataService.resetAllData();
+		return {
+			success: true,
+			message: "Все данные успешно сброшены",
+			...result,
+		};
+	}
 }

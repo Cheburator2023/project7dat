@@ -1,5 +1,6 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { jsonDataService, type CumulativeCommitData } from "../jsonDataApi";
+import { jsonCommitService } from "./jsonCommitApi";
+import type { CumulativeCommitData } from "./jsonDataApi";
 
 export const useCumulativeCommitData = (
 	commitId: string,
@@ -9,7 +10,7 @@ export const useCumulativeCommitData = (
 ): UseQueryResult<CumulativeCommitData, Error> => {
 	return useQuery({
 		queryKey: ["jsonData", "cumulativeCommitData", commitId],
-		queryFn: () => jsonDataService.getCumulativeDataAtCommit(commitId),
+		queryFn: () => jsonCommitService.getCumulativeDataAtCommit(commitId),
 		staleTime: 0,
 		enabled: options?.enabled ?? Boolean(commitId),
 	});

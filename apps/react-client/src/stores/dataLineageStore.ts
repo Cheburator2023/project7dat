@@ -6,8 +6,8 @@ import type {
 	DataLineageSearchResult,
 } from "@react-client/types/dataLineage";
 import { create } from "zustand";
-import { jsonDataService } from "@react-client/api/jsonDataApi";
-import type { CommitJsonDataRequest } from "@react-client/api/jsonDataApi";
+import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
+import type { CommitJsonDataRequest } from "@react-client/api/hooks/jsonDataApi";
 import {
 	jsonClone,
 	jsonCompare,

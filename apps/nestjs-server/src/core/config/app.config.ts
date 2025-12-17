@@ -6,13 +6,13 @@ export default registerAs("app", () => {
 	const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
 	const noRoles = process.env.NO_ROLES === "true";
 
-	console.log('App configuration loaded:', {
+	console.log("App configuration loaded:", {
 		nodeEnv,
 		port,
 		noRoles,
 		dbHost: process.env.DB_HOST,
 		dbPort: process.env.DB_PORT,
-		dbName: process.env.DB_NAME
+		dbName: process.env.DB_NAME,
 	});
 
 	return {

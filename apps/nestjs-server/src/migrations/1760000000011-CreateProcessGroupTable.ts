@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class CreateProcessGroupTable1760000000011 implements MigrationInterface {
+export class CreateProcessGroupTable1760000000011
+	implements MigrationInterface
+{
 	name = "CreateProcessGroupTable1760000000011";
 
 	public async up(queryRunner: QueryRunner): Promise<void> {
@@ -15,11 +17,21 @@ export class CreateProcessGroupTable1760000000011 implements MigrationInterface 
 				)
 		`);
 
-		await queryRunner.query(`COMMENT ON TABLE process_group IS 'Группы процессов (подразделения-владельцы процессов)'`);
-		await queryRunner.query(`COMMENT ON COLUMN process_group.group_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN process_group.change_id IS 'Идентификатор изменения'`);
-		await queryRunner.query(`COMMENT ON COLUMN process_group.name IS 'Наименование группы'`);
-		await queryRunner.query(`COMMENT ON COLUMN process_group.description IS 'Описание группы'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE process_group IS 'Группы процессов (подразделения-владельцы процессов)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process_group.group_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process_group.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process_group.name IS 'Наименование группы'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process_group.description IS 'Описание группы'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

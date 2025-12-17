@@ -20,18 +20,46 @@ export class CreateProcessTable1760000000012 implements MigrationInterface {
 				)
 		`);
 
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_process_name ON process(name)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_process_change_id ON process(change_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_process_type ON process(process_type)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_process_group_id ON process(group_id)`);
+		// Add description column if it doesn't exist (in case table was created without it)
+		await queryRunner.query(`
+			ALTER TABLE process 
+			ADD COLUMN IF NOT EXISTS description VARCHAR
+		`);
 
-		await queryRunner.query(`COMMENT ON TABLE process IS 'Процессы обновления витрин (DAG) и моделей'`);
-		await queryRunner.query(`COMMENT ON COLUMN process.process_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN process.change_id IS 'Идентификатор изменения'`);
-		await queryRunner.query(`COMMENT ON COLUMN process.process_type IS 'Тип процесса'`);
-		await queryRunner.query(`COMMENT ON COLUMN process.name IS 'Наименование процесса'`);
-		await queryRunner.query(`COMMENT ON COLUMN process.group_id IS 'Идентификатор группы (подразделение-владелец процесса)'`);
-		await queryRunner.query(`COMMENT ON COLUMN process.description IS 'Описание процесса'`);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_process_name ON process(name)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_process_change_id ON process(change_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_process_type ON process(process_type)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_process_group_id ON process(group_id)`,
+		);
+
+		await queryRunner.query(
+			`COMMENT ON TABLE process IS 'Процессы обновления витрин (DAG) и моделей'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process.process_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process.change_id IS 'Идентификатор изменения'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process.process_type IS 'Тип процесса'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process.name IS 'Наименование процесса'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process.group_id IS 'Идентификатор группы (подразделение-владелец процесса)'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN process.description IS 'Описание процесса'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

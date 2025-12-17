@@ -22,8 +22,8 @@ import { useShallow } from "zustand/react/shallow";
 import { Home } from "@mui/icons-material";
 import { AttributesTable } from "@react-client/features/dataMart/components/AttributesTable";
 import { Spacer } from "@react-client/common/primitives/Spacer";
-import { DataLineageGraph } from "@react-client/organisms/DataLineageGraph";
 import { DataLineageEntity } from "@react-client/types/dataLineage";
+import { DataLineageGraph } from "@react-client/features/dataMart/components/DataLineageGraph";
 
 export const DataMartPreview: React.FC = () => {
 	const navigate = useNavigate();
@@ -57,13 +57,13 @@ export const DataMartPreview: React.FC = () => {
 	};
 
 	const mapping = useMemo(() => {
-		const depsBuf = [];
+		const depsBuf: DataLineageEntity[] = [];
 		const deps = currentGraph?.mappings?.filter(
 			(m) => m?.entityId === entitiesId,
 		);
 
 		deps?.forEach((depmap) => {
-			depmap.deps.forEach((dep) => {
+			depmap?.deps?.forEach((dep) => {
 				const curdep = currentGraph?.entities?.find(
 					(entity) => entity.id === dep?.entityId,
 				);

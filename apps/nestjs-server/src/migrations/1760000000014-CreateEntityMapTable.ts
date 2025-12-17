@@ -18,16 +18,34 @@ export class CreateEntityMapTable1760000000014 implements MigrationInterface {
 				)
 		`);
 
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_map_change_id ON entity_map(change_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_map_entity_id ON entity_map(entity_id)`);
-		await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_entity_map_process_id ON entity_map(process_id)`);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_map_change_id ON entity_map(change_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_map_entity_id ON entity_map(entity_id)`,
+		);
+		await queryRunner.query(
+			`CREATE INDEX IF NOT EXISTS idx_entity_map_process_id ON entity_map(process_id)`,
+		);
 
-		await queryRunner.query(`COMMENT ON TABLE entity_map IS 'Общий маппинг таблицы. Связь сущности с процессом и маппингом'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_map.entity_map_id IS 'Идентификатор записи'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_map.entity_id IS 'Идентификатор таблицы'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_map.description IS 'Описание'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_map.process_id IS 'Идентификатор процесса'`);
-		await queryRunner.query(`COMMENT ON COLUMN entity_map.change_id IS 'Идентификатор изменения'`);
+		await queryRunner.query(
+			`COMMENT ON TABLE entity_map IS 'Общий маппинг таблицы. Связь сущности с процессом и маппингом'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_map.entity_map_id IS 'Идентификатор записи'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_map.entity_id IS 'Идентификатор таблицы'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_map.description IS 'Описание'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_map.process_id IS 'Идентификатор процесса'`,
+		);
+		await queryRunner.query(
+			`COMMENT ON COLUMN entity_map.change_id IS 'Идентификатор изменения'`,
+		);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {

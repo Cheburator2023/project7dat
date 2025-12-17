@@ -14,63 +14,29 @@ import {
 import { Close as CloseIcon } from "@mui/icons-material";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { useMergeStore } from "../../../stores/mergeStore";
+import { fastStringify } from "@react-client/shared/src";
 
 export const DiffWindow: React.FC = () => {
 	const { isDiffWindowOpen, closeDiffWindow, mergeData } = useMergeStore();
 
 	const { mode } = useColorScheme();
 
-	// Создаем моки данных для демонстрации react-diff-viewer-continued
 	const { oldValue, newValue } = useMemo(() => {
-		const originalData = {
-			users: [
-				{ id: 1, name: "John Doe", email: "john@example.com", role: "admin" },
-				{ id: 2, name: "Jane Smith", email: "jane@example.com", role: "user" },
-			],
-			settings: {
-				theme: "light",
-				notifications: true,
-				language: "en",
-			},
-			metadata: {
-				version: "1.0.0",
-				lastUpdated: "2024-01-15",
-			},
-		};
+		if (!mergeData?.diffJson) {
+			return {
+				oldValue: "",
+				newValue: "",
+			};
+		}
 
-		const modifiedData = {
-			users: [
-				{
-					id: 1,
-					name: "John Doe",
-					email: "john.doe@company.com",
-					role: "admin",
-				}, // изменен email
-				{
-					id: 2,
-					name: "Jane Smith",
-					email: "jane@example.com",
-					role: "moderator",
-				}, // изменена роль
-				{ id: 3, name: "Bob Wilson", email: "bob@example.com", role: "user" }, // добавлен новый пользователь
-			],
-			settings: {
-				theme: "dark", // изменена тема
-				notifications: true,
-				language: "en",
-				autoSave: true, // добавлена новая настройка
-			},
-			metadata: {
-				version: "1.1.0", // изменена версия
-				lastUpdated: "2024-01-20", // изменена дата
-			},
-		};
+		const left = mergeData.diffJson.left ?? {};
+		const right = mergeData.diffJson.right ?? {};
 
 		return {
-			oldValue: JSON.stringify(originalData, null, 2),
-			newValue: JSON.stringify(modifiedData, null, 2),
+			oldValue: fastStringify(left, { space: 2 }),
+			newValue: fastStringify(right, { space: 2 }),
 		};
-	}, []);
+	}, [mergeData]);
 
 	const handleClose = () => {
 		closeDiffWindow();

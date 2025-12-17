@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import {
+	BadRequestException,
+	Injectable,
+	NotFoundException,
+	Optional,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Like } from "typeorm";
 import { ConfigService } from "@nestjs/config";
@@ -12,8 +17,11 @@ import {
 import { CommitJsonDataInput } from "../schemas/json-commit.schema";
 import { JsonCommitService } from "./json-commit.service";
 import { ChangelogService } from "../../changelog/services/changelog.service";
+import { ChangelogMemoryStorageService } from "../../changelog/services/changelog-memory-storage.service";
+import { SnapshotEntity } from "../../snapshots/entities/snapshot.entity";
 import { VersionInfoDto } from "../dto/version-info.dto";
 import { JsonCommitEntity } from "../entities/json-commit.entity";
+import { CommitStatus } from "../dto/commit-status.dto";
 
 @Injectable()
 export class JsonDataService {
@@ -24,9 +32,13 @@ export class JsonDataService {
 		@Optional()
 		@InjectRepository(JsonCommitEntity)
 		private readonly commitRepository: Repository<JsonCommitEntity>,
+		@Optional()
+		@InjectRepository(SnapshotEntity)
+		private readonly snapshotRepository: Repository<SnapshotEntity>,
 		readonly _configService: ConfigService,
 		private readonly jsonCommitService: JsonCommitService,
 		private readonly changelogService: ChangelogService,
+		private readonly changelogMemoryStorage: ChangelogMemoryStorageService,
 	) {}
 
 	async createGraphData(
@@ -337,5 +349,306 @@ export class JsonDataService {
 			updateData,
 		);
 		return await this.setCurrentById(created.id);
+	}
+
+	/**
+	 * Применение коммита к JSON данным: восстанавливает полные данные на момент
+	 * указанного коммита и обновляет соответствующий JsonDataEntity.
+	 */
+	async applyCommitById(commitId: string): Promise<any> {
+		// Находим таргетный коммит и его граф
+		const targetCommit = await this.jsonCommitService.findCommitById(commitId);
+		if (!targetCommit) {
+			throw new NotFoundException(`Коммит с ID ${commitId} не найден`);
+		}
+
+		const graphId = targetCommit.graphId;
+
+		// Восстанавливаем полные данные на момент коммита
+		const cumulativeData =
+			await this.jsonCommitService.getCumulativeDataAtCommit(commitId);
+		if (!cumulativeData) {
+			throw new NotFoundException(
+				`Не удалось восстановить данные для коммита ${commitId}`,
+			);
+		}
+
+		// Метод getCumulativeDataAtCommit может возвращать либо только данные,
+		// либо объект с полным описанием. Поддерживаем оба варианта для
+		// обратной совместимости.
+		const fullData =
+			"fullData" in cumulativeData ? cumulativeData.fullData : cumulativeData;
+
+		// Ищем существующий JSON
+		const existingData = await this.findGraphDataByIdOrNull(graphId);
+		let result: any;
+
+		if (!existingData) {
+			// Если JSON еще не существует, создаем его с указанным graphId
+			const name =
+				targetCommit.jsonData?.name ||
+				targetCommit.message ||
+				`JSON ${new Date().toLocaleString("ru-RU")}`;
+			const description =
+				targetCommit.jsonData?.description ||
+				`Создан из коммита ${targetCommit.id}`;
+
+			const jsonData = this.jsonDataRepository.create({
+				id: graphId,
+				name,
+				data: fullData,
+				description,
+				version: targetCommit.version || "1.0.0",
+				authorName: targetCommit.authorName || "System",
+				isCurrent: false,
+			});
+
+			result = await this.jsonDataRepository.save(jsonData);
+		} else {
+			// Обновляем существующий JSON данными из коммита
+			existingData.data = fullData;
+			existingData.updatedAt = new Date();
+			result = await this.jsonDataRepository.save(existingData);
+		}
+
+		// Помечаем граф как текущий
+		await this.setCurrentById(result.id);
+
+		// Обновляем статус коммита, чтобы он больше не считался частью очереди
+		await this.jsonCommitService.updateCommitStatus(
+			commitId,
+			CommitStatus.APPLIED,
+		);
+
+		return result;
+	}
+
+	/**
+	 * Частичное применение коммита по списку выбранных сущностей.
+	 * selectedEntityIds содержит ID entities, для которых нужно применить изменения
+	 * из таргетной схемы на момент коммита.
+	 */
+	async applyPartialCommitById(
+		commitId: string,
+		selectedEntityIds: string[],
+	): Promise<any> {
+		if (!selectedEntityIds || selectedEntityIds.length === 0) {
+			throw new BadRequestException(
+				"Не выбраны сущности для частичного применения коммита",
+			);
+		}
+
+		// Находим таргетный коммит и его граф
+		const targetCommit = await this.jsonCommitService.findCommitById(commitId);
+		if (!targetCommit) {
+			throw new NotFoundException(`Коммит с ID ${commitId} не найден`);
+		}
+
+		const graphId = targetCommit.graphId;
+
+		// Восстанавливаем полные данные на момент коммита
+		const cumulativeData =
+			await this.jsonCommitService.getCumulativeDataAtCommit(commitId);
+		if (!cumulativeData) {
+			throw new NotFoundException(
+				`Не удалось восстановить данные для коммита ${commitId}`,
+			);
+		}
+
+		const targetFullData =
+			"fullData" in cumulativeData
+				? (cumulativeData.fullData as any)
+				: (cumulativeData as any);
+
+		// Текущая модель (baseline)
+		const existingData = await this.findGraphDataByIdOrNull(graphId);
+		let baselineSchema: any | null = existingData?.data ?? null;
+
+		// Если baseline отсутствует, считаем его пустой схемой с desc из таргета
+		if (!baselineSchema) {
+			baselineSchema = {
+				...(targetFullData.desc ? { desc: targetFullData.desc } : {}),
+				entities: [],
+				mappings: [],
+			};
+		}
+
+		const baselineEntitiesById = new Map<string, any>();
+		const targetEntitiesById = new Map<string, any>();
+
+		for (const entity of baselineSchema.entities ?? []) {
+			if (entity?.id) {
+				baselineEntitiesById.set(entity.id, entity);
+			}
+		}
+
+		for (const entity of targetFullData.entities ?? []) {
+			if (entity?.id) {
+				targetEntitiesById.set(entity.id, entity);
+			}
+		}
+
+		const selectedIdsSet = new Set<string>(selectedEntityIds);
+		const finalEntities: any[] = [];
+
+		// 1. Обрабатываем сущности, которые уже есть в baseline
+		for (const [id, baselineEntity] of baselineEntitiesById.entries()) {
+			const targetEntity = targetEntitiesById.get(id);
+			const isSelected = selectedIdsSet.has(id);
+
+			if (!isSelected) {
+				// Сущность не выбрана - оставляем baseline-версию
+				finalEntities.push(baselineEntity);
+			} else {
+				// Сущность выбрана
+				if (targetEntity) {
+					// Измененная сущность - берем версию из таргета
+					finalEntities.push(targetEntity);
+				}
+				// Если сущность есть только в baseline и отсутствует в target,
+				// считаем, что коммит ее удаляет и при выборе удаляем ее.
+			}
+		}
+
+		// 2. Новые сущности (есть только в target)
+		for (const [id, targetEntity] of targetEntitiesById.entries()) {
+			const inBaseline = baselineEntitiesById.has(id);
+			const isSelected = selectedIdsSet.has(id);
+
+			if (!inBaseline && isSelected) {
+				finalEntities.push(targetEntity);
+			}
+		}
+
+		const finalEntityIds = new Set<string>(
+			finalEntities.map((entity) => entity.id).filter(Boolean),
+		);
+
+		// 3. Маппинги: группируем по entityId и выбираем из baseline или target
+		const baselineMappingsByEntityId = new Map<string, any[]>();
+		const targetMappingsByEntityId = new Map<string, any[]>();
+
+		for (const mapping of baselineSchema.mappings ?? []) {
+			if (!mapping?.entityId) continue;
+			const list = baselineMappingsByEntityId.get(mapping.entityId) ?? [];
+			list.push(mapping);
+			baselineMappingsByEntityId.set(mapping.entityId, list);
+		}
+
+		for (const mapping of targetFullData.mappings ?? []) {
+			if (!mapping?.entityId) continue;
+			const list = targetMappingsByEntityId.get(mapping.entityId) ?? [];
+			list.push(mapping);
+			targetMappingsByEntityId.set(mapping.entityId, list);
+		}
+
+		const finalMappings: any[] = [];
+
+		for (const entityId of finalEntityIds) {
+			const isSelected = selectedIdsSet.has(entityId);
+			const sourceMappings = isSelected
+				? (targetMappingsByEntityId.get(entityId) ?? [])
+				: (baselineMappingsByEntityId.get(entityId) ?? []);
+
+			for (const mapping of sourceMappings) {
+				const allEntityIds = [
+					mapping.entityId,
+					...(mapping.deps?.map((dep: any) => dep.entityId) ?? []),
+				];
+				const allExist = allEntityIds.every((id: string) =>
+					finalEntityIds.has(id),
+				);
+				if (!allExist) continue;
+
+				finalMappings.push(mapping);
+			}
+		}
+
+		const baseForMeta = baselineSchema || targetFullData;
+
+		const finalSchema = {
+			...baseForMeta,
+			entities: finalEntities,
+			mappings: finalMappings,
+		};
+
+		let result: any;
+
+		if (!existingData) {
+			const name =
+				targetCommit.jsonData?.name ||
+				targetCommit.message ||
+				`JSON ${new Date().toLocaleString("ru-RU")}`;
+			const description =
+				targetCommit.jsonData?.description ||
+				`Создан частичным применением коммита ${targetCommit.id}`;
+
+			const jsonData = this.jsonDataRepository.create({
+				id: graphId,
+				name,
+				data: finalSchema,
+				description,
+				version: targetCommit.version || "1.0.0",
+				authorName: targetCommit.authorName || "System",
+				isCurrent: false,
+			});
+
+			result = await this.jsonDataRepository.save(jsonData);
+		} else {
+			existingData.data = finalSchema;
+			existingData.updatedAt = new Date();
+			result = await this.jsonDataRepository.save(existingData);
+		}
+
+		await this.setCurrentById(result.id);
+
+		await this.jsonCommitService.updateCommitStatus(
+			commitId,
+			CommitStatus.APPLIED,
+		);
+
+		return result;
+	}
+
+	/**
+	 * Сбрасывает все данные базы до исходного состояния.
+	 * Удаляет все JSON данные, коммиты, снепшоты и очищает changelog.
+	 * ВНИМАНИЕ: Этот метод предназначен только для тестирования!
+	 */
+	async resetAllData(): Promise<{
+		deletedJsonData: number;
+		deletedCommits: number;
+		deletedSnapshots: number;
+		changelogCleared: boolean;
+	}> {
+		console.log("[JsonDataService] Начинаем сброс всех данных...");
+
+		// Удаляем все коммиты
+		const commitsResult = await this.commitRepository.delete({});
+		const deletedCommits = commitsResult.affected || 0;
+		console.log(`[JsonDataService] Удалено коммитов: ${deletedCommits}`);
+
+		// Удаляем все JSON данные
+		const jsonDataResult = await this.jsonDataRepository.delete({});
+		const deletedJsonData = jsonDataResult.affected || 0;
+		console.log(`[JsonDataService] Удалено JSON данных: ${deletedJsonData}`);
+
+		// Удаляем все снепшоты
+		const snapshotsResult = await this.snapshotRepository.delete({});
+		const deletedSnapshots = snapshotsResult.affected || 0;
+		console.log(`[JsonDataService] Удалено снепшотов: ${deletedSnapshots}`);
+
+		// Очищаем changelog (in-memory storage)
+		await this.changelogMemoryStorage.clear();
+		console.log("[JsonDataService] Changelog очищен");
+
+		console.log("[JsonDataService] Сброс данных завершен");
+
+		return {
+			deletedJsonData,
+			deletedCommits,
+			deletedSnapshots,
+			changelogCleared: true,
+		};
 	}
 }

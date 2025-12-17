@@ -5,7 +5,7 @@ import {
 	type UseMutationResult,
 	type UseQueryResult,
 } from "@tanstack/react-query";
-import { jsonDataService, type JsonDataItem } from "../jsonDataApi";
+import { jsonDataService, type JsonDataItem } from "./jsonDataApi";
 import { useDataLineageStore } from "../../stores/dataLineageStore";
 import type { DataLineageGraph } from "../../types/dataLineage";
 
