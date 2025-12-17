@@ -76,7 +76,7 @@ export function fuzzySearchEntities<
 
 	// Search across all fields
 	const results = fuzzysort.go(query, prepared, {
-		keys: ["name", "namespace", "type","originalId"],
+		keys: ["name", "namespace", "type", "originalId"],
 		threshold,
 		limit,
 		scoreFn: (a) => {
@@ -85,7 +85,12 @@ export function fuzzySearchEntities<
 			const namespaceScore = a[1]?.score ?? Number.NEGATIVE_INFINITY;
 			const typeScore = a[2]?.score ?? Number.NEGATIVE_INFINITY;
 			const originalIdScore = a[3]?.score ?? Number.NEGATIVE_INFINITY;
-			return Math.max(nameScore * 1.5, namespaceScore, typeScore * 0.8, originalIdScore);
+			return Math.max(
+				nameScore * 1.5,
+				namespaceScore,
+				typeScore * 0.8,
+				originalIdScore,
+			);
 		},
 	});
 
@@ -99,7 +104,7 @@ export function fuzzySearchEntities<
 		if (result[1]) {
 			highlights.set(
 				"namespace",
-				highlightMatches(result[1], result.obj.item.namespace)	,
+				highlightMatches(result[1], result.obj.item.namespace),
 			);
 		}
 		if (result[2]) {
@@ -107,10 +112,11 @@ export function fuzzySearchEntities<
 		}
 
 		if (result[3]) {
-			highlights.set("originalId", highlightMatches(result[3], result.obj.item.id));
+			highlights.set(
+				"originalId",
+				highlightMatches(result[3], result.obj.item.id),
+			);
 		}
-
-
 
 		return {
 			item: result.obj.item,

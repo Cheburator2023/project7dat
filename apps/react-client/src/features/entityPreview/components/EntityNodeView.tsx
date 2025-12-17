@@ -352,10 +352,9 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 									position={Position.Left}
 									id={`attr-target-${attr.name}`}
 									style={{
-										background:
-											isHighlighted
-												? HIGHLIGHT_COLORS.selected
-												: colors.border,
+										background: isHighlighted
+											? HIGHLIGHT_COLORS.selected
+											: colors.border,
 										width: isHighlighted ? 8 : 6,
 										height: isHighlighted ? 8 : 6,
 										left: -3,
@@ -386,10 +385,9 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 									position={Position.Right}
 									id={`attr-source-${attr.name}`}
 									style={{
-										background:
-											isHighlighted
-												? HIGHLIGHT_COLORS.selected
-												: colors.border,
+										background: isHighlighted
+											? HIGHLIGHT_COLORS.selected
+											: colors.border,
 										width: isHighlighted ? 8 : 6,
 										height: isHighlighted ? 8 : 6,
 										right: -3,
@@ -607,6 +605,7 @@ interface EntityGraphInnerProps {
 
 interface EntityGraphInnerExtendedProps extends EntityGraphInnerProps {
 	highlightedAttr?: string | null;
+	onSelectNode?: (data: any) => void;
 }
 
 const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
@@ -615,6 +614,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	mappings,
 	onEntitiesCalculated,
 	highlightedAttr,
+	onSelectNode,
 }) => {
 	const navigate = useNavigate();
 	const [selectedNode, setSelectedNode] = useState<string | null>(
@@ -759,6 +759,9 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	// Handlers
 	const handleNodeClick = useCallback((id: string) => {
 		setSelectedNode(id);
+		if (onSelectNode) {
+			onSelectNode(id);
+		}
 	}, []);
 
 	const handleNodeDoubleClick = useCallback(
@@ -804,10 +807,10 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 				selectedAttribute?.entityId === entityId &&
 				selectedAttribute?.attrName === attrName
 			) {
-				setAttrEdges([])
+				setAttrEdges([]);
 				setSelectedAttributeLocal(null);
 			} else {
-				setAttrEdges([])
+				setAttrEdges([]);
 				setSelectedAttributeLocal({ entityId, attrName });
 			}
 		},
@@ -894,7 +897,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		return result;
 	}, [hoveredAttribute, attrConnectionMap]);
 
-	const [attrEdges, setAttrEdges]=useState<Edge[]>([])
+	const [attrEdges, setAttrEdges] = useState<Edge[]>([]);
 
 	// Compute selected-highlighted attributes
 	const selectedHighlightedByEntity = useMemo(() => {
@@ -912,17 +915,20 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 				if (!result.has(entId)) result.set(entId, new Set());
 				result.get(entId)!.add(attrName);
 
-				setAttrEdges((prev)=>[...prev,{
-					id: selectedKey+'->'+connKey,
-					source:selectedAttribute.entityId ,
-					target: entId,
-					type: "default",
-					animated: true,
-					style: {
-						stroke: HIGHLIGHT_COLORS.selected ,
-						strokeWidth: 3
-					}
-				}])
+				setAttrEdges((prev) => [
+					...prev,
+					{
+						id: selectedKey + "->" + connKey,
+						source: selectedAttribute.entityId,
+						target: entId,
+						type: "default",
+						animated: true,
+						style: {
+							stroke: HIGHLIGHT_COLORS.selected,
+							strokeWidth: 3,
+						},
+					},
+				]);
 			}
 		}
 		return result;
@@ -931,13 +937,21 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	// Handler for edge double-click to open mapping dialog
 	const handleEdgeDoubleClick = useCallback(
 		(_event: React.MouseEvent, edge: Edge) => {
-			const connection = entityConnections.find((conn) => conn.id === edge.id);
+			console.log(edge)
+
+			const connection = entityConnections.find((conn) => {
+				if(selectedAttribute){
+					console.log(selectedAttribute)
+					return conn.id === `${edge.source}->${edge.target}`
+				}
+				return conn.id === edge.id
+			});
 			if (connection) {
 				setSelectedConnection(connection);
 				setIsMappingDialogOpen(true);
 			}
 		},
-		[entityConnections],
+		[entityConnections,selectedAttribute],
 	);
 
 	// Context menu handlers
@@ -1121,9 +1135,9 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		const edgeList: Edge[] = [];
 		const edgeSet = new Set<string>();
 
-		attrEdges.forEach((attr)=>edgeList.push(attr))
+		attrEdges.forEach((attr) => edgeList.push(attr));
 
-		if(attrEdges.length === 0 ) {
+		if (attrEdges.length === 0) {
 			mappings.forEach((mapping) => {
 				if (!mapping.deps) return;
 
@@ -1148,7 +1162,10 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 						dep.entityId === selectedNode ||
 						mapping.entityId === selectedNode;
 
-					const isSelected = (dep.entityId === selectedAttribute?.entityId || mapping.entityId === selectedAttribute?.entityId ) && attrEdges.length === 0 ;
+					const isSelected =
+						(dep.entityId === selectedAttribute?.entityId ||
+							mapping.entityId === selectedAttribute?.entityId) &&
+						attrEdges.length === 0;
 
 					// Get description from connection
 					const connection = connectionMap.get(edgeId);
@@ -1173,7 +1190,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 						labelBgPadding: [4, 2] as [number, number],
 						labelBgBorderRadius: 4,
 						style: {
-							stroke:isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
+							stroke: isHighlighted ? HIGHLIGHT_COLORS.downstream : "#b1b1b7",
 							strokeWidth: isHighlighted ? 2 : 1,
 						},
 						markerEnd: {
@@ -1199,9 +1216,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	// Apply layout (recalculates when expandedNodes changes)
 	const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
 		return getLayoutedElements(nodes, edges, layoutDirection, expandedNodes);
-	}, [
-		nodes, edges, layoutDirection, expandedNodes, selectedNode
-	]);
+	}, [nodes, edges, layoutDirection, expandedNodes, selectedNode]);
 
 	const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(
 		layoutedNodes as Node[],
@@ -1494,6 +1509,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 						setSelectedConnection(null);
 					}}
 					connection={selectedConnection}
+					selectedAttribute={selectedAttribute}
 				/>
 			)}
 
@@ -1600,6 +1616,7 @@ interface EntityNodeViewProps {
 	mappings: DataLineageMapping[];
 	onEntitiesCalculated?: (entities: DataLineageEntity[]) => void;
 	highlightedAttr?: string | null;
+	onSelectNode?: (data: any) => void;
 }
 
 export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
@@ -1607,6 +1624,7 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 	mappings,
 	onEntitiesCalculated,
 	highlightedAttr,
+	onSelectNode,
 }) => {
 	const { currentGraph } = useDataLineageStore();
 
@@ -1641,6 +1659,7 @@ export const EntityNodeView: React.FC<EntityNodeViewProps> = ({
 					mappings={mappings}
 					onEntitiesCalculated={onEntitiesCalculated}
 					highlightedAttr={highlightedAttr}
+					onSelectNode={onSelectNode}
 				/>
 			</ReactFlowProvider>
 		</div>

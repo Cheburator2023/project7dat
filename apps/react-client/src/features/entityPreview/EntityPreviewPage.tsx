@@ -1,7 +1,14 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
-import {CircularProgress, styled, Box, Alert, Typography, Chip} from "@mui/material";
+import {
+	CircularProgress,
+	styled,
+	Box,
+	Alert,
+	Typography,
+	Chip,
+} from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
@@ -13,20 +20,21 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
-import {Card} from "@react-client/common/muiCustom/Card";
+import { Card } from "@react-client/common/muiCustom/Card";
 
 import {
 	Storage as StorageIcon,
 	HelpOutline as HelpOutlineIcon,
 	TableChart as TableChartIcon,
-	ViewModule as ViewModuleIcon
+	ViewModule as ViewModuleIcon,
 } from "@mui/icons-material";
+import {EntityBadges} from "@react-client/features/dashboard/atoms";
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
-	table: <TableChartIcon fontSize={'large'}/>,
-	view: <ViewModuleIcon fontSize={'large'} />,
-	rdd: <StorageIcon fontSize={'large'}/>,
-	unresolved: <HelpOutlineIcon fontSize={'large'}/>,
+	table: <TableChartIcon fontSize={"large"} />,
+	view: <ViewModuleIcon fontSize={"large"} />,
+	rdd: <StorageIcon fontSize={"large"} />,
+	unresolved: <HelpOutlineIcon fontSize={"large"} />,
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -98,6 +106,7 @@ interface EntityPreviewPageProps {
 export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
+	const [currentEntityId, setCurrentEntityId] = useState()
 	const { isPending } = useCurrentDataLineageGraph();
 	const [calculatedEntities, setCalculatedEntities] = useState<
 		DataLineageEntity[]
@@ -148,15 +157,17 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		const decodedUrlEntityId = urlEntityId
 			? decodeURIComponent(urlEntityId)
 			: undefined;
-		const targetEntityId = propEntityId || decodedUrlEntityId;
+
+		const targetEntityId = currentEntityId || propEntityId || decodedUrlEntityId;
 
 		if (targetEntityId) {
+			console.log(currentGraph.entities.find((e) => e.id === targetEntityId) || null)
 			return currentGraph.entities.find((e) => e.id === targetEntityId) || null;
 		}
 
 		// For now, let's select the first entity as an example if no entityId is provided
 		return currentGraph.entities.length > 0 ? currentGraph.entities[0] : null;
-	}, [currentGraph?.entities, propEntityId, urlEntityId]);
+	}, [currentGraph?.entities, propEntityId, urlEntityId,currentEntityId]);
 
 	const relatedMappings = useMemo(() => {
 		const decodedUrlEntityId = urlEntityId
@@ -171,6 +182,8 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		);
 	}, [currentGraph?.mappings, propEntityId, urlEntityId]);
 
+	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data),[]);
+
 	const factory = useCallback(
 		(node: TabNode) => {
 			const component = node.getComponent();
@@ -184,6 +197,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 								mappings={relatedMappings}
 								onEntitiesCalculated={setCalculatedEntities}
 								highlightedAttr={highlightedAttr}
+								onSelectNode={onSelectNode}
 							/>
 						</EntityContainer>
 					);
@@ -305,21 +319,30 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 										justifyContent: "center",
 									}}
 								>
-									{TYPE_ICONS[selectedEntity?.type] || <StorageIcon fontSize={'large'}/>}
+									{TYPE_ICONS[selectedEntity?.type] || (
+										<StorageIcon fontSize={"large"} />
+									)}
 								</Box>
 								<Box>
-									<Typography
-										variant="overline"
-										sx={{ opacity: 0.9, letterSpacing: 1 }}
+									<Flex
 									>
 										<Chip
 											label={selectedEntity.type}
 											size="small"
 											color={
-												selectedEntity.type === "table" ? "primary" : "secondary"
+												selectedEntity.type === "table"
+													? "primary"
+													: "secondary"
 											}
 										/>
-									</Typography>
+
+										{/*<EntityBadges*/}
+										{/*	isDataMart={selectedEntity.isDataMart}*/}
+										{/*	isSource={selectedEntity.isSource}*/}
+										{/*	modified={selectedEntity.modified}*/}
+										{/*/>*/}
+
+									</Flex>
 									<Typography variant="h5" fontWeight={600}>
 										{selectedEntity.name || entity.id}
 									</Typography>
@@ -331,10 +354,9 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 								</Box>
 							</Box>
 						</Box>
-
 					</Card>
 				</div>
-				</>
+			</>
 			<Wrapper id="entity_preview_container">
 				<FlexLayoutContainer>
 					<Layout
