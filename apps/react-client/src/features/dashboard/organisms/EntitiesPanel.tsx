@@ -201,47 +201,26 @@ export const EntitiesPanel = memo(() => {
 	const columnDefs: ColDef<EntityRow>[] = useMemo(
 		() => [
 			{
-				field: "name",
-				headerName: "Сущность",
-				flex: 2,
-				minWidth: 180,
+				field: "originalId",
+				headerName: "ID",
+				flex: 1,
 				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
 					const highlights = highlightsMap.get(data.id);
-					const highlightedName = highlights?.get("name");
-					if (highlightedName) {
+					const highlightedNs = highlights?.get("originalId");
+					if (highlightedNs) {
 						return (
 							<span
-								dangerouslySetInnerHTML={{ __html: highlightedName }}
+								dangerouslySetInnerHTML={{ __html: highlightedNs }}
 								style={{ display: "block" }}
 							/>
 						);
 					}
-					return value;
+					return data.id;
 				},
 			},
 			{
-				field: "isDataMart",
-				headerName: "Метки",
-				width: 90,
-				cellRenderer: ({ data }: { data: EntityRow }) => (
-					<EntityBadges
-						isDataMart={data.isDataMart}
-						isSource={data.isSource}
-						modified={data.modified}
-					/>
-				),
-			},
-			{
-				field: "type",
-				headerName: "Тип",
-				width: 100,
-				cellRenderer: ({ value }: { value: string }) => (
-					<TypeChip type={value} />
-				),
-			},
-			{
 				field: "namespace",
-				headerName: "Namespace",
+				headerName: "База данных",
 				flex: 1,
 				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
 					const highlights = highlightsMap.get(data.id);
@@ -258,35 +237,112 @@ export const EntitiesPanel = memo(() => {
 				},
 			},
 			{
-				field: "attributeCount",
-				headerName: "Атр.",
-				width: 70,
-				cellRenderer: ({ value }: { value: number }) => (
-					<Chip
-						sx={{
-							fontSize: "11px",
-						}}
-						label={value}
-						size="small"
-						variant="outlined"
-					/>
+				field: "name",
+				headerName: "Наименование",
+				flex: 2,
+				minWidth: 180,
+				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+					const highlights = highlightsMap.get(data.id);
+					const highlightedName = highlights?.get("name");
+					if (highlightedName) {
+						return (
+							<span
+								dangerouslySetInnerHTML={{ __html: highlightedName }}
+								style={{ display: "block" }}
+							/>
+						);
+					}
+					return value;
+				},
+			},
+
+			// {
+			// 	field: "isDataMart",
+			// 	headerName: "Метки",
+			// 	width: 90,
+			// 	cellRenderer: ({ data }: { data: EntityRow }) => (
+			// 		<EntityBadges
+			// 			isDataMart={data.isDataMart}
+			// 			isSource={data.isSource}
+			// 			modified={data.modified}
+			// 		/>
+			// 	),
+			// },
+			{
+				field: "type",
+				headerName: "Тип",
+				width: 100,
+				cellRenderer: ({ value }: { value: string }) => (
+					<TypeChip type={value} />
 				),
 			},
+			//
+			// {
+			// 	field: "attributeCount",
+			// 	headerName: "Атр.",
+			// 	width: 70,
+			// 	cellRenderer: ({ value }: { value: number }) => (
+			// 		<Chip
+			// 			sx={{
+			// 				fontSize: "11px",
+			// 			}}
+			// 			label={value}
+			// 			size="small"
+			// 			variant="outlined"
+			// 		/>
+			// 	),
+			// },
+			// {
+			// 	field: "upstreamCount",
+			// 	headerName: "Upstream",
+			// 	width: 60,
+			// 	cellRenderer: ({ value }: { value: number }) => (
+			// 		<ConnectionCount count={value} direction="upstream" />
+			// 	),
+			// },
+			// {
+			// 	field: "downstreamCount",
+			// 	headerName: "Downstream",
+			// 	width: 60,
+			// 	cellRenderer: ({ value }: { value: number }) => (
+			// 		<ConnectionCount count={value} direction="downstream" />
+			// 	),
+			// },
 			{
-				field: "upstreamCount",
-				headerName: "Upstream",
-				width: 60,
-				cellRenderer: ({ value }: { value: number }) => (
-					<ConnectionCount count={value} direction="upstream" />
-				),
+				field: "description",
+				headerName: "Описание",
+				flex: 1,
+				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+					const highlights = highlightsMap.get(data.id);
+					const highlightedNs = highlights?.get("description");
+					if (highlightedNs) {
+						return (
+							<span
+								dangerouslySetInnerHTML={{ __html: highlightedNs }}
+								style={{ display: "block" }}
+							/>
+						);
+					}
+					return value;
+				},
 			},
 			{
-				field: "downstreamCount",
-				headerName: "Downstream",
-				width: 60,
-				cellRenderer: ({ value }: { value: number }) => (
-					<ConnectionCount count={value} direction="downstream" />
-				),
+				field: "entity_change",
+				headerName: "Изменено",
+				flex: 1,
+				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+					const highlights = highlightsMap.get(data.id);
+					const highlightedNs = highlights?.get("entity_change");
+					if (highlightedNs) {
+						return (
+							<span
+								dangerouslySetInnerHTML={{ __html: highlightedNs }}
+								style={{ display: "block" }}
+							/>
+						);
+					}
+					return value;
+				},
 			},
 		],
 		[highlightsMap],

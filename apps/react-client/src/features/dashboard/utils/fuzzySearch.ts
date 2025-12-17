@@ -76,7 +76,7 @@ export function fuzzySearchEntities<
 
 	// Search across all fields
 	const results = fuzzysort.go(query, prepared, {
-		keys: ["name", "namespace", "type"],
+		keys: ["name", "namespace", "type","originalId"],
 		threshold,
 		limit,
 		scoreFn: (a) => {
@@ -98,12 +98,18 @@ export function fuzzySearchEntities<
 		if (result[1]) {
 			highlights.set(
 				"namespace",
-				highlightMatches(result[1], result.obj.item.namespace),
+				highlightMatches(result[1], result.obj.item.namespace)	,
 			);
 		}
 		if (result[2]) {
 			highlights.set("type", highlightMatches(result[2], result.obj.item.type));
 		}
+
+		if (result[2]) {
+			highlights.set("originalId", highlightMatches(result[2], result.obj.item.id));
+		}
+
+
 
 		return {
 			item: result.obj.item,
