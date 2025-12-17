@@ -41,12 +41,17 @@ interface MappingDetailsDialogProps {
 	open: boolean;
 	onClose: () => void;
 	connection: EntityConnection;
+	selectedAttribute: {
+		entityId: string;
+		attrName: string;
+	} | null
 }
 
 export const MappingDetailsDialog = ({
 	open,
 	onClose,
 	connection,
+										 selectedAttribute,
 }: MappingDetailsDialogProps) => {
 	const navigate = useNavigate();
 	const {

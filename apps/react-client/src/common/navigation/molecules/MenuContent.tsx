@@ -11,10 +11,10 @@ import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "@react-client/routing/routes";
 import { useMergeStore } from "@react-client/stores/mergeStore";
-import {useCallback} from "react";
-import {DataLineageGraph} from "@react-client/types/dataLineage";
-import {useDataLineageStore} from "@react-client/stores/dataLineageStore";
-import {useShallow} from "zustand/react/shallow";
+import { useCallback } from "react";
+import { DataLineageGraph } from "@react-client/types/dataLineage";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useShallow } from "zustand/react/shallow";
 
 // Классификация роутов по категориям меню (статический контекст)
 const OLD_ROUTE_KEYS = [
@@ -38,7 +38,9 @@ const nonDevEntries = Object.entries(routes).filter(
 );
 
 const backendItems = nonDevEntries
-	.filter(([key]: any) => (OLD_ROUTE_KEYS as ReadonlyArray<string>).includes(key))
+	.filter(([key]: any) =>
+		(OLD_ROUTE_KEYS as ReadonlyArray<string>).includes(key),
+	)
 	.map(([, route]) => route);
 
 const mockedItems = nonDevEntries
@@ -134,7 +136,7 @@ export function MenuContent() {
 							attr: atrDep.attr,
 							linkTypes: atrDep.linkTypes as Array<
 								"window" | "join" | "where" | "groupby"
-								>,
+							>,
 						})),
 					})),
 				})) ?? [],
@@ -209,7 +211,10 @@ export function MenuContent() {
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
-					<ListItemButton data-test-id="menu-content--ListItemButton-backend" disabled>
+					<ListItemButton
+						data-test-id="menu-content--ListItemButton-backend"
+						disabled
+					>
 						<ListItemText
 							primary={"Сервисы и продукты"}
 							data-test-id="menu-content--ListItemText-backend"
@@ -276,7 +281,10 @@ export function MenuContent() {
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
-					<ListItemButton data-test-id="menu-content--ListItemButton-backend" disabled>
+					<ListItemButton
+						data-test-id="menu-content--ListItemButton-backend"
+						disabled
+					>
 						<ListItemText
 							primary={"Отчеты"}
 							data-test-id="menu-content--ListItemText-backend"
@@ -323,7 +331,10 @@ export function MenuContent() {
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
-					<ListItemButton data-test-id="menu-content--ListItemButton-backend" disabled>
+					<ListItemButton
+						data-test-id="menu-content--ListItemButton-backend"
+						disabled
+					>
 						<ListItemText
 							primary={"Импорт данных"}
 							data-test-id="menu-content--ListItemText-backend"
@@ -331,7 +342,7 @@ export function MenuContent() {
 					</ListItemButton>
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handleImport('json')}
+						onClick={() => handleImport("json")}
 						data-test-id="menu-content--ListItem-backend"
 					>
 						<ListItemButton
@@ -342,14 +353,14 @@ export function MenuContent() {
 							data-test-id="menu-content--ListItemButton-backend"
 						>
 							<ListItemText
-								primary={'Импорт JSON'}
+								primary={"Импорт JSON"}
 								data-test-id="menu-content--ListItemText-backend"
 							/>
 						</ListItemButton>
 					</ListItem>
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handleImport('s2t')}
+						onClick={() => handleImport("s2t")}
 						data-test-id="menu-content--ListItem-backend"
 					>
 						<ListItemButton
@@ -360,14 +371,16 @@ export function MenuContent() {
 							data-test-id="menu-content--ListItemButton-backend"
 						>
 							<ListItemText
-								primary={'Импорт S2T'}
+								primary={"Импорт S2T"}
 								data-test-id="menu-content--ListItemText-backend"
 							/>
 						</ListItemButton>
 					</ListItem>
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handler(routes.commitQueue.rootPath.replace("/", ""))}
+						onClick={() =>
+							handler(routes.commitQueue.rootPath.replace("/", ""))
+						}
 						data-test-id="menu-content--ListItem-backend"
 					>
 						<ListItemButton
