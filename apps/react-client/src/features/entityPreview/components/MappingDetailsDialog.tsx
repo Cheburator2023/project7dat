@@ -44,14 +44,14 @@ interface MappingDetailsDialogProps {
 	selectedAttribute: {
 		entityId: string;
 		attrName: string;
-	} | null
+	} | null;
 }
 
 export const MappingDetailsDialog = ({
 	open,
 	onClose,
 	connection,
-										 selectedAttribute,
+	selectedAttribute,
 }: MappingDetailsDialogProps) => {
 	const navigate = useNavigate();
 	const {
