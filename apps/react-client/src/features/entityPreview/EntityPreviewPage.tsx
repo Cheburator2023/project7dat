@@ -14,7 +14,6 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
 import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "./components/EntityJsonEditor";
-import { EntityNodeView } from "./components/EntityNodeView";
 import { EntityDetailsView } from "./components/EntityDetailsView";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
@@ -28,7 +27,7 @@ import {
 	TableChart as TableChartIcon,
 	ViewModule as ViewModuleIcon,
 } from "@mui/icons-material";
-import {EntityBadges} from "@react-client/features/dashboard/atoms";
+import { GraphPanel2 } from "@react-client/features/entityPreview/organisms/GraphPanel2";
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
 	table: <TableChartIcon fontSize={"large"} />,
@@ -59,6 +58,18 @@ const flexLayoutJson = {
 		type: "row",
 		weight: 100,
 		children: [
+			// {
+			// 	type: "tabset",
+			// 	weight: 50,
+			// 	children: [
+			// 		{
+			// 			type: "tab",
+			// 			name: "Граф",
+			// 			component: "entity-node",
+			// 			id: "entity-node-tab",
+			// 		},
+			// 	],
+			// },
 			{
 				type: "tabset",
 				weight: 50,
@@ -66,8 +77,8 @@ const flexLayoutJson = {
 					{
 						type: "tab",
 						name: "Граф",
-						component: "entity-node",
-						id: "entity-node-tab",
+						component: "entity-graph",
+						id: "entity-graph-tab",
 					},
 				],
 			},
@@ -106,7 +117,7 @@ interface EntityPreviewPageProps {
 export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
-	const [currentEntityId, setCurrentEntityId] = useState()
+	const [currentEntityId, setCurrentEntityId] = useState();
 	const { isPending } = useCurrentDataLineageGraph();
 	const [calculatedEntities, setCalculatedEntities] = useState<
 		DataLineageEntity[]
@@ -158,16 +169,19 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 			? decodeURIComponent(urlEntityId)
 			: undefined;
 
-		const targetEntityId = currentEntityId || propEntityId || decodedUrlEntityId;
+		const targetEntityId =
+			currentEntityId || propEntityId || decodedUrlEntityId;
 
 		if (targetEntityId) {
-			console.log(currentGraph.entities.find((e) => e.id === targetEntityId) || null)
+			console.log(
+				currentGraph.entities.find((e) => e.id === targetEntityId) || null,
+			);
 			return currentGraph.entities.find((e) => e.id === targetEntityId) || null;
 		}
 
 		// For now, let's select the first entity as an example if no entityId is provided
 		return currentGraph.entities.length > 0 ? currentGraph.entities[0] : null;
-	}, [currentGraph?.entities, propEntityId, urlEntityId,currentEntityId]);
+	}, [currentGraph?.entities, propEntityId, urlEntityId, currentEntityId]);
 
 	const relatedMappings = useMemo(() => {
 		const decodedUrlEntityId = urlEntityId
@@ -182,25 +196,25 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		);
 	}, [currentGraph?.mappings, propEntityId, urlEntityId]);
 
-	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data),[]);
+	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
 
 	const factory = useCallback(
 		(node: TabNode) => {
 			const component = node.getComponent();
 
 			switch (component) {
-				case "entity-node":
-					return (
-						<EntityContainer>
-							<EntityNodeView
-								entity={selectedEntity}
-								mappings={relatedMappings}
-								onEntitiesCalculated={setCalculatedEntities}
-								highlightedAttr={highlightedAttr}
-								onSelectNode={onSelectNode}
-							/>
-						</EntityContainer>
-					);
+				// case "entity-node":
+				// 	return (
+				// 		<EntityContainer>
+				// 			<EntityNodeView
+				// 				entity={selectedEntity}
+				// 				mappings={relatedMappings}
+				// 				onEntitiesCalculated={setCalculatedEntities}
+				// 				highlightedAttr={highlightedAttr}
+				// 				onSelectNode={onSelectNode}
+				// 			/>
+				// 		</EntityContainer>
+				// 	);
 				case "entity-details":
 					return (
 						<EntityContainer>
@@ -216,6 +230,10 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						<EntityContainer>
 							<EntityJsonEditor entity={selectedEntity} />
 						</EntityContainer>
+					);
+				case "entity-graph":
+					return (
+						<GraphPanel2 onSelectNode={onSelectNode} entity={selectedEntity} />
 					);
 				default:
 					return <div>Unknown component: {component}</div>;
@@ -324,8 +342,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 									)}
 								</Box>
 								<Box>
-									<Flex
-									>
+									<Flex>
 										<Chip
 											label={selectedEntity.type}
 											size="small"
@@ -341,7 +358,6 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 										{/*	isSource={selectedEntity.isSource}*/}
 										{/*	modified={selectedEntity.modified}*/}
 										{/*/>*/}
-
 									</Flex>
 									<Typography variant="h5" fontWeight={600}>
 										{selectedEntity.name || entity.id}
