@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/suspicious/useIterableCallbackReturn: forEach with early returns */
 import { memo, useCallback, useMemo, useEffect, useState } from "react";
-import { Box, } from "@mui/material";
+import { Box } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
@@ -21,11 +21,7 @@ import type {
 
 import { useDashboardStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
-import {
-	LoadingSpinner,
-	ErrorAlert,
-	TypeChip,
-} from "../atoms";
+import { LoadingSpinner, ErrorAlert, TypeChip } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
 import { fuzzySearchEntities } from "../utils";
 import { EntityContextMenu, type EntityContextMenuState } from "../molecules";

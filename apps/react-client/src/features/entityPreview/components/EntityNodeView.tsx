@@ -677,7 +677,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	// Filter entities to show only related ones
 	const filteredEntities = useMemo(() => {
 		return allEntities.filter((e) => relatedEntityIds.has(e.id));
-	}, [allEntities, relatedEntityIds]);
+	}, [mainEntity.id, allEntities, relatedEntityIds]);
 
 	// Calculate upstream/downstream counts
 	const { upstreamCounts, downstreamCounts } = useMemo(() => {
@@ -937,21 +937,21 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	// Handler for edge double-click to open mapping dialog
 	const handleEdgeDoubleClick = useCallback(
 		(_event: React.MouseEvent, edge: Edge) => {
-			console.log(edge)
+			console.log(edge);
 
 			const connection = entityConnections.find((conn) => {
-				if(selectedAttribute){
-					console.log(selectedAttribute)
-					return conn.id === `${edge.source}->${edge.target}`
+				if (selectedAttribute) {
+					console.log(selectedAttribute);
+					return conn.id === `${edge.source}->${edge.target}`;
 				}
-				return conn.id === edge.id
+				return conn.id === edge.id;
 			});
 			if (connection) {
 				setSelectedConnection(connection);
 				setIsMappingDialogOpen(true);
 			}
 		},
-		[entityConnections,selectedAttribute],
+		[entityConnections, selectedAttribute],
 	);
 
 	// Context menu handlers
