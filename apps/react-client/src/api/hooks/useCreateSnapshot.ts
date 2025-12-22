@@ -7,7 +7,7 @@ import {
 	snapshotService,
 	type CreateSnapshotRequest,
 	type SnapshotItem,
-} from "../snapshotApi";
+} from "./snapshotApi";
 import { SNAPSHOT_LIST_QUERY_KEY } from "./useSnapshotList";
 
 export const useCreateSnapshot = (): UseMutationResult<

@@ -2,7 +2,7 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
 	databaseSchemaService,
 	type TableDataResponse,
-} from "../databaseSchemaApi";
+} from "./databaseSchemaApi";
 
 export const useTableData = (
 	tableName: string,

@@ -1,19 +1,38 @@
 import { Injectable } from "@nestjs/common";
 import { DataSource, EntityTarget, Repository, ObjectLiteral } from "typeorm";
 import { IDatabaseProvider } from "../interfaces/database.interface";
-import { databaseConfig } from "../../../config/database.config";
+import {
+	databaseConfig,
+	PostgresDatabaseConfig,
+} from "../../../config/database.config";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class DatabaseProvider implements IDatabaseProvider {
 	private dataSource: DataSource;
 
-	getConfig() {
+	constructor(readonly _configService: ConfigService) {}
+
+	getConfig(): PostgresDatabaseConfig {
 		return databaseConfig();
 	}
 
 	async connect(): Promise<void> {
 		if (!this.dataSource) {
-			this.dataSource = new DataSource(this.getConfig());
+			const config = this.getConfig();
+			this.dataSource = new DataSource({
+				type: "postgres",
+				host: config.host,
+				port: config.port,
+				username: config.username,
+				password: config.password,
+				database: config.database,
+				entities: config.entities,
+				synchronize: config.synchronize,
+				logging: config.logging,
+				migrations: config.migrations,
+				migrationsRun: config.migrationsRun,
+			});
 		}
 		if (!this.dataSource.isInitialized) {
 			await this.dataSource.initialize();

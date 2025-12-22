@@ -1,5 +1,6 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { jsonDataService, type CommitListResponse } from "../jsonDataApi";
+import { jsonCommitService } from "./jsonCommitApi";
+import type { CommitListResponse } from "./jsonDataApi";
 
 export const useCommitSearch = (
 	graphId: string,
@@ -15,8 +16,8 @@ export const useCommitSearch = (
 ): UseQueryResult<CommitListResponse, Error> => {
 	return useQuery({
 		queryKey: ["jsonData", "commitSearch", graphId, params],
-		queryFn: () => jsonDataService.searchCommits(graphId, params),
+		queryFn: () => jsonCommitService.searchCommits(graphId, params),
 		staleTime: 5 * 60 * 1000,
-		enabled: Boolean(graphId),
+		enabled: params?.enabled ?? Boolean(graphId),
 	});
 };

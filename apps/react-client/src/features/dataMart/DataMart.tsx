@@ -33,6 +33,7 @@ import type {
 } from "../../types/dataLineage";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useShallow } from "zustand/react/shallow";
+import { EntitiesTableSearch } from "@react-client/features/dataMart/components/EntitiesTableSearch";
 
 // Пропсы для дочерних компонентов
 interface EntitiesTableProps {
@@ -380,7 +381,7 @@ export const DataMart = () => {
 						}
 					/>
 					<CardContent>
-						<EntitiesTable entities={dataMarts} showType={false} />
+						<EntitiesTableSearch entities={dataMarts} showType={true} />
 					</CardContent>
 				</Card>
 			)}

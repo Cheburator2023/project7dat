@@ -988,6 +988,8 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 					$depth={node.depth}
 					$isSearchMatch={isSearchMatch}
 					$isCurrentSearchResult={isCurrentSearchResult}
+					$isHighlighted={isHighlighted}
+					$isFocused={isFocused}
 					$isDark={isDark}
 				>
 					<LineNumberColumn $isDark={isDark}>{lineNumber}</LineNumberColumn>
@@ -1029,6 +1031,8 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 					$depth={node.depth}
 					$isSearchMatch={isSearchMatch}
 					$isCurrentSearchResult={isCurrentSearchResult}
+					$isHighlighted={isHighlighted}
+					$isFocused={isFocused}
 					$isDark={isDark}
 				>
 					<LineNumberColumn $isDark={isDark}>{lineNumber}</LineNumberColumn>
@@ -1157,6 +1161,8 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				$depth={node.depth}
 				$isSearchMatch={isSearchMatch}
 				$isCurrentSearchResult={isCurrentSearchResult}
+				$isHighlighted={isHighlighted}
+				$isFocused={isFocused}
 				$isDark={isDark}
 				onClick={handleNodeClickInternal}
 			>
@@ -1164,6 +1170,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 				<ContentColumn $depth={node.depth}>
 					<IconButton
 						size="small"
+						disabled
 						onClick={(e) => {
 							e.stopPropagation();
 							handleToggleExpand();

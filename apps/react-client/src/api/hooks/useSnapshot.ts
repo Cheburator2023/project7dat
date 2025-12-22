@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { snapshotService, type SnapshotItem } from "../snapshotApi";
+import { snapshotService, type SnapshotItem } from "./snapshotApi";
 
 export const useSnapshot = (
 	id: string,

@@ -1,5 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { snapshotService, type ApplySnapshotRequest } from "../api/snapshotApi";
+import {
+	snapshotService,
+	type ApplySnapshotRequest,
+} from "../api/hooks/snapshotApi";
 import { useDataLineageStore } from "../stores/dataLineageStore";
 
 export const useApplySnapshot = () => {

@@ -1,28 +1,20 @@
-import React, { memo, useMemo, useState, useCallback, useEffect } from "react";
+import React, { memo, useState, useCallback, useEffect, useMemo } from "react";
 import {
 	Box,
 	Typography,
-	List,
-	ListItem,
-	Chip,
-	useColorScheme,
 	styled,
 	TextField,
 	Button,
 	InputAdornment,
-	CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import PersonIcon from "@mui/icons-material/Person";
-import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import {
 	useCommitList,
 	useCommitSearch,
 	useSnapshotList,
 } from "@react-client/api/hooks";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { Card } from "@react-client/common/muiCustom/Card";
-import { fastStringify } from "@react-client/shared/src";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -30,114 +22,10 @@ import {
 	type DateRange,
 } from "@react-client/common/muiCustom/DateRangePicker";
 import { CommitDetailsDialog } from "./CommitDetailsDialog";
-
-const CommitItem = memo(
-	({
-		commit,
-		onCommitClick,
-	}: {
-		commit: any;
-		onCommitClick: (commitId: string) => void;
-	}) => {
-		const theme = useColorScheme();
-		const oldValue = useMemo(
-			() => (commit.diff ? fastStringify(commit.diff.left, { space: 2 }) : ""),
-			[commit.diff],
-		);
-
-		const newValue = useMemo(
-			() => (commit.diff ? fastStringify(commit.diff.right, { space: 2 }) : ""),
-			[commit.diff],
-		);
-
-		return (
-			<ListItem key={commit.id} sx={{ px: 0, p: 0 }}>
-				<Card
-					sx={{
-						width: "100%",
-						p: 2,
-						cursor: "pointer",
-						"&:hover": {
-							backgroundColor: "action.hover",
-						},
-					}}
-					zoom={0.7}
-					uuid={"card_commit_hist_" + commit.id}
-					onClick={() => onCommitClick(commit.id)}
-				>
-					<Box display="flex" alignItems="center" gap={1} mb={1}>
-						<Chip label={commit.short_id} size="small" variant="outlined" />
-						<Typography variant="caption" color="text.secondary">
-							{new Date(commit.createdAt).toLocaleString("ru-RU")}
-						</Typography>
-					</Box>
-					<Typography variant="body1" gutterBottom>
-						{commit.message}
-					</Typography>
-
-					{commit.diff &&
-						commit.diff.left &&
-						Object.keys(commit.diff.left).length > 0 && (
-							<Box sx={{ mt: 1, height: "200px", overflow: "auto" }}>
-								<ReactDiffViewer
-									oldValue={oldValue}
-									newValue={newValue}
-									splitView={true}
-									compareMethod={DiffMethod.WORDS}
-									leftTitle="Старая версия"
-									rightTitle="Новая версия"
-									useDarkTheme={theme.mode === "dark"}
-									styles={{
-										variables: {
-											light: {
-												diffViewerBackground: "#fafafa",
-												diffViewerColor: "#212121",
-												addedBackground: "#e8f5e8",
-												addedColor: "#24292e",
-												removedBackground: "#ffecec",
-												removedColor: "#24292e",
-												wordAddedBackground: "#acf2bd",
-												wordRemovedBackground: "#fdb8c0",
-												addedGutterBackground: "#cdffd8",
-												removedGutterBackground: "#fdbdcc",
-												gutterBackground: "#f7f7f7",
-												gutterBackgroundDark: "#f3f1f1",
-												highlightBackground: "#fffbdd",
-												highlightGutterBackground: "#ffcd3c",
-												codeFoldGutterBackground: "#dbedff",
-												codeFoldBackground: "#f1f8ff",
-												emptyLineBackground: "#fafbfc",
-												gutterColor: "#212121",
-												addedGutterColor: "#212121",
-												removedGutterColor: "#212121",
-												codeFoldContentColor: "#212121",
-												diffViewerTitleBackground: "#fafbfc",
-												diffViewerTitleColor: "#212121",
-												diffViewerTitleBorderColor: "#eee",
-											},
-										},
-									}}
-								/>
-							</Box>
-						)}
-					{commit.diff &&
-						(!commit.diff.left ||
-							Object.keys(commit.diff.left).length === 0) && (
-							<Card>
-								<Typography variant="body2" fontStyle="italic">
-									Начальный коммит - нет предыдущей версии для сравнения
-								</Typography>
-							</Card>
-						)}
-				</Card>
-			</ListItem>
-		);
-	},
-);
+import { CommitList } from "../commits/components/CommitList";
 
 export const CommitHistory: React.FC = memo(() => {
-	const { currentGraphId, hasUnsavedChanges, currentGraph } =
-		useDataLineageStore();
+	const { currentGraphId, hasUnsavedChanges } = useDataLineageStore();
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState("");
@@ -201,7 +89,10 @@ export const CommitHistory: React.FC = memo(() => {
 		data: searchData,
 		isLoading: isLoadingSearch,
 		error: searchError,
-	} = useCommitSearch(currentGraphId || "", searchParams);
+	} = useCommitSearch(currentGraphId || "", {
+		...searchParams,
+		enabled: Boolean(searchParams.enabled),
+	});
 
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
@@ -320,31 +211,15 @@ export const CommitHistory: React.FC = memo(() => {
 
 			<Spacer space={16} />
 
-			{isLoadingList || isLoadingSearch ? (
-				<Box sx={{ display: "flex", justifyContent: "center" }}>
-					<CircularProgress />
-				</Box>
-			) : (
-				<List sx={{ p: 0 }}>
-					{data?.data?.length ? (
-						data.data.map((commit) => (
-							<CommitItem
-								key={commit.id}
-								commit={commit}
-								onCommitClick={handleCommitClick}
-							/>
-						))
-					) : (
-						<Box p={2}>
-							<Typography color="text.secondary">
-								{hasNonEmptyFilters
-									? "Коммиты не найдены"
-									: "История коммитов пуста"}
-							</Typography>
-						</Box>
-					)}
-				</List>
-			)}
+			<CommitList
+				commits={data?.data || []}
+				isLoading={isLoadingList || isLoadingSearch}
+				emptyMessage={
+					hasNonEmptyFilters ? "Коммиты не найдены" : "История коммитов пуста"
+				}
+				onCommitClick={handleCommitClick}
+				showDiff={true}
+			/>
 
 			<CommitDetailsDialog
 				open={isDialogOpen}
