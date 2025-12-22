@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	Dialog,
 	DialogTitle,
@@ -10,191 +10,178 @@ import {
 	IconButton,
 } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
-import {
-	ReactFlow,
-	Node,
-	Edge,
-	Controls,
-	Background,
-	useNodesState,
-	useEdgesState,
-	ConnectionMode,
-	BackgroundVariant,
-} from "@xyflow/react";
-
 import { useMergeStore } from "../../../stores/mergeStore";
+import { DataLineageGraph } from "@react-client/features/dataMart/components/DataLineageGraph";
+import type {
+	DataLineageSchema,
+	DataLineageEntity,
+} from "@data-lineage/shared-schemas";
+import { isDataLineageSchema } from "@data-lineage/shared-schemas";
+import { useApplyCommit, useApplyPartialCommit } from "@react-client/api/hooks";
+
+type EntityDiffItem = {
+	id: string;
+	name: string;
+	inBaseline: boolean;
+	inTarget: boolean;
+};
 
 export const MergeGraphWindow: React.FC = () => {
-	const { isMergeGraphWindowOpen, closeMergeGraphWindow, mergeData } =
-		useMergeStore();
+	const {
+		isMergeGraphWindowOpen,
+		closeMergeGraphWindow,
+		mergeData,
+		confirmMerge,
+	} = useMergeStore();
 
-	// Создаем моки данных для демонстрации react-flow
-	const { initialNodes, initialEdges } = useMemo(() => {
-		const nodes: Node[] = [
-			{
-				id: "1",
-				type: "input",
-				data: {
-					label: "Исходная БД\n(PostgreSQL)",
-				},
-				position: { x: 50, y: 50 },
-				style: {
-					background: "#e3f2fd",
-					border: "2px solid #1976d2",
-					borderRadius: "8px",
-					padding: "10px",
-					fontSize: "12px",
-					fontWeight: "bold",
-				},
-			},
-			{
-				id: "2",
-				data: {
-					label: "ETL Процесс\n(Трансформация данных)",
-				},
-				position: { x: 300, y: 50 },
-				style: {
-					background: "#fff3e0",
-					border: "2px solid #f57c00",
-					borderRadius: "8px",
-					padding: "10px",
-					fontSize: "12px",
-					fontWeight: "bold",
-				},
-			},
-			{
-				id: "3",
-				data: {
-					label: "Хранилище данных\n(Snowflake)",
-				},
-				position: { x: 550, y: 50 },
-				style: {
-					background: "#f3e5f5",
-					border: "2px solid #7b1fa2",
-					borderRadius: "8px",
-					padding: "10px",
-					fontSize: "12px",
-					fontWeight: "bold",
-				},
-			},
-			{
-				id: "4",
-				data: {
-					label: "Слой аналитики\n(dbt модели)",
-				},
-				position: { x: 200, y: 200 },
-				style: {
-					background: "#e8f5e8",
-					border: "2px solid #388e3c",
-					borderRadius: "8px",
-					padding: "10px",
-					fontSize: "12px",
-					fontWeight: "bold",
-				},
-			},
-			{
-				id: "5",
-				data: {
-					label: "Бизнес-аналитика\n(Tableau)",
-				},
-				position: { x: 450, y: 200 },
-				style: {
-					background: "#fce4ec",
-					border: "2px solid #c2185b",
-					borderRadius: "8px",
-					padding: "10px",
-					fontSize: "12px",
-					fontWeight: "bold",
-				},
-			},
-			{
-				id: "6",
-				type: "output",
-				data: {
-					label: "Дашборд\n(Отчеты руководства)",
-				},
-				position: { x: 325, y: 350 },
-				style: {
-					background: "#fff8e1",
-					border: "2px solid #ffa000",
-					borderRadius: "8px",
-					padding: "10px",
-					fontSize: "12px",
-					fontWeight: "bold",
-				},
-			},
-		];
+	const applyPartialCommitMutation = useApplyPartialCommit();
+	const applyCommitMutation = useApplyCommit();
+	const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>([]);
 
-		const edges: Edge[] = [
-			{
-				id: "e1-2",
-				source: "1",
-				target: "2",
-				type: "smoothstep",
-				style: { stroke: "#1976d2", strokeWidth: 2 },
-				label: "Сырые данные",
-				labelStyle: { fontSize: "10px", fontWeight: "bold" },
-			},
-			{
-				id: "e2-3",
-				source: "2",
-				target: "3",
-				type: "smoothstep",
-				style: { stroke: "#f57c00", strokeWidth: 2 },
-				label: "Очищенные данные",
-				labelStyle: { fontSize: "10px", fontWeight: "bold" },
-			},
-			{
-				id: "e3-4",
-				source: "3",
-				target: "4",
-				type: "smoothstep",
-				style: { stroke: "#7b1fa2", strokeWidth: 2 },
-				label: "Данные хранилища",
-				labelStyle: { fontSize: "10px", fontWeight: "bold" },
-			},
-			{
-				id: "e3-5",
-				source: "3",
-				target: "5",
-				type: "smoothstep",
-				style: { stroke: "#7b1fa2", strokeWidth: 2 },
-				label: "Прямой доступ",
-				labelStyle: { fontSize: "10px", fontWeight: "bold" },
-			},
-			{
-				id: "e4-6",
-				source: "4",
-				target: "6",
-				type: "smoothstep",
-				style: { stroke: "#388e3c", strokeWidth: 2 },
-				label: "Аналитика",
-				labelStyle: { fontSize: "10px", fontWeight: "bold" },
-			},
-			{
-				id: "e5-6",
-				source: "5",
-				target: "6",
-				type: "smoothstep",
-				style: { stroke: "#c2185b", strokeWidth: 2 },
-				label: "Визуализации",
-				labelStyle: { fontSize: "10px", fontWeight: "bold" },
-			},
-		];
+	const { targetSchema, entityDiffItems } = useMemo(() => {
+		if (!mergeData?.diffJson) {
+			return {
+				targetSchema: null as DataLineageSchema | null,
+				entityDiffItems: [] as EntityDiffItem[],
+			};
+		}
 
-		return { initialNodes: nodes, initialEdges: edges };
-	}, []);
+		const left = mergeData.diffJson.left;
+		const right = mergeData.diffJson.right;
 
-	const [nodes, _setNodes, onNodesChange] = useNodesState(initialNodes);
-	const [edges, _setEdges, onEdgesChange] = useEdgesState(initialEdges);
+		const baseline =
+			left && isDataLineageSchema(left) ? (left as DataLineageSchema) : null;
+		const target =
+			right && isDataLineageSchema(right) ? (right as DataLineageSchema) : null;
+
+		if (!baseline && !target) {
+			return {
+				targetSchema: null as DataLineageSchema | null,
+				entityDiffItems: [] as EntityDiffItem[],
+			};
+		}
+
+		const map = new Map<
+			string,
+			{ baseline?: DataLineageEntity; target?: DataLineageEntity }
+		>();
+
+		if (baseline) {
+			baseline.entities.forEach((entity) => {
+				const existing = map.get(entity.id) ?? {};
+				map.set(entity.id, { ...existing, baseline: entity });
+			});
+		}
+
+		if (target) {
+			target.entities.forEach((entity) => {
+				const existing = map.get(entity.id) ?? {};
+				map.set(entity.id, { ...existing, target: entity });
+			});
+		}
+
+		const items: EntityDiffItem[] = Array.from(map.entries())
+			.map(([id, value]) => {
+				const name = value.target?.name ?? value.baseline?.name ?? id;
+				return {
+					id,
+					name: name ?? id,
+					inBaseline: Boolean(value.baseline),
+					inTarget: Boolean(value.target),
+				};
+			})
+			.sort((a, b) => a.name.localeCompare(b.name));
+
+		return {
+			targetSchema: target,
+			entityDiffItems: items,
+		};
+	}, [mergeData]);
+
+	useEffect(() => {
+		if (!targetSchema || entityDiffItems.length === 0) {
+			return;
+		}
+
+		const defaultSelected = entityDiffItems
+			.filter((item) => item.inTarget)
+			.map((item) => item.id);
+
+		setSelectedEntityIds(defaultSelected);
+	}, [targetSchema, entityDiffItems]);
+
+	const filteredSchema = useMemo(() => {
+		if (!mergeData?.mergedJson) {
+			return null;
+		}
+
+		const baseSchema = mergeData.mergedJson as DataLineageSchema;
+
+		if (!selectedEntityIds.length) {
+			return baseSchema;
+		}
+
+		const selectedIdsSet = new Set(selectedEntityIds);
+
+		const entities =
+			baseSchema.entities?.filter((entity) => selectedIdsSet.has(entity.id)) ??
+			[];
+
+		const mappings =
+			baseSchema.mappings?.filter((mapping) => {
+				if (!selectedIdsSet.has(mapping.entityId)) {
+					return false;
+				}
+
+				if (!mapping.deps || mapping.deps.length === 0) {
+					return true;
+				}
+
+				return mapping.deps.every((dep) => selectedIdsSet.has(dep.entityId));
+			}) ?? [];
+
+		return {
+			...baseSchema,
+			entities,
+			mappings,
+		} as DataLineageSchema;
+	}, [mergeData, selectedEntityIds]);
 
 	const handleClose = () => {
 		closeMergeGraphWindow();
 	};
 
-	if (!mergeData) {
+	const handleConfirmMerge = () => {
+		if (!mergeData) return;
+
+		applyPartialCommitMutation.mutate(
+			{
+				commitId: mergeData.commitId,
+				selectedEntityIds,
+			},
+			{
+				onSuccess: () => {
+					confirmMerge();
+				},
+			},
+		);
+	};
+
+	const handleConfirmFullMerge = () => {
+		if (!mergeData) return;
+
+		applyCommitMutation.mutate(mergeData.commitId, {
+			onSuccess: () => {
+				confirmMerge();
+			},
+		});
+	};
+
+	if (!mergeData || !mergeData.mergedJson || !filteredSchema) {
 		return null;
 	}
+
+	const schema = filteredSchema;
 
 	return (
 		<Dialog
@@ -217,7 +204,9 @@ export const MergeGraphWindow: React.FC = () => {
 					pb: 1,
 				}}
 			>
-				<Typography variant="h6">Merge Граф объектов</Typography>
+				<Typography variant="h6">
+					Граф модели после применения коммита {mergeData.commitId}
+				</Typography>
 				<IconButton
 					onClick={handleClose}
 					size="small"
@@ -231,48 +220,115 @@ export const MergeGraphWindow: React.FC = () => {
 				<Box
 					sx={{
 						height: "100%",
-						border: "1px solid",
-						borderColor: "divider",
-						borderRadius: 1,
-						backgroundColor: "background.paper",
+						display: "flex",
+						flexDirection: "column",
+						gap: 2,
 					}}
 				>
-					{/* React Flow граф */}
+					<Typography variant="body2" color="text.secondary">
+						Процесс: {mergeData.processName}
+					</Typography>
 					<Box
 						sx={{
-							height: "calc(100% - 40px)",
-							borderRadius: 1,
-							overflow: "hidden",
+							flex: 1,
+							minHeight: 0,
+							display: "flex",
+							gap: 2,
 						}}
 					>
-						<ReactFlow
-							nodes={nodes}
-							edges={edges}
-							onNodesChange={onNodesChange}
-							onEdgesChange={onEdgesChange}
-							connectionMode={ConnectionMode.Loose}
-							fitView
-							fitViewOptions={{
-								padding: 0.2,
-							}}
-							style={{
-								backgroundColor: "#f8f9fa",
-							}}
-						>
-							<Controls />
-							<Background
-								variant={BackgroundVariant.Dots}
-								gap={20}
-								size={1}
-								color="#e0e0e0"
-							/>
-						</ReactFlow>
+						{targetSchema && entityDiffItems.length > 0 && (
+							<Box
+								sx={{
+									width: 260,
+									maxHeight: "100%",
+									overflow: "auto",
+									borderRight: 1,
+									borderColor: "divider",
+									pr: 1,
+								}}
+							>
+								{entityDiffItems.map((item) => {
+									const isSelected = selectedEntityIds.includes(item.id);
+									const status = item.inBaseline
+										? item.inTarget
+											? "modified"
+											: "removed"
+										: item.inTarget
+											? "new"
+											: "unknown";
+									const color =
+										status === "new"
+											? "success"
+											: status === "removed"
+												? "error"
+												: "primary";
+									const prefix =
+										status === "new"
+											? "[NEW] "
+											: status === "removed"
+												? "[REM] "
+												: status === "modified"
+													? "[MOD] "
+													: "";
+
+									return (
+										<Button
+											key={item.id}
+											size="small"
+											variant={isSelected ? "contained" : "text"}
+											color={color}
+											onClick={() => {
+												setSelectedEntityIds((prev) =>
+													prev.includes(item.id)
+														? prev.filter((id) => id !== item.id)
+														: [...prev, item.id],
+												);
+											}}
+											sx={{
+												justifyContent: "flex-start",
+												width: "100%",
+												mb: 0.5,
+											}}
+										>
+											{prefix}
+											{item.name}
+										</Button>
+									);
+								})}
+							</Box>
+						)}
+						<Box sx={{ flex: 1, minHeight: 0 }}>
+							<DataLineageGraph data={schema} />
+						</Box>
 					</Box>
 				</Box>
 			</DialogContent>
 
 			<DialogActions sx={{ px: 3, pb: 2 }}>
-				<Button onClick={handleClose} variant="outlined">
+				<>
+					<Button
+						onClick={handleConfirmMerge}
+						variant="contained"
+						disabled={
+							applyPartialCommitMutation.isPending ||
+							applyCommitMutation.isPending
+						}
+					>
+						Частичный мердж
+					</Button>
+					<Button
+						onClick={handleConfirmFullMerge}
+						variant="outlined"
+						disabled={
+							applyPartialCommitMutation.isPending ||
+							applyCommitMutation.isPending
+						}
+					>
+						Полный мердж
+					</Button>
+				</>
+
+				<Button onClick={handleClose} variant="text">
 					Закрыть
 				</Button>
 			</DialogActions>

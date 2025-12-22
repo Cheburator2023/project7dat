@@ -2,4 +2,4 @@ export type {
 	JsonDataItem,
 	CreateJsonDataRequest,
 	UpdateJsonDataRequest,
-} from "../api/jsonDataApi";
+} from "../api/hooks/jsonDataApi";

@@ -3,7 +3,7 @@ import {
 	useQueryClient,
 	type UseMutationResult,
 } from "@tanstack/react-query";
-import { jsonDataService, type JsonDataItem } from "../jsonDataApi";
+import { jsonDataService, type JsonDataItem } from "./jsonDataApi";
 import { JSON_DATA_LIST_QUERY_KEY } from "./useJsonDataList";
 
 export const useDeleteJsonData = (): UseMutationResult<void, Error, string> => {

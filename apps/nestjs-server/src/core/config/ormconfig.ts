@@ -1,12 +1,18 @@
-import path from "path";
-import dotenv from "dotenv";
-import "reflect-metadata";
 import { DataSource } from "typeorm";
-import { databaseConfig } from "src/core/config/database.config";
+import { databaseConfig } from "./database.config";
 
-// Load environment variables for CLI usage (development by default)
-const envFile = `.env.${process.env.NODE_ENV || "development"}`;
-dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+const config = databaseConfig();
 
-// Named export to comply with project conventions (no default exports)
-export const dataSource = new DataSource(databaseConfig());
+export default new DataSource({
+	type: "postgres",
+	host: config.host,
+	port: config.port,
+	username: config.username,
+	password: config.password,
+	database: config.database,
+	entities: config.entities,
+	synchronize: config.synchronize,
+	logging: config.logging,
+	migrations: config.migrations,
+	migrationsRun: config.migrationsRun,
+});

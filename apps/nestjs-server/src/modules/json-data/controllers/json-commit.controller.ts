@@ -28,6 +28,7 @@ import { Permission } from "src/core/auth/permissions";
 import { CurrentUser } from "src/core/auth/decorators/current-user.decorator";
 import { JsonCommitResponseDto } from "../dto/responses/json-commit-response.dto";
 import { CommitStatusDto } from "../dto/commit-status.dto";
+import { ApplyPartialCommitRequestDto } from "../dto/requests/apply-partial-commit-request.dto";
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("JSON Коммиты")
@@ -362,6 +363,8 @@ export class JsonCommitController {
 					left,
 					right,
 				},
+				// Включаем структурированные изменения если они есть
+				changes: commit.changes || null,
 			};
 		});
 
@@ -503,6 +506,7 @@ export class JsonCommitController {
 					left,
 					right,
 				},
+				changes: commit.changes || null,
 			};
 		});
 
@@ -642,6 +646,7 @@ export class JsonCommitController {
 					left,
 					right,
 				},
+				changes: commit.changes || null,
 			};
 		});
 
@@ -707,6 +712,7 @@ export class JsonCommitController {
 					left,
 					right,
 				},
+				changes: commit.changes || null,
 			};
 		} catch (error) {
 			console.error(
@@ -776,6 +782,64 @@ export class JsonCommitController {
 		@CurrentUser() _user: any,
 	) {
 		return await this.jsonCommitService.getCumulativeDataAtCommit(id);
+	}
+
+	@Post("commits/:id/apply")
+	@RealmRole(Permission.DL_UPDATE_COMMITS)
+	@ApiOperation({
+		summary: "Применить коммит к JSON данным",
+		description:
+			"Восстанавливает полные данные на момент указанного коммита и обновляет связанный JSON граф, помечая его как текущий",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "Уникальный идентификатор коммита",
+		example: "uuid-string",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Коммит успешно применен, JSON данные обновлены",
+	})
+	@ApiResponse({
+		status: 404,
+		description: "Коммит или связанные JSON данные не найдены",
+	})
+	async applyCommit(@Param("id") id: string, @CurrentUser() _user: any) {
+		return await this.jsonDataService.applyCommitById(id);
+	}
+
+	@Post("commits/:id/apply-partial")
+	@RealmRole(Permission.DL_UPDATE_COMMITS)
+	@ApiOperation({
+		summary: "Частично применить коммит к JSON данным",
+		description:
+			"Применяет изменения только для выбранных сущностей из коммита и обновляет связанный JSON граф, помечая его как текущий",
+	})
+	@ApiParam({
+		name: "id",
+		type: String,
+		description: "Уникальный идентификатор коммита",
+		example: "uuid-string",
+	})
+	@ApiBody({ type: ApplyPartialCommitRequestDto })
+	@ApiResponse({
+		status: 200,
+		description: "Коммит частично применен, JSON данные обновлены",
+	})
+	@ApiResponse({
+		status: 404,
+		description: "Коммит или связанные JSON данные не найдены",
+	})
+	async applyPartialCommit(
+		@Param("id") id: string,
+		@Body() body: ApplyPartialCommitRequestDto,
+		@CurrentUser() _user: any,
+	) {
+		return await this.jsonDataService.applyPartialCommitById(
+			id,
+			body.selectedEntityIds,
+		);
 	}
 
 	private extractUserFromHeaders(headers: Record<string, string>) {

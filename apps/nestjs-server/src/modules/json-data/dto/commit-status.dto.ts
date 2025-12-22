@@ -7,6 +7,7 @@ export enum CommitStatus {
 	LOADED_VALIDATION_ERROR = "LOADED_VALIDATION_ERROR",
 	PARTIALLY_LOADED = "PARTIALLY_LOADED",
 	CANCELLED = "CANCELLED",
+	APPLIED = "APPLIED",
 }
 
 export class CommitStatusDto {

@@ -7,7 +7,7 @@ import {
 	jsonDataService,
 	type CreateJsonDataRequest,
 	type JsonDataItem,
-} from "../jsonDataApi";
+} from "./jsonDataApi";
 import { JSON_DATA_LIST_QUERY_KEY } from "./useJsonDataList";
 
 export const useInitializeJsonGraph = (): UseMutationResult<

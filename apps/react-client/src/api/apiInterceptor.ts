@@ -6,7 +6,9 @@ import axios, {
 import { toast } from "sonner";
 import { useNotificationStore } from "../stores/notificationStore";
 import { useAuthStore } from "../common/store/authStore";
-import { jsonDataApi, jsonCommitApi } from "./jsonDataApi";
+import { jsonDataApi } from "./hooks/jsonDataApi";
+import { jsonCommitApi } from "./hooks/jsonCommitApi";
+import { jsonDataListApi } from "@react-client/api/hooks/jsonDataListApi";
 
 interface ApiCallInfo {
 	method: string;
@@ -164,6 +166,7 @@ export const setupApiInterceptors = () => {
 
 	// Setup interceptors for specific axios instances
 	setupInterceptorsForInstance(jsonDataApi);
+	setupInterceptorsForInstance(jsonDataListApi);
 	setupInterceptorsForInstance(jsonCommitApi);
 
 	// Also setup for global axios instance for any other API calls

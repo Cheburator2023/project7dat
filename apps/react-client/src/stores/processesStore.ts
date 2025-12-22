@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
+import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
+import { jsonDataService } from "@react-client/api/hooks/jsonDataApi";
 
 export interface Process {
 	id: string;
@@ -35,391 +37,133 @@ interface ProcessesActions {
 
 type ProcessesStore = ProcessesState & ProcessesActions;
 
-const mockProcesses: Process[] = [
-	{
-		id: "proc_1",
-		name: "1642_25_dapp_clcd_client_profile_int_data",
+const mapJsonDataItemToProcess = (item: JsonDataItem): Process => {
+	const data = item.data as DataLineageSchema;
+	return {
+		id: item.id,
+		name: item.name,
 		type: "ETL",
-		createdAt: "2024-01-15T10:30:00Z",
-		description: "Процесс обработки профилей клиентов для интеграции данных",
-		status: "active",
-		owner: "data_team",
-		tags: ["client", "profile", "daily", "integration"],
-		dataLineage: {
-			desc: {
-				appId: "application_1741031136784_106640",
-				appName:
-					"1642_25_dapp_clcd_client_profile_int_data.dapp_clcd_client_profile_int_data",
-			},
-			entities: [
-				{
-					id: "source_client_data",
-					modified: false,
-					type: "table",
-					namespace: "raw_data",
-					name: "client_raw_data",
-					description: "Исходные данные клиентов",
-					attrSeq: [
-						{
-							name: "client_id",
-							type: "STRING",
-							comment: "Идентификатор клиента",
-						},
-						{ name: "name", type: "STRING", comment: "Имя клиента" },
-						{ name: "email", type: "STRING", comment: "Email клиента" },
-						{ name: "phone", type: "STRING", comment: "Телефон клиента" },
-						{ name: "created_at", type: "TIMESTAMP", comment: "Дата создания" },
-					],
-				},
-				{
-					id: "model_client_profile",
-					modified: true,
-					type: "table",
-					namespace: "staging",
-					name: "client_profile_staging",
-					description: "Промежуточная таблица профилей клиентов",
-					attrSeq: [
-						{
-							name: "client_id",
-							type: "STRING",
-							comment: "Идентификатор клиента",
-						},
-						{ name: "full_name", type: "STRING", comment: "Полное имя" },
-						{
-							name: "contact_info",
-							type: "STRING",
-							comment: "Контактная информация",
-						},
-						{
-							name: "profile_status",
-							type: "STRING",
-							comment: "Статус профиля",
-						},
-						{
-							name: "last_updated",
-							type: "TIMESTAMP",
-							comment: "Последнее обновление",
-						},
-					],
-				},
-				{
-					id: "datamart_client_analytics",
-					modified: true,
-					type: "view",
-					namespace: "analytics",
-					name: "client_analytics_view",
-					description: "Аналитическое представление клиентов",
-					attrSeq: [
-						{
-							name: "client_id",
-							type: "STRING",
-							comment: "Идентификатор клиента",
-						},
-						{ name: "segment", type: "STRING", comment: "Сегмент клиента" },
-						{
-							name: "lifetime_value",
-							type: "DECIMAL",
-							comment: "Жизненная ценность",
-						},
-						{ name: "risk_score", type: "DECIMAL", comment: "Оценка риска" },
-					],
-				},
-			],
-			mappings: [
-				{
-					id: 1,
-					entityId: "model_client_profile",
-					deps: [
-						{
-							entityId: "source_client_data",
-							attrMaps: [
-								{ src: "client_id", dst: "client_id" },
-								{ src: "name", dst: "full_name" },
-								{ src: "email", dst: "contact_info" },
-							],
-							atrDeps: [],
-						},
-					],
-				},
-				{
-					id: 2,
-					entityId: "datamart_client_analytics",
-					deps: [
-						{
-							entityId: "model_client_profile",
-							attrMaps: [
-								{ src: "client_id", dst: "client_id" },
-								{ src: "profile_status", dst: "segment" },
-							],
-							atrDeps: [],
-						},
-					],
-				},
-			],
-			failedMappings: [],
-		},
+		description: item.description || data?.desc?.appName || "",
+		createdAt: item.createdAt,
+		status: item.deprecated ? "inactive" : "active",
+		owner: item.authorName || undefined,
+		tags: [],
+		dataLineage: data,
+	};
+};
+
+/* const initialState: ProcessesState = {
+	processes: [],
+	searchQuery: "",
+	filteredProcesses: [],
+	isLoading: false,
+	error: null,
+	currentProcessData: null,
+};
+
+const useProcessesStore = create<ProcessesStore>((set) => ({
+	...initialState,
+	setProcesses: (processes) => set({ processes }),
+	setSearchQuery: (query) => set({ searchQuery: query }),
+	setLoading: (loading) => set({ isLoading: loading }),
+	setError: (error) => set({ error }),
+	setCurrentProcessData: (data) => set({ currentProcessData: data }),
+	loadProcesses: async () => {
+		try {
+			const response = await jsonDataService.getJsonDataV2();
+			const processes = response.data.map(mapJsonDataItemToProcess);
+			set({ processes, isLoading: false });
+		} catch (error) {
+			set({ error: error.message, isLoading: false });
+		}
 	},
-	{
-		id: "proc_2",
-		name: "daily_analytics_pipeline",
-		type: "Analytics",
-		createdAt: "2024-01-14T08:15:00Z",
-		description: "Ежедневная аналитическая обработка данных для отчетности",
-		status: "active",
-		owner: "analytics_team",
-		tags: ["analytics", "daily", "reporting", "dashboard"],
-		dataLineage: {
-			desc: {
-				appId: "application_analytics_daily",
-				appName: "daily_analytics_pipeline",
-			},
-			entities: [
-				{
-					id: "source_transactions",
-					modified: false,
-					type: "table",
-					namespace: "raw_data",
-					name: "transaction_logs",
-					description: "Логи транзакций",
-					attrSeq: [
-						{
-							name: "transaction_id",
-							type: "STRING",
-							comment: "ID транзакции",
-						},
-						{ name: "amount", type: "DECIMAL", comment: "Сумма" },
-						{
-							name: "timestamp",
-							type: "TIMESTAMP",
-							comment: "Время транзакции",
-						},
-						{ name: "user_id", type: "STRING", comment: "ID пользователя" },
-					],
-				},
-				{
-					id: "source_user_activity",
-					modified: false,
-					type: "table",
-					namespace: "raw_data",
-					name: "user_activity_logs",
-					description: "Логи активности пользователей",
-					attrSeq: [
-						{ name: "user_id", type: "STRING", comment: "ID пользователя" },
-						{ name: "action", type: "STRING", comment: "Действие" },
-						{ name: "timestamp", type: "TIMESTAMP", comment: "Время действия" },
-						{ name: "page_url", type: "STRING", comment: "URL страницы" },
-					],
-				},
-				{
-					id: "model_daily_metrics",
-					modified: true,
-					type: "table",
-					namespace: "analytics",
-					name: "daily_metrics",
-					description: "Ежедневные метрики",
-					attrSeq: [
-						{ name: "date", type: "DATE", comment: "Дата" },
-						{
-							name: "total_transactions",
-							type: "BIGINT",
-							comment: "Общее количество транзакций",
-						},
-						{ name: "total_amount", type: "DECIMAL", comment: "Общая сумма" },
-						{
-							name: "active_users",
-							type: "BIGINT",
-							comment: "Активные пользователи",
-						},
-					],
-				},
-				{
-					id: "datamart_dashboard",
-					modified: true,
-					type: "view",
-					namespace: "reporting",
-					name: "dashboard_metrics",
-					description: "Метрики для дашборда",
-					attrSeq: [
-						{ name: "metric_date", type: "DATE", comment: "Дата метрики" },
-						{ name: "revenue", type: "DECIMAL", comment: "Выручка" },
-						{
-							name: "user_engagement",
-							type: "DECIMAL",
-							comment: "Вовлеченность пользователей",
-						},
-						{
-							name: "conversion_rate",
-							type: "DECIMAL",
-							comment: "Коэффициент конверсии",
-						},
-					],
-				},
-			],
-			mappings: [
-				{
-					id: 1,
-					entityId: "model_daily_metrics",
-					deps: [
-						{
-							entityId: "source_transactions",
-							attrMaps: [
-								{ src: "amount", dst: "total_amount" },
-								{ src: "transaction_id", dst: "total_transactions" },
-							],
-							atrDeps: [],
-						},
-						{
-							entityId: "source_user_activity",
-							attrMaps: [{ src: "user_id", dst: "active_users" }],
-							atrDeps: [],
-						},
-					],
-				},
-				{
-					id: 2,
-					entityId: "datamart_dashboard",
-					deps: [
-						{
-							entityId: "model_daily_metrics",
-							attrMaps: [
-								{ src: "date", dst: "metric_date" },
-								{ src: "total_amount", dst: "revenue" },
-								{ src: "active_users", dst: "user_engagement" },
-							],
-							atrDeps: [],
-						},
-					],
-				},
-			],
-			failedMappings: [],
-		},
+	loadProcessData: async (processId) => {
+		try {
+			const response = await jsonDataService.getJsonDataV2(processId);
+			const data = response.data.data as DataLineageSchema;
+			set({ currentProcessData: data, isLoading: false });
+		} catch (error) {
+			set({ error: error.message, isLoading: false });
+		}
 	},
-	{
-		id: "proc_3",
-		name: "ml_feature_engineering",
-		type: "ML Pipeline",
-		createdAt: "2024-01-13T14:45:00Z",
-		description:
-			"Подготовка признаков для машинного обучения и обучения моделей",
-		status: "inactive",
-		owner: "ml_team",
+	filterProcesses: () => {
+		set((state) => ({
+			filteredProcesses: state.processes.filter((process) =>
+				process.name.toLowerCase().includes(state.searchQuery.toLowerCase())
+			),
+		}));
 		tags: ["ml", "features", "preprocessing", "models"],
-		dataLineage: {
-			desc: {
+		dataLineage: 
 				appId: "application_ml_features",
-				appName: "ml_feature_engineering",
-			},
+				appName: "ml_feature_engineering",,
 			entities: [
-				{
 					id: "source_customer_data",
 					modified: false,
 					type: "table",
 					namespace: "raw_data",
 					name: "customer_raw",
 					description: "Исходные данные о клиентах",
-					attrSeq: [
-						{ name: "customer_id", type: "STRING", comment: "ID клиента" },
-						{ name: "age", type: "INT", comment: "Возраст" },
-						{ name: "income", type: "DECIMAL", comment: "Доход" },
-						{
+					attrSeq: [name: "customer_id", type: "STRING", comment: "ID клиента" ,name: "age", type: "INT", comment: "Возраст" ,name: "income", type: "DECIMAL", comment: "Доход" ,
 							name: "purchase_history",
 							type: "STRING",
-							comment: "История покупок",
-						},
-					],
-				},
-				{
+							comment: "История покупок",,
+					],,
 					id: "model_feature_store",
 					modified: true,
 					type: "table",
 					namespace: "ml",
 					name: "customer_features",
 					description: "Признаки для ML модели",
-					attrSeq: [
-						{ name: "customer_id", type: "STRING", comment: "ID клиента" },
-						{ name: "age_group", type: "STRING", comment: "Возрастная группа" },
-						{
+					attrSeq: [name: "customer_id", type: "STRING", comment: "ID клиента" ,name: "age_group", type: "STRING", comment: "Возрастная группа" ,
 							name: "income_bracket",
 							type: "STRING",
-							comment: "Доходная группа",
-						},
-						{
+							comment: "Доходная группа",,
 							name: "purchase_frequency",
 							type: "DECIMAL",
-							comment: "Частота покупок",
-						},
-						{
+							comment: "Частота покупок",,
 							name: "avg_purchase_amount",
 							type: "DECIMAL",
-							comment: "Средняя сумма покупки",
-						},
-					],
-				},
-				{
+							comment: "Средняя сумма покупки",,
+					],,
 					id: "datamart_ml_predictions",
 					modified: true,
 					type: "view",
 					namespace: "ml",
 					name: "customer_predictions",
 					description: "Предсказания ML модели",
-					attrSeq: [
-						{ name: "customer_id", type: "STRING", comment: "ID клиента" },
-						{
+					attrSeq: [name: "customer_id", type: "STRING", comment: "ID клиента" ,
 							name: "churn_probability",
 							type: "DECIMAL",
-							comment: "Вероятность оттока",
-						},
-						{
+							comment: "Вероятность оттока",,
 							name: "lifetime_value_prediction",
 							type: "DECIMAL",
-							comment: "Предсказанная LTV",
-						},
-						{
+							comment: "Предсказанная LTV",,
 							name: "recommendation_score",
 							type: "DECIMAL",
-							comment: "Скор рекомендации",
-						},
-					],
-				},
+							comment: "Скор рекомендации",,
+					],,
 			],
 			mappings: [
-				{
 					id: 1,
 					entityId: "model_feature_store",
 					deps: [
-						{
 							entityId: "source_customer_data",
-							attrMaps: [
-								{ src: "customer_id", dst: "customer_id" },
-								{ src: "age", dst: "age_group" },
-								{ src: "income", dst: "income_bracket" },
-								{ src: "purchase_history", dst: "purchase_frequency" },
+							attrMaps: [src: "customer_id", dst: "customer_id" ,src: "age", dst: "age_group" ,src: "income", dst: "income_bracket" ,src: "purchase_history", dst: "purchase_frequency" ,
 							],
-							atrDeps: [],
-						},
-					],
-				},
-				{
+							atrDeps: [],,
+					],,
 					id: 2,
 					entityId: "datamart_ml_predictions",
 					deps: [
-						{
 							entityId: "model_feature_store",
-							attrMaps: [
-								{ src: "customer_id", dst: "customer_id" },
-								{ src: "purchase_frequency", dst: "churn_probability" },
-								{
+							attrMaps: [src: "customer_id", dst: "customer_id" ,src: "purchase_frequency", dst: "churn_probability" ,
 									src: "avg_purchase_amount",
-									dst: "lifetime_value_prediction",
-								},
+									dst: "lifetime_value_prediction",,
 							],
-							atrDeps: [],
-						},
-					],
-				},
+							atrDeps: [],,
+					],,
 			],
-			failedMappings: [],
-		},
+			failedMappings: [],,
 	},
 	{
 		id: "proc_4",
@@ -2498,7 +2242,9 @@ const mockProcesses: Process[] = [
 			failedMappings: [],
 		},
 	},
-];
+]
+
+*/
 
 const initialState: ProcessesState = {
 	processes: [],
@@ -2541,9 +2287,9 @@ export const useProcessesStore = create<ProcessesStore>()((set, get) => ({
 		setError(null);
 
 		try {
-			// Имитация API запроса
-			await new Promise((resolve) => setTimeout(resolve, 500));
-			setProcesses(mockProcesses);
+			const items = await jsonDataService.getAll();
+			const processes = items.map(mapJsonDataItemToProcess);
+			setProcesses(processes);
 		} catch (error) {
 			setError(
 				error instanceof Error ? error.message : "Ошибка загрузки процессов",
@@ -2553,21 +2299,21 @@ export const useProcessesStore = create<ProcessesStore>()((set, get) => ({
 		}
 	},
 
-	loadProcessData: async (_processId: string) => {
-		const { setLoading, setError, setCurrentProcessData } = get();
+	loadProcessData: async (processId: string) => {
+		const { setLoading, setError, setCurrentProcessData, processes } = get();
 
 		setLoading(true);
 		setError(null);
 
 		try {
-			// Имитация API запроса для получения данных процесса
-			await new Promise((resolve) => setTimeout(resolve, 800));
-
-			// Для демонстрации используем пример данных
-			const { dataLineageExampleData } = await import(
-				"@react-client/examples/dataLineageExampleData"
-			);
-			setCurrentProcessData(dataLineageExampleData);
+			// ищем процесс и берем его dataLineage, либо подгружаем по ID
+			const existing = processes.find((p) => p.id === processId);
+			if (existing?.dataLineage) {
+				setCurrentProcessData(existing.dataLineage);
+			} else {
+				const item = await jsonDataService.getById(processId);
+				setCurrentProcessData(item.data as DataLineageSchema);
+			}
 		} catch (error) {
 			setError(
 				error instanceof Error
@@ -2592,7 +2338,7 @@ export const useProcessesStore = create<ProcessesStore>()((set, get) => ({
 			(process) =>
 				process.name.toLowerCase().includes(query) ||
 				process.type.toLowerCase().includes(query) ||
-				process.description?.toLowerCase().includes(query) ||
+				process.description.toLowerCase().includes(query) ||
 				process.tags.some((tag) => tag.toLowerCase().includes(query)),
 		);
 

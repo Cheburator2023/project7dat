@@ -1,8 +1,8 @@
-import { TypeOrmModuleOptions } from "@nestjs/typeorm";
 import { EntityTarget, Repository, ObjectLiteral, DataSource } from "typeorm";
+import { PostgresDatabaseConfig } from "../../../config/database.config";
 
 export interface IDatabaseProvider {
-	getConfig(): TypeOrmModuleOptions | any;
+	getConfig(): PostgresDatabaseConfig;
 	connect(): Promise<void>;
 	disconnect(): Promise<void>;
 	getRepository<Entity extends ObjectLiteral>(

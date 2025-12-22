@@ -1,18 +1,47 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
-import { CircularProgress, styled } from "@mui/material";
-import { Header } from "@react-client/features/navigation/organisms/Header";
+import {
+	CircularProgress,
+	styled,
+	Box,
+	Alert,
+	Typography,
+	Chip,
+} from "@mui/material";
+import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
 import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "./components/EntityJsonEditor";
-import { EntityNodeView } from "./components/EntityNodeView";
-import { EntityTableView } from "./components/EntityTableView";
 import { EntityDetailsView } from "./components/EntityDetailsView";
-import { useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
+import { Card } from "@react-client/common/muiCustom/Card";
+
+import {
+	Storage as StorageIcon,
+	HelpOutline as HelpOutlineIcon,
+	TableChart as TableChartIcon,
+	ViewModule as ViewModuleIcon,
+} from "@mui/icons-material";
+import { GraphPanel2 } from "@react-client/features/entityPreview/organisms/GraphPanel2";
+
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+	table: <TableChartIcon fontSize={"large"} />,
+	view: <ViewModuleIcon fontSize={"large"} />,
+	rdd: <StorageIcon fontSize={"large"} />,
+	unresolved: <HelpOutlineIcon fontSize={"large"} />,
+};
+
+const TYPE_LABELS: Record<string, string> = {
+	table: "Таблица",
+	view: "Представление",
+	rdd: "RDD",
+	unresolved: "Неизвестно",
+};
 
 const flexLayoutJson = {
 	global: {
@@ -29,16 +58,34 @@ const flexLayoutJson = {
 		type: "row",
 		weight: 100,
 		children: [
+			// {
+			// 	type: "tabset",
+			// 	weight: 50,
+			// 	children: [
+			// 		{
+			// 			type: "tab",
+			// 			name: "Граф",
+			// 			component: "entity-node",
+			// 			id: "entity-node-tab",
+			// 		},
+			// 	],
+			// },
 			{
 				type: "tabset",
-				weight: 40,
+				weight: 50,
 				children: [
 					{
 						type: "tab",
-						name: "Узел",
-						component: "entity-node",
-						id: "entity-node-tab",
+						name: "Граф",
+						component: "entity-graph",
+						id: "entity-graph-tab",
 					},
+				],
+			},
+			{
+				type: "tabset",
+				weight: 30,
+				children: [
 					{
 						type: "tab",
 						name: "Детали",
@@ -49,25 +96,13 @@ const flexLayoutJson = {
 			},
 			{
 				type: "tabset",
-				weight: 30,
+				weight: 20,
 				children: [
 					{
 						type: "tab",
 						name: "JSON",
 						component: "entity-json",
 						id: "entity-json-tab",
-					},
-				],
-			},
-			{
-				type: "tabset",
-				weight: 30,
-				children: [
-					{
-						type: "tab",
-						name: "Таблица",
-						component: "entity-table",
-						id: "entity-table-tab",
 					},
 				],
 			},
@@ -82,20 +117,40 @@ interface EntityPreviewPageProps {
 export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
+	const [currentEntityId, setCurrentEntityId] = useState();
 	const { isPending } = useCurrentDataLineageGraph();
 	const [calculatedEntities, setCalculatedEntities] = useState<
 		DataLineageEntity[]
 	>([]);
 
+	const isPersistEnabled = usePanelSettingsStore((state) =>
+		state.isPanelPersistEnabled("entity-preview"),
+	);
+
 	const { entityId: urlEntityId } = useParams<{ entityId: string }>();
+	const [searchParams, setSearchParams] = useSearchParams();
+
+	// Get highlighted attribute from URL
+	const highlightedAttr = searchParams.get("highlightAttr");
+
+	// Clear highlight after some time or on user action
+	const handleClearHighlight = useCallback(() => {
+		setSearchParams((prev) => {
+			prev.delete("highlightAttr");
+			return prev;
+		});
+	}, [setSearchParams]);
 	const [model, _setModel] = useState(() => {
-		try {
-			const savedLayout = localStorage.getItem("entity-preview-layout");
-			if (savedLayout) {
-				return Model.fromJson(JSON.parse(savedLayout));
+		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
+		if (isPanelPersistEnabled("entity-preview")) {
+			try {
+				const savedLayout = localStorage.getItem("entity-preview-layout");
+				if (savedLayout) {
+					return Model.fromJson(JSON.parse(savedLayout));
+				}
+			} catch (error) {
+				console.warn("Failed to load layout from localStorage:", error);
 			}
-		} catch (error) {
-			console.warn("Failed to load layout from localStorage:", error);
 		}
 		return Model.fromJson(flexLayoutJson);
 	});
@@ -113,15 +168,20 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		const decodedUrlEntityId = urlEntityId
 			? decodeURIComponent(urlEntityId)
 			: undefined;
-		const targetEntityId = propEntityId || decodedUrlEntityId;
+
+		const targetEntityId =
+			currentEntityId || propEntityId || decodedUrlEntityId;
 
 		if (targetEntityId) {
+			console.log(
+				currentGraph.entities.find((e) => e.id === targetEntityId) || null,
+			);
 			return currentGraph.entities.find((e) => e.id === targetEntityId) || null;
 		}
 
 		// For now, let's select the first entity as an example if no entityId is provided
 		return currentGraph.entities.length > 0 ? currentGraph.entities[0] : null;
-	}, [currentGraph?.entities, propEntityId, urlEntityId]);
+	}, [currentGraph?.entities, propEntityId, urlEntityId, currentEntityId]);
 
 	const relatedMappings = useMemo(() => {
 		const decodedUrlEntityId = urlEntityId
@@ -136,21 +196,25 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		);
 	}, [currentGraph?.mappings, propEntityId, urlEntityId]);
 
+	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
+
 	const factory = useCallback(
 		(node: TabNode) => {
 			const component = node.getComponent();
 
 			switch (component) {
-				case "entity-node":
-					return (
-						<EntityContainer>
-							<EntityNodeView
-								entity={selectedEntity}
-								mappings={relatedMappings}
-								onEntitiesCalculated={setCalculatedEntities}
-							/>
-						</EntityContainer>
-					);
+				// case "entity-node":
+				// 	return (
+				// 		<EntityContainer>
+				// 			<EntityNodeView
+				// 				entity={selectedEntity}
+				// 				mappings={relatedMappings}
+				// 				onEntitiesCalculated={setCalculatedEntities}
+				// 				highlightedAttr={highlightedAttr}
+				// 				onSelectNode={onSelectNode}
+				// 			/>
+				// 		</EntityContainer>
+				// 	);
 				case "entity-details":
 					return (
 						<EntityContainer>
@@ -167,14 +231,9 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 							<EntityJsonEditor entity={selectedEntity} />
 						</EntityContainer>
 					);
-				case "entity-table":
+				case "entity-graph":
 					return (
-						<EntityContainer>
-							<EntityTableView
-								entity={selectedEntity}
-								mappings={relatedMappings}
-							/>
-						</EntityContainer>
+						<GraphPanel2 onSelectNode={onSelectNode} entity={selectedEntity} />
 					);
 				default:
 					return <div>Unknown component: {component}</div>;
@@ -187,21 +246,23 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		(action: Action) => {
 			const result = action;
 
-			setTimeout(() => {
-				try {
-					const layoutJson = model.toJson();
-					localStorage.setItem(
-						"entity-preview-layout",
-						JSON.stringify(layoutJson),
-					);
-				} catch (error) {
-					console.warn("Failed to save layout to localStorage:", error);
-				}
-			}, 0);
+			if (isPersistEnabled) {
+				setTimeout(() => {
+					try {
+						const layoutJson = model.toJson();
+						localStorage.setItem(
+							"entity-preview-layout",
+							JSON.stringify(layoutJson),
+						);
+					} catch (error) {
+						console.warn("Failed to save layout to localStorage:", error);
+					}
+				}, 0);
+			}
 
 			return result;
 		},
-		[model],
+		[model, isPersistEnabled],
 	);
 
 	if (isPending) {
@@ -236,11 +297,82 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	return (
 		<div>
 			<Header>
-				{/* <div>
-					Просмотр сущности: {selectedEntity.namespace ? `${selectedEntity.namespace}.` : ""}
-				{selectedEntity.name}
-				</div> */}
+				{highlightedAttr && (
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
+						<Alert
+							severity="info"
+							sx={{ py: 0, px: 1 }}
+							onClose={handleClearHighlight}
+						>
+							Выделен атрибут: <strong>{highlightedAttr}</strong>
+						</Alert>
+					</Box>
+				)}
 			</Header>
+			<>
+				<div
+					style={{
+						padding: "0 0px",
+					}}
+				>
+					<Card
+						data-test-id="header--Card-0"
+						zoom={0.7}
+						uuid="header_uuid"
+						style={{ overflow: "visible", padding: "4px" }}
+					>
+						<Box
+							display="flex"
+							justifyContent="space-between"
+							alignItems="flex-start"
+						>
+							<Box display="flex" alignItems="center" gap={2}>
+								<Box
+									sx={{
+										bgcolor: "rgba(255,255,255,0.2)",
+										borderRadius: 1.5,
+										p: 1,
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+									}}
+								>
+									{TYPE_ICONS[selectedEntity?.type] || (
+										<StorageIcon fontSize={"large"} />
+									)}
+								</Box>
+								<Box>
+									<Flex>
+										<Chip
+											label={selectedEntity.type}
+											size="small"
+											color={
+												selectedEntity.type === "table"
+													? "primary"
+													: "secondary"
+											}
+										/>
+
+										{/*<EntityBadges*/}
+										{/*	isDataMart={selectedEntity.isDataMart}*/}
+										{/*	isSource={selectedEntity.isSource}*/}
+										{/*	modified={selectedEntity.modified}*/}
+										{/*/>*/}
+									</Flex>
+									<Typography variant="h5" fontWeight={600}>
+										{selectedEntity.name || entity.id}
+									</Typography>
+									{selectedEntity.namespace && (
+										<Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
+											{selectedEntity.namespace}
+										</Typography>
+									)}
+								</Box>
+							</Box>
+						</Box>
+					</Card>
+				</div>
+			</>
 			<Wrapper id="entity_preview_container">
 				<FlexLayoutContainer>
 					<Layout

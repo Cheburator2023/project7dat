@@ -14,7 +14,7 @@ import { Toaster } from "sonner";
 import { enableMapSet } from "immer";
 
 import { MainLayout } from "@react-client/common/layouts/MainLayout";
-import { NotificationDrawer } from "./features/notification/NotificationDrawer";
+import { NotificationDrawer } from "./common/notification/NotificationDrawer";
 import { MergeGraphWindow } from "./features/merge/organisms/MergeGraphWindow";
 import { DiffWindow } from "./features/merge/organisms/DiffWindow";
 
