@@ -4,14 +4,11 @@ import {
 	Column,
 	ManyToOne,
 	JoinColumn,
-    Unique,
 } from "typeorm";
 import { ChangeEntity } from "./change.entity";
 import { EntityEntity } from "./entity.entity";
-import { ProcessEntity } from "./process.entity";
 
 @Entity("entity_map")
-@Unique("entity_map_entity_process_unique", ["entity_id", "process_id"])
 export class EntityMapEntity {
 	@PrimaryGeneratedColumn()
 	entity_map_id: number;
@@ -22,7 +19,7 @@ export class EntityMapEntity {
 	@Column({ type: "text", nullable: true })
 	description: string;
 
-	@Column()
+	@Column({ nullable: true })
 	process_id: number;
 
 	@Column()
@@ -35,8 +32,4 @@ export class EntityMapEntity {
 	@ManyToOne(() => EntityEntity)
 	@JoinColumn({ name: "entity_id" })
 	entity: EntityEntity;
-
-	@ManyToOne(() => ProcessEntity)
-	@JoinColumn({ name: "process_id" })
-	process: ProcessEntity;
 }

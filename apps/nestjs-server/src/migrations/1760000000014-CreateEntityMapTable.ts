@@ -9,12 +9,10 @@ export class CreateEntityMapTable1760000000014 implements MigrationInterface {
 				entity_map_id SERIAL PRIMARY KEY,
 				entity_id INTEGER NOT NULL,
 				description VARCHAR,
-				process_id INTEGER NOT NULL,
+				process_id INTEGER,
 				change_id INTEGER NOT NULL,
 				CONSTRAINT fk_entity_map_entity FOREIGN KEY (entity_id) REFERENCES entity(entity_id),
-				CONSTRAINT fk_entity_map_process FOREIGN KEY (process_id) REFERENCES process(process_id),
-				CONSTRAINT fk_entity_map_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
-				CONSTRAINT entity_map_entity_process_unique UNIQUE (entity_id, process_id)
+				CONSTRAINT fk_entity_map_change FOREIGN KEY (change_id) REFERENCES changes(change_id)
 				)
 		`);
 
