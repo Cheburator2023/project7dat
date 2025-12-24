@@ -15,7 +15,7 @@ export class EntityContainerTypeEntity {
     @Column()
     change_id: number;
 
-    @Column({ type: "varchar" })
+    @Column({ type: "varchar", nullable: true })
     value: string;
 
     @Column({ type: "text", nullable: true })

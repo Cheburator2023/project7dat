@@ -47,11 +47,11 @@ export class PopulateInitialData1760000000020 implements MigrationInterface {
 
         await queryRunner.query(`
             INSERT INTO dependency_type (deptype_id, change_id, name, description)
-            VALUES ('JOIN', $1, 'JOIN', 'Использование в JOIN'),
-                   ('WHERE', $1, 'WHERE', 'Использование в WHERE'),
-                   ('GROUP_BY', $1, 'GROUP_BY', 'Использование в GROUP BY'),
-                   ('SELECT', $1, 'SELECT', 'Использование в SELECT'),
-                   ('ORDER_BY', $1, 'ORDER_BY', 'Использование в ORDER BY')
+            VALUES (1, $1, 'TABLE_HIVE', 'Таблица Hive'),
+                   (3, $1, 'VIEW_HIVE', 'Представление HIVE'),
+                   (10, $1, 'JSON', 'Запрос в ПИМ'),
+                   (11, $1, 'INPUT_VECTOR', 'Входящий вектор модели'),
+                   (5, $1, 'OUTPUT_VECTOR', 'Исходящий вектор модели')
         `, [changeId]);
 
         await queryRunner.query(`

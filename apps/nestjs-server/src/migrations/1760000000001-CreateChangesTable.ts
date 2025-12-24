@@ -7,9 +7,9 @@ export class CreateChangesTable1760000000001 implements MigrationInterface {
 		await queryRunner.query(`
 			CREATE TABLE IF NOT EXISTS changes (
 				change_id      SERIAL PRIMARY KEY,
-				change_date    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-				change_user    VARCHAR   NOT NULL,
-				change_name    VARCHAR   NOT NULL,
+				change_date    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				change_user    VARCHAR,
+				change_name    VARCHAR,
 				app_id         VARCHAR,
 				schema_version VARCHAR DEFAULT '1.0',
 				deprecation    BOOLEAN DEFAULT FALSE,

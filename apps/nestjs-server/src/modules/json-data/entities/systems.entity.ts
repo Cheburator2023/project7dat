@@ -9,9 +9,9 @@ export class SystemsEntity {
     @PrimaryGeneratedColumn()
     system_id: number;
 
-    @Column({ type: "varchar" })
+    @Column({ type: "varchar", nullable: true })
     code: string;
 
-    @Column({ type: "varchar" })
+    @Column({ type: "varchar", nullable: true })
     name: string;
 }

@@ -23,7 +23,7 @@ export class EntityContainerEntity {
     @Column({ type: "text", nullable: true })
     description: string;
 
-    @Column({ type: "varchar" })
+    @Column({ type: "varchar", nullable: true })
     value: string;
 
     @Column({ nullable: true })

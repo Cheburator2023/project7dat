@@ -9,14 +9,12 @@ export class CreateProcessTable1760000000012 implements MigrationInterface {
 				process_id   SERIAL PRIMARY KEY,
 				change_id    INTEGER NOT NULL,
 				process_type INTEGER NOT NULL,
-				name         VARCHAR NOT NULL,
+				name         VARCHAR,
 				group_id     INTEGER,
 				description  VARCHAR,
 				CONSTRAINT fk_process_change FOREIGN KEY (change_id) REFERENCES changes (change_id),
 				CONSTRAINT fk_process_type FOREIGN KEY (process_type) REFERENCES process_type (process_type_id),
-				CONSTRAINT fk_process_group FOREIGN KEY (group_id) REFERENCES process_group(group_id),
-				CONSTRAINT process_id_unique UNIQUE (process_id),
-				CONSTRAINT process_name_unique UNIQUE (name)
+				CONSTRAINT fk_process_group FOREIGN KEY (group_id) REFERENCES process_group(group_id)
 				)
 		`);
 
