@@ -15,13 +15,13 @@ export class AttributeTypeEntity {
     @Column()
     change_id: number;
 
-    @Column({ type: "varchar" })
+    @Column({ type: "varchar", nullable: true })
     name: string;
 
     @Column({ type: "text", nullable: true })
     description: string;
 
-    @Column({ type: "varchar" })
+    @Column({ type: "varchar", nullable: true })
     type_group: string;
 
     @ManyToOne(() => ChangeEntity)

@@ -7,8 +7,8 @@ export class CreateStreamSpaceTable1760000000002 implements MigrationInterface {
 		await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS stream_space (
                 id SERIAL PRIMARY KEY,
-                name_space VARCHAR NOT NULL,
-                stream_name VARCHAR NOT NULL,
+                name_space VARCHAR,
+                stream_name VARCHAR,
                 CONSTRAINT stream_space_id_unique UNIQUE (id)
             )
         `);

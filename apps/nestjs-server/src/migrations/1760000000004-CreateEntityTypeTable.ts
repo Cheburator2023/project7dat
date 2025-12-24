@@ -8,10 +8,9 @@ export class CreateEntityTypeTable1760000000004 implements MigrationInterface {
 			CREATE TABLE IF NOT EXISTS entity_type (
 				entity_type_id SERIAL PRIMARY KEY,
 				change_id INTEGER NOT NULL,
-				name VARCHAR NOT NULL,
+				name VARCHAR,
 				description VARCHAR,
-				CONSTRAINT fk_entity_type_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
-				CONSTRAINT entity_type_name_unique UNIQUE (name)
+				CONSTRAINT fk_entity_type_change FOREIGN KEY (change_id) REFERENCES changes(change_id)
 				)
 		`);
 

@@ -12,8 +12,7 @@ export class CreateProcessGroupTable1760000000011
 				change_id INTEGER NOT NULL,
 				name VARCHAR NOT NULL,
 				description VARCHAR,
-				CONSTRAINT fk_process_group_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
-				CONSTRAINT process_group_id_unique UNIQUE (group_id)
+				CONSTRAINT fk_process_group_change FOREIGN KEY (change_id) REFERENCES changes(change_id)
 				)
 		`);
 

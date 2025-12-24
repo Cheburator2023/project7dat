@@ -10,10 +10,9 @@ export class CreateEntityContainerTypeTable1760000000005
             CREATE TABLE IF NOT EXISTS entity_container_type (
                 entity_container_type_id SERIAL PRIMARY KEY,
                 change_id INTEGER NOT NULL,
-                value VARCHAR NOT NULL,
+                value VARCHAR,
                 description VARCHAR,
-                CONSTRAINT fk_entity_container_type_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
-                CONSTRAINT entity_container_type_id_unique UNIQUE (entity_container_type_id)
+                CONSTRAINT fk_entity_container_type_change FOREIGN KEY (change_id) REFERENCES changes(change_id)
                 )
         `);
 

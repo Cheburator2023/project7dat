@@ -4,7 +4,6 @@ import {
     Column,
     ManyToOne,
     JoinColumn,
-    Unique,
     Index,
 } from "typeorm";
 import { ChangeEntity } from "./change.entity";
@@ -12,7 +11,6 @@ import { ProcessTypeEntity } from "./process-type.entity";
 import { ProcessGroupEntity } from "./process-group.entity";
 
 @Entity("process")
-@Unique("process_name_unique", ["name"])
 @Index("idx_process_name", ["name"])
 @Index("idx_process_change_id", ["change_id"])
 @Index("idx_process_type", ["process_type"])
@@ -27,7 +25,7 @@ export class ProcessEntity {
 	@Column()
 	process_type: number;
 
-	@Column({ type: "varchar" })
+	@Column({ type: "varchar", nullable: true })
 	name: string;
 
     @Column({ nullable: true })

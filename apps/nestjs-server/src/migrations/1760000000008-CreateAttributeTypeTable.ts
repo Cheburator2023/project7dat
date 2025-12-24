@@ -10,9 +10,9 @@ export class CreateAttributeTypeTable1760000000008
             CREATE TABLE IF NOT EXISTS attribute_type (
                 type_id     SERIAL PRIMARY KEY,
                 change_id   INTEGER NOT NULL,
-                name        VARCHAR NOT NULL,
+                name        VARCHAR,
                 description VARCHAR,
-                type_group  VARCHAR NOT NULL,
+                type_group  VARCHAR,
                 CONSTRAINT fk_attribute_type_change FOREIGN KEY (change_id) REFERENCES changes (change_id)
             )
         `);

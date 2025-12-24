@@ -4,12 +4,10 @@ import {
     Column,
     ManyToOne,
     JoinColumn,
-    Unique,
 } from "typeorm";
 import { ChangeEntity } from "./change.entity";
 
 @Entity("entity_type")
-@Unique("entity_type_name_unique", ["name"])
 export class EntityTypeEntity {
     @PrimaryGeneratedColumn()
     entity_type_id: number;
@@ -17,7 +15,7 @@ export class EntityTypeEntity {
     @Column()
     change_id: number;
 
-    @Column({ type: "varchar" })
+    @Column({ type: "varchar", nullable: true })
     name: string;
 
     @Column({ type: "text", nullable: true })
