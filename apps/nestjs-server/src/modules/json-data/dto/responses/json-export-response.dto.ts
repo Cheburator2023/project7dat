@@ -12,7 +12,10 @@ export class JsonExportAttributeDto {
     @ApiProperty({ description: "Имя атрибута" })
     name: string;
 
-    @ApiProperty({ description: "Тип данных атрибута" })
+    @ApiProperty({
+        description: "Тип данных атрибута",
+        enum: ['TIMESTAMP', 'DECIMAL', 'STRING', 'INTEGER']
+    })
     type: string;
 
     @ApiProperty({ description: "Комментарий", required: false })
@@ -29,7 +32,10 @@ export class JsonExportEntityDto {
     @ApiProperty({ description: "Флаг изменения (true - цель, false - источник)" })
     modified: boolean;
 
-    @ApiProperty({ description: "Тип сущности" })
+    @ApiProperty({
+        description: "Тип сущности",
+        enum: ['table', 'view', 'json', 'input_vector', 'unresolved', 'rdd']
+    })
     type: string;
 
     @ApiProperty({ description: "Наименование контейнера сущности" })
@@ -69,7 +75,11 @@ export class JsonExportAtrDepDto {
     @ApiProperty({ description: "Имя атрибута источника" })
     attr: string;
 
-    @ApiProperty({ description: "Типы функций использования", type: [String] })
+    @ApiProperty({
+        description: "Типы функций использования",
+        type: [String],
+        example: ["WHERE", "JOIN", "GROUPBY", "WINDOW"]
+    })
     linkTypes: string[];
 
     @ApiProperty({ description: "Дата добавления/изменения связи" })
@@ -108,6 +118,12 @@ export class JsonExportMappingDto {
 
     @ApiProperty({ type: [JsonExportDependencyDto], description: "Зависимости" })
     deps: JsonExportDependencyDto[];
+
+    @ApiProperty({
+        description: "Сущности, которые не получилось сопоставить",
+        required: false
+    })
+    unmatched?: string;
 }
 
 export class JsonExportResponseDto {

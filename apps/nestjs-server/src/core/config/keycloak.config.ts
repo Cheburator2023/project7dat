@@ -17,8 +17,8 @@ export const keycloakValidationSchema = Joi.object({
 		.uri()
 		.optional()
 		.description("URL сервера KeyCloak (включая /auth)"),
-	KEYCLOAK_REALM: Joi.string().required().description("Realm в KeyCloak"),
-	KEYCLOAK_CLIENT: Joi.string().required().description("Client ID в KeyCloak"),
+	KEYCLOAK_REALM: Joi.string().optional().description("Realm в KeyCloak"),
+	KEYCLOAK_CLIENT: Joi.string().optional().description("Client ID в KeyCloak"),
 	KEYCLOAK_SECRET: Joi.string()
 		.optional()
 		.description("Client secret в KeyCloak"),

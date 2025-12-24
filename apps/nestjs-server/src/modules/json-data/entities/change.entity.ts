@@ -10,22 +10,22 @@ export class ChangeEntity {
 	@PrimaryGeneratedColumn()
 	change_id: number;
 
-	@CreateDateColumn({ type: "timestamp" })
+	@CreateDateColumn({ type: "timestamp", nullable: true })
 	change_date: Date;
 
-	@Column({ type: "varchar" })
+	@Column({ type: "varchar", nullable: true })
 	change_user: string;
 
-	@Column({ type: "varchar" })
+	@Column({ type: "varchar", nullable: true })
 	change_name: string;
 
 	@Column({ type: "varchar", nullable: true })
 	app_id: string;
 
-	@Column({ type: "varchar", default: "1.0" })
+	@Column({ type: "varchar", default: "1.0", nullable: true})
 	schema_version: string;
 
-	@Column({ type: "boolean", default: false })
+	@Column({ type: "boolean", default: false, nullable: true })
 	deprecation: boolean;
 
 	@Column({ type: "varchar", nullable: true })

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseIntPipe } from "@nestjs/common";
+import {Controller, Get, Param, ParseIntPipe, Query} from "@nestjs/common";
 import {
     ApiTags,
     ApiOperation,
@@ -49,8 +49,13 @@ export class JsonExportController {
         description: "Данные успешно экспортированы в JSON DL",
         type: JsonExportResponseDto,
     })
+    @ApiResponse({
+        status: 404,
+        description: "Change с указанным ID не найден",
+    })
     async exportToJsonByChange(
         @Param("changeId", ParseIntPipe) changeId: number,
+        @Query("includeRawJson") includeRawJson?: boolean,
     ): Promise<JsonExportResponseDto> {
         return await this.jsonExportService.exportByChangeId(changeId);
     }

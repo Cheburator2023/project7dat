@@ -12,12 +12,11 @@ export class CreateEntityContainerTable1760000000006
 				change_id                INTEGER NOT NULL,
 				entity_container_type_id INTEGER NOT NULL,
 				description              VARCHAR,
-				value                    VARCHAR NOT NULL,
+				value                    VARCHAR,
 				system_id                INTEGER,
 				CONSTRAINT fk_entity_container_change FOREIGN KEY (change_id) REFERENCES changes (change_id),
 				CONSTRAINT fk_entity_container_type FOREIGN KEY (entity_container_type_id) REFERENCES entity_container_type (entity_container_type_id),
-				CONSTRAINT fk_entity_container_system FOREIGN KEY (system_id) REFERENCES systems (system_id),
-				CONSTRAINT entity_container_id_unique UNIQUE (entity_container_id)
+				CONSTRAINT fk_entity_container_system FOREIGN KEY (system_id) REFERENCES systems (system_id)
 				)
 		`);
 

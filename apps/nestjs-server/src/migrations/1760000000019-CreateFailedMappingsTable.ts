@@ -13,9 +13,7 @@ export class CreateFailedMappingsTable1760000000019
 				entity_name VARCHAR NOT NULL,
 				error_description TEXT,
 				unmatched_entities TEXT,
-				CONSTRAINT fk_failed_mappings_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
-				CONSTRAINT failed_mapping_id_unique UNIQUE (failed_mapping_id)
-				)
+				CONSTRAINT fk_failed_mappings_change FOREIGN KEY (change_id) REFERENCES changes(change_id)				)
 		`);
 
 		await queryRunner.query(

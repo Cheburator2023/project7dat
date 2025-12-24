@@ -30,7 +30,7 @@ export class AttributeEntity {
 	@Column()
 	entity_id: number;
 
-	@Column({ type: "varchar" })
+	@Column({ type: "varchar", nullable: true })
 	name: string;
 
 	@Column({ type: "text", nullable: true })

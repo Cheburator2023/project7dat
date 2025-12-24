@@ -29,10 +29,10 @@ export class EntityEntity {
 	@Column({ nullable: true })
     entity_container_id: number | null;
 
-	@Column({ type: "varchar" })
+	@Column({ type: "varchar", nullable: true })
 	name: string;
 
-	@Column({ type: "varchar" })
+	@Column({ type: "varchar", nullable: true })
 	full_name: string;
 
 	@Column({ type: "text", nullable: true })

@@ -4,14 +4,12 @@ import {
 	Column,
 	ManyToOne,
 	JoinColumn,
-    Unique,
 } from "typeorm";
 import { ChangeEntity } from "./change.entity";
 import { EntityMapEntity } from "./entity-map.entity";
 import { AttributeEntity } from "./attribute.entity";
 
 @Entity("attribute_map")
-@Unique("attribute_map_entity_attribute_unique", ["entity_map_id", "attribute_id"])
 export class AttributeMapEntity {
 	@PrimaryGeneratedColumn()
 	attribute_map_id: number;

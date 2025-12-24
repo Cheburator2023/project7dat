@@ -14,8 +14,7 @@ export class CreateAttributeMapTable1760000000016
 				change_id INTEGER NOT NULL,
 				CONSTRAINT fk_attribute_map_entity_map FOREIGN KEY (entity_map_id) REFERENCES entity_map(entity_map_id),
 				CONSTRAINT fk_attribute_map_attribute FOREIGN KEY (attribute_id) REFERENCES attribute(attribute_id),
-				CONSTRAINT fk_attribute_map_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
-				CONSTRAINT attribute_map_entity_attribute_unique UNIQUE (entity_map_id, attribute_id)
+				CONSTRAINT fk_attribute_map_change FOREIGN KEY (change_id) REFERENCES changes(change_id)
 				)
 		`);
 

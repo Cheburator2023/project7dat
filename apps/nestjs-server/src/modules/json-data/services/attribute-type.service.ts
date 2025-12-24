@@ -10,13 +10,20 @@ export class AttributeTypeService {
         ["boolean", 5],
     ]);
 
-	async getSupportedAttributeTypes(): Promise<string[]> {
-		return Array.from(this.attributeTypeMap.keys());
-	}
+    private readonly attributeIdToTypeMap: Map<number, string> = new Map([
+        [1, "STRING"],
+        [2, "INTEGER"],
+        [3, "DECIMAL"],
+        [4, "TIMESTAMP"],
+        [5, "BOOLEAN"],
+    ]);
 
-	async resolveAttributeTypeFromJson(jsonType: string): Promise<number> {
-		// Нормализация типа из JSON
-		const normalizedType = jsonType.toLowerCase();
+    async getSupportedAttributeTypes(): Promise<string[]> {
+        return Array.from(this.attributeTypeMap.keys());
+    }
+
+    async resolveAttributeTypeFromJson(jsonType: string): Promise<number> {
+        const normalizedType = jsonType.toLowerCase();
 
         const typeMapping: Record<string, number> = {
             timestamp: 4,
@@ -39,5 +46,9 @@ export class AttributeTypeService {
         };
 
         return typeMapping[normalizedType] || 1;
+    }
+
+    async mapAttributeTypeToJson(typeId: number): Promise<string> {
+        return this.attributeIdToTypeMap.get(typeId) || "STRING";
     }
 }
