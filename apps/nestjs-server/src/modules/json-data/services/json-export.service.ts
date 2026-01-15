@@ -122,7 +122,7 @@ export class JsonExportService {
 
     private async getEntitiesWithDetails(changeId?: number): Promise<EntityWithDetails[]> {
         let dateFilter = "";
-        let params: any[] = [];
+        const params: any[] = [];
 
         if (changeId) {
             // Получаем дату изменения для указанного change_id
@@ -135,13 +135,12 @@ export class JsonExportService {
                     SELECT MAX(e2.change_id) 
                     FROM entity e2 
                     WHERE e2.full_name = e.full_name 
-                    AND e2.change_id <= ?
+                    AND e2.change_id <= $1
                     GROUP BY e2.full_name
                 )
-                AND (ec.change_id IS NULL OR ec.change_id <= ?)
-                AND a.change_id <= ?
+                AND (ec.change_id IS NULL OR ec.change_id <= $2)
             `;
-            params = [changeId, changeId, changeId];
+            params.push(changeId, changeId);
         }
 
         const query = `
@@ -179,10 +178,10 @@ export class JsonExportService {
 
     private async getAttributesForEntity(entityId: number, changeId?: number): Promise<any[]> {
         let dateFilter = "";
-        let params: any[] = [entityId];
+        const params: any[] = [entityId];
 
         if (changeId) {
-            dateFilter = " AND a.change_id <= ?";
+            dateFilter = " AND a.change_id <= $2";
             params.push(changeId);
         }
 
@@ -206,7 +205,7 @@ export class JsonExportService {
 
     private async getMappingsWithDetails(changeId?: number): Promise<MappingWithDetails[]> {
         let dateFilter = "";
-        let params: any[] = [];
+        const params: any[] = [];
 
         if (changeId) {
             dateFilter = `
@@ -215,12 +214,12 @@ export class JsonExportService {
                 FROM entity_map em2 
                 WHERE em2.entity_id = em.entity_id 
                 AND em2.process_id = em.process_id
-                AND em2.change_id <= ?
+                AND em2.change_id <= $1
                 GROUP BY em2.entity_id, em2.process_id
             )
-            AND (p.change_id IS NULL OR p.change_id <= ?)
+            AND (p.change_id IS NULL OR p.change_id <= $2)
         `;
-            params = [changeId, changeId];
+            params.push(changeId, changeId);
         }
 
         // Получаем основные данные entity_map
@@ -261,10 +260,10 @@ export class JsonExportService {
 
     private async getDependenciesForEntityMap(entityMapId: number, changeId?: number): Promise<MappingWithDetails['dependencies']> {
         let dateFilter = "";
-        let params: any[] = [entityMapId];
+        const params: any[] = [entityMapId];
 
         if (changeId) {
-            dateFilter = " AND ems.change_id IN (SELECT MAX(ems2.change_id) FROM entity_map_source ems2 WHERE ems2.entity_map_id = ems.entity_map_id AND ems2.source_entity_id = ems.source_entity_id AND ems2.change_id <= ? GROUP BY ems2.entity_map_id, ems2.source_entity_id)";
+            dateFilter = " AND ems.change_id IN (SELECT MAX(ems2.change_id) FROM entity_map_source ems2 WHERE ems2.entity_map_id = ems.entity_map_id AND ems2.source_entity_id = ems.source_entity_id AND ems2.change_id <= $2 GROUP BY ems2.entity_map_id, ems2.source_entity_id)";
             params.push(changeId);
         }
 
@@ -291,7 +290,7 @@ export class JsonExportService {
 
     private async getAttributeMapsForDependency(entityMapId: number, sourceEntityId: number, changeId?: number): Promise<any[]> {
         let dateFilter = "";
-        let params: any[] = [entityMapId, sourceEntityId];
+        const params: any[] = [entityMapId, sourceEntityId];
 
         if (changeId) {
             dateFilter = `
@@ -300,7 +299,7 @@ export class JsonExportService {
                 FROM attribute_map am2 
                 WHERE am2.entity_map_id = am.entity_map_id 
                 AND am2.attribute_id = am.attribute_id
-                AND am2.change_id <= ?
+                AND am2.change_id <= $3
                 GROUP BY am2.entity_map_id, am2.attribute_id
             )
             AND ams.change_id IN (
@@ -308,7 +307,7 @@ export class JsonExportService {
                 FROM attribute_map_source ams2 
                 WHERE ams2.attribute_map_id = ams.attribute_map_id 
                 AND ams2.source_attribute_id = ams.source_attribute_id
-                AND ams2.change_id <= ?
+                AND ams2.change_id <= $4
                 GROUP BY ams2.attribute_map_id, ams2.source_attribute_id
             )
         `;
@@ -340,7 +339,7 @@ export class JsonExportService {
 
     private async getAttributeDepsForDependency(entityMapId: number, sourceEntityId: number, changeId?: number): Promise<AttributeDepGrouped[]> {
         let dateFilter = "";
-        let params: any[] = [entityMapId, sourceEntityId];
+        const params: any[] = [entityMapId, sourceEntityId];
 
         if (changeId) {
             dateFilter = `
@@ -350,7 +349,7 @@ export class JsonExportService {
                 WHERE eam2.entity_map_id = eam.entity_map_id 
                 AND eam2.source_attribute_id = eam.source_attribute_id
                 AND eam2.deptype_id = eam.deptype_id
-                AND eam2.change_id <= ?
+                AND eam2.change_id <= $3
                 GROUP BY eam2.entity_map_id, eam2.source_attribute_id, eam2.deptype_id
             )
         `;
@@ -401,10 +400,10 @@ export class JsonExportService {
 
     private async getUnmatchedEntities(entityName: string, changeId?: number): Promise<string> {
         let dateFilter = "";
-        let params: any[] = [entityName];
+        const params: any[] = [entityName];
 
         if (changeId) {
-            dateFilter = " AND fm.change_id <= ?";
+            dateFilter = " AND fm.change_id <= $2";
             params.push(changeId);
         }
 
@@ -412,7 +411,7 @@ export class JsonExportService {
             SELECT fm.unmatched_entities
             FROM failed_mappings fm
             WHERE fm.entity_name = $1 ${dateFilter}
-            ORDER BY fm.change_date DESC
+            ORDER BY fm.change_id DESC
                 LIMIT 1
         `;
 
