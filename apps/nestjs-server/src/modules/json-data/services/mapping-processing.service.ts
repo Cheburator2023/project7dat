@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
 import { QueryRunner } from 'typeorm';
 import { EntityMapEntity } from '../entities/entity-map.entity';
 import { AttributeMapEntity } from '../entities/attribute-map.entity';
@@ -79,11 +77,16 @@ export class MappingProcessingService {
                     queryRunner,
                 );
                 warnings.push(...dependencyWarnings);
+
+                // Обработка entity_map_source для связи с источниками
+                await this.handleEntityMapSources(
+                    dep,
+                    entityMap.entity_map_id,
+                    changeId,
+                    queryRunner,
+                );
             }
         }
-
-        // Обработка entity_map_source для связи с источниками
-        await this.handleEntityMapSources(mapping, entityMap.entity_map_id, changeId, queryRunner);
 
         return warnings;
     }
@@ -132,28 +135,22 @@ export class MappingProcessingService {
     }
 
     private async handleEntityMapSources(
-        mapping: any,
+        dep: any,
         entityMapId: number,
         changeId: number,
         queryRunner: QueryRunner,
     ): Promise<void> {
-        if (!mapping.deps || !Array.isArray(mapping.deps)) {
-            return;
-        }
+        const sourceEntity = await queryRunner.manager.findOne(EntityEntity, {
+            where: { full_name: dep.entityId },
+        });
 
-        for (const dep of mapping.deps) {
-            const sourceEntity = await queryRunner.manager.findOne(EntityEntity, {
-                where: { full_name: dep.entityId },
-            });
-
-            if (sourceEntity) {
-                await this.createEntityMapSource(
-                    entityMapId,
-                    sourceEntity.entity_id,
-                    changeId,
-                    queryRunner,
-                );
-            }
+        if (sourceEntity) {
+            await this.createEntityMapSource(
+                entityMapId,
+                sourceEntity.entity_id,
+                changeId,
+                queryRunner,
+            );
         }
     }
 
