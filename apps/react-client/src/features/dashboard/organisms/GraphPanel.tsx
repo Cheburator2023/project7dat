@@ -22,6 +22,7 @@ import {
 	MappingDetailsDialog,
 } from "@react-client/features/entityPreview";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useShallow } from "zustand/react/shallow";
 
 import { useDashboardStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
@@ -41,14 +42,23 @@ export const GraphPanel = memo(() => {
 		selectEntity,
 		setUpstreamDownstream,
 		selectedAttribute,
-	} = useDashboardStore();
+	} = useDashboardStore(
+		useShallow((state) => ({
+			selectedEntityId: state.selectedEntityId,
+			selectEntity: state.selectEntity,
+			setUpstreamDownstream: state.setUpstreamDownstream,
+			selectedAttribute: state.selectedAttribute,
+		})),
+	);
 
 	// Use currentSchema hook to get data synced with editor
 	const { currentSchema, effectiveGraphId, isLoading } = useCurrentSchema();
 	const navigate = useNavigate();
 
 	// Get setRevealPosition for scrolling to entity in editor
-	const { setRevealPosition } = useDataLineageStore();
+	const setRevealPosition = useDataLineageStore(
+		(state) => state.setRevealPosition,
+	);
 
 	// Dialog state
 	const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);

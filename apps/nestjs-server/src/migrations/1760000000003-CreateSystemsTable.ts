@@ -20,6 +20,12 @@ export class CreateSystemsTable1760000000003 implements MigrationInterface {
 		await queryRunner.query(
 			`COMMENT ON COLUMN systems.name IS 'Наименование системы'`,
 		);
+
+		await queryRunner.query(`
+            INSERT INTO systems (system_id, code, name) 
+            VALUES (1, 'default', 'Default System')
+            ON CONFLICT (system_id) DO NOTHING
+        `);
 	}
 
 	public async down(queryRunner: QueryRunner): Promise<void> {
