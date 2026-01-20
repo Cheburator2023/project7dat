@@ -625,11 +625,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			topologyDownstreamNodes,
 			topologyGlobalSearchQuery,
 			topologySearchMatches,
-			handleNodeClick,
-			handleNodeDblClick,
-			handleAttrHover,
-			handleAttrClick,
-			handleToggleExpand,
 			upstreamCounts,
 			downstreamCounts,
 			showFullGraphByDefault,
@@ -688,6 +683,11 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 							isSearchMatch: !!isSearchMatch,
 							searchMatchScore: searchScore,
 							isExpanded: expandedNodes.has(node.id),
+							onNodeClick: handleNodeClick,
+							onNodeDoubleClick: handleNodeDblClick,
+							onAttrHover: handleAttrHover,
+							onAttrClick: handleAttrClick,
+							onToggleExpand: handleToggleExpand,
 						},
 					};
 				}),
@@ -702,6 +702,11 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			selectedHighlightedByEntity,
 			expandedNodes,
 			setNodes,
+			handleNodeClick,
+			handleNodeDblClick,
+			handleAttrHover,
+			handleAttrClick,
+			handleToggleExpand,
 		]);
 
 		useEffect(() => {
@@ -801,15 +806,16 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				onNodeContextMenu={handleNodeContextMenu}
 				nodeTypes={graphNodeTypes}
 				nodesDraggable={false}
+				nodesConnectable={false}
 				fitView
-				minZoom={0.1}
+				minZoom={0.05}
 				maxZoom={2}
 				defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
 				proOptions={{ hideAttribution: true }}
 			>
 				<Background color="#e0e0e0" gap={20} />
 				<Controls />
-				{nodes.length <= 1200 && (
+				{nodes.length <= 500 && (
 					<MiniMap
 						nodeColor={(node) => {
 							const entityNode = node as unknown as EntityNode;
