@@ -3,6 +3,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
 import { JsonExportResponseDto } from "../dto";
 import { ChangeEntity } from "../entities/change.entity";
+import { EntityEntity } from "../entities/entity.entity";
+import { ProcessEntity } from "../entities/process.entity";
 
 interface EntityWithDetails {
     entity_id: number;
@@ -41,6 +43,16 @@ interface AttributeDepGrouped {
     relation_change_date: Date;
 }
 
+interface AttributeMapRaw {
+    attribute_map_id: number;
+    target_attribute_id: number;
+    target_attribute_name: string;
+    source_attribute_id: number;
+    source_attribute_name: string;
+    relation_change_date: Date;
+    source_entity_id: number;
+}
+
 interface MappingWithDetails {
     entity_map_id: number;
     target_entity_id: number;
@@ -56,14 +68,7 @@ interface MappingWithDetails {
         source_entity_id: number;
         source_entity_name: string;
         source_full_name: string;
-        attr_maps: Array<{
-            attribute_map_id: number;
-            target_attribute_id: number;
-            target_attribute_name: string;
-            source_attribute_id: number;
-            source_attribute_name: string;
-            relation_change_date: Date;
-        }>;
+        attr_maps: AttributeMapRaw[];
         attr_deps: AttributeDepGrouped[];
     }>;
     change_id: number;
@@ -77,6 +82,10 @@ export class JsonExportService {
     constructor(
         @InjectRepository(ChangeEntity)
         private readonly changeRepository: Repository<ChangeEntity>,
+        @InjectRepository(EntityEntity)
+        private readonly entityRepository: Repository<EntityEntity>,
+        @InjectRepository(ProcessEntity)
+        private readonly processRepository: Repository<ProcessEntity>,
         private readonly dataSource: DataSource,
     ) {}
 
@@ -209,20 +218,20 @@ export class JsonExportService {
 
         if (changeId) {
             dateFilter = `
-            AND em.change_id IN (
-                SELECT MAX(em2.change_id) 
-                FROM entity_map em2 
-                WHERE em2.entity_id = em.entity_id 
-                AND em2.process_id = em.process_id
-                AND em2.change_id <= $1
-                GROUP BY em2.entity_id, em2.process_id
-            )
-            AND (p.change_id IS NULL OR p.change_id <= $2)
-        `;
+                AND em.change_id IN (
+                    SELECT MAX(em2.change_id) 
+                    FROM entity_map em2 
+                    WHERE em2.entity_id = em.entity_id 
+                    AND em2.process_id = em.process_id
+                    AND em2.change_id <= $1
+                    GROUP BY em2.entity_id, em2.process_id
+                )
+                AND (p.change_id IS NULL OR p.change_id <= $2)
+            `;
             params.push(changeId, changeId);
         }
 
-        // Получаем основные данные entity_map
+        // Получаем основные данные entity_map с информацией о процессе
         const entityMapsQuery = `
             SELECT
                 em.entity_map_id,
@@ -230,8 +239,8 @@ export class JsonExportService {
                 em.process_id,
                 em.description as entity_map_description,
                 em.change_id,
-                e_target.name as target_entity_name,
                 e_target.full_name as target_full_name,
+                e_target.name as target_entity_name,
                 p.name as process_name,
                 p.description as process_description,
                 c_em.change_date as relation_change_date,
@@ -247,11 +256,11 @@ export class JsonExportService {
 
         const entityMaps = await this.dataSource.query(entityMapsQuery, params);
 
-        // Для каждого entity_map получаем зависимости и неудачные маппинги
+        // Для каждого entity_map получаем зависимости из ВСЕХ таблиц
         for (const entityMap of entityMaps) {
             entityMap.dependencies = await this.getDependenciesForEntityMap(entityMap.entity_map_id, changeId);
 
-            // Получаем информацию о неудачных маппингах по имени сущности
+            // Получаем информацию о неудачных маппингах
             entityMap.unmatched = await this.getUnmatchedEntities(entityMap.target_entity_name, changeId);
         }
 
@@ -259,15 +268,125 @@ export class JsonExportService {
     }
 
     private async getDependenciesForEntityMap(entityMapId: number, changeId?: number): Promise<MappingWithDetails['dependencies']> {
+        // Используем Set для уникальных зависимостей
+        const dependenciesMap = new Map<number, {
+            source_entity_id: number;
+            source_entity_name: string;
+            source_full_name: string;
+            attr_maps: AttributeMapRaw[];
+            attr_deps: AttributeDepGrouped[];
+        }>();
+
+        // Получаем зависимости из entity_map_source
+        const sourceEntities = await this.getSourceEntitiesFromEntityMap(entityMapId, changeId);
+
+        // Получаем зависимости из attribute_map и attribute_map_source
+        const attrMapDependencies = await this.getDependenciesFromAttributeMaps(entityMapId, changeId);
+
+        // Получаем зависимости из entity_attribute_map
+        const attrDepDependencies = await this.getDependenciesFromEntityAttributeMap(entityMapId, changeId);
+
+        // Объединяем все зависимости
+        for (const sourceEntity of sourceEntities) {
+            if (!dependenciesMap.has(sourceEntity.source_entity_id)) {
+                dependenciesMap.set(sourceEntity.source_entity_id, {
+                    source_entity_id: sourceEntity.source_entity_id,
+                    source_entity_name: sourceEntity.source_entity_name,
+                    source_full_name: sourceEntity.source_full_name,
+                    attr_maps: [],
+                    attr_deps: []
+                });
+            }
+        }
+
+        // Добавляем attr_maps из attribute_map_source
+        for (const attrMap of attrMapDependencies) {
+            const dependency = dependenciesMap.get(attrMap.source_entity_id);
+            if (dependency) {
+                dependency.attr_maps.push({
+                    attribute_map_id: attrMap.attribute_map_id,
+                    target_attribute_id: attrMap.target_attribute_id,
+                    target_attribute_name: attrMap.target_attribute_name,
+                    source_attribute_id: attrMap.source_attribute_id,
+                    source_attribute_name: attrMap.source_attribute_name,
+                    relation_change_date: attrMap.relation_change_date,
+                    source_entity_id: attrMap.source_entity_id
+                });
+            } else {
+                // Если зависимость не найдена в entity_map_source, создаем новую
+                dependenciesMap.set(attrMap.source_entity_id, {
+                    source_entity_id: attrMap.source_entity_id,
+                    source_entity_name: await this.getEntityNameById(attrMap.source_entity_id),
+                    source_full_name: await this.getEntityFullNameById(attrMap.source_entity_id),
+                    attr_maps: [{
+                        attribute_map_id: attrMap.attribute_map_id,
+                        target_attribute_id: attrMap.target_attribute_id,
+                        target_attribute_name: attrMap.target_attribute_name,
+                        source_attribute_id: attrMap.source_attribute_id,
+                        source_attribute_name: attrMap.source_attribute_name,
+                        relation_change_date: attrMap.relation_change_date,
+                        source_entity_id: attrMap.source_entity_id
+                    }],
+                    attr_deps: []
+                });
+            }
+        }
+
+        // Добавляем attr_deps из entity_attribute_map
+        for (const attrDep of attrDepDependencies) {
+            const dependency = dependenciesMap.get(attrDep.source_entity_id);
+            if (dependency) {
+                // Ищем существующий attr_dep или создаем новый
+                const existingDep = dependency.attr_deps.find(d =>
+                    d.source_attribute_id === attrDep.source_attribute_id
+                );
+
+                if (existingDep) {
+                    if (!existingDep.linkTypes.includes(attrDep.deptype_id)) {
+                        existingDep.linkTypes.push(attrDep.deptype_id);
+                    }
+                    // Обновляем дату на самую позднюю
+                    if (attrDep.relation_change_date > existingDep.relation_change_date) {
+                        existingDep.relation_change_date = attrDep.relation_change_date;
+                    }
+                } else {
+                    dependency.attr_deps.push({
+                        source_attribute_id: attrDep.source_attribute_id,
+                        source_attribute_name: attrDep.source_attribute_name,
+                        linkTypes: [attrDep.deptype_id],
+                        relation_change_date: attrDep.relation_change_date
+                    });
+                }
+            } else {
+                // Если зависимость не найдена, создаем новую
+                dependenciesMap.set(attrDep.source_entity_id, {
+                    source_entity_id: attrDep.source_entity_id,
+                    source_entity_name: await this.getEntityNameById(attrDep.source_entity_id),
+                    source_full_name: await this.getEntityFullNameById(attrDep.source_entity_id),
+                    attr_maps: [],
+                    attr_deps: [{
+                        source_attribute_id: attrDep.source_attribute_id,
+                        source_attribute_name: attrDep.source_attribute_name,
+                        linkTypes: [attrDep.deptype_id],
+                        relation_change_date: attrDep.relation_change_date
+                    }]
+                });
+            }
+        }
+
+        return Array.from(dependenciesMap.values());
+    }
+
+    private async getSourceEntitiesFromEntityMap(entityMapId: number, changeId?: number): Promise<any[]> {
         let dateFilter = "";
         const params: any[] = [entityMapId];
 
         if (changeId) {
-            dateFilter = " AND ems.change_id IN (SELECT MAX(ems2.change_id) FROM entity_map_source ems2 WHERE ems2.entity_map_id = ems.entity_map_id AND ems2.source_entity_id = ems.source_entity_id AND ems2.change_id <= $2 GROUP BY ems2.entity_map_id, ems2.source_entity_id)";
+            dateFilter = " AND ems.change_id <= $2";
             params.push(changeId);
         }
 
-        const sourceEntitiesQuery = `
+        const query = `
             SELECT DISTINCT
                 ems.source_entity_id,
                 e_source.name as source_entity_name,
@@ -277,125 +396,68 @@ export class JsonExportService {
             WHERE ems.entity_map_id = $1 ${dateFilter}
         `;
 
-        const sourceEntities = await this.dataSource.query(sourceEntitiesQuery, params);
-
-        // Для каждого source entity получаем attrMaps и attrDeps
-        for (const sourceEntity of sourceEntities) {
-            sourceEntity.attr_maps = await this.getAttributeMapsForDependency(entityMapId, sourceEntity.source_entity_id, changeId);
-            sourceEntity.attr_deps = await this.getAttributeDepsForDependency(entityMapId, sourceEntity.source_entity_id, changeId);
-        }
-
-        return sourceEntities;
+        return await this.dataSource.query(query, params);
     }
 
-    private async getAttributeMapsForDependency(entityMapId: number, sourceEntityId: number, changeId?: number): Promise<any[]> {
+    private async getDependenciesFromAttributeMaps(entityMapId: number, changeId?: number): Promise<any[]> {
         let dateFilter = "";
-        const params: any[] = [entityMapId, sourceEntityId];
+        const params: any[] = [entityMapId];
 
         if (changeId) {
             dateFilter = `
-            AND am.change_id IN (
-                SELECT MAX(am2.change_id) 
-                FROM attribute_map am2 
-                WHERE am2.entity_map_id = am.entity_map_id 
-                AND am2.attribute_id = am.attribute_id
-                AND am2.change_id <= $3
-                GROUP BY am2.entity_map_id, am2.attribute_id
-            )
-            AND ams.change_id IN (
-                SELECT MAX(ams2.change_id) 
-                FROM attribute_map_source ams2 
-                WHERE ams2.attribute_map_id = ams.attribute_map_id 
-                AND ams2.source_attribute_id = ams.source_attribute_id
-                AND ams2.change_id <= $4
-                GROUP BY ams2.attribute_map_id, ams2.source_attribute_id
-            )
-        `;
+                AND am.change_id <= $2
+                AND ams.change_id <= $3
+            `;
             params.push(changeId, changeId);
         }
 
         const query = `
-            SELECT
+            SELECT DISTINCT
                 am.attribute_map_id,
                 am.attribute_id as target_attribute_id,
                 a_target.name as target_attribute_name,
                 ams.source_attribute_id,
                 a_source.name as source_attribute_name,
-                c_am.change_date as relation_change_date
+                a_source.entity_id as source_entity_id,
+                GREATEST(
+                        COALESCE(c_am.change_date, '1970-01-01'),
+                        COALESCE(c_ams.change_date, '1970-01-01')
+                ) as relation_change_date
             FROM attribute_map am
                      INNER JOIN attribute_map_source ams ON am.attribute_map_id = ams.attribute_map_id
                      INNER JOIN attribute a_target ON am.attribute_id = a_target.attribute_id
                      INNER JOIN attribute a_source ON ams.source_attribute_id = a_source.attribute_id
                      LEFT JOIN changes c_am ON am.change_id = c_am.change_id
-            WHERE am.entity_map_id = $1
-              AND a_source.entity_id = $2
-              AND a_target.entity_id IN (
-                SELECT entity_id FROM entity_map WHERE entity_map_id = $1
-            ) ${dateFilter}
+                     LEFT JOIN changes c_ams ON ams.change_id = c_ams.change_id
+            WHERE am.entity_map_id = $1 ${dateFilter}
         `;
 
         return await this.dataSource.query(query, params);
     }
 
-    private async getAttributeDepsForDependency(entityMapId: number, sourceEntityId: number, changeId?: number): Promise<AttributeDepGrouped[]> {
+    private async getDependenciesFromEntityAttributeMap(entityMapId: number, changeId?: number): Promise<any[]> {
         let dateFilter = "";
-        const params: any[] = [entityMapId, sourceEntityId];
+        const params: any[] = [entityMapId];
 
         if (changeId) {
-            dateFilter = `
-            AND eam.change_id IN (
-                SELECT MAX(eam2.change_id) 
-                FROM entity_attribute_map eam2 
-                WHERE eam2.entity_map_id = eam.entity_map_id 
-                AND eam2.source_attribute_id = eam.source_attribute_id
-                AND eam2.deptype_id = eam.deptype_id
-                AND eam2.change_id <= $3
-                GROUP BY eam2.entity_map_id, eam2.source_attribute_id, eam2.deptype_id
-            )
-        `;
+            dateFilter = " AND eam.change_id <= $2";
             params.push(changeId);
         }
 
         const query = `
-            SELECT
+            SELECT DISTINCT
                 eam.source_attribute_id,
                 a.name as source_attribute_name,
+                a.entity_id as source_entity_id,
                 eam.deptype_id,
                 c_eam.change_date as relation_change_date
             FROM entity_attribute_map eam
                      INNER JOIN attribute a ON eam.source_attribute_id = a.attribute_id
                      LEFT JOIN changes c_eam ON eam.change_id = c_eam.change_id
-            WHERE eam.entity_map_id = $1
-              AND a.entity_id = $2 ${dateFilter}
+            WHERE eam.entity_map_id = $1 ${dateFilter}
         `;
 
-        const attrDeps: AttributeDepRaw[] = await this.dataSource.query(query, params);
-
-        // Группируем по source_attribute_id для объединения linkTypes
-        const groupedDeps = new Map<number, AttributeDepGrouped>();
-
-        for (const dep of attrDeps) {
-            if (!groupedDeps.has(dep.source_attribute_id)) {
-                groupedDeps.set(dep.source_attribute_id, {
-                    source_attribute_id: dep.source_attribute_id,
-                    source_attribute_name: dep.source_attribute_name,
-                    linkTypes: [dep.deptype_id],
-                    relation_change_date: dep.relation_change_date
-                });
-            } else {
-                // Добавляем deptype_id в существующий массив linkTypes
-                const existing = groupedDeps.get(dep.source_attribute_id)!;
-                if (!existing.linkTypes.includes(dep.deptype_id)) {
-                    existing.linkTypes.push(dep.deptype_id);
-                }
-                // Обновляем дату изменения на самую позднюю
-                if (dep.relation_change_date > existing.relation_change_date) {
-                    existing.relation_change_date = dep.relation_change_date;
-                }
-            }
-        }
-
-        return Array.from(groupedDeps.values());
+        return await this.dataSource.query(query, params);
     }
 
     private async getUnmatchedEntities(entityName: string, changeId?: number): Promise<string> {
@@ -419,6 +481,22 @@ export class JsonExportService {
         return result.length > 0 ? result[0].unmatched_entities : "";
     }
 
+    private async getEntityNameById(entityId: number): Promise<string> {
+        const query = `
+            SELECT name FROM entity WHERE entity_id = $1
+        `;
+        const result = await this.dataSource.query(query, [entityId]);
+        return result.length > 0 ? result[0].name : `Unknown Entity ${entityId}`;
+    }
+
+    private async getEntityFullNameById(entityId: number): Promise<string> {
+        const query = `
+            SELECT full_name FROM entity WHERE entity_id = $1
+        `;
+        const result = await this.dataSource.query(query, [entityId]);
+        return result.length > 0 ? result[0].full_name : `unknown.${entityId}`;
+    }
+
     private transformEntities(
         entitiesWithDetails: EntityWithDetails[],
         mappingsWithDetails: MappingWithDetails[]
@@ -433,7 +511,7 @@ export class JsonExportService {
             const entityType = this.mapEntityTypeToJson(entity.entity_type_name);
 
             return {
-                id: entity.full_name,
+                id: entity.full_name, // Используем full_name как полное составное имя
                 modified: targetEntityIds.has(entity.entity_id),
                 type: entityType,
                 namespace: entity.container_value || 'default',
@@ -454,14 +532,14 @@ export class JsonExportService {
 
     private transformMappings(mappingsWithDetails: MappingWithDetails[]): JsonExportResponseDto['mappings'] {
         return mappingsWithDetails.map(mapping => ({
-            entityId: mapping.target_entity_name,
-            process: mapping.process_name || undefined,
-            process_description: mapping.process_description || undefined,
+            entityId: mapping.target_full_name, // Полное составное имя сущности
+            process: mapping.process_name || undefined, // Имя процесса
+            process_description: mapping.process_description || undefined, // Описание процесса
             process_change: mapping.process_change_date?.toISOString() || undefined,
             description: mapping.entity_map_description || undefined,
             relation_change: mapping.relation_change_date.toISOString(),
             deps: mapping.dependencies.map(dep => ({
-                entityId: dep.source_entity_name,
+                entityId: dep.source_full_name, // Полное составное имя source entity
                 attrMaps: dep.attr_maps.map(attrMap => ({
                     src: attrMap.source_attribute_name,
                     dst: attrMap.target_attribute_name,
