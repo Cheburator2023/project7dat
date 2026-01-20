@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { Box, Typography, Button, Alert } from "@mui/material";
+import React, {useState, useMemo, useCallback} from "react";
+import {Box, Typography, Button, Alert, IconButton} from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
@@ -16,6 +16,14 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { JsonDiffViewerCell } from "@react-client/common/grid/JsonDiffViewerCell";
+import ListItemButton from "@mui/material/ListItemButton";
+import {routes} from "@react-client/routing/routes";
+import ListItemText from "@mui/material/ListItemText";
+import ListItem from "@mui/material/ListItem";
+import {DataLineageGraph} from "@react-client/types/dataLineage";
+import {useDataLineageStore} from "@react-client/stores/dataLineageStore";
+import {useShallow} from "zustand/react/shallow";
+import {Refresh as RefreshIcon} from "@mui/icons-material/esm";
 
 export const AllCommitsPage: React.FC = () => {
 	const { mode } = useColorScheme();
@@ -188,9 +196,100 @@ export const AllCommitsPage: React.FC = () => {
 		);
 	}
 
+	// Data lineage store for commit functionality
+	const {
+		setCurrentGraph,
+		markAsChanged,
+	} = useDataLineageStore(
+		useShallow((state) => ({
+			setCurrentGraph: state.setCurrentGraph,
+			markAsChanged: state.markAsChanged,
+		})),
+	);
+
+	const convertS2TToGraph = (s2t: S2TFormat): DataLineageGraph => {
+		return {
+			desc: {
+				appId: s2t.desc?.appId ?? "imported",
+				appName: s2t.desc?.appName ?? "Imported S2T",
+			},
+			entities:
+				s2t.entities?.map((entity) => ({
+					id: entity.id,
+					name: entity.name,
+					type:
+						(entity.type as "table" | "view" | "rdd" | "unresolved") || "table",
+					namespace: entity.namespace,
+					modified: entity.modified ?? false,
+					description: entity.description,
+					attrSeq: entity.attrSeq,
+				})) ?? [],
+			mappings:
+				s2t.mappings?.map((mapping, index) => ({
+					id: mapping.id ?? index,
+					entityId: mapping.entityId,
+					deps: mapping.deps?.map((dep) => ({
+						entityId: dep.entityId,
+						attrMaps: dep.attrMaps,
+						atrDeps: dep.atrDeps?.map((atrDep) => ({
+							attr: atrDep.attr,
+							linkTypes: atrDep.linkTypes as Array<
+								"window" | "join" | "where" | "groupby"
+								>,
+						})),
+					})),
+				})) ?? [],
+			failedMappings: [],
+		};
+	};
+
+	const handleImport = useCallback(
+		(format: "json" | "s2t") => {
+			const input = document.createElement("input");
+			input.type = "file";
+			input.accept = ".json";
+			input.onchange = (event) => {
+				const file = (event.target as HTMLInputElement).files?.[0];
+				if (file) {
+					const reader = new FileReader();
+					reader.onload = (e) => {
+						try {
+							const content = e.target?.result as string;
+							const parsedData = JSON.parse(content);
+
+							let graphData: DataLineageGraph;
+							if (format === "s2t") {
+								// Convert S2T format to DataLineageGraph
+								graphData = convertS2TToGraph(parsedData);
+							} else {
+								graphData = parsedData as DataLineageGraph;
+							}
+
+							setCurrentGraph(graphData);
+							markAsChanged();
+						} catch (error) {
+							console.error("Ошибка при парсинге JSON:", error);
+							alert("Ошибка при загрузке файла. Проверьте формат JSON.");
+						}
+					};
+					reader.readAsText(file);
+				}
+			};
+			input.click();
+		},
+		[setCurrentGraph, markAsChanged],
+	);
+
 	return (
 		<Box>
-			<Header />
+			<Header>
+				<Button
+					onClick={() => handleImport("s2t")}
+					title="Импорт S2T"
+				>
+					Импорт S2T
+				</Button>
+			</Header>
 
 			<GridWrapper height="-webkit-fill-available">
 				<AgGridReact<JsonCommitItem>

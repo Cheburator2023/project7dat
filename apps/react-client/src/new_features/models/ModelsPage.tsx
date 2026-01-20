@@ -41,11 +41,15 @@ export interface Model extends DataLineageEntity {
 	businessType?: "analytical" | "operational" | "dimensional";
 }
 
-const mapJsonDataItemToModels = (item: JsonDataItem): Model[] => {
+const mapJsonDataItemToModels = (item: JsonDataItem): any[] => {
 	const data = item.data;
 	const entities = data?.entities ?? [];
-	return entities.map((entity) => ({
+	const filterEntities = entities.filter((entity) => entity.type === 'input_vector');
+
+	console.log(filterEntities)
+	return filterEntities.map((entity) => ({
 		...entity,
+		id: entity.namespace,
 		graphId: item.id,
 		description:
 			// entity может не иметь description в shared-схеме, поэтому подстраховываемся

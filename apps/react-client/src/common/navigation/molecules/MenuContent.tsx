@@ -220,26 +220,26 @@ export function MenuContent() {
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() =>
-							handler(routes.modelServices.rootPath.replace("/", ""))
-						}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.modelServices.rootPath ===
-								location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
-						>
-							<ListItemText
-								primary={routes.modelServices.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
+					{/*<ListItem*/}
+					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
+					{/*	onClick={() =>*/}
+					{/*		handler(routes.modelServices.rootPath.replace("/", ""))*/}
+					{/*	}*/}
+					{/*	data-test-id="menu-content--ListItem-backend"*/}
+					{/*>*/}
+					{/*	<ListItemButton*/}
+					{/*		selected={*/}
+					{/*			routes.modelServices.rootPath ===*/}
+					{/*			location.pathname.replace("/", "")*/}
+					{/*		}*/}
+					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
+					{/*	>*/}
+					{/*		<ListItemText*/}
+					{/*			primary={routes.modelServices.name}*/}
+					{/*			data-test-id="menu-content--ListItemText-backend"*/}
+					{/*		/>*/}
+					{/*	</ListItemButton>*/}
+					{/*</ListItem>*/}
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.models.rootPath.replace("/", ""))}
