@@ -33,7 +33,7 @@ export function useCurrentSchema() {
 	const effectiveGraphId = useMemo(() => {
 		if (selectedGraphId) return selectedGraphId;
 		if (currentGraphId) return currentGraphId;
-		if (jsonDataList && jsonDataList.length > 0) return jsonDataList[0].id;
+		// if (jsonDataList && jsonDataList.length > 0) return jsonDataList[0].id;
 		return null;
 	}, [selectedGraphId, currentGraphId, jsonDataList]);
 
@@ -41,7 +41,7 @@ export function useCurrentSchema() {
 	const currentSchema: DataLineageSchema | null = useMemo(() => {
 		// If currentGraph is set and matches the effective graph ID, use it
 		// This ensures we always show the latest edited data
-		if (currentGraph && currentGraphId === effectiveGraphId) {
+		if (currentGraph) {
 			return currentGraph as DataLineageSchema;
 		}
 

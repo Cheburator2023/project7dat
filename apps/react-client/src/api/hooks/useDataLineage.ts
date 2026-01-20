@@ -53,12 +53,27 @@ export const useCurrentDataLineageGraph = () => {
 		queryFn: async () => {
 			try {
 				const backendItem = await jsonDataService.getCurrent();
-				if (!backendItem || !backendItem.data) {
+
+				if (!backendItem) {
 					return null;
 				}
-				const graph = backendItem.data as DataLineageGraph;
+
+				const graph = {
+					id: "current_stable_version",
+					desc: {
+						change_date: backendItem.desc.change_date,
+						appId: "current_stable_version",
+						appName: "system",
+					},
+					failedMappings: [],
+					entities: backendItem.entities,
+					mappings: backendItem.mappings,
+				} as DataLineageGraph;
+
+				console.log(graph);
+
 				setCurrentGraph(graph);
-				setCurrentGraphId(backendItem.id);
+				setCurrentGraphId(graph.id);
 				return graph;
 			} catch (error) {
 				console.warn("No current graph available:", error);

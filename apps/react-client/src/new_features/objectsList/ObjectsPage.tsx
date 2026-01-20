@@ -5,7 +5,6 @@ import {
 	TextField,
 	InputAdornment,
 	Button,
-	Alert,
 	CircularProgress,
 } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
@@ -21,8 +20,12 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { ChangelogButton } from "@react-client/new_features/changelog/ChangelogButton";
-import { useJsonDataList } from "@react-client/api/hooks";
+import {
+	useCurrentDataLineageGraph,
+} from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useShallow } from "zustand/react/shallow";
 
 interface ObjectItem {
 	id: string;
@@ -55,7 +58,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 
 		// Уровень сущности (модель/витрина)
 		rows.push({
-			id: `${graphId}::${entity.id}`,
+			id: `${entity.id}`,
 			graphId,
 			object: entity.name ?? entity.id,
 			objectType: entity.type === "view" ? "Витрина" : "Модель",
@@ -72,7 +75,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 		if (entity.attrSeq) {
 			for (const attr of entity.attrSeq) {
 				rows.push({
-					id: `${graphId}::${entity.id}::${attr.name}`,
+					id: `${entity.id}::${attr.name}`,
 					graphId,
 					object: attr.name,
 					objectType: "Признак",
@@ -95,14 +98,21 @@ export const ObjectsPage: React.FC = () => {
 	const { mode } = useColorScheme();
 	const navigate = useNavigate();
 	const [searchText, setSearchText] = useState("");
-	const { data: jsonDataList, isLoading, error } = useJsonDataList();
+
+	const { currentGraph } = useDataLineageStore(
+		useShallow((state) => ({
+			currentGraph: state.currentGraph,
+		})),
+	);
+	const { isPending } = useCurrentDataLineageGraph();
+	// const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
 	const baseData = useMemo<ObjectItem[]>(() => {
-		if (!jsonDataList) {
+		if (!currentGraph) {
 			return [];
 		}
-		return jsonDataList.flatMap(mapJsonDataItemToObjects);
-	}, [jsonDataList]);
+		return [{ data: currentGraph }].flatMap(mapJsonDataItemToObjects);
+	}, [currentGraph]);
 
 	const filteredData = useMemo(() => {
 		const data = baseData;
@@ -345,7 +355,7 @@ export const ObjectsPage: React.FC = () => {
 		downloadFile(JSON.stringify(s2tPayload, null, 2), "dl_s2t_export.json");
 	};
 
-	if (isLoading) {
+	if (isPending) {
 		return (
 			<Box
 				sx={{
@@ -360,15 +370,15 @@ export const ObjectsPage: React.FC = () => {
 		);
 	}
 
-	if (error) {
-		return (
-			<Box sx={{ p: 3 }}>
-				<Alert severity="error">
-					Ошибка загрузки объектов: {error.message}
-				</Alert>
-			</Box>
-		);
-	}
+	// if (error) {
+	// 	return (
+	// 		<Box sx={{ p: 3 }}>
+	// 			<Alert severity="error">
+	// 				Ошибка загрузки объектов: {error.message}
+	// 			</Alert>
+	// 		</Box>
+	// 	);
+	// }
 
 	return (
 		<Box>

@@ -340,24 +340,24 @@ export function MenuContent() {
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handleImport("json")}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.allCommits.rootPath ===
-								location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
-						>
-							<ListItemText
-								primary={"Импорт JSON"}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
+					{/*<ListItem*/}
+					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
+					{/*	onClick={() => handleImport("json")}*/}
+					{/*	data-test-id="menu-content--ListItem-backend"*/}
+					{/*>*/}
+					{/*	<ListItemButton*/}
+					{/*		selected={*/}
+					{/*			routes.allCommits.rootPath ===*/}
+					{/*			location.pathname.replace("/", "")*/}
+					{/*		}*/}
+					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
+					{/*	>*/}
+					{/*		<ListItemText*/}
+					{/*			primary={"Импорт JSON"}*/}
+					{/*			data-test-id="menu-content--ListItemText-backend"*/}
+					{/*		/>*/}
+					{/*	</ListItemButton>*/}
+					{/*</ListItem>*/}
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handleImport("s2t")}
@@ -376,26 +376,26 @@ export function MenuContent() {
 							/>
 						</ListItemButton>
 					</ListItem>
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() =>
-							handler(routes.commitQueue.rootPath.replace("/", ""))
-						}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.commitQueue.rootPath ===
-								location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
-						>
-							<ListItemText
-								primary={routes.commitQueue.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
+					{/*<ListItem*/}
+					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
+					{/*	onClick={() =>*/}
+					{/*		handler(routes.commitQueue.rootPath.replace("/", ""))*/}
+					{/*	}*/}
+					{/*	data-test-id="menu-content--ListItem-backend"*/}
+					{/*>*/}
+					{/*	<ListItemButton*/}
+					{/*		selected={*/}
+					{/*			routes.commitQueue.rootPath ===*/}
+					{/*			location.pathname.replace("/", "")*/}
+					{/*		}*/}
+					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
+					{/*	>*/}
+					{/*		<ListItemText*/}
+					{/*			primary={routes.commitQueue.name}*/}
+					{/*			data-test-id="menu-content--ListItemText-backend"*/}
+					{/*		/>*/}
+					{/*	</ListItemButton>*/}
+					{/*</ListItem>*/}
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.allCommits.rootPath.replace("/", ""))}
