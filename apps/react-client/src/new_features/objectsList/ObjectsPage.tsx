@@ -72,23 +72,23 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 		});
 
 		// Уровень признаков (атрибуты сущности)
-		if (entity.attrSeq) {
-			for (const attr of entity.attrSeq) {
-				rows.push({
-					id: `${entity.id}::${attr.name}`,
-					graphId,
-					object: attr.name,
-					objectType: "Признак",
-					description: attr.comment ?? "",
-					modelId: entity.id,
-					database,
-					process,
-					processDescription,
-					dataType: attr.type, // Include attribute data type
-					entityType: entity.type,
-				});
-			}
-		}
+		// if (entity.attrSeq) {
+		// 	for (const attr of entity.attrSeq) {
+		// 		rows.push({
+		// 			id: `${entity.id}::${attr.name}`,
+		// 			graphId,
+		// 			object: attr.name,
+		// 			objectType: "Признак",
+		// 			description: attr.comment ?? "",
+		// 			modelId: entity.id,
+		// 			database,
+		// 			process,
+		// 			processDescription,
+		// 			dataType: attr.type, // Include attribute data type
+		// 			entityType: entity.type,
+		// 		});
+		// 	}
+		// }
 
 		return rows;
 	});
