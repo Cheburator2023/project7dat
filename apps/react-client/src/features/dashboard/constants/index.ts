@@ -73,6 +73,12 @@ export const flexLayoutJson: IJsonModel = {
 								component: "entities",
 								id: "entities-tab",
 							},
+							{
+								type: "tab",
+								name: "ℹ️ Информация",
+								component: "selection-info",
+								id: "selection-info-tab",
+							},
 						],
 					},
 					{
@@ -111,45 +117,39 @@ export const flexLayoutJson: IJsonModel = {
 						type: "tabset",
 						weight: 50,
 						children: [
-							{
-								type: "tab",
-								name: "ℹ️ Информация",
-								component: "selection-info",
-								id: "selection-info-tab",
-							},
-							{
-								type: "tab",
-								name: "✏️ Редактор",
-								component: "code-editor",
-								id: "code-editor-tab",
-							},
-
-							{
-								type: "tab",
-								name: "⚠️ Ошибки",
-								component: "issues",
-								id: "issues-tab",
-							},
-							{
-								type: "tab",
-								name: "📋 Схема",
-								component: "schema",
-								id: "schema-tab",
-							},
+							// {
+							// 	type: "tab",
+							// 	name: "✏️ Редактор",
+							// 	component: "code-editor",
+							// 	id: "code-editor-tab",
+							// },
+							//
+							// {
+							// 	type: "tab",
+							// 	name: "⚠️ Ошибки",
+							// 	component: "issues",
+							// 	id: "issues-tab",
+							// },
+							// {
+							// 	type: "tab",
+							// 	name: "📋 Схема",
+							// 	component: "schema",
+							// 	id: "schema-tab",
+							// },
 						],
 					},
-					{
-						type: "tabset",
-						weight: 50,
-						children: [
-							{
-								type: "tab",
-								name: "📜 История",
-								component: "commit-history",
-								id: "commit-history-tab",
-							},
-						],
-					},
+					// {
+					// 	type: "tabset",
+					// 	weight: 50,
+					// 	children: [
+					// 		{
+					// 			type: "tab",
+					// 			name: "📜 История",
+					// 			component: "commit-history",
+					// 			id: "commit-history-tab",
+					// 		},
+					// 	],
+					// },
 				],
 			},
 		],

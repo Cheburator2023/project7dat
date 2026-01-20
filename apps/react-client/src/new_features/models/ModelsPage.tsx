@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
+
+import { format, parseISO } from "date-fns/esm";
 import {
 	Box,
 	TextField,
 	InputAdornment,
 	Chip,
-	Alert,
 	CircularProgress,
 } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
@@ -19,8 +20,10 @@ import {
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { DataLineageEntity } from "@data-lineage/shared-schemas";
-import { useJsonDataList } from "@react-client/api/hooks";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useShallow } from "zustand/react/shallow";
 
 // Extended interface based on DataLineageEntity for UI display purposes
 export interface Model extends DataLineageEntity {
@@ -51,12 +54,12 @@ const mapJsonDataItemToModels = (item: JsonDataItem): Model[] => {
 			item.description ||
 			data.desc.appName,
 		createdDate: item.createdAt,
-		updatedDate: item.updatedAt,
+		updatedDate: item.entity_change,
 		status: item.deprecated ? "archived" : "active",
 		author: item.authorName,
 		version: item.version,
 		tags: [],
-		lastAccessDate: item.updatedAt,
+		lastAccessDate: item.entity_change,
 		objectsCount: entity.attrSeq?.length,
 		businessType: undefined,
 	}));
@@ -119,15 +122,23 @@ const TagsRenderer = ({ value }: { value: string[] }) => {
 export const ModelsPage = () => {
 	const [searchQuery, setSearchQuery] = useState("");
 	const { mode } = useColorScheme();
-	const { data: jsonDataList, isLoading, error } = useJsonDataList();
+
+	const { currentGraph } = useDataLineageStore(
+		useShallow((state) => ({
+			currentGraph: state.currentGraph,
+		})),
+	);
+	const { isPending } = useCurrentDataLineageGraph();
+	// const { data: jsonDataList, isLoading, error } = useJsonDataList();
 	const navigate = useNavigate();
 
 	const baseModels = useMemo<Model[]>(() => {
-		if (!jsonDataList) {
+		if (!currentGraph) {
 			return [];
 		}
-		return jsonDataList.flatMap(mapJsonDataItemToModels);
-	}, [jsonDataList]);
+
+		return [{ data: currentGraph }].flatMap(mapJsonDataItemToModels);
+	}, [currentGraph]);
 
 	const filteredModels = useMemo(() => {
 		if (!searchQuery.trim()) return baseModels;
@@ -142,7 +153,7 @@ export const ModelsPage = () => {
 		);
 	}, [baseModels, searchQuery]);
 
-	if (isLoading) {
+	if (isPending) {
 		return (
 			<Box
 				sx={{
@@ -157,13 +168,13 @@ export const ModelsPage = () => {
 		);
 	}
 
-	if (error) {
-		return (
-			<Box sx={{ p: 3 }}>
-				<Alert severity="error">Ошибка загрузки моделей: {error.message}</Alert>
-			</Box>
-		);
-	}
+	// if (error) {
+	// 	return (
+	// 		<Box sx={{ p: 3 }}>
+	// 			<Alert severity="error">Ошибка загрузки моделей: {error.message}</Alert>
+	// 		</Box>
+	// 	);
+	// }
 
 	const columnDefs: ColDef<Model>[] = [
 		{
@@ -298,19 +309,31 @@ export const ModelsPage = () => {
 			headerName: "Создана",
 			field: "createdDate",
 			width: 120,
-			type: "dateColumn",
+			cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+				if (data.entity_change) {
+					return format(parseISO(data.entity_change), "dd.MM.yyyy, HH:mm");
+				}
+			},
 		},
 		{
 			headerName: "Обновлена",
 			field: "updatedDate",
 			width: 120,
-			type: "dateColumn",
+			cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+				if (data.entity_change) {
+					return format(parseISO(data.entity_change), "dd.MM.yyyy, HH:mm");
+				}
+			},
 		},
 		{
 			headerName: "Последний доступ",
 			field: "lastAccessDate",
 			width: 140,
-			type: "dateColumn",
+			cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+				if (data.entity_change) {
+					return format(parseISO(data.entity_change), "dd.MM.yyyy, HH:mm");
+				}
+			},
 		},
 	];
 

@@ -5,7 +5,9 @@ import { CircularProgress, styled } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
-import { useJsonDataList } from "@react-client/api/hooks";
+import {
+	useCurrentDataLineageGraph,
+} from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import {
 	ObjectDetailsView,
@@ -14,6 +16,8 @@ import {
 	ObjectGraphView,
 } from "./components";
 import type { ObjectItem, AttributeConnection } from "./types";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useShallow } from "zustand/react/shallow";
 
 const flexLayoutJson = {
 	global: {
@@ -90,7 +94,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 		const rows: ObjectItem[] = [];
 
 		rows.push({
-			id: `${graphId}::${entity.id}`,
+			id: `${entity.id}`,
 			graphId,
 			object: entity.name ?? entity.id,
 			objectType: entity.modified ? "Витрина" : "Источник",
@@ -104,7 +108,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 		if (entity.attrSeq) {
 			for (const attr of entity.attrSeq) {
 				rows.push({
-					id: `${graphId}::${entity.id}::${attr.name}`,
+					id: `${entity.id}::${attr.name}`,
 					graphId,
 					object: attr.name,
 					objectType: "Признак",
@@ -169,7 +173,13 @@ const extractAttributeConnections = (
 
 export const ObjectCardPage: React.FC = () => {
 	const { objectId } = useParams<{ objectId: string }>();
-	const { data: jsonDataList, isLoading, error } = useJsonDataList();
+	const { currentGraph } = useDataLineageStore(
+		useShallow((state) => ({
+			currentGraph: state.currentGraph,
+		})),
+	);
+	const { isPending } = useCurrentDataLineageGraph();
+	// const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
 	const isPersistEnabled = usePanelSettingsStore((state) =>
 		state.isPanelPersistEnabled("object-card"),
@@ -191,11 +201,11 @@ export const ObjectCardPage: React.FC = () => {
 	});
 
 	const allObjects = useMemo<ObjectItem[]>(() => {
-		if (!jsonDataList) {
+		if (!currentGraph) {
 			return [];
 		}
-		return jsonDataList.flatMap(mapJsonDataItemToObjects);
-	}, [jsonDataList]);
+		return [{ data: currentGraph }].flatMap(mapJsonDataItemToObjects);
+	}, [currentGraph]);
 
 	const currentObject = useMemo(() => {
 		if (!objectId) return null;
@@ -227,9 +237,9 @@ export const ObjectCardPage: React.FC = () => {
 
 	// Extract all attribute connections from mappings
 	const allAttributeConnections = useMemo(() => {
-		if (!jsonDataList) return [];
-		return extractAttributeConnections(jsonDataList);
-	}, [jsonDataList]);
+		if (!currentGraph) return [];
+		return extractAttributeConnections([currentGraph]);
+	}, [currentGraph]);
 
 	// Filter connections relevant to current object
 	const relevantConnections = useMemo(() => {
@@ -315,7 +325,7 @@ export const ObjectCardPage: React.FC = () => {
 		[model, isPersistEnabled],
 	);
 
-	if (isLoading) {
+	if (isPending) {
 		return (
 			<Flex
 				width="100%"
@@ -328,18 +338,18 @@ export const ObjectCardPage: React.FC = () => {
 		);
 	}
 
-	if (error) {
-		return (
-			<div>
-				<Header />
-				<Wrapper>
-					<div style={{ padding: "20px", textAlign: "center" }}>
-						Ошибка загрузки объекта: {error.message}
-					</div>
-				</Wrapper>
-			</div>
-		);
-	}
+	// if (error) {
+	// 	return (
+	// 		<div>
+	// 			<Header />
+	// 			<Wrapper>
+	// 				<div style={{ padding: "20px", textAlign: "center" }}>
+	// 					Ошибка загрузки объекта: {error.message}
+	// 				</div>
+	// 			</Wrapper>
+	// 		</div>
+	// 	);
+	// }
 
 	if (!currentObject) {
 		return (

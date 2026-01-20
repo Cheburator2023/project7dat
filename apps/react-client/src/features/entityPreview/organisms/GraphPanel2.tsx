@@ -25,7 +25,7 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 
 import { useDashboardStore } from "../../dashboard/stores";
 import { useCurrentSchema } from "../../dashboard//hooks/useCurrentSchema";
-import { LoadingSpinner, EmptyState } from "../../dashboard/atoms";
+import { LoadingSpinner, } from "../../dashboard/atoms";
 import {
 	GraphPanelInner2,
 	type NodeContextMenuEvent,
@@ -72,6 +72,7 @@ export const GraphPanel2: React.FC<{ onSelectNode?: (data: any) => void }> =
 
 		// Build connections for dialogs
 		const entityConnections = useMemo(() => {
+			console.log(currentSchema);
 			if (!currentSchema) return [];
 			const connections: EntityConnection[] = [];
 			const entityMap = new Map<string, DataLineageEntity>();
@@ -285,14 +286,14 @@ export const GraphPanel2: React.FC<{ onSelectNode?: (data: any) => void }> =
 			return <LoadingSpinner />;
 		}
 
-		if (!currentSchema || !effectiveGraphId) {
-			return (
-				<EmptyState
-					icon={<GraphIcon sx={{ fontSize: 48 }} />}
-					message="Нет данных для отображения графа"
-				/>
-			);
-		}
+		// if (!currentSchema || !effectiveGraphId) {
+		// 	return (
+		// 		<EmptyState
+		// 			icon={<GraphIcon sx={{ fontSize: 48 }} />}
+		// 			message="Нет данных для отображения графа"
+		// 		/>
+		// 	);
+		// }
 
 		return (
 			<Box sx={{ height: "100%", width: "100%" }}>

@@ -3,6 +3,7 @@ import { memo, useCallback, useMemo, useEffect, useState } from "react";
 import { Box } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
+import { format, parseISO } from "date-fns/esm";
 import { AgGridReact } from "ag-grid-react";
 import type {
 	ColDef,
@@ -85,6 +86,8 @@ export const EntitiesPanel = memo(() => {
 				name: entity.name ?? entity.id,
 				type: entity.type,
 				namespace: entity.namespace ?? "",
+				description: entity.description ?? "",
+				entity_change: entity.entity_change ?? "",
 				attributeCount: entity.attrSeq?.length ?? 0,
 				upstreamCount: upCount,
 				downstreamCount: downCount,
@@ -194,24 +197,24 @@ export const EntitiesPanel = memo(() => {
 	// Column definitions
 	const columnDefs: ColDef<EntityRow>[] = useMemo(
 		() => [
-			{
-				field: "originalId",
-				headerName: "ID",
-				flex: 1,
-				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
-					const highlights = highlightsMap.get(data.id);
-					const highlightedNs = highlights?.get("originalId");
-					if (highlightedNs) {
-						return (
-							<span
-								dangerouslySetInnerHTML={{ __html: highlightedNs }}
-								style={{ display: "block" }}
-							/>
-						);
-					}
-					return data.id;
-				},
-			},
+			// {
+			// 	field: "originalId",
+			// 	headerName: "ID",
+			// 	flex: 1,
+			// 	cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+			// 		const highlights = highlightsMap.get(data.id);
+			// 		const highlightedNs = highlights?.get("originalId");
+			// 		if (highlightedNs) {
+			// 			return (
+			// 				<span
+			// 					dangerouslySetInnerHTML={{ __html: highlightedNs }}
+			// 					style={{ display: "block" }}
+			// 				/>
+			// 			);
+			// 		}
+			// 		return data.id;
+			// 	},
+			// },
 			{
 				field: "namespace",
 				headerName: "База данных",
@@ -325,17 +328,19 @@ export const EntitiesPanel = memo(() => {
 				headerName: "Изменено",
 				flex: 1,
 				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
-					const highlights = highlightsMap.get(data.id);
-					const highlightedNs = highlights?.get("entity_change");
-					if (highlightedNs) {
-						return (
-							<span
-								dangerouslySetInnerHTML={{ __html: highlightedNs }}
-								style={{ display: "block" }}
-							/>
-						);
+					// const highlights = highlightsMap.get(data.id);
+					// const highlightedNs = highlights?.get("entity_change");
+					// if (highlightedNs) {
+					// 	return (
+					// 		<span
+					// 			dangerouslySetInnerHTML={{ __html: highlightedNs }}
+					// 			style={{ display: "block" }}
+					// 		/>
+					// 	);
+					// }
+					if (value) {
+						return format(parseISO(value), "dd.MM.yyyy, HH:mm");
 					}
-					return value;
 				},
 			},
 		],

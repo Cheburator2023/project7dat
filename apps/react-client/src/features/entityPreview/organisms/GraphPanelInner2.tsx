@@ -340,9 +340,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		const [selectedAttributeLocal, setSelectedAttributeLocal] = useState<{
 			entityId: string;
 			attrName: string;
-		} | null>(
-			null,
-		);
+		} | null>(null);
 
 		const handleAttrClick = useCallback(
 			(entityId: string, attrName: string) => {
