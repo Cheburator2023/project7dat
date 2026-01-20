@@ -7,6 +7,6 @@ export const useCurrentJsonData = (): UseQueryResult<JsonDataItem, Error> => {
 	return useQuery({
 		queryKey: CURRENT_JSON_DATA_QUERY_KEY,
 		queryFn: jsonDataService.getCurrent,
-		staleTime: infi,
+		staleTime: 5 * 60 * 1000,
 	});
 };
