@@ -8,6 +8,7 @@ import { ChangeRecordService } from "./change-record.service";
 import { ProcessHandlingService } from "./process-handling.service";
 import { EntityProcessingService } from "./entity-processing.service";
 import { MappingProcessingService } from "./mapping-processing.service";
+import {CacheService} from "./cache.service";
 
 interface ImportResult {
     success: boolean;
@@ -35,6 +36,7 @@ export class JsonImportService {
         private readonly processHandlingService: ProcessHandlingService,
         private readonly entityProcessingService: EntityProcessingService,
         private readonly mappingProcessingService: MappingProcessingService,
+        private readonly cacheService: CacheService,
     ) {}
 
     async importJsonData(importRequest: JsonImportRequestDto): Promise<ImportResult> {
@@ -178,6 +180,9 @@ export class JsonImportService {
         try {
             const importStats = await this.processImportData(processedData, user, changeName, queryRunner);
             await queryRunner.commitTransaction();
+
+            // Очищаем кэши после успешного импорта
+            await this.cacheService.invalidateAllCaches();
 
             this.logger.log(`Импорт успешно завершен. Change ID: ${importStats.changeId}`);
 

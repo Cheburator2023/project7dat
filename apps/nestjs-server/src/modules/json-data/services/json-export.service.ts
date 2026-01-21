@@ -5,6 +5,8 @@ import { JsonExportResponseDto } from "../dto";
 import { ChangeEntity } from "../entities/change.entity";
 import { EntityEntity } from "../entities/entity.entity";
 import { ProcessEntity } from "../entities/process.entity";
+import { ConfigService } from '@nestjs/config';
+import { CacheService } from './cache.service';
 
 interface EntityWithDetails {
     entity_id: number;
@@ -78,6 +80,7 @@ interface MappingWithDetails {
 @Injectable()
 export class JsonExportService {
     private readonly logger = new Logger(JsonExportService.name);
+    private readonly cacheTtl: number;
 
     constructor(
         @InjectRepository(ChangeEntity)
@@ -87,10 +90,21 @@ export class JsonExportService {
         @InjectRepository(ProcessEntity)
         private readonly processRepository: Repository<ProcessEntity>,
         private readonly dataSource: DataSource,
-    ) {}
+        private readonly configService: ConfigService,
+        private readonly cacheService: CacheService,
+    ) {
+        this.cacheTtl = this.configService.get<number>('CACHE_TTL', 600); // 10 минут по умолчанию
+    }
 
     async exportToJson(): Promise<JsonExportResponseDto> {
-        this.logger.log("Начало экспорта данных РБД в JSON DL");
+        this.logger.log('Начало экспорта данных РБД в JSON DL');
+
+        // Пробуем получить данные из кэша
+        const cachedData = await this.cacheService.getCachedExportAll();
+        if (cachedData) {
+            this.logger.log('Возвращаем кэшированные данные общего экспорта');
+            return cachedData;
+        }
 
         try {
             // Получаем последнюю дату изменений для desc.change_date
@@ -114,7 +128,10 @@ export class JsonExportService {
                 mappings,
             };
 
-            this.logger.log(`Экспорт завершен: ${entities.length} сущностей, ${mappings.length} маппингов`);
+            // Сохраняем в кэш
+            await this.cacheService.setCachedExportAll(result, this.cacheTtl);
+
+            this.logger.log(`Экспорт завершен и закэширован: ${entities.length} сущностей, ${mappings.length} маппингов`);
             return result;
         } catch (error) {
             this.logger.error(`Ошибка экспорта: ${error.message}`, error.stack);
@@ -585,6 +602,13 @@ export class JsonExportService {
     async exportByChangeId(changeId: number): Promise<JsonExportResponseDto> {
         this.logger.log(`Экспорт данных по change_id: ${changeId}`);
 
+        // Пробуем получить данные из кэша
+        const cachedData = await this.cacheService.getCachedExportByChangeId(changeId);
+        if (cachedData) {
+            this.logger.log(`Возвращаем кэшированные данные для change_id: ${changeId}`);
+            return cachedData;
+        }
+
         try {
             // Проверяем существование change_id
             const change = await this.changeRepository.findOne({
@@ -613,7 +637,10 @@ export class JsonExportService {
                 mappings,
             };
 
-            this.logger.log(`Экспорт по change_id ${changeId} завершен: ${entities.length} сущностей, ${mappings.length} маппингов`);
+            // Сохраняем в кэш
+            await this.cacheService.setCachedExportByChangeId(changeId, result, this.cacheTtl);
+
+            this.logger.log(`Экспорт по change_id ${changeId} завершен и закэширован: ${entities.length} сущностей, ${mappings.length} маппингов`);
             return result;
         } catch (error) {
             this.logger.error(`Ошибка экспорта по change_id ${changeId}: ${error.message}`, error.stack);
