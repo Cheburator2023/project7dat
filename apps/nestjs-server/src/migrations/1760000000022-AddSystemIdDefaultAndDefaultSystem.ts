@@ -13,6 +13,12 @@ export class AddSystemIdDefaultAndDefaultSystem1760000000022
         `);
 
 		await queryRunner.query(`
+            UPDATE entity_container 
+            SET system_id = 1 
+            WHERE system_id IS NULL
+        `);
+
+		await queryRunner.query(`
             ALTER TABLE entity_container 
             ALTER COLUMN system_id SET NOT NULL,
             ALTER COLUMN system_id SET DEFAULT 1
