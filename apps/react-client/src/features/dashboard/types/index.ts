@@ -108,10 +108,12 @@ export interface EntityNodeData {
 	highlightedTargetAttrs?: Set<string>;
 	hoverHighlightedAttrs?: Set<string>;
 	selectedHighlightedAttrs?: Set<string>;
-	isSearchActive?: boolean; // Whether global search is active
-	isSearchMatch?: boolean; // Whether this entity matches the search
-	searchMatchScore?: number; // Fuzzy search score for this entity
-	showAllAttrs?: boolean; // Show all attributes (for entity preview page)
+	isSearchActive?: boolean;
+	isSearchMatch?: boolean;
+	searchMatchScore?: number;
+	showAllAttrs?: boolean;
+	isExpanded?: boolean;
+	onToggleExpand?: (id: string) => void;
 	[key: string]: unknown;
 }
 
