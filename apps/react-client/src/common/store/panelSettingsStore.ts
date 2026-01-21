@@ -62,17 +62,32 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 			persistLayoutsEnabled: false,
 			panels: defaultPanels,
 
-			setPersistLayoutsEnabled: (enabled: boolean) =>
-				set({ persistLayoutsEnabled: enabled }),
+			setPersistLayoutsEnabled: (enabled: boolean) => {
+				if (!enabled) {
+					// При выключении глобальной настройки сбрасываем все панели
+					const { panels } = get();
+					for (const panel of panels) {
+						localStorage.removeItem(panel.localStorageKey);
+					}
+				}
+				set({ persistLayoutsEnabled: enabled });
+			},
 
-			togglePanelPersist: (panelId: string) =>
+			togglePanelPersist: (panelId: string) => {
+				const state = get();
+				const panel = state.panels.find((p) => p.id === panelId);
+
+				if (panel && panel.enabled) {
+					// При выключении панели удаляем её layout из localStorage
+					localStorage.removeItem(panel.localStorageKey);
+				}
+
 				set((state) => ({
-					panels: state.panels.map((panel) =>
-						panel.id === panelId
-							? { ...panel, enabled: !panel.enabled }
-							: panel,
+					panels: state.panels.map((p) =>
+						p.id === panelId ? { ...p, enabled: !p.enabled } : p,
 					),
-				})),
+				}));
+			},
 
 			resetPanelState: (panelId: string) => {
 				const panel = get().panels.find((p) => p.id === panelId);

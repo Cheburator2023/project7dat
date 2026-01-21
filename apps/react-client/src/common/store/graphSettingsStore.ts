@@ -12,11 +12,21 @@ export const useGraphSettingsStore = create<GraphSettingsState>()(
 	persist(
 		(set) => ({
 			showFullGraphByDefault: true,
-			setShowFullGraphByDefault: (enabled: boolean) =>
-				set({ showFullGraphByDefault: enabled }),
+			setShowFullGraphByDefault: (enabled: boolean) => {
+				set({ showFullGraphByDefault: enabled });
+				if (!enabled) {
+					// При выключении сбрасываем в дефолтное значение (true)
+					set({ showFullGraphByDefault: true });
+				}
+			},
 			showAttributesInNodes: false,
-			setShowAttributesInNodes: (enabled: boolean) =>
-				set({ showAttributesInNodes: enabled }),
+			setShowAttributesInNodes: (enabled: boolean) => {
+				set({ showAttributesInNodes: enabled });
+				if (!enabled) {
+					// При выключении сбрасываем в дефолтное значение (false)
+					set({ showAttributesInNodes: false });
+				}
+			},
 		}),
 		{
 			name: "graph-settings-storage",
