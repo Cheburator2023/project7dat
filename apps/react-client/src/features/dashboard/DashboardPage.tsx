@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useLocation } from "react-router";
-import {Box, CircularProgress} from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
@@ -21,7 +21,7 @@ import { flexLayoutJson } from "./constants";
 
 export { useDashboardStore } from "./stores";
 import { useDashboardStore } from "./stores";
-import {useCurrentDataLineageGraph} from "@react-client/api/hooks";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 export const DashboardPage = () => {
 	const [, setSearchParams] = useSearchParams();

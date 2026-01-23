@@ -24,6 +24,7 @@ import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
+import { useDashboardStore } from "@react-client/features/dashboard/stores";
 
 // Extended interface based on DataLineageEntity for UI display purposes
 export interface Model extends DataLineageEntity {
@@ -45,9 +46,10 @@ export interface Model extends DataLineageEntity {
 const mapJsonDataItemToModels = (item: JsonDataItem): any[] => {
 	const data = item.data;
 	const entities = data?.entities ?? [];
-	const filterEntities = entities.filter((entity) => entity.type === 'input_vector');
+	const filterEntities = entities.filter(
+		(entity) => entity.type === "input_vector",
+	);
 
-	console.log(filterEntities)
 	return filterEntities.map((entity) => ({
 		...entity,
 		graphId: item.id,
@@ -125,6 +127,9 @@ export const ModelsPage = () => {
 			currentGraph: state.currentGraph,
 		})),
 	);
+
+	const { selectEntity } = useDashboardStore();
+
 	const { isPending } = useCurrentDataLineageGraph();
 	// const { data: jsonDataList, isLoading, error } = useJsonDataList();
 	const navigate = useNavigate();
@@ -144,7 +149,7 @@ export const ModelsPage = () => {
 		return baseModels.filter(
 			(model) =>
 				(model.name?.toLowerCase().includes(query) ?? false) ||
-				(model.description?.toLowerCase().includes(query) ?? false)
+				(model.description?.toLowerCase().includes(query) ?? false),
 		);
 	}, [baseModels, searchQuery]);
 
@@ -172,7 +177,6 @@ export const ModelsPage = () => {
 	// }
 
 	const columnDefs: ColDef<Model>[] = [
-
 		{
 			headerName: "Название",
 			field: "namespace",
@@ -196,7 +200,7 @@ export const ModelsPage = () => {
 					return format(parseISO(data.entity_change), "dd.MM.yyyy, HH:mm");
 				}
 			},
-		}
+		},
 	];
 
 	return (
@@ -245,6 +249,7 @@ export const ModelsPage = () => {
 					onRowDoubleClicked={(event) => {
 						if (event.data) {
 							const encodedId = encodeURIComponent(event.data.id);
+							selectEntity(encodedId);
 							navigate(`/entity/${encodedId}`);
 						}
 					}}

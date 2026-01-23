@@ -11,10 +11,6 @@ import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "@react-client/routing/routes";
 import { useMergeStore } from "@react-client/stores/mergeStore";
-import { useCallback } from "react";
-import { DataLineageGraph } from "@react-client/types/dataLineage";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { useShallow } from "zustand/react/shallow";
 
 // Классификация роутов по категориям меню (статический контекст)
 const OLD_ROUTE_KEYS = [

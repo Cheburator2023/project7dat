@@ -66,11 +66,9 @@ interface AppProps {
 	onLogout?: () => void;
 }
 
-
-export function App({ bridged, user, onLogout, keycloak  }: AppProps) {
-
+export function App({ bridged, user, onLogout, keycloak }: AppProps) {
 	useEffect(() => {
-		console.log({AppProps: { bridged, user, onLogout, keycloak  }})
+		console.log({ AppProps: { bridged, user, onLogout, keycloak } });
 	}, [bridged, user, onLogout, keycloak]);
 
 	const onLogoutHandler = () => {
@@ -78,9 +76,8 @@ export function App({ bridged, user, onLogout, keycloak  }: AppProps) {
 			keycloak.logout({ redirectUri: window.location.origin });
 			onLogout?.();
 		}
-		localStorage.removeItem('currentCustomer');
+		localStorage.removeItem("currentCustomer");
 	};
-
 
 	useEffect(() => {
 		setupApiInterceptors();
