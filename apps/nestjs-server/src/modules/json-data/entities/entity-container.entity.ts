@@ -26,8 +26,8 @@ export class EntityContainerEntity {
 	@Column({ type: "varchar", nullable: true })
 	value: string;
 
-	@Column()
-	system_id: number;
+	@Column({ nullable: true })
+	system_id: number | null;
 
 	@ManyToOne(() => ChangeEntity)
 	@JoinColumn({ name: "change_id" })
