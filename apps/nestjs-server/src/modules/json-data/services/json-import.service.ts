@@ -42,7 +42,12 @@ export class JsonImportService {
     async importJsonData(importRequest: JsonImportRequestDto): Promise<ImportResult> {
         const { data, user, changeName, validated = true } = importRequest;
 
-        this.logger.log(`Импорт JSON данных пользователем: ${user}`);
+        this.logger.log(`Импорт JSON данных пользователем: ${user}`, {
+            user,
+            changeName,
+            validated,
+            dataSize: JSON.stringify(data).length,
+        });
 
         // Валидация и предобработка данных
         const processedData = await this.validateAndPreprocessData(data, validated);
@@ -175,16 +180,54 @@ export class JsonImportService {
     ): Promise<ImportResult> {
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
-        await queryRunner.startTransaction();
+
+        const importStartTime = Date.now();
 
         try {
+            await queryRunner.startTransaction();
+
+            this.logger.debug('Начало транзакции импорта', {
+                user,
+                changeName,
+                transactionStart: new Date().toISOString(),
+            });
+
             const importStats = await this.processImportData(processedData, user, changeName, queryRunner);
             await queryRunner.commitTransaction();
 
+            const transactionDuration = Date.now() - importStartTime;
+
+            this.logger.debug('Транзакция импорта успешно завершена', {
+                duration: transactionDuration,
+                changeId: importStats.changeId,
+            });
+
             // Очищаем кэши после успешного импорта
+            const cacheStartTime = Date.now();
+            this.logger.debug('Начало очистки кэшей после импорта');
+
             await this.cacheService.invalidateAllCaches();
 
-            this.logger.log(`Импорт успешно завершен. Change ID: ${importStats.changeId}`);
+            const cacheDuration = Date.now() - cacheStartTime;
+            this.logger.debug('Кэши успешно очищены', {
+                cacheDuration,
+                operation: 'invalidate_all_caches',
+            });
+
+            const totalDuration = Date.now() - importStartTime;
+
+            this.logger.log(`Импорт успешно завершен за ${totalDuration}ms`, {
+                success: true,
+                changeId: importStats.changeId,
+                user,
+                changeName,
+                totalDuration,
+                transactionDuration,
+                cacheDuration,
+                stats: importStats.stats,
+                warningsCount: importStats.warnings.length,
+                timestamp: new Date().toISOString(),
+            });
 
             return {
                 success: true,
@@ -195,10 +238,22 @@ export class JsonImportService {
             };
         } catch (error) {
             await queryRunner.rollbackTransaction();
-            this.logger.error(`Ошибка импорта: ${error.message}`, error.stack);
+
+            const totalDuration = Date.now() - importStartTime;
+
+            this.logger.error(`Ошибка импорта за ${totalDuration}ms`, {
+                error: error.message,
+                stack: error.stack,
+                user,
+                changeName,
+                duration: totalDuration,
+                timestamp: new Date().toISOString(),
+            });
+
             throw error;
         } finally {
             await queryRunner.release();
+            this.logger.debug('Транзакция импорта завершена, queryRunner освобожден');
         }
     }
 

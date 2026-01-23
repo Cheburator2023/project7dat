@@ -66,6 +66,7 @@ import { JsonValidationController } from "./controllers/json-validation.controll
 import { ChangelogModule } from "../changelog/changelog.module";
 import { JsonExportService } from "./services/json-export.service";
 import { JsonExportController } from "./controllers/json-export.controller";
+import { CacheMonitorController } from "./controllers/cache-monitor.controller";
 
 @Global()
 @Module({})
@@ -174,6 +175,7 @@ export class JsonDataModule {
             JsonImportController,
             JsonValidationController,
             JsonExportController,
+            CacheMonitorController,
         ];
 
         const exports = [

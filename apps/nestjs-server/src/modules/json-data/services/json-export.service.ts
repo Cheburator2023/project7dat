@@ -99,14 +99,27 @@ export class JsonExportService {
     async exportToJson(): Promise<JsonExportResponseDto> {
         this.logger.log('Начало экспорта данных РБД в JSON DL');
 
-        // Пробуем получить данные из кэша
-        const cachedData = await this.cacheService.getCachedExportAll();
-        if (cachedData) {
-            this.logger.log('Возвращаем кэшированные данные общего экспорта');
-            return cachedData;
-        }
+        const startTime = Date.now();
 
         try {
+            // Пробуем получить данные из кэша
+            this.logger.debug('Попытка получения данных из кэша общего экспорта');
+            const cachedData = await this.cacheService.getCachedExportAll();
+
+            if (cachedData) {
+                const duration = Date.now() - startTime;
+                this.logger.log('Экспорт завершен (данные из кэша)', {
+                    source: 'cache',
+                    duration,
+                    entitiesCount: cachedData.entities?.length || 0,
+                    mappingsCount: cachedData.mappings?.length || 0,
+                });
+
+                return cachedData;
+            }
+
+            this.logger.debug('Кэш-промах, выполнение полного экспорта');
+
             // Получаем последнюю дату изменений для desc.change_date
             const latestChange = await this.getLatestChange();
 
@@ -129,12 +142,112 @@ export class JsonExportService {
             };
 
             // Сохраняем в кэш
-            await this.cacheService.setCachedExportAll(result, this.cacheTtl);
+            this.logger.debug('Сохранение данных экспорта в кэш');
+            await this.cacheService.setCachedExportAll(result);
 
-            this.logger.log(`Экспорт завершен и закэширован: ${entities.length} сущностей, ${mappings.length} маппингов`);
+            const duration = Date.now() - startTime;
+            this.logger.log('Экспорт завершен и закэширован', {
+                source: 'database',
+                duration,
+                entitiesCount: entities.length,
+                mappingsCount: mappings.length,
+                cacheSaved: true,
+            });
+
             return result;
         } catch (error) {
-            this.logger.error(`Ошибка экспорта: ${error.message}`, error.stack);
+            const duration = Date.now() - startTime;
+            this.logger.error(`Ошибка экспорта за ${duration}ms`, {
+                error: error.message,
+                stack: error.stack,
+                duration,
+                timestamp: new Date().toISOString(),
+            });
+            throw error;
+        }
+    }
+
+    async exportByChangeId(changeId: number): Promise<JsonExportResponseDto> {
+        this.logger.log(`Экспорт данных по change_id: ${changeId}`);
+
+        const startTime = Date.now();
+
+        try {
+            // Пробуем получить данные из кэша
+            this.logger.debug(`Попытка получения данных из кэша для change_id: ${changeId}`);
+            const cachedData = await this.cacheService.getCachedExportByChangeId(changeId);
+
+            if (cachedData) {
+                const duration = Date.now() - startTime;
+                this.logger.log(`Экспорт по change_id ${changeId} завершен (данные из кэша)`, {
+                    source: 'cache',
+                    duration,
+                    changeId,
+                    entitiesCount: cachedData.entities?.length || 0,
+                    mappingsCount: cachedData.mappings?.length || 0,
+                });
+
+                return cachedData;
+            }
+
+            this.logger.debug(`Кэш-промах для change_id ${changeId}, выполнение экспорта из БД`);
+
+            // Проверяем существование change_id
+            const change = await this.changeRepository.findOne({
+                where: { change_id: changeId }
+            });
+
+            if (!change) {
+                throw new NotFoundException(`Change с ID ${changeId} не найден`);
+            }
+
+            // Получаем сущности на момент указанного change_id
+            const entitiesWithDetails = await this.getEntitiesWithDetails(changeId);
+
+            // Получаем маппинги на момент указанного change_id
+            const mappingsWithDetails = await this.getMappingsWithDetails(changeId);
+
+            // Преобразуем данные в структуру JSON
+            const entities = this.transformEntities(entitiesWithDetails, mappingsWithDetails);
+            const mappings = this.transformMappings(mappingsWithDetails);
+
+            const result: JsonExportResponseDto = {
+                desc: {
+                    change_date: change.change_date.toISOString(),
+                },
+                entities,
+                mappings,
+            };
+
+            // Сохраняем в кэш
+            this.logger.debug(`Сохранение данных экспорта для change_id ${changeId} в кэш`);
+            await this.cacheService.setCachedExportByChangeId(changeId, result, this.cacheTtl);
+
+            const duration = Date.now() - startTime;
+            this.logger.log(`Экспорт по change_id ${changeId} завершен и закэширован`, {
+                source: 'database',
+                duration,
+                changeId,
+                entitiesCount: entities.length,
+                mappingsCount: mappings.length,
+                cacheSaved: true,
+            });
+
+            return result;
+        } catch (error) {
+            const duration = Date.now() - startTime;
+            this.logger.error(`Ошибка экспорта по change_id ${changeId} за ${duration}ms`, {
+                error: error.message,
+                stack: error.stack,
+                changeId,
+                duration,
+                timestamp: new Date().toISOString(),
+            });
+
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+
             throw error;
         }
     }
@@ -596,55 +709,6 @@ export class JsonExportService {
             return 'INTEGER';
         } else {
             return 'STRING';
-        }
-    }
-
-    async exportByChangeId(changeId: number): Promise<JsonExportResponseDto> {
-        this.logger.log(`Экспорт данных по change_id: ${changeId}`);
-
-        // Пробуем получить данные из кэша
-        const cachedData = await this.cacheService.getCachedExportByChangeId(changeId);
-        if (cachedData) {
-            this.logger.log(`Возвращаем кэшированные данные для change_id: ${changeId}`);
-            return cachedData;
-        }
-
-        try {
-            // Проверяем существование change_id
-            const change = await this.changeRepository.findOne({
-                where: { change_id: changeId }
-            });
-
-            if (!change) {
-                throw new NotFoundException(`Change с ID ${changeId} не найден`);
-            }
-
-            // Получаем сущности на момент указанного change_id
-            const entitiesWithDetails = await this.getEntitiesWithDetails(changeId);
-
-            // Получаем маппинги на момент указанного change_id
-            const mappingsWithDetails = await this.getMappingsWithDetails(changeId);
-
-            // Преобразуем данные в структуру JSON
-            const entities = this.transformEntities(entitiesWithDetails, mappingsWithDetails);
-            const mappings = this.transformMappings(mappingsWithDetails);
-
-            const result: JsonExportResponseDto = {
-                desc: {
-                    change_date: change.change_date.toISOString(),
-                },
-                entities,
-                mappings,
-            };
-
-            // Сохраняем в кэш
-            await this.cacheService.setCachedExportByChangeId(changeId, result, this.cacheTtl);
-
-            this.logger.log(`Экспорт по change_id ${changeId} завершен и закэширован: ${entities.length} сущностей, ${mappings.length} маппингов`);
-            return result;
-        } catch (error) {
-            this.logger.error(`Ошибка экспорта по change_id ${changeId}: ${error.message}`, error.stack);
-            throw error;
         }
     }
 }
