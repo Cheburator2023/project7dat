@@ -19,18 +19,49 @@ export const getLayoutedElements = (
 	nodes: EntityNode[],
 	edges: Edge[],
 	direction: "LR" | "TB" = "LR",
+	options?: {
+		fixedNodeHeight?: number;
+		showAttributesInNodes?: boolean;
+	},
 ) => {
+	const fixedNodeHeight = options?.fixedNodeHeight;
+	const showAttributesInNodes = options?.showAttributesInNodes ?? true;
 	const dagreGraph = new dagre.graphlib.Graph();
 	dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+	// Use smaller spacing when attributes are hidden
+	const nodesep = showAttributesInNodes ? 80 : 50;
+	const ranksep = showAttributesInNodes ? 150 : 100;
+
 	dagreGraph.setGraph({
 		rankdir: direction,
-		nodesep: 80,
-		ranksep: 150,
+		nodesep,
+		ranksep,
 		marginx: 50,
 		marginy: 50,
 	});
 
-	nodes.forEach((node) => {
+	const getNodeHeight = (node: EntityNode) => {
+		if (fixedNodeHeight !== undefined) return fixedNodeHeight;
+
+		// If attributes are hidden globally, use minimal height (just header)
+		if (!showAttributesInNodes) {
+			return NODE_HEADER_HEIGHT;
+		}
+
+		const layoutAttrLimit = (
+			node.data as unknown as { layoutAttrLimit?: unknown }
+		).layoutAttrLimit;
+		if (typeof layoutAttrLimit === "number") {
+			const layoutHasMoreRelatedAttrs = (
+				node.data as unknown as { layoutHasMoreRelatedAttrs?: unknown }
+			).layoutHasMoreRelatedAttrs;
+			return (
+				NODE_HEADER_HEIGHT +
+				Math.min(layoutAttrLimit, MAX_VISIBLE_ATTRS) * ATTR_ROW_HEIGHT +
+				(layoutHasMoreRelatedAttrs === true ? 24 : 0)
+			);
+		}
 		// Calculate visible attrs count from related attributes (source + target + selected), limited by MAX_VISIBLE_ATTRS
 		const sourceAttrs = node.data.highlightedSourceAttrs || new Set();
 		const targetAttrs = node.data.highlightedTargetAttrs || new Set();
@@ -41,10 +72,15 @@ export const getLayoutedElements = (
 			...selectedAttrs,
 		]).size;
 		const visibleAttrsCount = Math.min(relatedAttrsCount, MAX_VISIBLE_ATTRS);
-		const height =
+		return (
 			NODE_HEADER_HEIGHT +
 			visibleAttrsCount * ATTR_ROW_HEIGHT +
-			(relatedAttrsCount > MAX_VISIBLE_ATTRS ? 24 : 0);
+			(relatedAttrsCount > MAX_VISIBLE_ATTRS ? 24 : 0)
+		);
+	};
+
+	nodes.forEach((node) => {
+		const height = getNodeHeight(node);
 		dagreGraph.setNode(node.id, { width: NODE_WIDTH, height });
 	});
 
@@ -56,19 +92,7 @@ export const getLayoutedElements = (
 	return {
 		nodes: nodes.map((node) => {
 			const nodeWithPosition = dagreGraph.node(node.id);
-			const sourceAttrs = node.data.highlightedSourceAttrs || new Set();
-			const targetAttrs = node.data.highlightedTargetAttrs || new Set();
-			const selectedAttrs = node.data.selectedHighlightedAttrs || new Set();
-			const relatedAttrsCount = new Set([
-				...sourceAttrs,
-				...targetAttrs,
-				...selectedAttrs,
-			]).size;
-			const visibleAttrsCount = Math.min(relatedAttrsCount, MAX_VISIBLE_ATTRS);
-			const height =
-				NODE_HEADER_HEIGHT +
-				visibleAttrsCount * ATTR_ROW_HEIGHT +
-				(relatedAttrsCount > MAX_VISIBLE_ATTRS ? 24 : 0);
+			const height = getNodeHeight(node);
 			return {
 				...node,
 				position: {
