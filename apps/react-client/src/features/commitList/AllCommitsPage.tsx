@@ -1,5 +1,5 @@
-import React, {useState, useMemo, useCallback} from "react";
-import {Box, Typography, Button, Alert, IconButton} from "@mui/material";
+import React, { useState, useMemo, useCallback } from "react";
+import { Box, Typography, Button, Alert } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
@@ -16,14 +16,9 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { JsonDiffViewerCell } from "@react-client/common/grid/JsonDiffViewerCell";
-import ListItemButton from "@mui/material/ListItemButton";
-import {routes} from "@react-client/routing/routes";
-import ListItemText from "@mui/material/ListItemText";
-import ListItem from "@mui/material/ListItem";
-import {DataLineageGraph} from "@react-client/types/dataLineage";
-import {useDataLineageStore} from "@react-client/stores/dataLineageStore";
-import {useShallow} from "zustand/react/shallow";
-import {Refresh as RefreshIcon} from "@mui/icons-material/esm";
+import { DataLineageGraph } from "@react-client/types/dataLineage";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useShallow } from "zustand/react/shallow";
 
 export const AllCommitsPage: React.FC = () => {
 	const { mode } = useColorScheme();
@@ -179,28 +174,8 @@ export const AllCommitsPage: React.FC = () => {
 		[],
 	);
 
-	if (error) {
-		return (
-			<Box sx={{ padding: 3 }}>
-				<Alert
-					severity="error"
-					action={
-						<Button color="inherit" size="small" onClick={handleRefresh}>
-							Повторить
-						</Button>
-					}
-				>
-					Ошибка загрузки коммитов: {error.message}
-				</Alert>
-			</Box>
-		);
-	}
-
 	// Data lineage store for commit functionality
-	const {
-		setCurrentGraph,
-		markAsChanged,
-	} = useDataLineageStore(
+	const { setCurrentGraph, markAsChanged } = useDataLineageStore(
 		useShallow((state) => ({
 			setCurrentGraph: state.setCurrentGraph,
 			markAsChanged: state.markAsChanged,
@@ -235,7 +210,7 @@ export const AllCommitsPage: React.FC = () => {
 							attr: atrDep.attr,
 							linkTypes: atrDep.linkTypes as Array<
 								"window" | "join" | "where" | "groupby"
-								>,
+							>,
 						})),
 					})),
 				})) ?? [],
@@ -280,13 +255,27 @@ export const AllCommitsPage: React.FC = () => {
 		[setCurrentGraph, markAsChanged],
 	);
 
+	if (error) {
+		return (
+			<Box sx={{ padding: 3 }}>
+				<Alert
+					severity="error"
+					action={
+						<Button color="inherit" size="small" onClick={handleRefresh}>
+							Повторить
+						</Button>
+					}
+				>
+					Ошибка загрузки коммитов: {error.message}
+				</Alert>
+			</Box>
+		);
+	}
+
 	return (
 		<Box>
 			<Header>
-				<Button
-					onClick={() => handleImport("s2t")}
-					title="Импорт S2T"
-				>
+				<Button onClick={() => handleImport("s2t")} title="Импорт S2T">
 					Импорт S2T
 				</Button>
 			</Header>

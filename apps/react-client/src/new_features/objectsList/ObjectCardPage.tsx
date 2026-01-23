@@ -5,9 +5,7 @@ import { CircularProgress, styled } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
-import {
-	useCurrentDataLineageGraph,
-} from "@react-client/api/hooks";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import {
 	ObjectDetailsView,
