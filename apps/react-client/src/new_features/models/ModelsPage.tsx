@@ -29,6 +29,7 @@ import { useShallow } from "zustand/react/shallow";
 export interface Model extends DataLineageEntity {
 	graphId?: string;
 	description?: string;
+	container_description?: string;
 	createdDate?: string;
 	updatedDate?: string;
 	status?: "active" | "draft" | "archived";
@@ -49,23 +50,15 @@ const mapJsonDataItemToModels = (item: JsonDataItem): any[] => {
 	console.log(filterEntities)
 	return filterEntities.map((entity) => ({
 		...entity,
-		id: entity.namespace,
 		graphId: item.id,
 		description:
 			// entity может не иметь description в shared-схеме, поэтому подстраховываемся
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			((entity as any).container_description as string | undefined) ||
 			((entity as any).description as string | undefined) ||
 			item.description ||
 			data.desc.appName,
-		createdDate: item.createdAt,
-		updatedDate: item.entity_change,
-		status: item.deprecated ? "archived" : "active",
-		author: item.authorName,
-		version: item.version,
-		tags: [],
-		lastAccessDate: item.entity_change,
-		objectsCount: entity.attrSeq?.length,
-		businessType: undefined,
+		updatedDate: item.container_change || item.entity_change,
 	}));
 };
 
@@ -151,9 +144,7 @@ export const ModelsPage = () => {
 		return baseModels.filter(
 			(model) =>
 				(model.name?.toLowerCase().includes(query) ?? false) ||
-				(model.description?.toLowerCase().includes(query) ?? false) ||
-				(model.author?.toLowerCase().includes(query) ?? false) ||
-				(model.tags?.some((tag) => tag.toLowerCase().includes(query)) ?? false),
+				(model.description?.toLowerCase().includes(query) ?? false)
 		);
 	}, [baseModels, searchQuery]);
 
@@ -181,143 +172,20 @@ export const ModelsPage = () => {
 	// }
 
 	const columnDefs: ColDef<Model>[] = [
-		{
-			headerName: "ID",
-			field: "id",
-			width: 150,
-			pinned: "left",
-		},
+
 		{
 			headerName: "Название",
-			field: "name",
+			field: "namespace",
 			flex: 2,
 			minWidth: 200,
 			cellStyle: { fontWeight: "bold" },
 		},
 		{
-			headerName: "Пространство имен",
-			field: "namespace",
-			width: 140,
-		},
-		{
-			headerName: "Тип",
-			field: "type",
-			width: 140,
-			cellRenderer: (params: any) => (
-				<Chip
-					label={params.value}
-					size="small"
-					variant="filled"
-					sx={{
-						background: TYPE_COLORS[params.value] || "#666",
-						color: "#fff",
-					}}
-				/>
-			),
-		},
-		{
-			headerName: "Роль",
-			field: "id",
-			width: 120,
-			headerTooltip: "Роль в линейке данных",
-			cellRenderer: (params: any) => {
-				// For now, simplified role detection based on type
-				// In real scenario, would need upstream/downstream counts
-				const type = params.data?.type;
-				const isVitrina = type === "view";
-				const isSource = type === "table" && !params.data?.modified;
-
-				if (isVitrina) {
-					return (
-						<Chip
-							label="витрина"
-							size="small"
-							sx={{ background: "#9c27b0", color: "#fff", fontSize: "0.7rem" }}
-							title="Витрина данных — конечная точка"
-						/>
-					);
-				}
-				if (isSource) {
-					return (
-						<Chip
-							label="источник"
-							size="small"
-							sx={{ background: "#00897b", color: "#fff", fontSize: "0.7rem" }}
-							title="Источник данных — начальная точка"
-						/>
-					);
-				}
-				return null;
-			},
-		},
-		{
-			headerName: "Изменен",
-			field: "modified",
-			width: 100,
-			cellRenderer: (params: any) => (
-				<Chip
-					label={params.value ? "Да" : "Нет"}
-					color={params.value ? "warning" : "success"}
-					size="small"
-					variant="outlined"
-				/>
-			),
-		},
-		{
 			headerName: "Описание",
-			field: "description",
+			field: "container_description",
 			flex: 3,
 			minWidth: 300,
 			autoHeight: true,
-		},
-		{
-			headerName: "Статус",
-			field: "status",
-			width: 120,
-			cellRenderer: StatusChipRenderer,
-		},
-		{
-			headerName: "Автор",
-			field: "author",
-			width: 150,
-		},
-		{
-			headerName: "Версия",
-			field: "version",
-			width: 100,
-		},
-		{
-			headerName: "Атрибуты",
-			field: "objectsCount",
-			width: 100,
-			type: "numericColumn",
-			cellRenderer: (params: any) => (
-				<Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
-					<Chip
-						label={params.value ?? 0}
-						size="small"
-						variant="outlined"
-						color="info"
-					/>
-				</Box>
-			),
-		},
-		{
-			headerName: "Теги",
-			field: "tags",
-			flex: 1,
-			minWidth: 200,
-			cellRenderer: TagsRenderer,
-		},
-		{
-			headerName: "Создана",
-			field: "createdDate",
-			width: 120,
-			cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
-				if (data.entity_change) {
-					return format(parseISO(data.entity_change), "dd.MM.yyyy, HH:mm");
-				}
-			},
 		},
 		{
 			headerName: "Обновлена",
@@ -328,17 +196,7 @@ export const ModelsPage = () => {
 					return format(parseISO(data.entity_change), "dd.MM.yyyy, HH:mm");
 				}
 			},
-		},
-		{
-			headerName: "Последний доступ",
-			field: "lastAccessDate",
-			width: 140,
-			cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
-				if (data.entity_change) {
-					return format(parseISO(data.entity_change), "dd.MM.yyyy, HH:mm");
-				}
-			},
-		},
+		}
 	];
 
 	return (

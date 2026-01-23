@@ -49,12 +49,38 @@ const queryClient = new QueryClient({
 	},
 });
 
-type Props = {
+interface AppProps {
 	bridged?: boolean;
-};
+	token?: string;
+	keycloak?: any;
+	user?: Keycloak.KeycloakTokenParsed & {
+		family_name: string;
+		given_name: string;
+		realm_access: {
+			roles: string[];
+		};
+		groups: string[];
+		roles: string[];
+		preferred_username: string;
+	};
+	onLogout?: () => void;
+}
 
-export function App(props: Props) {
-	const { bridged } = props;
+
+export function App({ bridged, user, onLogout, keycloak  }: AppProps) {
+
+	useEffect(() => {
+		console.log({AppProps: { bridged, user, onLogout, keycloak  }})
+	}, [bridged, user, onLogout, keycloak]);
+
+	const onLogoutHandler = () => {
+		if (onLogout || keycloak) {
+			keycloak.logout({ redirectUri: window.location.origin });
+			onLogout?.();
+		}
+		localStorage.removeItem('currentCustomer');
+	};
+
 
 	useEffect(() => {
 		setupApiInterceptors();
