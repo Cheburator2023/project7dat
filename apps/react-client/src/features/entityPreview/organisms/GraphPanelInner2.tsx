@@ -663,7 +663,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 										namespace:entity.name
 									},
 									graphId,
-									upstreamCount: 1,
 									isExpanded: true,
 									highlightType: 'downstream'
 								},
