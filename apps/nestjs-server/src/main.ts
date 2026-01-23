@@ -12,7 +12,7 @@ async function bootstrap() {
 	const app = await NestFactory.create<NestFastifyApplication>(
 		AppModule.forRoot(),
 		new FastifyAdapter({
-			bodyLimit: 52428800, // 50MB
+			bodyLimit: 104857600, // 100MB
 			logger: true,
 		}),
 	);

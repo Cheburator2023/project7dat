@@ -31,10 +31,10 @@ import { JsonCommitService } from "./services/json-commit.service";
 import { JsonImportService } from "./services/json-import.service";
 import { JsonConflictService } from "./services/json-conflict.service";
 import { JsonMigrationService } from "./services/json-migration.service";
-import { ChangeRecordService } from './services/change-record.service';
-import { ProcessHandlingService } from './services/process-handling.service';
-import { EntityProcessingService } from './services/entity-processing.service';
-import { MappingProcessingService } from './services/mapping-processing.service';
+import { ChangeRecordService } from "./services/change-record.service";
+import { ProcessHandlingService } from "./services/process-handling.service";
+import { EntityProcessingService } from "./services/entity-processing.service";
+import { MappingProcessingService } from "./services/mapping-processing.service";
 import { EntityTypeService } from "./services/entity-type.service";
 import { AttributeTypeService } from "./services/attribute-type.service";
 import { EntityContainerService } from "./services/entity-container.service";
@@ -45,20 +45,14 @@ import { JsonIntegrityValidationService } from "./services/json-integrity-valida
 import { JsonBusinessRulesValidationService } from "./services/json-business-rules-validation.service";
 import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
 import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
-
-// Interfaces
-import {
-    IJsonStructureValidator,
-    IJsonBusinessRulesValidator,
-    IJsonIntegrityValidator,
-    IJsonSchemaVersionValidator
-} from "./services/interfaces/validation.interfaces";
+import { S2tConversionService } from "./services/s2t-conversion.service";
 
 // Controllers
 import { JsonDataController } from "./controllers/json-data.controller";
 import { JsonCommitController } from "./controllers/json-commit.controller";
 import { JsonImportController } from "./controllers/json-import.controller";
 import { JsonValidationController } from "./controllers/json-validation.controller";
+import { S2tConversionController } from "./controllers/s2t-conversion.controller";
 
 // Modules
 import { ChangelogModule } from "../changelog/changelog.module";
@@ -68,127 +62,132 @@ import { JsonExportController } from "./controllers/json-export.controller";
 @Global()
 @Module({})
 export class JsonDataModule {
-    static forRoot(): DynamicModule {
-        const entities = [
-            JsonDataEntity,
-            JsonCommitEntity,
-            ChangeEntity,
-            ProcessEntity,
-            EntityEntity,
-            AttributeEntity,
-            EntityMapEntity,
-            AttributeMapEntity,
-            AttributeMapSourceEntity,
-            EntityAttributeMapEntity,
-            FailedMappingsEntity,
-            EntityTypeEntity,
-            EntityContainerTypeEntity,
-            EntityContainerEntity,
-            AttributeTypeEntity,
-            ProcessTypeEntity,
-            ProcessGroupEntity,
-            DependencyTypeEntity,
-            SystemsEntity,
-            StreamSpaceEntity,
-            EntityMapSourceEntity,
-        ];
+	static forRoot(): DynamicModule {
+		const entities = [
+			JsonDataEntity,
+			JsonCommitEntity,
+			ChangeEntity,
+			ProcessEntity,
+			EntityEntity,
+			AttributeEntity,
+			EntityMapEntity,
+			AttributeMapEntity,
+			AttributeMapSourceEntity,
+			EntityAttributeMapEntity,
+			FailedMappingsEntity,
+			EntityTypeEntity,
+			EntityContainerTypeEntity,
+			EntityContainerEntity,
+			AttributeTypeEntity,
+			ProcessTypeEntity,
+			ProcessGroupEntity,
+			DependencyTypeEntity,
+			SystemsEntity,
+			StreamSpaceEntity,
+			EntityMapSourceEntity,
+		];
 
-        const imports = [
-            TypeOrmModule.forFeature(entities),
-            ConfigModule.forRoot(),
-            ChangelogModule,
-        ];
+		const imports = [
+			TypeOrmModule.forFeature(entities),
+			ConfigModule.forRoot(),
+			ChangelogModule,
+		];
 
-        const providers: Provider[] = [
-            // Core services
-            JsonDataService,
-            JsonCommitService,
-            JsonImportService,
-            JsonExportService,
+		const providers: Provider[] = [
+			// Core services
+			JsonDataService,
+			JsonCommitService,
+			JsonImportService,
+			JsonExportService,
+			S2tConversionService,
+			S2tToCommitJsonService,
 
-            // Conflict and Migration services
-            JsonConflictService,
-            JsonMigrationService,
+			// Conflict and Migration services
+			JsonConflictService,
+			JsonMigrationService,
 
-            // Processing services
-            ChangeRecordService,
-            ProcessHandlingService,
-            EntityProcessingService,
-            MappingProcessingService,
+			// Processing services
+			ChangeRecordService,
+			ProcessHandlingService,
+			EntityProcessingService,
+			MappingProcessingService,
 
-            // Support services
-            EntityTypeService,
-            AttributeTypeService,
-            EntityContainerService,
-            DependencyCheckService,
-            VersioningService,
+			// Support services
+			EntityTypeService,
+			AttributeTypeService,
+			EntityContainerService,
+			DependencyCheckService,
+			VersioningService,
 
-            // New Validation Services
-            JsonStructureValidationService,
-            JsonIntegrityValidationService,
-            JsonBusinessRulesValidationService,
-            JsonSchemaVersionValidationService,
-            JsonValidationOrchestratorService,
+			// New Validation Services
+			JsonStructureValidationService,
+			JsonIntegrityValidationService,
+			JsonBusinessRulesValidationService,
+			JsonSchemaVersionValidationService,
+			JsonValidationOrchestratorService,
 
-            // Register interfaces with implementations
-            {
-                provide: 'IJsonStructureValidator',
-                useClass: JsonStructureValidationService
-            },
-            {
-                provide: 'IJsonBusinessRulesValidator',
-                useClass: JsonBusinessRulesValidationService
-            },
-            {
-                provide: 'IJsonIntegrityValidator',
-                useClass: JsonIntegrityValidationService
-            },
-            {
-                provide: 'IJsonSchemaVersionValidator',
-                useClass: JsonSchemaVersionValidationService
-            },
+			// Register interfaces with implementations
+			{
+				provide: "IJsonStructureValidator",
+				useClass: JsonStructureValidationService,
+			},
+			{
+				provide: "IJsonBusinessRulesValidator",
+				useClass: JsonBusinessRulesValidationService,
+			},
+			{
+				provide: "IJsonIntegrityValidator",
+				useClass: JsonIntegrityValidationService,
+			},
+			{
+				provide: "IJsonSchemaVersionValidator",
+				useClass: JsonSchemaVersionValidationService,
+			},
 
-            // External services (from ChangelogModule)
-            ConfigService,
-        ];
+			// External services (from ChangelogModule)
+			ConfigService,
+		];
 
-        const controllers = [
-            JsonDataController,
-            JsonCommitController,
-            JsonImportController,
-            JsonValidationController,
-            JsonExportController,
-        ];
+		const controllers = [
+			JsonDataController,
+			JsonCommitController,
+			JsonImportController,
+			JsonValidationController,
+			JsonExportController,
+			S2tConversionController,
+		];
 
-        const exports = [
-            JsonDataService,
-            JsonCommitService,
-            JsonImportService,
-            JsonConflictService,
-            JsonMigrationService,
-            ChangeRecordService,
-            ProcessHandlingService,
-            EntityProcessingService,
-            MappingProcessingService,
-            EntityTypeService,
-            AttributeTypeService,
-            EntityContainerService,
-            DependencyCheckService,
-            VersioningService,
-            JsonStructureValidationService,
-            JsonIntegrityValidationService,
-            JsonBusinessRulesValidationService,
-            JsonSchemaVersionValidationService,
-            JsonValidationOrchestratorService,
-            JsonExportService,
-        ];
+		const exports = [
+			JsonDataService,
+			JsonCommitService,
+			JsonImportService,
+			JsonConflictService,
+			JsonMigrationService,
+			ChangeRecordService,
+			ProcessHandlingService,
+			EntityProcessingService,
+			MappingProcessingService,
+			EntityTypeService,
+			AttributeTypeService,
+			EntityContainerService,
+			DependencyCheckService,
+			VersioningService,
+			JsonStructureValidationService,
+			JsonIntegrityValidationService,
+			JsonBusinessRulesValidationService,
+			JsonSchemaVersionValidationService,
+			JsonValidationOrchestratorService,
+			JsonExportService,
+			S2tConversionService,
+			S2tToCommitJsonService,
+		];
 
-        return {
-            module: JsonDataModule,
-            imports,
-            controllers,
-            providers,
-            exports,
-        };
-    }
+		return {
+			module: JsonDataModule,
+			imports,
+			controllers,
+			providers,
+			exports,
+		};
+	}
 }
