@@ -127,36 +127,36 @@ export const EntityNodePreviewComponent = memo(
 								{/*		изм.*/}
 								{/*	</span>*/}
 								{/*)}*/}
-								{isDataMart && (
-									<span
-										style={{
-											marginLeft: 6,
-											background: "#9c27b0",
-											color: "#fff",
-											padding: "1px 4px",
-											borderRadius: 3,
-											fontSize: 9,
-										}}
-										title="Витрина данных"
-									>
-										витрина
-									</span>
-								)}
-								{isSource && (
-									<span
-										style={{
-											marginLeft: 6,
-											background: "#00897b",
-											color: "#fff",
-											padding: "1px 4px",
-											borderRadius: 3,
-											fontSize: 9,
-										}}
-										title="Источник данных"
-									>
-										источник
-									</span>
-								)}
+								{/*{isDataMart && (*/}
+								{/*	<span*/}
+								{/*		style={{*/}
+								{/*			marginLeft: 6,*/}
+								{/*			background: "#9c27b0",*/}
+								{/*			color: "#fff",*/}
+								{/*			padding: "1px 4px",*/}
+								{/*			borderRadius: 3,*/}
+								{/*			fontSize: 9,*/}
+								{/*		}}*/}
+								{/*		title="Витрина данных"*/}
+								{/*	>*/}
+								{/*		витрина*/}
+								{/*	</span>*/}
+								{/*)}*/}
+								{/*{isSource && (*/}
+								{/*	<span*/}
+								{/*		style={{*/}
+								{/*			marginLeft: 6,*/}
+								{/*			background: "#00897b",*/}
+								{/*			color: "#fff",*/}
+								{/*			padding: "1px 4px",*/}
+								{/*			borderRadius: 3,*/}
+								{/*			fontSize: 9,*/}
+								{/*		}}*/}
+								{/*		title="Источник данных"*/}
+								{/*	>*/}
+								{/*		источник*/}
+								{/*	</span>*/}
+								{/*)}*/}
 							</div>
 							<div
 								style={{
@@ -202,9 +202,11 @@ export const EntityNodePreviewComponent = memo(
 								→ {downstreamCount}
 							</span>
 						)}
-						<span style={{ color: "#888", marginLeft: "auto" }}>
-							{visibleAttrs.length}/{attrs.length} атр.
-						</span>
+						{attrs.length &&
+							<span style={{ color: "#888", marginLeft: "auto" }}>
+								{visibleAttrs.length}/{attrs.length} атр.
+							</span>
+						}
 					</div>
 				</div>
 
