@@ -106,6 +106,18 @@ export const flexLayoutJson: IJsonModel = {
 						component: "graph",
 						id: "graph-tab",
 					},
+					{
+						type: "tab",
+						name: "⚠️ Ошибки",
+						component: "issues",
+						id: "issues-tab",
+					},
+					{
+						type: "tab",
+						name: "📋 Схема",
+						component: "schema",
+						id: "schema-tab",
+					},
 				],
 			},
 			// Right column: Code Editor, Commit History, Info

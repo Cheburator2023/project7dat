@@ -29,8 +29,12 @@ export const SettingsPage = () => {
 		resetAllPanels,
 	} = usePanelSettingsStore();
 
-	const { showFullGraphByDefault, setShowFullGraphByDefault } =
-		useGraphSettingsStore();
+	const {
+		showFullGraphByDefault,
+		setShowFullGraphByDefault,
+		showAttributesInNodes,
+		setShowAttributesInNodes,
+	} = useGraphSettingsStore();
 
 	const handleResetPanel = (panelId: string, panelName: string) => {
 		if (
@@ -78,11 +82,29 @@ export const SettingsPage = () => {
 						<Typography
 							variant="body2"
 							color="text.secondary"
-							sx={{ mt: 1, ml: 4 }}
+							sx={{ mt: 1, ml: 4, mb: 2 }}
 						>
 							{showFullGraphByDefault
 								? "Граф отображается полностью при загрузке, затем фильтруется по поиску."
 								: "Граф пустой при загрузке. Ноды появляются по мере ввода поискового запроса."}
+						</Typography>
+						<FormControlLabel
+							control={
+								<Switch
+									checked={showAttributesInNodes}
+									onChange={(e) => setShowAttributesInNodes(e.target.checked)}
+								/>
+							}
+							label="Показывать атрибуты в нодах по умолчанию"
+						/>
+						<Typography
+							variant="body2"
+							color="text.secondary"
+							sx={{ mt: 1, ml: 4 }}
+						>
+							{showAttributesInNodes
+								? "Атрибуты отображаются в нодах сразу. Может снизить производительность на больших графах."
+								: "Атрибуты скрыты. Нажмите кнопку ▶ на ноде для раскрытия атрибутов."}
 						</Typography>
 					</CardContent>
 				</Card>

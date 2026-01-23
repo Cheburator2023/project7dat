@@ -1,11 +1,23 @@
-import { memo, useMemo } from "react";
-import { Box, Typography, Chip, Alert } from "@mui/material";
+import { memo, useMemo, useState, useCallback, useEffect } from "react";
+import {
+	Box,
+	Typography,
+	Chip,
+	Alert,
+	TextField,
+	InputAdornment,
+	IconButton,
+} from "@mui/material";
+import { Search as SearchIcon, Close as CloseIcon } from "@mui/icons-material";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Card } from "@react-client/common/muiCustom/Card";
+import * as fuzzysort from "fuzzysort";
 
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import type { DebugIssue } from "../types";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 // Analyze schema for issues
 function analyzeSchema(
@@ -181,19 +193,129 @@ function analyzeSchema(
 }
 
 export const IssuesPanel = memo(() => {
-	// Use currentSchema hook to get data synced with editor
 	const { currentSchema, effectiveGraphId } = useCurrentSchema();
+	const [localSearchQuery, setLocalSearchQuery] = useState("");
+	const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
 	const issues = useMemo(
 		() => analyzeSchema(currentSchema, effectiveGraphId),
 		[currentSchema, effectiveGraphId],
 	);
 
-	const errorCount = issues.filter((i) => i.type === "error").length;
-	const warningCount = issues.filter((i) => i.type === "warning").length;
+	// Debounce search query
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedSearchQuery(localSearchQuery);
+		}, SEARCH_DEBOUNCE_MS);
+
+		return () => clearTimeout(timer);
+	}, [localSearchQuery]);
+
+	// Filter issues using fuzzysort
+	const filteredIssues = useMemo(() => {
+		if (!debouncedSearchQuery.trim())
+			return issues.map((issue) => ({ issue, highlights: null }));
+
+		const results = fuzzysort.go(debouncedSearchQuery, issues, {
+			keys: ["message", "category", "location", "details"],
+			threshold: -10000,
+		});
+
+		return results.map((result) => ({
+			issue: result.obj,
+			highlights: result,
+		}));
+	}, [issues, debouncedSearchQuery]);
+
+	const errorCount = filteredIssues.filter(
+		(i) => i.issue.type === "error",
+	).length;
+	const warningCount = filteredIssues.filter(
+		(i) => i.issue.type === "warning",
+	).length;
+
+	const handleClearSearch = useCallback(() => {
+		setLocalSearchQuery("");
+		setDebouncedSearchQuery("");
+	}, []);
+
+	// Helper to render highlighted text
+	const renderHighlighted = useCallback(
+		(
+			text: string | undefined,
+			fieldKey: "message" | "category" | "location" | "details",
+			highlights: any,
+		) => {
+			if (!text) return null;
+			if (!highlights || !debouncedSearchQuery.trim()) return text;
+
+			// Get the highlight result for this field
+			const keyIndex = ["message", "category", "location", "details"].indexOf(
+				fieldKey,
+			);
+			const fieldResult = highlights[keyIndex];
+
+			if (!fieldResult) return text;
+
+			// Simple highlighting by wrapping matched parts
+			const query = debouncedSearchQuery.toLowerCase();
+			const lowerText = text.toLowerCase();
+			const index = lowerText.indexOf(query);
+
+			if (index === -1) return text;
+
+			const before = text.substring(0, index);
+			const match = text.substring(index, index + query.length);
+			const after = text.substring(index + query.length);
+
+			return (
+				<>
+					{before}
+					<mark
+						style={{
+							background: "#ffeb3b",
+							padding: "0 2px",
+							borderRadius: "2px",
+						}}
+					>
+						{match}
+					</mark>
+					{after}
+				</>
+			);
+		},
+		[debouncedSearchQuery],
+	);
 
 	return (
 		<Box sx={{ p: 2, height: "100%", overflow: "auto", fontSize: 12 }}>
+			{/* Search */}
+			<Box sx={{ mb: 2 }}>
+				<TextField
+					placeholder="Поиск по проблемам..."
+					value={localSearchQuery}
+					onChange={(e) => setLocalSearchQuery(e.target.value)}
+					size="small"
+					fullWidth
+					slotProps={{
+						input: {
+							startAdornment: (
+								<InputAdornment position="start">
+									<SearchIcon fontSize="small" />
+								</InputAdornment>
+							),
+							endAdornment: localSearchQuery && (
+								<InputAdornment position="end">
+									<IconButton size="small" onClick={handleClearSearch}>
+										<CloseIcon fontSize="small" />
+									</IconButton>
+								</InputAdornment>
+							),
+						},
+					}}
+				/>
+			</Box>
+
 			{/* Summary */}
 			<Box sx={{ display: "flex", gap: 1, mb: 2 }}>
 				<Chip
@@ -210,17 +332,25 @@ export const IssuesPanel = memo(() => {
 
 			{/* Issues List */}
 			<Flex gap={10} flexDirection="column">
-				{issues.length === 0 ? (
+				{filteredIssues.length === 0 && issues.length === 0 ? (
 					<Alert severity="success" sx={{ fontSize: 11 }}>
 						Проблем не обнаружено!
 					</Alert>
+				) : filteredIssues.length === 0 ? (
+					<Alert severity="info" sx={{ fontSize: 11 }}>
+						Ничего не найдено по запросу "{debouncedSearchQuery}"
+					</Alert>
 				) : (
-					issues.map((issue, idx) => (
+					filteredIssues.map(({ issue, highlights }, idx) => (
 						<Card key={idx} title={issue.location}>
 							<Flex gap={6} flexDirection="column">
 								<div>
 									<Chip
-										label={issue.category}
+										label={renderHighlighted(
+											issue.category,
+											"category",
+											highlights,
+										)}
 										size="small"
 										color={issue.type === "error" ? "error" : "warning"}
 										sx={{ fontSize: 10, height: 20 }}
@@ -230,13 +360,13 @@ export const IssuesPanel = memo(() => {
 									variant="body2"
 									sx={{ fontWeight: 500, fontSize: 11 }}
 								>
-									{issue.message}
+									{renderHighlighted(issue.message, "message", highlights)}
 								</Typography>
 								<Typography
 									variant="body2"
 									sx={{ fontWeight: 500, fontSize: 11 }}
 								>
-									{issue.location}
+									{renderHighlighted(issue.location, "location", highlights)}
 								</Typography>
 							</Flex>
 

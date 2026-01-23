@@ -16,7 +16,7 @@ import { useDashboardStore } from "../stores";
  * with the JSON editor when changes are made.
  */
 export function useCurrentSchema() {
-	const { selectedGraphId } = useDashboardStore();
+	const selectedGraphId = useDashboardStore((state) => state.selectedGraphId);
 	const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
 	// Get edited data from dataLineageStore

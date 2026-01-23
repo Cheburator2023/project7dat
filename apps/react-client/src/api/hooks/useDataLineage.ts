@@ -46,7 +46,7 @@ export const useDataLineageGraph = (
 };
 
 export const useCurrentDataLineageGraph = () => {
-	const { setCurrentGraph, setCurrentGraphId } = useDataLineageStore();
+	const { initializeGraph, setCurrentGraphId } = useDataLineageStore();
 
 	return useQuery({
 		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
@@ -72,12 +72,12 @@ export const useCurrentDataLineageGraph = () => {
 
 				console.log(graph);
 
-				setCurrentGraph(graph);
+				initializeGraph(graph);
 				setCurrentGraphId(graph.id);
 				return graph;
 			} catch (error) {
 				console.warn("No current graph available:", error);
-				setCurrentGraph(null);
+				initializeGraph(null as any);
 				setCurrentGraphId(null);
 				return null;
 			}

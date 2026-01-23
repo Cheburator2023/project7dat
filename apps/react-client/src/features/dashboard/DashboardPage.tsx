@@ -5,6 +5,7 @@ import { styled } from "@mui/material/styles";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
+import { useShallow } from "zustand/react/shallow";
 
 import {
 	EntitiesPanel,
@@ -24,7 +25,12 @@ import {useCurrentDataLineageGraph} from "@react-client/api/hooks";
 
 export const DashboardPage = () => {
 	const [, setSearchParams] = useSearchParams();
-	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore();
+	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore(
+		useShallow((state) => ({
+			selectEntityWithAttribute: state.selectEntityWithAttribute,
+			setZoomToNode: state.setZoomToNode,
+		})),
+	);
 
 	const isPersistEnabled = usePanelSettingsStore((state) =>
 		state.isPanelPersistEnabled("dashboard"),
