@@ -37,6 +37,7 @@ import {
 	getDownstreamNodes,
 } from "../utils";
 import type { EntityRow } from "../types";
+import { S2tImportDialog } from "@react-client/features/s2tImport/S2tImportDialog";
 
 // S2T format conversion utilities
 interface S2TFormat {
@@ -89,42 +90,6 @@ const convertGraphToS2T = (graph: DataLineageGraph): S2TFormat => {
 	};
 };
 
-const convertS2TToGraph = (s2t: S2TFormat): DataLineageGraph => {
-	return {
-		desc: {
-			appId: s2t.desc?.appId ?? "imported",
-			appName: s2t.desc?.appName ?? "Imported S2T",
-		},
-		entities:
-			s2t.entities?.map((entity) => ({
-				id: entity.id,
-				name: entity.name,
-				type:
-					(entity.type as "table" | "view" | "rdd" | "unresolved") || "table",
-				namespace: entity.namespace,
-				modified: entity.modified ?? false,
-				description: entity.description,
-				attrSeq: entity.attrSeq,
-			})) ?? [],
-		mappings:
-			s2t.mappings?.map((mapping, index) => ({
-				id: mapping.id ?? index,
-				entityId: mapping.entityId,
-				deps: mapping.deps?.map((dep) => ({
-					entityId: dep.entityId,
-					attrMaps: dep.attrMaps,
-					atrDeps: dep.atrDeps?.map((atrDep) => ({
-						attr: atrDep.attr,
-						linkTypes: atrDep.linkTypes as Array<
-							"window" | "join" | "where" | "groupby"
-						>,
-					})),
-				})),
-			})) ?? [],
-		failedMappings: [],
-	};
-};
-
 export const DashboardHeader = memo(() => {
 	// Data lineage store for commit functionality
 	const {
@@ -147,6 +112,7 @@ export const DashboardHeader = memo(() => {
 
 	// Commit dialog state
 	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
+	const [isS2tImportDialogOpen, setIsS2tImportDialogOpen] = useState(false);
 
 	// Query client and mutations
 	const queryClient = useQueryClient();
@@ -228,6 +194,11 @@ export const DashboardHeader = memo(() => {
 	// Import handler with format support
 	const handleImport = useCallback(
 		(format: "json" | "s2t") => {
+			if (format === "s2t") {
+				setIsS2tImportDialogOpen(true);
+				return;
+			}
+
 			const input = document.createElement("input");
 			input.type = "file";
 			input.accept = ".json";
@@ -240,13 +211,7 @@ export const DashboardHeader = memo(() => {
 							const content = e.target?.result as string;
 							const parsedData = JSON.parse(content);
 
-							let graphData: DataLineageGraph;
-							if (format === "s2t") {
-								// Convert S2T format to DataLineageGraph
-								graphData = convertS2TToGraph(parsedData);
-							} else {
-								graphData = parsedData as DataLineageGraph;
-							}
+							const graphData = parsedData as DataLineageGraph;
 
 							setCurrentGraph(graphData);
 							markAsChanged();
@@ -414,6 +379,11 @@ export const DashboardHeader = memo(() => {
 			<CommitDialog
 				open={isCommitDialogOpen}
 				onClose={handleCommitDialogClose}
+			/>
+			<S2tImportDialog
+				open={isS2tImportDialogOpen}
+				onClose={() => setIsS2tImportDialogOpen(false)}
+				onImported={handleManualLoad}
 			/>
 		</>
 	);
