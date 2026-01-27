@@ -38,7 +38,7 @@ interface ObjectItem {
 	// Additional fields for attributes
 	dataType?: string; // Attribute data type (e.g., string, int, etc.)
 	entityType?: string; // Parent entity type (table, view, rdd)
-	attributeCount?: number; // Number of attributes for model/vitrina
+	attributeCount?: number; // Number of attributes for model/datamart
 }
 
 const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {

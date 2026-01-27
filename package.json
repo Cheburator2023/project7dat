@@ -46,7 +46,8 @@
 		"test:load:all:with-report": "cd aux/artillery && npm run test:all:with-report",
 		"test:load:report": "cd aux/artillery && npm run test:report",
 		"test:load:report:combined": "cd aux/artillery && npm run report:combined",
-		"xlsx:tojson": "node ./scripts/xlsx-to-json.mjs"
+		"xlsx:tojson": "node ./scripts/xlsx-to-json.mjs",
+		"docx:to-md": "node ./scripts/docx-to-md.mjs"
 	},
 	"lint-staged": {
 		"*.{ts,tsx}": [

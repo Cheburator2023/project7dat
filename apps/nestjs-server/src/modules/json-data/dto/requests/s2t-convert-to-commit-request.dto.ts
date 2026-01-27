@@ -39,7 +39,7 @@ export class S2tConvertToCommitRequestDto {
 
 	@ApiProperty({
 		description: "Commit name",
-		example: "Import S2T vitrina",
+		example: "Import S2T datamart",
 	})
 	@IsString()
 	@IsNotEmpty()

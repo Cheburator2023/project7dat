@@ -13,7 +13,14 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
 	private readonly maxJsonSize: number;
 	private readonly maxEntities: number;
 	private readonly maxAttributes: number;
-	private readonly validEntityTypes = ["table", "view", "unresolved", "rdd"];
+	private readonly validEntityTypes = [
+		"table",
+		"view",
+		"unresolved",
+		"rdd",
+		"json",
+		"input_vector",
+	];
 	private readonly validAttributeTypes = [
 		"timestamp",
 		"date",
@@ -214,7 +221,8 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
 				}
 
 				// Нормализация namespace
-				if (!entity.namespace) {
+				// Для json-сущностей (S2T JSON) по требованиям namespace может быть пустым
+				if (!entity.namespace && entity.type !== "json") {
 					entity.namespace = "default";
 				}
 
@@ -545,7 +553,7 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
 		depIndex: number,
 		_sourceEntity: any,
 		errors: string[],
-		warnings: string[],
+		_warnings: string[],
 	): void {
 		if (!dep.attrMaps || !Array.isArray(dep.attrMaps)) {
 			return;

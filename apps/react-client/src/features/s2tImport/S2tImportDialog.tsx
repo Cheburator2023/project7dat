@@ -288,6 +288,8 @@ export const S2tImportDialog = ({
 						>
 							<Typography sx={{ pt: 1 }}>Наименование</Typography>
 							<TextField
+								name="s2tCommitName"
+								autoComplete="s2tCommitName"
 								value={commitName}
 								onChange={(e) => setCommitName(e.target.value)}
 								placeholder="название коммита"
@@ -296,6 +298,8 @@ export const S2tImportDialog = ({
 							/>
 							<Typography sx={{ pt: 1 }}>Описание</Typography>
 							<TextField
+								name="s2tCommitDescription"
+								autoComplete="s2tCommitDescription"
 								value={commitDescription}
 								onChange={(e) => setCommitDescription(e.target.value)}
 								multiline
@@ -334,6 +338,8 @@ export const S2tImportDialog = ({
 								>
 									<Typography sx={{ pt: 1 }}>Наименование</Typography>
 									<TextField
+										name="s2tProcessName"
+										autoComplete="s2tProcessName"
 										value={processName}
 										onChange={(e) => setProcessName(e.target.value)}
 										placeholder="наименование процесса"
@@ -342,6 +348,8 @@ export const S2tImportDialog = ({
 									/>
 									<Typography sx={{ pt: 1 }}>Описание</Typography>
 									<TextField
+										name="s2tProcessDescription"
+										autoComplete="s2tProcessDescription"
 										value={processDescription}
 										onChange={(e) => setProcessDescription(e.target.value)}
 										multiline
