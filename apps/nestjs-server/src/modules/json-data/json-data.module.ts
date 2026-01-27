@@ -46,13 +46,6 @@ import { JsonBusinessRulesValidationService } from "./services/json-business-rul
 import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
 import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
 
-// Interfaces
-import {
-    IJsonStructureValidator,
-    IJsonBusinessRulesValidator,
-    IJsonIntegrityValidator,
-    IJsonSchemaVersionValidator
-} from "./services/interfaces/validation.interfaces";
 
 // Controllers
 import { JsonDataController } from "./controllers/json-data.controller";
