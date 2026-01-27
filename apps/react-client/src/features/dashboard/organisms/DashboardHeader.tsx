@@ -1,13 +1,11 @@
 import { memo, useState, useCallback, useMemo } from "react";
 import {
 	Divider,
-	IconButton,
 	Button,
 	Select,
 	MenuItem,
 	type SelectChangeEvent,
 } from "@mui/material";
-import { Refresh as RefreshIcon } from "@mui/icons-material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
@@ -366,12 +364,12 @@ export const DashboardHeader = memo(() => {
 					</Select>
 
 					{/* Refresh button */}
-					<IconButton
+					{/* <IconButton
 						onClick={handleManualLoad}
 						title="Загрузить текущее состояние"
 					>
 						<RefreshIcon />
-					</IconButton>
+					</IconButton> */}
 				</Flex>
 			</Header>
 
