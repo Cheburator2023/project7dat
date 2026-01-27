@@ -1,8 +1,7 @@
 import axios from "axios";
 import type { DataLineageSchema } from "@data-lineage/shared-schemas";
-import { defaultLocalUrl } from "../../utils/consts";
 
-const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API || defaultLocalUrl;
+const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 
 export const jsonDataApi = axios.create({
 	baseURL: `${API_BASE_URL}/api/json-export`,
