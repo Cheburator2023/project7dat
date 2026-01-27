@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import axios from "axios";
 import {
@@ -11,10 +11,14 @@ import {
 	DialogContent,
 	DialogTitle,
 	Divider,
+	IconButton,
 	TextField,
 	Typography,
 } from "@mui/material";
-import { CloudUpload as CloudUploadIcon } from "@mui/icons-material";
+import {
+	Close as CloseIcon,
+	CloudUpload as CloudUploadIcon,
+} from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import { useAuthStore } from "@react-client/common/store/authStore";
 
@@ -43,7 +47,7 @@ const fileToBase64 = (file: File): Promise<string> =>
 		reader.onload = () => {
 			const result = reader.result;
 			if (typeof result !== "string") {
-				reject(new Error("Invalid file read result"));
+				reject(new Error("Некорректный результат чтения файла"));
 				return;
 			}
 			const commaIdx = result.indexOf(",");
@@ -57,14 +61,18 @@ interface S2tImportDialogProps {
 	open: boolean;
 	onClose: () => void;
 	onImported?: () => void;
+	prefillCommitId?: string | null;
 }
 
 export const S2tImportDialog = ({
 	open,
 	onClose,
 	onImported,
+	prefillCommitId,
 }: S2tImportDialogProps) => {
 	const authStore = useAuthStore();
+	const username = authStore.userInfo?.username ?? "system";
+	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
 	const [convertedMeta, setConvertedMeta] = useState<{
 		fileName?: string;
 		generatedAt: string;
@@ -78,11 +86,19 @@ export const S2tImportDialog = ({
 	const [processName, setProcessName] = useState("");
 	const [processDescription, setProcessDescription] = useState("");
 
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isSaving, setIsSaving] = useState(false);
+	const [isApplying, setIsApplying] = useState(false);
 	const [error, setError] = useState<string>("");
 	const [infoMessage, setInfoMessage] = useState<string>("");
 	const [validationErrors, setValidationErrors] = useState<string[]>([]);
 	const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+	const [savedCommit, setSavedCommit] = useState<{
+		id: string;
+		state: "processing" | "done" | "failed";
+		change_id: number | null;
+		error: string | null;
+	} | null>(null);
+	const [originalCommitId, setOriginalCommitId] = useState<string | null>(null);
 
 	const showProcessFields = useMemo(() => {
 		const fileName = selectedFile?.name?.toLowerCase() ?? "";
@@ -100,11 +116,14 @@ export const S2tImportDialog = ({
 		setProcessName("");
 		setProcessDescription("");
 		setConvertedMeta(null);
-		setIsSubmitting(false);
+		setIsSaving(false);
+		setIsApplying(false);
 		setError("");
 		setInfoMessage("");
 		setValidationErrors([]);
 		setValidationWarnings([]);
+		setSavedCommit(null);
+		setOriginalCommitId(null);
 		setDragOver(false);
 	}, []);
 
@@ -112,6 +131,52 @@ export const S2tImportDialog = ({
 		resetState();
 		onClose();
 	}, [onClose, resetState]);
+
+	useEffect(() => {
+		let cancelled = false;
+		const run = async () => {
+			if (!open) return;
+			if (!prefillCommitId) return;
+
+			try {
+				const res = await axios.get(
+					`${API_BASE_URL}/api/s2t-commits/${prefillCommitId}`,
+				);
+				const commit = (res.data?.commit ?? res.data) as any;
+
+				if (cancelled) return;
+
+				setCommitName(String(commit?.commit_name ?? commit?.commitName ?? ""));
+				setCommitDescription(
+					String(commit?.commit_description ?? commit?.commitDescription ?? ""),
+				);
+				setSavedCommit({
+					id: String(commit?.id ?? prefillCommitId),
+					state: (commit?.state ?? "done") as "processing" | "done" | "failed",
+					change_id:
+						typeof commit?.change_id === "number" ? commit.change_id : null,
+					error: commit?.error ?? null,
+				});
+				setOriginalCommitId(
+					String(commit?.parent_id ?? commit?.id ?? prefillCommitId),
+				);
+				setError("");
+				setInfoMessage("");
+			} catch (e: any) {
+				if (cancelled) return;
+				setError(
+					e?.response?.data?.message ||
+						e?.message ||
+						"Не удалось загрузить коммит",
+				);
+			}
+		};
+
+		run();
+		return () => {
+			cancelled = true;
+		};
+	}, [open, prefillCommitId]);
 
 	const validateFile = useCallback((file: File): string | null => {
 		const name = file.name.toLowerCase();
@@ -162,108 +227,225 @@ export const S2tImportDialog = ({
 		setDragOver(false);
 	}, []);
 
-	const handleSubmit = useCallback(async () => {
-		if (!selectedFile) {
-			setError("Выберите файл S2T (.xlsx)");
-			return;
-		}
-		if (!commitName.trim()) {
-			setError("Заполните наименование");
-			return;
-		}
-		if (showProcessFields && !processName.trim()) {
-			setError("Заполните наименование процесса");
-			return;
-		}
+	const commitType = useMemo<"table" | "json" | "model">(() => {
+		const fileName = selectedFile?.name?.toLowerCase() ?? "";
+		if (fileName.includes("json_")) return "json";
+		if (fileName.includes("model_")) return "model";
+		return "table";
+	}, [selectedFile?.name]);
 
-		setError("");
-		setInfoMessage("");
-		setValidationErrors([]);
-		setValidationWarnings([]);
-		setConvertedMeta(null);
-		setIsSubmitting(true);
-
-		try {
-			const xlsxBase64 = await fileToBase64(selectedFile);
-
-			const convertResponse = await axios.post(
-				`${API_BASE_URL}/api/s2t/convert-xlsx-to-commit-json`,
-				{
-					xlsxBase64,
-					fileName: selectedFile.name,
-					commitName: commitName.trim(),
-					processName: showProcessFields ? processName.trim() : undefined,
-					processDescription: showProcessFields
-						? processDescription.trim()
-						: undefined,
-				},
-			);
-
-			const commitJson = convertResponse.data?.commitJson;
-			const meta = convertResponse.data?.meta;
-
-			setConvertedMeta({
-				fileName: meta?.fileName,
-				generatedAt: meta?.generatedAt ?? new Date().toISOString(),
-				worksheetsCount: commitJson?.entities?.length ?? 0,
-			});
-
-			const validateResponse = await axios.post(
-				`${API_BASE_URL}/api/json-validation/validate`,
-				{ data: commitJson },
-			);
-
-			if (!validateResponse.data?.isValid) {
-				setValidationErrors(
-					Array.isArray(validateResponse.data?.errors)
-						? validateResponse.data.errors
-						: [],
-				);
-				setValidationWarnings(
-					Array.isArray(validateResponse.data?.warnings)
-						? validateResponse.data.warnings
-						: [],
-				);
+	const handleSaveCommit = useCallback(
+		async (mode?: "overwrite" | "edition") => {
+			if (!selectedFile) {
+				setError("Выберите файл S2T (.xlsx)");
+				return;
+			}
+			if (!commitName.trim()) {
+				setError("Заполните наименование");
+				return;
+			}
+			if (showProcessFields && !processName.trim()) {
+				setError("Заполните наименование процесса");
 				return;
 			}
 
-			await axios.post(`${API_BASE_URL}/api/json-import/dapp`, {
-				data: commitJson,
-				user: authStore.userInfo?.username ?? "system",
-				changeName: commitName.trim(),
-				validated: true,
-				sourceType: "DAPP",
+			setError("");
+			setInfoMessage("");
+			setValidationErrors([]);
+			setValidationWarnings([]);
+			setConvertedMeta(null);
+			setIsSaving(true);
+
+			try {
+				const xlsxBase64 = await fileToBase64(selectedFile);
+
+				const convertResponse = await axios.post(
+					`${API_BASE_URL}/api/s2t/convert-xlsx-to-commit-json`,
+					{
+						xlsxBase64,
+						fileName: selectedFile.name,
+						commitName: commitName.trim(),
+						processName: showProcessFields ? processName.trim() : undefined,
+						processDescription: showProcessFields
+							? processDescription.trim()
+							: undefined,
+					},
+				);
+
+				const commitJson = convertResponse.data?.commitJson;
+				const meta = convertResponse.data?.meta;
+
+				setConvertedMeta({
+					fileName: meta?.fileName,
+					generatedAt: meta?.generatedAt ?? new Date().toISOString(),
+					worksheetsCount: commitJson?.entities?.length ?? 0,
+				});
+
+				const validateResponse = await axios.post(
+					`${API_BASE_URL}/api/json-validation/validate`,
+					{ data: commitJson },
+				);
+
+				if (!validateResponse.data?.isValid) {
+					setValidationErrors(
+						Array.isArray(validateResponse.data?.errors)
+							? validateResponse.data.errors
+							: [],
+					);
+					setValidationWarnings(
+						Array.isArray(validateResponse.data?.warnings)
+							? validateResponse.data.warnings
+							: [],
+					);
+					return;
+				}
+
+				const saveResponse = await axios.post(
+					`${API_BASE_URL}/api/s2t-commits`,
+					{
+						id: mode === "overwrite" ? savedCommit?.id : undefined,
+						parent_id:
+							mode === "edition"
+								? (originalCommitId ?? savedCommit?.id)
+								: undefined,
+						commit_name: commitName.trim(),
+						commit_description: commitDescription.trim()
+							? commitDescription.trim()
+							: undefined,
+						type: commitType,
+						user: username,
+						payload: commitJson,
+					},
+				);
+
+				const savedId: string | undefined = saveResponse.data?.id;
+				if (!savedId) {
+					throw new Error("Не удалось сохранить коммит: сервер не вернул id");
+				}
+				if (!originalCommitId) {
+					setOriginalCommitId(savedId);
+				}
+
+				setSavedCommit({
+					id: savedId,
+					state: saveResponse.data?.state,
+					change_id: saveResponse.data?.change_id ?? null,
+					error: saveResponse.data?.error ?? null,
+				});
+
+				localStorage.setItem(
+					S2T_PENDING_COMMIT_LS_KEY,
+					JSON.stringify({
+						commitId: savedId,
+						originalCommitId: originalCommitId ?? savedId,
+						state: "saved",
+						updatedAt: new Date().toISOString(),
+					}),
+				);
+
+				setInfoMessage(
+					mode === "edition"
+						? "Создана редакция коммита. Теперь можно применить."
+						: "Коммит сохранён. Теперь можно применить.",
+				);
+			} catch (e: any) {
+				setError(e?.response?.data?.message || e?.message || "Ошибка импорта");
+			} finally {
+				setIsSaving(false);
+			}
+		},
+		[
+			commitDescription,
+			commitName,
+			commitType,
+			originalCommitId,
+			processDescription,
+			processName,
+			selectedFile,
+			savedCommit?.id,
+			showProcessFields,
+			username,
+		],
+	);
+
+	const handleApplyCommit = useCallback(async () => {
+		if (!savedCommit?.id) {
+			setError("Сначала сохраните коммит");
+			return;
+		}
+		setError("");
+		setInfoMessage("");
+		setIsApplying(true);
+		try {
+			localStorage.setItem(
+				S2T_PENDING_COMMIT_LS_KEY,
+				JSON.stringify({
+					commitId: savedCommit.id,
+					originalCommitId: originalCommitId ?? savedCommit.id,
+					state: "applying",
+					updatedAt: new Date().toISOString(),
+				}),
+			);
+
+			const applyResponse = await axios.post(
+				`${API_BASE_URL}/api/s2t-commits/${savedCommit.id}/apply`,
+				{ user: username, sourceType: "DAPP" },
+			);
+
+			const commit = applyResponse.data?.commit;
+			setSavedCommit({
+				id: commit?.id ?? savedCommit.id,
+				state: commit?.state ?? "done",
+				change_id: commit?.change_id ?? applyResponse.data?.changeId ?? null,
+				error: commit?.error ?? null,
 			});
 
 			onImported?.();
+			setInfoMessage("Коммит применён.");
+			localStorage.removeItem(S2T_PENDING_COMMIT_LS_KEY);
 			handleClose();
 		} catch (e: any) {
-			setError(e?.response?.data?.message || e?.message || "Ошибка импорта");
+			localStorage.setItem(
+				S2T_PENDING_COMMIT_LS_KEY,
+				JSON.stringify({
+					commitId: savedCommit.id,
+					originalCommitId: originalCommitId ?? savedCommit.id,
+					state: "failed",
+					updatedAt: new Date().toISOString(),
+				}),
+			);
+			setError(e?.response?.data?.message || e?.message || "Ошибка применения");
 		} finally {
-			setIsSubmitting(false);
+			setIsApplying(false);
 		}
-	}, [
-		authStore.userInfo?.username,
-		commitDescription,
-		commitName,
-		handleClose,
-		onImported,
-		processDescription,
-		processName,
-		selectedFile,
-		showProcessFields,
-	]);
+	}, [handleClose, onImported, originalCommitId, savedCommit, username]);
 
 	return (
 		<Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-			<DialogTitle>
-				<Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+			<DialogTitle
+				sx={{
+					display: "flex",
+					alignItems: "flex-start",
+					justifyContent: "space-between",
+					gap: 2,
+				}}
+			>
+				<Box sx={{ display: "flex", flexDirection: "column", gap: 1, flex: 1 }}>
 					<Typography variant="h6">Коммит</Typography>
 					<Typography variant="body2" color="text.secondary">
 						Файл коммита{" "}
 						{selectedFile ? `<${selectedFile.name}>` : "<имя файла S2T>"}
 					</Typography>
 				</Box>
+				<IconButton
+					onClick={handleClose}
+					disabled={isSaving || isApplying}
+					title="Закрыть"
+					edge="end"
+					size="small"
+				>
+					<CloseIcon fontSize="small" />
+				</IconButton>
 			</DialogTitle>
 			<DialogContent dividers>
 				<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -294,7 +476,7 @@ export const S2tImportDialog = ({
 								onChange={(e) => setCommitName(e.target.value)}
 								placeholder="название коммита"
 								fullWidth
-								disabled={isSubmitting}
+								disabled={isSaving || isApplying}
 							/>
 							<Typography sx={{ pt: 1 }}>Описание</Typography>
 							<TextField
@@ -305,7 +487,7 @@ export const S2tImportDialog = ({
 								multiline
 								rows={3}
 								fullWidth
-								disabled={isSubmitting}
+								disabled={isSaving || isApplying}
 							/>
 						</Box>
 					</Box>
@@ -344,7 +526,7 @@ export const S2tImportDialog = ({
 										onChange={(e) => setProcessName(e.target.value)}
 										placeholder="наименование процесса"
 										fullWidth
-										disabled={isSubmitting}
+										disabled={isSaving || isApplying}
 									/>
 									<Typography sx={{ pt: 1 }}>Описание</Typography>
 									<TextField
@@ -355,7 +537,7 @@ export const S2tImportDialog = ({
 										multiline
 										rows={3}
 										fullWidth
-										disabled={isSubmitting}
+										disabled={isSaving || isApplying}
 									/>
 								</Box>
 							</Box>
@@ -445,25 +627,96 @@ export const S2tImportDialog = ({
 
 					{infoMessage && <Alert severity="info">{infoMessage}</Alert>}
 
+					{savedCommit?.id && (
+						<Alert severity="info">
+							<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+								<Typography variant="subtitle2">Хранилище коммитов</Typography>
+								<Typography variant="body2">
+									ID коммита: {savedCommit.id}
+								</Typography>
+								<Typography variant="body2">
+									Состояние:{" "}
+									{savedCommit.state === "processing"
+										? "в обработке"
+										: savedCommit.state === "done"
+											? "готово"
+											: savedCommit.state === "failed"
+												? "ошибка"
+												: savedCommit.state}
+								</Typography>
+								{typeof savedCommit.change_id === "number" && (
+									<Typography variant="body2">
+										ID изменения: {savedCommit.change_id}
+									</Typography>
+								)}
+								{savedCommit.error && (
+									<Typography variant="body2">
+										Ошибка: {savedCommit.error}
+									</Typography>
+								)}
+							</Box>
+						</Alert>
+					)}
+
 					{error && <Alert severity="error">{error}</Alert>}
 				</Box>
 			</DialogContent>
 			<DialogActions>
-				<Button onClick={handleClose} disabled={isSubmitting}>
+				<Button
+					onClick={handleClose}
+					disabled={isSaving || isApplying}
+					title="Закрыть диалог импорта без сохранения и без применения изменений."
+				>
 					Отмена
 				</Button>
 				<Button
-					onClick={handleSubmit}
+					onClick={() =>
+						handleSaveCommit(savedCommit?.id ? "overwrite" : undefined)
+					}
 					variant="contained"
-					disabled={isSubmitting}
+					disabled={isSaving || isApplying}
+					title={
+						savedCommit?.id
+							? "Сохранить текущий результат конвертации в хранилище коммитов, перезаписав ранее сохранённый коммит (тот же ID коммита). Применение в модель НЕ выполняется."
+							: "Сохранить текущий результат конвертации в хранилище коммитов как новый коммит. Применение в модель НЕ выполняется."
+					}
 				>
-					{isSubmitting ? (
+					{isSaving ? (
 						<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
 							<CircularProgress size={18} />
-							<span>OK</span>
+							<span>Сохранение</span>
 						</Box>
 					) : (
-						"OK"
+						"Сохранить"
+					)}
+				</Button>
+				<Button
+					onClick={() => handleSaveCommit("edition")}
+					variant="outlined"
+					disabled={
+						isSaving || isApplying || (!originalCommitId && !savedCommit?.id)
+					}
+					title="Сохранить коммит как новую редакцию с ссылкой на родительский коммит (parent_id). Применение в модель НЕ выполняется."
+				>
+					Сохранить как редакцию
+				</Button>
+				<Button
+					onClick={handleApplyCommit}
+					variant="outlined"
+					disabled={!savedCommit?.id || isSaving || isApplying}
+					title={
+						!savedCommit?.id
+							? "Сначала сохрани коммит (появится commitId), после этого его можно применить."
+							: "Применить сохранённый коммит к текущей модели на сервере. После успешного применения данные будут обновлены, а pending-статус коммита будет очищен."
+					}
+				>
+					{isApplying ? (
+						<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+							<CircularProgress size={18} />
+							<span>Применение</span>
+						</Box>
+					) : (
+						"Применить"
 					)}
 				</Button>
 			</DialogActions>
