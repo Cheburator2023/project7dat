@@ -5,9 +5,8 @@ import type {
 	CommitQueueApiItem,
 	JsonDataItem,
 } from "./jsonDataApi";
-import { defaultLocalUrl } from "../../utils/consts";
 
-const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API || defaultLocalUrl;
+const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 
 export const jsonCommitApi = axios.create({
 	baseURL: `${API_BASE_URL}/api/json-commits`,
