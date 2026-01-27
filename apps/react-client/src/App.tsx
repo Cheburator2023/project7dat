@@ -53,7 +53,7 @@ interface AppProps {
 	bridged?: boolean;
 	token?: string;
 	keycloak?: any;
-	user?: Keycloak.KeycloakTokenParsed & {
+	user?: any & {
 		family_name: string;
 		given_name: string;
 		realm_access: {
