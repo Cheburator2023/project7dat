@@ -1,305 +1,369 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Repository, In } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { QueryRunner } from 'typeorm';
-import { ProcessEntity } from '../entities/process.entity';
-import { EntityMapEntity } from '../entities/entity-map.entity';
-import { AttributeMapEntity } from '../entities/attribute-map.entity';
-import { AttributeMapSourceEntity } from '../entities/attribute-map-source.entity';
-import { EntityAttributeMapEntity } from '../entities/entity-attribute-map.entity';
-import { EntityMapSourceEntity } from '../entities/entity-map-source.entity';
-import { EntityEntity } from '../entities/entity.entity';
+import { Injectable, Logger } from "@nestjs/common";
+import { Repository, In } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
+import { QueryRunner } from "typeorm";
+import { ProcessEntity } from "../entities/process.entity";
+import { ProcessTypeEntity } from "../entities/process-type.entity";
+import { EntityMapEntity } from "../entities/entity-map.entity";
+import { AttributeMapEntity } from "../entities/attribute-map.entity";
+import { AttributeMapSourceEntity } from "../entities/attribute-map-source.entity";
+import { EntityAttributeMapEntity } from "../entities/entity-attribute-map.entity";
+import { EntityMapSourceEntity } from "../entities/entity-map-source.entity";
+import { EntityEntity } from "../entities/entity.entity";
 
 @Injectable()
 export class ProcessHandlingService {
-    private readonly logger = new Logger(ProcessHandlingService.name);
+	private readonly logger = new Logger(ProcessHandlingService.name);
 
-    constructor(
-        @InjectRepository(ProcessEntity)
-        private readonly processRepository: Repository<ProcessEntity>,
-        @InjectRepository(EntityMapEntity)
-        private readonly entityMapRepository: Repository<EntityMapEntity>,
-        @InjectRepository(AttributeMapEntity)
-        private readonly attributeMapRepository: Repository<AttributeMapEntity>,
-        @InjectRepository(AttributeMapSourceEntity)
-        private readonly attributeMapSourceRepository: Repository<AttributeMapSourceEntity>,
-        @InjectRepository(EntityEntity)
-        private readonly entityRepository: Repository<EntityEntity>,
-    ) {}
+	constructor(
+		@InjectRepository(ProcessEntity)
+		private readonly processRepository: Repository<ProcessEntity>,
+		@InjectRepository(EntityMapEntity)
+		private readonly entityMapRepository: Repository<EntityMapEntity>,
+		@InjectRepository(AttributeMapEntity)
+		private readonly attributeMapRepository: Repository<AttributeMapEntity>,
+		@InjectRepository(AttributeMapSourceEntity)
+		private readonly attributeMapSourceRepository: Repository<AttributeMapSourceEntity>,
+		@InjectRepository(EntityEntity)
+		private readonly entityRepository: Repository<EntityEntity>,
+	) {}
 
-    async handleProcess(
-        desc: any,
-        entities: any[],
-        mappings: any[],
-        changeId: number,
-        queryRunner: QueryRunner,
-    ): Promise<ProcessEntity> {
-        if (!desc || !desc.appName) {
-            throw new Error('Неверная структура desc: отсутствует appName');
-        }
+	async handleProcess(
+		desc: any,
+		_entities: any[],
+		mappings: any[],
+		changeId: number,
+		queryRunner: QueryRunner,
+	): Promise<ProcessEntity> {
+		if (!desc || !desc.appName) {
+			throw new Error("Неверная структура desc: отсутствует appName");
+		}
 
-        const processName = this.extractProcessName(desc.appName);
+		const processName = this.extractProcessName(desc.appName);
 
-        // Поиск существующего процесса
-        let process = await this.processRepository.findOne({
-            where: { name: processName },
-        });
+		// Поиск существующего процесса
+		let process = await this.processRepository.findOne({
+			where: { name: processName },
+		});
 
-        if (process) {
-            this.logger.log(
-                `Найден существующий процесс: ${processName} (ID: ${process.process_id})`,
-            );
+		if (process) {
+			this.logger.log(
+				`Найден существующий процесс: ${processName} (ID: ${process.process_id})`,
+			);
 
-            // Для существующего процесса обновляем change_id
-            process.change_id = changeId;
-            process.description = desc.appName;
-            process = await queryRunner.manager.save(ProcessEntity, process);
+			// Для существующего процесса обновляем change_id
+			process.change_id = changeId;
+			process.description = desc.appName;
+			process = await queryRunner.manager.save(ProcessEntity, process);
 
-            // Удаляем только связи для совпадающих источников и витрин
-            await this.cleanupMatchingMappings(process.process_id, mappings, queryRunner);
-        } else {
-            this.logger.log(`Создание нового процесса: ${processName}`);
+			// Удаляем только связи для совпадающих источников и витрин
+			await this.cleanupMatchingMappings(
+				process.process_id,
+				mappings,
+				queryRunner,
+			);
+		} else {
+			this.logger.log(`Создание нового процесса: ${processName}`);
 
-            // Создание нового процесса
-            process = new ProcessEntity();
-            process.name = processName;
-            process.change_id = changeId;
-            process.process_type = await this.determineProcessType(desc.appName);
-            process.description = desc.appName;
-            process.group_id = null;
+			// Создание нового процесса
+			process = new ProcessEntity();
+			process.name = processName;
+			process.change_id = changeId;
+			process.process_type = await this.resolveProcessTypeId(
+				desc.appName,
+				changeId,
+				queryRunner,
+			);
+			process.description = desc.appName;
+			process.group_id = null;
 
-            process = await queryRunner.manager.save(ProcessEntity, process);
-        }
+			process = await queryRunner.manager.save(ProcessEntity, process);
+		}
 
-        return process;
-    }
+		return process;
+	}
 
-    private extractProcessName(appName: string): string {
-        return appName.split('.')[0];
-    }
+	private extractProcessName(appName: string): string {
+		return appName.split(".")[0];
+	}
 
-    private async determineProcessType(appName: string): Promise<number> {
-        if (appName.includes('DAG')) {
-            return 1; // DAG_AIRFLOW
-        } else if (appName.includes('Spark')) {
-            return 2; // SPARK_JOB
-        } else {
-            return 3; // AUTO_MAPPER
-        }
-    }
+	private getProcessTypeName(appName: string): string {
+		if (appName.includes("DAG")) {
+			return "DAG_AIRFLOW";
+		}
+		if (appName.includes("Spark")) {
+			return "SPARK_JOB";
+		}
+		return "AUTO_MAPPER";
+	}
 
-    /**
-     * Удаляет связи только для совпадающих источников и витрин текущего процесса
-     */
-    private async cleanupMatchingMappings(
-        processId: number,
-        newMappings: any[],
-        queryRunner: QueryRunner,
-    ): Promise<void> {
-        this.logger.log(`Очистка связей для совпадающих источников и витрин процесса: ${processId}`);
+	private async resolveProcessTypeId(
+		appName: string,
+		changeId: number,
+		queryRunner: QueryRunner,
+	): Promise<number> {
+		const typeName = this.getProcessTypeName(appName);
 
-        try {
-            // Получаем список target entities из новых маппингов
-            const targetEntityIds = this.extractTargetEntityIds(newMappings);
+		const existing = await queryRunner.manager.findOne(ProcessTypeEntity, {
+			where: { name: typeName },
+		});
+		if (existing) return existing.process_type_id;
 
-            if (targetEntityIds.length === 0) {
-                this.logger.log('Нет target entities для очистки связей');
-                return;
-            }
+		this.logger.warn(
+			`Тип процесса '${typeName}' не найден в таблице process_type. Создаю запись автоматически.`,
+		);
 
-            // Находим entity_id для target entities
-            const targetEntities = await this.entityRepository.find({
-                where: { full_name: In(targetEntityIds) }
-            });
+		const created = new ProcessTypeEntity();
+		created.name = typeName;
+		created.description = typeName;
+		created.change_id = changeId;
 
-            if (targetEntities.length === 0) {
-                this.logger.log('Не найдены entity записи для target entities');
-                return;
-            }
+		const saved = await queryRunner.manager.save(ProcessTypeEntity, created);
+		return saved.process_type_id;
+	}
 
-            const targetEntityIdsNum = targetEntities.map(e => e.entity_id);
+	/**
+	 * Удаляет связи только для совпадающих источников и витрин текущего процесса
+	 */
+	private async cleanupMatchingMappings(
+		processId: number,
+		newMappings: any[],
+		queryRunner: QueryRunner,
+	): Promise<void> {
+		this.logger.log(
+			`Очистка связей для совпадающих источников и витрин процесса: ${processId}`,
+		);
 
-            // Находим entity_map для target entities и текущего процесса
-            const entityMaps = await this.entityMapRepository.find({
-                where: {
-                    entity_id: In(targetEntityIdsNum),
-                    process_id: processId
-                }
-            });
+		try {
+			// Получаем список target entities из новых маппингов
+			const targetEntityIds = this.extractTargetEntityIds(newMappings);
 
-            if (entityMaps.length === 0) {
-                this.logger.log('Не найдены entity_map записи для очистки');
-                return;
-            }
+			if (targetEntityIds.length === 0) {
+				this.logger.log("Нет target entities для очистки связей");
+				return;
+			}
 
-            const entityMapIds = entityMaps.map(em => em.entity_map_id);
+			// Находим entity_id для target entities
+			const targetEntities = await this.entityRepository.find({
+				where: { full_name: In(targetEntityIds) },
+			});
 
-            // Получаем source entities из новых маппингов
-            const sourceEntityIds = this.extractSourceEntityIds(newMappings);
-            const sourceEntities = await this.entityRepository.find({
-                where: { full_name: In(sourceEntityIds) }
-            });
+			if (targetEntities.length === 0) {
+				this.logger.log("Не найдены entity записи для target entities");
+				return;
+			}
 
-            const sourceEntityIdsNum = sourceEntities.map(e => e.entity_id);
+			const targetEntityIdsNum = targetEntities.map((e) => e.entity_id);
 
-            // Удаляем связи только для совпадающих источников и витрин
-            await this.cleanupMatchingAttributeMappings(entityMapIds, sourceEntityIdsNum, queryRunner);
-            await this.cleanupMatchingEntityMappings(entityMapIds, sourceEntityIdsNum, queryRunner);
+			// Находим entity_map для target entities и текущего процесса
+			const entityMaps = await this.entityMapRepository.find({
+				where: {
+					entity_id: In(targetEntityIdsNum),
+					process_id: processId,
+				},
+			});
 
-            this.logger.log(`Очищены связи для ${entityMaps.length} entity_map записей`);
+			if (entityMaps.length === 0) {
+				this.logger.log("Не найдены entity_map записи для очистки");
+				return;
+			}
 
-        } catch (error) {
-            this.logger.error(`Ошибка при очистке совпадающих маппингов: ${error.message}`, error.stack);
-            throw error;
-        }
-    }
+			const entityMapIds = entityMaps.map((em) => em.entity_map_id);
 
-    /**
-     * Извлекает target entity IDs из маппингов
-     */
-    private extractTargetEntityIds(mappings: any[]): string[] {
-        if (!mappings || !Array.isArray(mappings)) {
-            return [];
-        }
+			// Получаем source entities из новых маппингов
+			const sourceEntityIds = this.extractSourceEntityIds(newMappings);
+			const sourceEntities = await this.entityRepository.find({
+				where: { full_name: In(sourceEntityIds) },
+			});
 
-        const targetIds = new Set<string>();
-        mappings.forEach(mapping => {
-            if (mapping.entityId) {
-                targetIds.add(mapping.entityId);
-            }
-        });
+			const sourceEntityIdsNum = sourceEntities.map((e) => e.entity_id);
 
-        return Array.from(targetIds);
-    }
+			// Удаляем связи только для совпадающих источников и витрин
+			await this.cleanupMatchingAttributeMappings(
+				entityMapIds,
+				sourceEntityIdsNum,
+				queryRunner,
+			);
+			await this.cleanupMatchingEntityMappings(
+				entityMapIds,
+				sourceEntityIdsNum,
+				queryRunner,
+			);
 
-    /**
-     * Извлекает source entity IDs из маппингов
-     */
-    private extractSourceEntityIds(mappings: any[]): string[] {
-        if (!mappings || !Array.isArray(mappings)) {
-            return [];
-        }
+			this.logger.log(
+				`Очищены связи для ${entityMaps.length} entity_map записей`,
+			);
+		} catch (error) {
+			this.logger.error(
+				`Ошибка при очистке совпадающих маппингов: ${error.message}`,
+				error.stack,
+			);
+			throw error;
+		}
+	}
 
-        const sourceIds = new Set<string>();
-        mappings.forEach(mapping => {
-            if (mapping.deps && Array.isArray(mapping.deps)) {
-                mapping.deps.forEach((dep: any) => {
-                    if (dep.entityId) {
-                        sourceIds.add(dep.entityId);
-                    }
-                });
-            }
-        });
+	/**
+	 * Извлекает target entity IDs из маппингов
+	 */
+	private extractTargetEntityIds(mappings: any[]): string[] {
+		if (!mappings || !Array.isArray(mappings)) {
+			return [];
+		}
 
-        return Array.from(sourceIds);
-    }
+		const targetIds = new Set<string>();
+		mappings.forEach((mapping) => {
+			if (mapping.entityId) {
+				targetIds.add(mapping.entityId);
+			}
+		});
 
-    /**
-     * Удаляет attribute mappings только для совпадающих источников
-     */
-    private async cleanupMatchingAttributeMappings(
-        entityMapIds: number[],
-        sourceEntityIds: number[],
-        queryRunner: QueryRunner,
-    ): Promise<void> {
-        if (entityMapIds.length === 0 || sourceEntityIds.length === 0) {
-            return;
-        }
+		return Array.from(targetIds);
+	}
 
-        // Находим attribute_map для entity_map
-        const attributeMaps = await this.attributeMapRepository.find({
-            where: { entity_map_id: In(entityMapIds) }
-        });
+	/**
+	 * Извлекает source entity IDs из маппингов
+	 */
+	private extractSourceEntityIds(mappings: any[]): string[] {
+		if (!mappings || !Array.isArray(mappings)) {
+			return [];
+		}
 
-        if (attributeMaps.length === 0) {
-            return;
-        }
+		const sourceIds = new Set<string>();
+		mappings.forEach((mapping) => {
+			if (mapping.deps && Array.isArray(mapping.deps)) {
+				mapping.deps.forEach((dep: any) => {
+					if (dep.entityId) {
+						sourceIds.add(dep.entityId);
+					}
+				});
+			}
+		});
 
-        const attributeMapIds = attributeMaps.map(am => am.attribute_map_id);
+		return Array.from(sourceIds);
+	}
 
-        // Находим attribute_map_source только для совпадающих source entities
-        const attributeMapSources = await this.attributeMapSourceRepository
-            .createQueryBuilder('ams')
-            .innerJoin('ams.source_attribute', 'attribute')
-            .where('ams.attribute_map_id IN (:...attributeMapIds)', { attributeMapIds })
-            .andWhere('attribute.entity_id IN (:...sourceEntityIds)', { sourceEntityIds })
-            .getMany();
+	/**
+	 * Удаляет attribute mappings только для совпадающих источников
+	 */
+	private async cleanupMatchingAttributeMappings(
+		entityMapIds: number[],
+		sourceEntityIds: number[],
+		queryRunner: QueryRunner,
+	): Promise<void> {
+		if (entityMapIds.length === 0 || sourceEntityIds.length === 0) {
+			return;
+		}
 
-        const attributeMapSourceIds = attributeMapSources.map(ams => ams.attribute_map_id);
+		// Находим attribute_map для entity_map
+		const attributeMaps = await this.attributeMapRepository.find({
+			where: { entity_map_id: In(entityMapIds) },
+		});
 
-        if (attributeMapSourceIds.length > 0) {
-            // Удаляем entity_attribute_map для совпадающих attribute_map_source
-            await queryRunner.manager.delete(EntityAttributeMapEntity, {
-                entity_map_id: In(entityMapIds),
-                source_attribute_id: In(attributeMapSources.map(ams => ams.source_attribute_id))
-            });
+		if (attributeMaps.length === 0) {
+			return;
+		}
 
-            // Удаляем attribute_map_source для совпадающих источников
-            await queryRunner.manager.delete(AttributeMapSourceEntity, {
-                attribute_map_id: In(attributeMapSourceIds),
-                source_attribute_id: In(attributeMapSources.map(ams => ams.source_attribute_id))
-            });
-        }
+		const attributeMapIds = attributeMaps.map((am) => am.attribute_map_id);
 
-        // Удаляем attribute_map для entity_map (они будут пересозданы)
-        await queryRunner.manager.delete(AttributeMapEntity, {
-            entity_map_id: In(entityMapIds)
-        });
-    }
+		// Находим attribute_map_source только для совпадающих source entities
+		const attributeMapSources = await this.attributeMapSourceRepository
+			.createQueryBuilder("ams")
+			.innerJoin("ams.source_attribute", "attribute")
+			.where("ams.attribute_map_id IN (:...attributeMapIds)", {
+				attributeMapIds,
+			})
+			.andWhere("attribute.entity_id IN (:...sourceEntityIds)", {
+				sourceEntityIds,
+			})
+			.getMany();
 
-    /**
-     * Удаляет entity mappings только для совпадающих источников
-     */
-    private async cleanupMatchingEntityMappings(
-        entityMapIds: number[],
-        sourceEntityIds: number[],
-        queryRunner: QueryRunner,
-    ): Promise<void> {
-        if (entityMapIds.length === 0 || sourceEntityIds.length === 0) {
-            return;
-        }
+		const attributeMapSourceIds = attributeMapSources.map(
+			(ams) => ams.attribute_map_id,
+		);
 
-        // Удаляем entity_attribute_map для совпадающих источников
-        await queryRunner.manager.delete(EntityAttributeMapEntity, {
-            entity_map_id: In(entityMapIds),
-            source_attribute_id: In(await this.getSourceAttributeIds(sourceEntityIds))
-        });
+		if (attributeMapSourceIds.length > 0) {
+			// Удаляем entity_attribute_map для совпадающих attribute_map_source
+			await queryRunner.manager.delete(EntityAttributeMapEntity, {
+				entity_map_id: In(entityMapIds),
+				source_attribute_id: In(
+					attributeMapSources.map((ams) => ams.source_attribute_id),
+				),
+			});
 
-        // Удаляем entity_map_source для совпадающих источников
-        await queryRunner.manager.delete(EntityMapSourceEntity, {
-            entity_map_id: In(entityMapIds),
-            source_entity_id: In(sourceEntityIds)
-        });
-    }
+			// Удаляем attribute_map_source для совпадающих источников
+			await queryRunner.manager.delete(AttributeMapSourceEntity, {
+				attribute_map_id: In(attributeMapSourceIds),
+				source_attribute_id: In(
+					attributeMapSources.map((ams) => ams.source_attribute_id),
+				),
+			});
+		}
 
-    /**
-     * Получает attribute_ids для source entities
-     */
-    private async getSourceAttributeIds(sourceEntityIds: number[]): Promise<number[]> {
-        if (sourceEntityIds.length === 0) {
-            return [];
-        }
+		// Удаляем attribute_map для entity_map (они будут пересозданы)
+		await queryRunner.manager.delete(AttributeMapEntity, {
+			entity_map_id: In(entityMapIds),
+		});
+	}
 
-        const attributes = await this.attributeMapSourceRepository
-            .createQueryBuilder('ams')
-            .select('DISTINCT ams.source_attribute_id', 'source_attribute_id')
-            .innerJoin('ams.source_attribute', 'attribute')
-            .where('attribute.entity_id IN (:...sourceEntityIds)', { sourceEntityIds })
-            .getRawMany();
+	/**
+	 * Удаляет entity mappings только для совпадающих источников
+	 */
+	private async cleanupMatchingEntityMappings(
+		entityMapIds: number[],
+		sourceEntityIds: number[],
+		queryRunner: QueryRunner,
+	): Promise<void> {
+		if (entityMapIds.length === 0 || sourceEntityIds.length === 0) {
+			return;
+		}
 
-        return attributes.map(attr => attr.source_attribute_id);
-    }
+		// Удаляем entity_attribute_map для совпадающих источников
+		await queryRunner.manager.delete(EntityAttributeMapEntity, {
+			entity_map_id: In(entityMapIds),
+			source_attribute_id: In(
+				await this.getSourceAttributeIds(sourceEntityIds),
+			),
+		});
 
-    async getProcessIdFromData(data: any): Promise<number> {
-        if (!data.desc?.appName) {
-            return 0;
-        }
+		// Удаляем entity_map_source для совпадающих источников
+		await queryRunner.manager.delete(EntityMapSourceEntity, {
+			entity_map_id: In(entityMapIds),
+			source_entity_id: In(sourceEntityIds),
+		});
+	}
 
-        const processName = this.extractProcessName(data.desc.appName);
-        const process = await this.processRepository.findOne({
-            where: { name: processName },
-        });
+	/**
+	 * Получает attribute_ids для source entities
+	 */
+	private async getSourceAttributeIds(
+		sourceEntityIds: number[],
+	): Promise<number[]> {
+		if (sourceEntityIds.length === 0) {
+			return [];
+		}
 
-        return process ? process.process_id : 0;
-    }
+		const attributes = await this.attributeMapSourceRepository
+			.createQueryBuilder("ams")
+			.select("DISTINCT ams.source_attribute_id", "source_attribute_id")
+			.innerJoin("ams.source_attribute", "attribute")
+			.where("attribute.entity_id IN (:...sourceEntityIds)", {
+				sourceEntityIds,
+			})
+			.getRawMany();
+
+		return attributes.map((attr) => attr.source_attribute_id);
+	}
+
+	async getProcessIdFromData(data: any): Promise<number> {
+		if (!data.desc?.appName) {
+			return 0;
+		}
+
+		const processName = this.extractProcessName(data.desc.appName);
+		const process = await this.processRepository.findOne({
+			where: { name: processName },
+		});
+
+		return process ? process.process_id : 0;
+	}
 }

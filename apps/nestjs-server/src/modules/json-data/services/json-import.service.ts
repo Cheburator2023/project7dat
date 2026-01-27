@@ -1,4 +1,10 @@
-import { Injectable, Logger, BadRequestException, ConflictException } from "@nestjs/common";
+import {
+	Injectable,
+	Logger,
+	BadRequestException,
+	ConflictException,
+} from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { DataSource, QueryRunner } from "typeorm";
 import { JsonImportRequestDto } from "../dto";
 import { JsonValidationOrchestratorService } from "./json-validation-orchestrator.service";
@@ -10,278 +16,417 @@ import { EntityProcessingService } from "./entity-processing.service";
 import { MappingProcessingService } from "./mapping-processing.service";
 
 interface ImportResult {
-    success: boolean;
-    changeId: number;
-    message: string;
-    warnings: string[];
-    stats: {
-        entitiesProcessed: number;
-        attributesProcessed: number;
-        mappingsProcessed: number;
-        failedMappingsProcessed: number;
-    };
+	success: boolean;
+	changeId: number;
+	message: string;
+	warnings: string[];
+	stats: {
+		entitiesProcessed: number;
+		attributesProcessed: number;
+		mappingsProcessed: number;
+		failedMappingsProcessed: number;
+	};
 }
 
 @Injectable()
 export class JsonImportService {
-    private readonly logger = new Logger(JsonImportService.name);
+	private readonly logger = new Logger(JsonImportService.name);
 
-    constructor(
-        private readonly dataSource: DataSource,
-        private readonly validationOrchestrator: JsonValidationOrchestratorService,
-        private readonly conflictService: JsonConflictService,
-        private readonly migrationService: JsonMigrationService,
-        private readonly changeRecordService: ChangeRecordService,
-        private readonly processHandlingService: ProcessHandlingService,
-        private readonly entityProcessingService: EntityProcessingService,
-        private readonly mappingProcessingService: MappingProcessingService,
-    ) {}
+	constructor(
+		private readonly dataSource: DataSource,
+		private readonly validationOrchestrator: JsonValidationOrchestratorService,
+		private readonly conflictService: JsonConflictService,
+		private readonly migrationService: JsonMigrationService,
+		private readonly changeRecordService: ChangeRecordService,
+		private readonly processHandlingService: ProcessHandlingService,
+		private readonly entityProcessingService: EntityProcessingService,
+		private readonly mappingProcessingService: MappingProcessingService,
+	) {}
 
-    async importJsonData(importRequest: JsonImportRequestDto): Promise<ImportResult> {
-        const { data, user, changeName, validated = true } = importRequest;
+	async importJsonData(
+		importRequest: JsonImportRequestDto,
+	): Promise<ImportResult> {
+		const { data, user, changeName, validated = true } = importRequest;
 
-        this.logger.log(`Импорт JSON данных пользователем: ${user}`);
+		const importId = randomUUID();
 
-        // Валидация и предобработка данных
-        const processedData = await this.validateAndPreprocessData(data, validated);
+		this.logger.log(
+			`[importId=${importId}] Импорт JSON данных пользователем: ${user}`,
+		);
 
-        // Проверка конфликтов
-        await this.checkForConflicts(processedData);
+		// Валидация и предобработка данных
+		const processedData = await this.validateAndPreprocessData(data, validated);
 
-        // Выполнение импорта в транзакции
-        return await this.executeImportTransaction(processedData, user, changeName);
-    }
+		// Проверка конфликтов
+		await this.checkForConflicts(processedData);
 
-    private async validateAndPreprocessData(data: any, validated: boolean): Promise<any> {
-        if (!validated) {
-            throw new ConflictException(
-                "JSON должен быть проверен и подтвержден пользователем перед импортом",
-            );
-        }
+		// Выполнение импорта в транзакции
+		return await this.executeImportTransaction(
+			processedData,
+			user,
+			changeName,
+			importId,
+		);
+	}
 
-        // Комплексная валидация JSON
-        const validationResult = await this.validationOrchestrator.validate(data);
+	private async validateAndPreprocessData(
+		data: any,
+		validated: boolean,
+	): Promise<any> {
+		if (!validated) {
+			throw new ConflictException(
+				"JSON должен быть проверен и подтвержден пользователем перед импортом",
+			);
+		}
 
-        // Разрешаем импорт если есть только предупреждения (но нет критических ошибок)
-        if (this.hasCriticalErrors(validationResult)) {
-            throw new BadRequestException({
-                message: "Валидация JSON не пройдена",
-                details: validationResult,
-            });
-        }
+		// Комплексная валидация JSON
+		const validationResult = await this.validationOrchestrator.validate(data);
 
-        // Обработка обратной совместимости - ВСЕГДА выполняем миграцию если требуется
-        let processedData = validationResult.normalizedData;
-        if (validationResult.schemaVersion.migrationRequired) {
-            processedData = this.migrationService.migrateDataToCurrentVersion(
-                processedData,
-                validationResult.schemaVersion.incomingVersion,
-            );
-            this.logger.log(
-                `Данные мигрированы с версии ${validationResult.schemaVersion.incomingVersion} на ${validationResult.schemaVersion.currentVersion}`,
-            );
-        }
+		// Разрешаем импорт если есть только предупреждения (но нет критических ошибок)
+		if (this.hasCriticalErrors(validationResult)) {
+			throw new BadRequestException({
+				message: "Валидация JSON не пройдена",
+				details: validationResult,
+			});
+		}
 
-        return processedData;
-    }
+		// Обработка обратной совместимости - ВСЕГДА выполняем миграцию если требуется
+		let processedData = validationResult.normalizedData;
+		if (validationResult.schemaVersion.migrationRequired) {
+			processedData = this.migrationService.migrateDataToCurrentVersion(
+				processedData,
+				validationResult.schemaVersion.incomingVersion,
+			);
+			this.logger.log(
+				`Данные мигрированы с версии ${validationResult.schemaVersion.incomingVersion} на ${validationResult.schemaVersion.currentVersion}`,
+			);
+		}
 
-    /**
-     * Определяет наличие КРИТИЧЕСКИХ ошибок, которые блокируют импорт
-     */
-    private hasCriticalErrors(validationResult: any): boolean {
-        // Критические ошибки структуры
-        if (validationResult.validation.errors.length > 0) {
-            this.logger.warn(`Критические ошибки структуры: ${validationResult.validation.errors.length}`);
-            return true;
-        }
+		return processedData;
+	}
 
-        // Проблемы целостности, связанные с отсутствием source entities, НЕ являются критическими
-        // Они будут обработаны как предупреждения
-        const criticalIntegrityIssues = validationResult.integrity.issues.filter(issue =>
-            !issue.includes('source entity не найдена') &&
-            !issue.includes('target entity не найдена')
-        );
+	/**
+	 * Определяет наличие КРИТИЧЕСКИХ ошибок, которые блокируют импорт
+	 */
+	private hasCriticalErrors(validationResult: any): boolean {
+		// Критические ошибки структуры
+		if (validationResult.validation.errors.length > 0) {
+			this.logger.warn(
+				`Критические ошибки структуры: ${validationResult.validation.errors.length}`,
+			);
+			return true;
+		}
 
-        if (criticalIntegrityIssues.length > 0) {
-            this.logger.warn(`Критические ошибки целостности: ${criticalIntegrityIssues.length}`);
-            return true;
-        }
+		// Проблемы целостности, связанные с отсутствием source entities, НЕ являются критическими
+		// Они будут обработаны как предупреждения
+		const criticalIntegrityIssues = validationResult.integrity.issues.filter(
+			(issue) =>
+				!issue.includes("source entity не найдена") &&
+				!issue.includes("target entity не найдена"),
+		);
 
-        // Неподдерживаемая версия схемы - критическая ошибка
-        if (!validationResult.schemaVersion.supported) {
-            this.logger.warn(`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`);
-            return true;
-        }
+		if (criticalIntegrityIssues.length > 0) {
+			this.logger.warn(
+				`Критические ошибки целостности: ${criticalIntegrityIssues.length}`,
+			);
+			return true;
+		}
 
-        // Рекурсия - критическая ошибка
-        if (validationResult.recursionCheck.hasRecursion) {
-            this.logger.warn('Обнаружена рекурсия в зависимостях');
-            return true;
-        }
+		// Неподдерживаемая версия схемы - критическая ошибка
+		if (!validationResult.schemaVersion.supported) {
+			this.logger.warn(
+				`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
+			);
+			return true;
+		}
 
-        // Дубликаты - критическая ошибка
-        if (validationResult.duplicateCheck.hasDuplicates) {
-            this.logger.warn(`Обнаружены дубликаты: ${validationResult.duplicateCheck.duplicates.join(', ')}`);
-            return true;
-        }
+		// Рекурсия - критическая ошибка
+		if (validationResult.recursionCheck.hasRecursion) {
+			this.logger.warn("Обнаружена рекурсия в зависимостях");
+			return true;
+		}
 
-        this.logger.log('Критических ошибок не обнаружено, импорт может быть продолжен');
-        return false;
-    }
+		// Дубликаты - критическая ошибка
+		if (validationResult.duplicateCheck.hasDuplicates) {
+			this.logger.warn(
+				`Обнаружены дубликаты: ${validationResult.duplicateCheck.duplicates.join(", ")}`,
+			);
+			return true;
+		}
 
-    private async checkForConflicts(processedData: any): Promise<void> {
-        // Проверка на рекурсию
-        const validationResult = await this.validationOrchestrator.validate(processedData);
+		this.logger.log(
+			"Критических ошибок не обнаружено, импорт может быть продолжен",
+		);
+		return false;
+	}
 
-        if (validationResult.recursionCheck.hasRecursion) {
-            throw new BadRequestException(
-                `Обнаружены рекурсивные зависимости: ${JSON.stringify(validationResult.recursionCheck.cycles)}`,
-            );
-        }
+	private async checkForConflicts(processedData: any): Promise<void> {
+		// Проверка на рекурсию
+		const validationResult =
+			await this.validationOrchestrator.validate(processedData);
 
-        // Проверка на дублирование
-        const duplicateCheck = validationResult.duplicateCheck;
-        if (duplicateCheck.hasDuplicates) {
-            throw new BadRequestException(
-                `Обнаружены дубликаты: ${duplicateCheck.duplicates.join(', ')}`,
-            );
-        }
+		if (validationResult.recursionCheck.hasRecursion) {
+			throw new BadRequestException(
+				`Обнаружены рекурсивные зависимости: ${JSON.stringify(validationResult.recursionCheck.cycles)}`,
+			);
+		}
 
-        // Проверка зависимостей для модифицированных витрин
-        const modifiedEntities = (processedData.entities || []).filter(
-            (entity: any) => entity.modified === true,
-        );
+		// Проверка на дублирование
+		const duplicateCheck = validationResult.duplicateCheck;
+		if (duplicateCheck.hasDuplicates) {
+			throw new BadRequestException(
+				`Обнаружены дубликаты: ${duplicateCheck.duplicates.join(", ")}`,
+			);
+		}
 
-        if (modifiedEntities.length > 0) {
-            const processId = await this.processHandlingService.getProcessIdFromData(processedData);
-            const safetyCheck = await this.conflictService.isSafeToUpdate(
-                modifiedEntities.map((e: any) => e.id),
-                processId,
-            );
+		// Проверка зависимостей для модифицированных витрин
+		const modifiedEntities = (processedData.entities || []).filter(
+			(entity: any) => entity.modified === true,
+		);
 
-            if (!safetyCheck.safe) {
-                this.logger.warn(`Обнаружены потенциальные конфликты: ${safetyCheck.warnings.join('; ')}`);
-                // Конфликты не блокируют импорт, только предупреждаем
-            }
-        }
-    }
+		if (modifiedEntities.length > 0) {
+			const processId =
+				await this.processHandlingService.getProcessIdFromData(processedData);
+			const safetyCheck = await this.conflictService.isSafeToUpdate(
+				modifiedEntities.map((e: any) => e.id),
+				processId,
+			);
 
-    private async executeImportTransaction(
-        processedData: any,
-        user: string,
-        changeName: string,
-    ): Promise<ImportResult> {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
+			if (!safetyCheck.safe) {
+				this.logger.warn(
+					`Обнаружены потенциальные конфликты: ${safetyCheck.warnings.join("; ")}`,
+				);
+				// Конфликты не блокируют импорт, только предупреждаем
+			}
+		}
+	}
 
-        try {
-            const importStats = await this.processImportData(processedData, user, changeName, queryRunner);
-            await queryRunner.commitTransaction();
+	private async executeImportTransaction(
+		processedData: any,
+		user: string,
+		changeName: string,
+		importId: string,
+	): Promise<ImportResult> {
+		const queryRunner = this.dataSource.createQueryRunner();
+		await queryRunner.connect();
+		await queryRunner.startTransaction();
 
-            this.logger.log(`Импорт успешно завершен. Change ID: ${importStats.changeId}`);
+		try {
+			const importStats = await this.processImportData(
+				processedData,
+				user,
+				changeName,
+				queryRunner,
+				importId,
+			);
+			await queryRunner.commitTransaction();
 
-            return {
-                success: true,
-                changeId: importStats.changeId,
-                message: "JSON данные успешно импортированы в БД DL",
-                warnings: importStats.warnings,
-                stats: importStats.stats,
-            };
-        } catch (error) {
-            await queryRunner.rollbackTransaction();
-            this.logger.error(`Ошибка импорта: ${error.message}`, error.stack);
-            throw error;
-        } finally {
-            await queryRunner.release();
-        }
-    }
+			this.logger.log(
+				`[importId=${importId}] Импорт успешно завершен. Change ID: ${importStats.changeId}`,
+			);
 
-    private async processImportData(
-        processedData: any,
-        user: string,
-        changeName: string,
-        queryRunner: QueryRunner,
-    ): Promise<{ changeId: number; warnings: string[]; stats: ImportResult['stats'] }> {
-        const warnings: string[] = [];
+			return {
+				success: true,
+				changeId: importStats.changeId,
+				message: "JSON данные успешно импортированы в БД DL",
+				warnings: importStats.warnings,
+				stats: importStats.stats,
+			};
+		} catch (error) {
+			await queryRunner.rollbackTransaction();
+			const context = this.getImportErrorContext(error);
+			const pg = this.getPostgresErrorInfo(error);
 
-        // Добавляем предупреждения из валидации
-        if (processedData.validation?.warnings?.length > 0) {
-            warnings.push(...processedData.validation.warnings);
-        }
+			this.logger.error(
+				`[importId=${importId}] Ошибка импорта${context ? ` (step=${context})` : ""}: ${error?.message}`,
+				error?.stack,
+			);
 
-        // Добавляем предупреждения о отсутствующих source entities
-        if (processedData.integrity?.issues?.length > 0) {
-            const missingSourceWarnings = processedData.integrity.issues.filter(issue =>
-                issue.includes('source entity не найдена') ||
-                issue.includes('target entity не найдена')
-            );
-            warnings.push(...missingSourceWarnings);
-        }
+			if (pg) {
+				this.logger.error(
+					`[importId=${importId}] DB error details: ${JSON.stringify(pg)}`,
+				);
+			}
+			throw error;
+		} finally {
+			await queryRunner.release();
+		}
+	}
 
-        // Шаг 1: Создание записи в таблице changes
-        const changeId = await this.changeRecordService.createChangeRecord(
-            processedData,
-            user,
-            changeName,
-            queryRunner,
-        );
-        this.logger.log(`Создана запись изменения с ID: ${changeId}`);
+	private async processImportData(
+		processedData: any,
+		user: string,
+		changeName: string,
+		queryRunner: QueryRunner,
+		importId: string,
+	): Promise<{
+		changeId: number;
+		warnings: string[];
+		stats: ImportResult["stats"];
+	}> {
+		const warnings: string[] = [];
 
-        // Шаг 2: Обработка процесса с передачей entities и mappings для точной очистки связей
-        const process = await this.processHandlingService.handleProcess(
-            processedData.desc,
-            processedData.entities || [],
-            processedData.mappings || [],
-            changeId,
-            queryRunner,
-        );
-        this.logger.log(
-            `Обработан процесс: ${process.name} (ID: ${process.process_id})`,
-        );
+		// Добавляем предупреждения из валидации
+		if (processedData.validation?.warnings?.length > 0) {
+			warnings.push(...processedData.validation.warnings);
+		}
 
-        // Шаг 3: Обработка сущностей и создание entity_map для целевых сущностей
-        const entitiesStats = await this.entityProcessingService.handleEntities(
-            processedData.entities,
-            process.process_id,
-            changeId,
-            queryRunner,
-        );
-        this.logger.log(
-            `Обработано сущностей: ${entitiesStats.count}, атрибутов: ${entitiesStats.attributesCount}`,
-        );
+		// Добавляем предупреждения о отсутствующих source entities
+		if (processedData.integrity?.issues?.length > 0) {
+			const missingSourceWarnings = processedData.integrity.issues.filter(
+				(issue) =>
+					issue.includes("source entity не найдена") ||
+					issue.includes("target entity не найдена"),
+			);
+			warnings.push(...missingSourceWarnings);
+		}
 
-        // Шаг 4: Обработка маппингов
-        const mappingsResult = await this.mappingProcessingService.handleMappings(
-            processedData.mappings,
-            process.process_id,
-            changeId,
-            queryRunner,
-        );
-        const mappingsStats = { count: mappingsResult.count };
-        warnings.push(...mappingsResult.warnings);
+		// Шаг 1: Создание записи в таблице changes
+		const changeId = await this.withImportStep(
+			importId,
+			"createChangeRecord",
+			async () => {
+				return await this.changeRecordService.createChangeRecord(
+					processedData,
+					user,
+					changeName,
+					queryRunner,
+				);
+			},
+		);
+		this.logger.log(
+			`[importId=${importId}] Создана запись изменения с ID: ${changeId}`,
+		);
 
-        // Шаг 5: Обработка неудачных маппингов (для DAPP JSON)
-        const failedMappingsStats = await this.mappingProcessingService.handleFailedMappings(
-            processedData.failedMappings || [],
-            changeId,
-            queryRunner,
-        );
+		// Шаг 2: Обработка процесса с передачей entities и mappings для точной очистки связей
+		const process = await this.withImportStep(
+			importId,
+			"handleProcess",
+			async () => {
+				return await this.processHandlingService.handleProcess(
+					processedData.desc,
+					processedData.entities || [],
+					processedData.mappings || [],
+					changeId,
+					queryRunner,
+				);
+			},
+		);
+		this.logger.log(
+			`[importId=${importId}] Обработан процесс: ${process.name} (ID: ${process.process_id})`,
+		);
 
-        if (failedMappingsStats.count > 0) {
-            this.logger.log(`Обработано неудачных маппингов: ${failedMappingsStats.count}`);
-            warnings.push(`Обнаружено ${failedMappingsStats.count} неудачных маппингов`);
-        }
+		// Шаг 3: Обработка сущностей и создание entity_map для целевых сущностей
+		const entitiesStats = await this.withImportStep(
+			importId,
+			"handleEntities",
+			async () => {
+				return await this.entityProcessingService.handleEntities(
+					processedData.entities,
+					process.process_id,
+					changeId,
+					queryRunner,
+				);
+			},
+		);
+		this.logger.log(
+			`[importId=${importId}] Обработано сущностей: ${entitiesStats.count}, атрибутов: ${entitiesStats.attributesCount}`,
+		);
 
-        return {
-            changeId,
-            warnings,
-            stats: {
-                entitiesProcessed: entitiesStats.count,
-                attributesProcessed: entitiesStats.attributesCount,
-                mappingsProcessed: mappingsStats.count,
-                failedMappingsProcessed: failedMappingsStats.count,
-            },
-        };
-    }
+		// Шаг 4: Обработка маппингов
+		const mappingsResult = await this.withImportStep(
+			importId,
+			"handleMappings",
+			async () => {
+				return await this.mappingProcessingService.handleMappings(
+					processedData.mappings,
+					process.process_id,
+					changeId,
+					queryRunner,
+				);
+			},
+		);
+		const mappingsStats = { count: mappingsResult.count };
+		warnings.push(...mappingsResult.warnings);
+
+		// Шаг 5: Обработка неудачных маппингов (для DAPP JSON)
+		const failedMappingsStats = await this.withImportStep(
+			importId,
+			"handleFailedMappings",
+			async () => {
+				return await this.mappingProcessingService.handleFailedMappings(
+					processedData.failedMappings || [],
+					changeId,
+					queryRunner,
+				);
+			},
+		);
+
+		if (failedMappingsStats.count > 0) {
+			this.logger.log(
+				`[importId=${importId}] Обработано неудачных маппингов: ${failedMappingsStats.count}`,
+			);
+			warnings.push(
+				`Обнаружено ${failedMappingsStats.count} неудачных маппингов`,
+			);
+		}
+
+		return {
+			changeId,
+			warnings,
+			stats: {
+				entitiesProcessed: entitiesStats.count,
+				attributesProcessed: entitiesStats.attributesCount,
+				mappingsProcessed: mappingsStats.count,
+				failedMappingsProcessed: failedMappingsStats.count,
+			},
+		};
+	}
+
+	private async withImportStep<T>(
+		importId: string,
+		step: string,
+		fn: () => Promise<T>,
+	): Promise<T> {
+		try {
+			this.logger.log(`[importId=${importId}] step:start ${step}`);
+			const res = await fn();
+			this.logger.log(`[importId=${importId}] step:done ${step}`);
+			return res;
+		} catch (error) {
+			(error as any).__importStep = step;
+			this.logger.error(
+				`[importId=${importId}] step:fail ${step}: ${error?.message}`,
+				error?.stack,
+			);
+			throw error;
+		}
+	}
+
+	private getImportErrorContext(error: any): string | null {
+		return error?.__importStep || error?.driverError?.__importStep || null;
+	}
+
+	private getPostgresErrorInfo(error: any): {
+		code?: string;
+		constraint?: string;
+		table?: string;
+		schema?: string;
+		detail?: string;
+		message?: string;
+	} | null {
+		const driverError = error?.driverError || error;
+		const code = driverError?.code;
+
+		if (!code) return null;
+
+		return {
+			code,
+			constraint: driverError?.constraint,
+			table: driverError?.table,
+			schema: driverError?.schema,
+			detail: driverError?.detail,
+			message: driverError?.message,
+		};
+	}
 }

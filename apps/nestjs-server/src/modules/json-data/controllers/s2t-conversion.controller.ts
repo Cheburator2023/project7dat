@@ -10,6 +10,8 @@ import { S2tConversionService } from "../services/s2t-conversion.service";
 import { S2tToCommitJsonService } from "../services/s2t-to-commit-json.service";
 import { S2tConvertRequestDto } from "../dto/requests/s2t-convert-request.dto";
 import { S2tConvertResponseDto } from "../dto/responses/s2t-convert-response.dto";
+import { S2tConvertToCommitRequestDto } from "../dto/requests/s2t-convert-to-commit-request.dto";
+import { S2tConvertToCommitResponseDto } from "../dto/responses/s2t-convert-to-commit-response.dto";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
 
@@ -77,6 +79,7 @@ export class S2tConversionController {
 			const commitJson =
 				this.s2tToCommitJsonService.convertWorkbookToCommitJson({
 					workbook: workbookResult.workbook,
+					fileName: body.fileName,
 					processName: body.processName,
 					processDescription: body.processDescription,
 					commitName: body.commitName,
