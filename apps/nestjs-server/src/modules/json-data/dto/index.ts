@@ -7,6 +7,8 @@ export * from "./requests/json-commit-request.dto";
 export * from "./requests/json-data-request.dto";
 export * from "./requests/s2t-convert-request.dto";
 export * from "./requests/s2t-convert-to-commit-request.dto";
+export * from "./requests/create-s2t-commit-request.dto";
+export * from "./requests/apply-s2t-commit-request.dto";
 
 // Responses
 export * from "./responses/validation-response.dto";

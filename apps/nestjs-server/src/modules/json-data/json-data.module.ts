@@ -24,6 +24,7 @@ import { DependencyTypeEntity } from "./entities/dependency-type.entity";
 import { SystemsEntity } from "./entities/systems.entity";
 import { StreamSpaceEntity } from "./entities/stream-space.entity";
 import { EntityMapSourceEntity } from "./entities/entity-map-source.entity";
+import { S2tCommitEntity } from "./entities/s2t-commit.entity";
 
 // Services
 import { JsonDataService } from "./services/json-data.service";
@@ -53,12 +54,14 @@ import { JsonCommitController } from "./controllers/json-commit.controller";
 import { JsonImportController } from "./controllers/json-import.controller";
 import { JsonValidationController } from "./controllers/json-validation.controller";
 import { S2tConversionController } from "./controllers/s2t-conversion.controller";
+import { S2tCommitStoreController } from "./controllers/s2t-commit-store.controller";
 
 // Modules
 import { ChangelogModule } from "../changelog/changelog.module";
 import { JsonExportService } from "./services/json-export.service";
 import { JsonExportController } from "./controllers/json-export.controller";
 import { S2tToCommitJsonService } from "src/modules/json-data/services/s2t-to-commit-json.service";
+import { S2tCommitStoreService } from "./services/s2t-commit-store.service";
 
 @Global()
 @Module({})
@@ -86,6 +89,7 @@ export class JsonDataModule {
 			SystemsEntity,
 			StreamSpaceEntity,
 			EntityMapSourceEntity,
+			S2tCommitEntity,
 		];
 
 		const imports = [
@@ -102,6 +106,7 @@ export class JsonDataModule {
 			JsonExportService,
 			S2tConversionService,
 			S2tToCommitJsonService,
+			S2tCommitStoreService,
 
 			// Conflict and Migration services
 			JsonConflictService,
@@ -156,6 +161,7 @@ export class JsonDataModule {
 			JsonValidationController,
 			JsonExportController,
 			S2tConversionController,
+			S2tCommitStoreController,
 		];
 
 		const exports = [
