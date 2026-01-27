@@ -58,6 +58,7 @@ import { S2tConversionController } from "./controllers/s2t-conversion.controller
 import { ChangelogModule } from "../changelog/changelog.module";
 import { JsonExportService } from "./services/json-export.service";
 import { JsonExportController } from "./controllers/json-export.controller";
+import { S2tToCommitJsonService } from "src/modules/json-data/services/s2t-to-commit-json.service";
 
 @Global()
 @Module({})

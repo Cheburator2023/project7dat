@@ -25,7 +25,7 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 
 import { useDashboardStore } from "../../dashboard/stores";
 import { useCurrentSchema } from "../../dashboard//hooks/useCurrentSchema";
-import { LoadingSpinner, } from "../../dashboard/atoms";
+import { LoadingSpinner } from "../../dashboard/atoms";
 import {
 	GraphPanelInner2,
 	type NodeContextMenuEvent,

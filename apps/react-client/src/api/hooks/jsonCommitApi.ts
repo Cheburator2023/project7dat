@@ -6,8 +6,7 @@ import type {
 	JsonDataItem,
 } from "./jsonDataApi";
 
-const API_BASE_URL =
-	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
+const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 
 export const jsonCommitApi = axios.create({
 	baseURL: `${API_BASE_URL}/api/json-commits`,

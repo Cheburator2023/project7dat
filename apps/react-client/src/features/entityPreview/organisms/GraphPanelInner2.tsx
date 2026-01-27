@@ -513,6 +513,9 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				allUniqueEntities.push(entity);
 			}
 
+			const edges: Edge[] = [];
+			const edgeSet = new Set<string>();
+
 			// Filter entities based on showFullGraphByDefault setting
 			// When disabled, only show entities that match the search query
 			const hasActiveSearch =
@@ -580,7 +583,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			const isSearchActive =
 				!!globalSearchQuery && searchMatchedEntities.size > 0;
 
-			const nodes: EntityNode[] = filteredEntities.map((entity) => {
+			const nodes: any[] = filteredEntities.flatMap((entity) => {
 				let highlightType: EntityNodeData["highlightType"] = "none";
 				const searchScore = searchMatchedEntities.get(entity.id);
 				const isSearchMatch = globalSearchQuery && searchScore !== undefined;
@@ -590,7 +593,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				else if (downstreamNodes.has(entity.id)) highlightType = "downstream";
 				else if (isSearchMatch) highlightType = "searchMatch";
 
-				return {
+				const node = {
 					id: entity.id,
 					type: "entityNode",
 					position: { x: 0, y: 0 },
@@ -618,6 +621,56 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 						isExpanded: expandedNodes.has(entity.id),
 					},
 				};
+
+				if (entity.type === "input_vector") {
+					const edgeId = `${entity.id}->${entity.namespace}`;
+
+					edges.push({
+						id: edgeId,
+						source: entity.id,
+						target: entity.namespace,
+						sourceHandle: "entity-source",
+						targetHandle: "entity-target",
+						type: "default",
+						animated: true,
+						style: {
+							stroke: ATTR_EDGE_COLORS[0],
+							strokeWidth: 1,
+							opacity: 0.8,
+						},
+						markerEnd: {
+							type: MarkerType.ArrowClosed,
+							color: "#b1b1b7",
+						},
+					});
+
+					return [
+						{
+							id: entity.namespace,
+							type: "entityNode",
+							position: { x: 0, y: 0 },
+							data: {
+								onNodeClick: () => {},
+								onNodeDoubleClick: () => {},
+								onAttrHover: () => {},
+								onAttrClick: () => {},
+								onExpandToggle: () => {},
+								entity: {
+									type: "model",
+									id: entity.namespace,
+									namespace: entity.name,
+								},
+								graphId,
+								upstreamCount: 1,
+								isExpanded: true,
+								highlightType: "downstream",
+							},
+						},
+						node,
+					];
+				}
+
+				return node;
 			});
 
 			// Build a map of all attributes each entity actually has
@@ -646,9 +699,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 					.map((a) => a.name);
 				visibleAttrsPerEntity.set(entity.id, new Set(visibleAttrs));
 			}
-
-			const edges: Edge[] = [];
-			const edgeSet = new Set<string>();
 
 			for (const mapping of data.mappings || []) {
 				if (!mapping.deps) continue;
@@ -823,6 +873,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				}
 			}
 
+			console.log({ nodes, edges });
 			return { nodes, edges };
 		}, [
 			attrEdges,
@@ -1109,7 +1160,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 					</Panel>
 				</ReactFlow>
 				{/* Selected Entity Info */}
-				{selectedEntity && selectedEntity.id !== selectedEntityId && (
+				{selectedEntity && selectedEntity.id !== urlEntityId && (
 					<div
 						style={{
 							position: "absolute",
@@ -1141,12 +1192,18 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 								>
 									{selectedEntity.type}
 								</div>
-								<div style={{ fontWeight: 600, fontSize: 13 }}>
+								<div
+									style={{
+										fontWeight: 600,
+										fontSize: 13,
+										wordBreak: "break-word",
+									}}
+								>
 									{selectedEntity.name || selectedEntity.id}
 								</div>
 							</div>
 							<button
-								onClick={() => setSelectedNode(mainEntity.id)}
+								onClick={() => setSelectedNode(urlEntityId ?? "")}
 								style={{
 									background: "none",
 									border: "none",
