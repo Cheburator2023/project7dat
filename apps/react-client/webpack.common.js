@@ -30,10 +30,6 @@ module.exports = {
 			filename: "remoteEntry.js",
 			shared: {},
 		}),
-		new HtmlWebpackPlugin({
-			template: "./public/index.html",
-			excludeChunks: [APP_NAME],
-		}),
 	],
 	output: {
 		filename: "[name].bundle.js",

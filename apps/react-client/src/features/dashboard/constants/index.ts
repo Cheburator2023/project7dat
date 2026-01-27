@@ -18,6 +18,7 @@ export const TYPE_COLORS: Record<
 	{ bg: string; border: string; text: string }
 > = {
 	table: { bg: "#e3f2fd", border: "#1976d2", text: "#1565c0" },
+	model: { bg: "#e3f2fd", border: "#1976d2", text: "#1565c0" },
 	view: { bg: "#f3e5f5", border: "#7b1fa2", text: "#6a1b9a" },
 	rdd: { bg: "#fff3e0", border: "#f57c00", text: "#e65100" },
 	unresolved: { bg: "#fce4ec", border: "#c2185b", text: "#ad1457" },

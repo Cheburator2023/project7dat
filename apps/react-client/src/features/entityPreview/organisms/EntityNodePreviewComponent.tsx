@@ -113,20 +113,20 @@ export const EntityNodePreviewComponent = memo(
 								}}
 							>
 								{entity.type}
-								{entity.modified && (
-									<span
-										style={{
-											marginLeft: 6,
-											background: "#ff9800",
-											color: "#fff",
-											padding: "1px 4px",
-											borderRadius: 3,
-											fontSize: 9,
-										}}
-									>
-										изм.
-									</span>
-								)}
+								{/*{entity.modified && (*/}
+								{/*	<span*/}
+								{/*		style={{*/}
+								{/*			marginLeft: 6,*/}
+								{/*			background: "#ff9800",*/}
+								{/*			color: "#fff",*/}
+								{/*			padding: "1px 4px",*/}
+								{/*			borderRadius: 3,*/}
+								{/*			fontSize: 9,*/}
+								{/*		}}*/}
+								{/*	>*/}
+								{/*		изм.*/}
+								{/*	</span>*/}
+								{/*)}*/}
 								{isDataMart && (
 									<span
 										style={{
