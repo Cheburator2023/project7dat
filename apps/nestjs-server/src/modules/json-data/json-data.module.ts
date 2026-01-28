@@ -1,6 +1,7 @@
 import { Module, DynamicModule, Provider, Global } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { CacheModule } from '@nestjs/cache-manager';
 
 // Entities
 import { JsonDataEntity } from "./entities/json-data.entity";
@@ -45,14 +46,8 @@ import { JsonIntegrityValidationService } from "./services/json-integrity-valida
 import { JsonBusinessRulesValidationService } from "./services/json-business-rules-validation.service";
 import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
 import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
+import { CacheService } from "./services/cache.service";
 
-// Interfaces
-import {
-    IJsonStructureValidator,
-    IJsonBusinessRulesValidator,
-    IJsonIntegrityValidator,
-    IJsonSchemaVersionValidator
-} from "./services/interfaces/validation.interfaces";
 
 // Controllers
 import { JsonDataController } from "./controllers/json-data.controller";
@@ -64,6 +59,7 @@ import { JsonValidationController } from "./controllers/json-validation.controll
 import { ChangelogModule } from "../changelog/changelog.module";
 import { JsonExportService } from "./services/json-export.service";
 import { JsonExportController } from "./controllers/json-export.controller";
+import { CacheMonitorController } from "./controllers/cache-monitor.controller";
 
 @Global()
 @Module({})
@@ -97,6 +93,19 @@ export class JsonDataModule {
             TypeOrmModule.forFeature(entities),
             ConfigModule.forRoot(),
             ChangelogModule,
+            CacheModule.registerAsync({
+                imports: [ConfigModule],
+                useFactory: async (configService: ConfigService) => {
+                    const cacheTtl = configService.get<number>('CACHE_TTL', 600); // 10 минут в секундах
+
+                    return {
+                        store: 'memory', // Используем in-memory хранилище
+                        ttl: cacheTtl, // TTL в секундах
+                        max: 100, // Максимальное количество элементов в кэше
+                    };
+                },
+                inject: [ConfigService],
+            }),
         ];
 
         const providers: Provider[] = [
@@ -105,6 +114,7 @@ export class JsonDataModule {
             JsonCommitService,
             JsonImportService,
             JsonExportService,
+            CacheService,
 
             // Conflict and Migration services
             JsonConflictService,
@@ -158,6 +168,7 @@ export class JsonDataModule {
             JsonImportController,
             JsonValidationController,
             JsonExportController,
+            CacheMonitorController,
         ];
 
         const exports = [
@@ -181,6 +192,7 @@ export class JsonDataModule {
             JsonSchemaVersionValidationService,
             JsonValidationOrchestratorService,
             JsonExportService,
+            CacheService,
         ];
 
         return {

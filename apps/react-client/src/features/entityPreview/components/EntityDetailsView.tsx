@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { format, parseISO } from "date-fns/esm";
 import {
 	styled,
 	Box,
@@ -203,6 +204,32 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 											<TableCell>{entity.attrSeq.length}</TableCell>
 										</TableRow>
 									)}
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
+											Описание
+										</TableCell>
+										<TableCell>{entity.description}</TableCell>
+									</TableRow>
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
+											Изменено
+										</TableCell>
+										<TableCell>
+											{entity.entity_change &&
+												format(
+													parseISO(entity.entity_change),
+													"dd.MM.yyyy, HH:mm",
+												)}
+										</TableCell>
+									</TableRow>
 								</TableBody>
 							</Table>
 						</TableContainer>

@@ -1,7 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL =
-	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
+const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 
 export const databaseSchemaApi = axios.create({
 	baseURL: `${API_BASE_URL}/api/database-schema`,

@@ -46,23 +46,38 @@ export const useDataLineageGraph = (
 };
 
 export const useCurrentDataLineageGraph = () => {
-	const { setCurrentGraph, setCurrentGraphId } = useDataLineageStore();
+	const { initializeGraph, setCurrentGraphId } = useDataLineageStore();
 
 	return useQuery({
 		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 		queryFn: async () => {
 			try {
 				const backendItem = await jsonDataService.getCurrent();
-				if (!backendItem || !backendItem.data) {
+
+				if (!backendItem) {
 					return null;
 				}
-				const graph = backendItem.data as DataLineageGraph;
-				setCurrentGraph(graph);
-				setCurrentGraphId(backendItem.id);
+
+				const graph = {
+					id: "current_stable_version",
+					desc: {
+						change_date: backendItem.desc.change_date,
+						appId: "current_stable_version",
+						appName: "system",
+					},
+					failedMappings: [],
+					entities: backendItem.entities,
+					mappings: backendItem.mappings,
+				} as DataLineageGraph;
+
+				console.log(graph);
+
+				initializeGraph(graph);
+				setCurrentGraphId(graph.id);
 				return graph;
 			} catch (error) {
 				console.warn("No current graph available:", error);
-				setCurrentGraph(null);
+				initializeGraph(null as any);
 				setCurrentGraphId(null);
 				return null;
 			}

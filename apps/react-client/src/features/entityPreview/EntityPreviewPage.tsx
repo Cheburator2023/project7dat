@@ -76,36 +76,37 @@ const flexLayoutJson = {
 				children: [
 					{
 						type: "tab",
+						name: "Детали",
+						component: "entity-details",
+						id: "entity-details-tab",
+					},
+					{
+						type: "tab",
 						name: "Граф",
 						component: "entity-graph",
 						id: "entity-graph-tab",
 					},
 				],
 			},
-			{
-				type: "tabset",
-				weight: 30,
-				children: [
-					{
-						type: "tab",
-						name: "Детали",
-						component: "entity-details",
-						id: "entity-details-tab",
-					},
-				],
-			},
-			{
-				type: "tabset",
-				weight: 20,
-				children: [
-					{
-						type: "tab",
-						name: "JSON",
-						component: "entity-json",
-						id: "entity-json-tab",
-					},
-				],
-			},
+			// {
+			// 	type: "tabset",
+			// 	weight: 30,
+			// 	children: [
+			//
+			// 	],
+			// },
+			// {
+			// 	type: "tabset",
+			// 	weight: 20,
+			// 	children: [
+			// 		{
+			// 			type: "tab",
+			// 			name: "JSON",
+			// 			component: "entity-json",
+			// 			id: "entity-json-tab",
+			// 		},
+			// 	],
+			// },
 		],
 	},
 };

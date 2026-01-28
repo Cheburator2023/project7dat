@@ -11,10 +11,6 @@ import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "@react-client/routing/routes";
 import { useMergeStore } from "@react-client/stores/mergeStore";
-import { useCallback } from "react";
-import { DataLineageGraph } from "@react-client/types/dataLineage";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { useShallow } from "zustand/react/shallow";
 
 // Классификация роутов по категориям меню (статический контекст)
 const OLD_ROUTE_KEYS = [
@@ -85,101 +81,9 @@ export function MenuContent() {
 		openDemoDiffWindow,
 	} = useMergeStore();
 
-	// Data lineage store for commit functionality
-	const {
-		currentGraphId,
-		currentGraph,
-		hasUnsavedChanges,
-		discardChanges,
-		setCurrentGraph,
-		markAsChanged,
-	} = useDataLineageStore(
-		useShallow((state) => ({
-			currentGraphId: state.currentGraphId,
-			currentGraph: state.currentGraph,
-			hasUnsavedChanges: state.hasUnsavedChanges,
-			discardChanges: state.discardChanges,
-			setCurrentGraph: state.setCurrentGraph,
-			markAsChanged: state.markAsChanged,
-		})),
-	);
-
 	const handler = (path: string) => {
 		navigate(path);
 	};
-
-	const convertS2TToGraph = (s2t: S2TFormat): DataLineageGraph => {
-		return {
-			desc: {
-				appId: s2t.desc?.appId ?? "imported",
-				appName: s2t.desc?.appName ?? "Imported S2T",
-			},
-			entities:
-				s2t.entities?.map((entity) => ({
-					id: entity.id,
-					name: entity.name,
-					type:
-						(entity.type as "table" | "view" | "rdd" | "unresolved") || "table",
-					namespace: entity.namespace,
-					modified: entity.modified ?? false,
-					description: entity.description,
-					attrSeq: entity.attrSeq,
-				})) ?? [],
-			mappings:
-				s2t.mappings?.map((mapping, index) => ({
-					id: mapping.id ?? index,
-					entityId: mapping.entityId,
-					deps: mapping.deps?.map((dep) => ({
-						entityId: dep.entityId,
-						attrMaps: dep.attrMaps,
-						atrDeps: dep.atrDeps?.map((atrDep) => ({
-							attr: atrDep.attr,
-							linkTypes: atrDep.linkTypes as Array<
-								"window" | "join" | "where" | "groupby"
-							>,
-						})),
-					})),
-				})) ?? [],
-			failedMappings: [],
-		};
-	};
-
-	const handleImport = useCallback(
-		(format: "json" | "s2t") => {
-			const input = document.createElement("input");
-			input.type = "file";
-			input.accept = ".json";
-			input.onchange = (event) => {
-				const file = (event.target as HTMLInputElement).files?.[0];
-				if (file) {
-					const reader = new FileReader();
-					reader.onload = (e) => {
-						try {
-							const content = e.target?.result as string;
-							const parsedData = JSON.parse(content);
-
-							let graphData: DataLineageGraph;
-							if (format === "s2t") {
-								// Convert S2T format to DataLineageGraph
-								graphData = convertS2TToGraph(parsedData);
-							} else {
-								graphData = parsedData as DataLineageGraph;
-							}
-
-							setCurrentGraph(graphData);
-							markAsChanged();
-						} catch (error) {
-							console.error("Ошибка при парсинге JSON:", error);
-							alert("Ошибка при загрузке файла. Проверьте формат JSON.");
-						}
-					};
-					reader.readAsText(file);
-				}
-			};
-			input.click();
-		},
-		[setCurrentGraph, markAsChanged],
-	);
 
 	return (
 		<Stack
@@ -220,26 +124,26 @@ export function MenuContent() {
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() =>
-							handler(routes.modelServices.rootPath.replace("/", ""))
-						}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.modelServices.rootPath ===
-								location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
-						>
-							<ListItemText
-								primary={routes.modelServices.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
+					{/*<ListItem*/}
+					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
+					{/*	onClick={() =>*/}
+					{/*		handler(routes.modelServices.rootPath.replace("/", ""))*/}
+					{/*	}*/}
+					{/*	data-test-id="menu-content--ListItem-backend"*/}
+					{/*>*/}
+					{/*	<ListItemButton*/}
+					{/*		selected={*/}
+					{/*			routes.modelServices.rootPath ===*/}
+					{/*			location.pathname.replace("/", "")*/}
+					{/*		}*/}
+					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
+					{/*	>*/}
+					{/*		<ListItemText*/}
+					{/*			primary={routes.modelServices.name}*/}
+					{/*			data-test-id="menu-content--ListItemText-backend"*/}
+					{/*		/>*/}
+					{/*	</ListItemButton>*/}
+					{/*</ListItem>*/}
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.models.rootPath.replace("/", ""))}
@@ -340,62 +244,45 @@ export function MenuContent() {
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handleImport("json")}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.allCommits.rootPath ===
-								location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
-						>
-							<ListItemText
-								primary={"Импорт JSON"}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handleImport("s2t")}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.allCommits.rootPath ===
-								location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
-						>
-							<ListItemText
-								primary={"Импорт S2T"}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() =>
-							handler(routes.commitQueue.rootPath.replace("/", ""))
-						}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.commitQueue.rootPath ===
-								location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
-						>
-							<ListItemText
-								primary={routes.commitQueue.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
+					{/*<ListItem*/}
+					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
+					{/*	onClick={() => handleImport("json")}*/}
+					{/*	data-test-id="menu-content--ListItem-backend"*/}
+					{/*>*/}
+					{/*	<ListItemButton*/}
+					{/*		selected={*/}
+					{/*			routes.allCommits.rootPath ===*/}
+					{/*			location.pathname.replace("/", "")*/}
+					{/*		}*/}
+					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
+					{/*	>*/}
+					{/*		<ListItemText*/}
+					{/*			primary={"Импорт JSON"}*/}
+					{/*			data-test-id="menu-content--ListItemText-backend"*/}
+					{/*		/>*/}
+					{/*	</ListItemButton>*/}
+					{/*</ListItem>*/}
+
+					{/*<ListItem*/}
+					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
+					{/*	onClick={() =>*/}
+					{/*		handler(routes.commitQueue.rootPath.replace("/", ""))*/}
+					{/*	}*/}
+					{/*	data-test-id="menu-content--ListItem-backend"*/}
+					{/*>*/}
+					{/*	<ListItemButton*/}
+					{/*		selected={*/}
+					{/*			routes.commitQueue.rootPath ===*/}
+					{/*			location.pathname.replace("/", "")*/}
+					{/*		}*/}
+					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
+					{/*	>*/}
+					{/*		<ListItemText*/}
+					{/*			primary={routes.commitQueue.name}*/}
+					{/*			data-test-id="menu-content--ListItemText-backend"*/}
+					{/*		/>*/}
+					{/*	</ListItemButton>*/}
+					{/*</ListItem>*/}
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
 						onClick={() => handler(routes.allCommits.rootPath.replace("/", ""))}

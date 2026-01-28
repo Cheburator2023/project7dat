@@ -1,11 +1,10 @@
 import axios from "axios";
 import type { DataLineageSchema } from "@data-lineage/shared-schemas";
 
-const API_BASE_URL =
-	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
+const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 
 export const jsonDataApi = axios.create({
-	baseURL: `${API_BASE_URL}/api/json-data`,
+	baseURL: `${API_BASE_URL}/api/json-export`,
 	headers: {
 		"Content-Type": "application/json",
 	},
@@ -156,7 +155,7 @@ export const jsonDataService = {
 		jsonDataApi.get(`/${id}`).then((response) => response.data),
 
 	getCurrent: (): Promise<JsonDataItem> =>
-		jsonDataApi.get("/current").then((response) => response.data),
+		jsonDataApi.get("/dl").then((response) => response.data),
 
 	create: (data: CreateJsonDataRequest): Promise<JsonDataItem> =>
 		jsonDataApi.post("/create", data).then((response) => response.data),

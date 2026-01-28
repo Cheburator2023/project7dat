@@ -2,8 +2,7 @@ import axios from "axios";
 import type { JsonDataItem, JsonCommitItem } from "./jsonDataApi";
 import type { SnapshotItem } from "./snapshotApi";
 
-const API_BASE_URL =
-	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
+const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 
 export const jsonDataApi = axios.create({
 	baseURL: `${API_BASE_URL}/api/json-data`,

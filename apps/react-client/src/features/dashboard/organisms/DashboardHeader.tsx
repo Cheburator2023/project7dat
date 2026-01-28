@@ -152,7 +152,7 @@ export const DashboardHeader = memo(() => {
 	const queryClient = useQueryClient();
 	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph();
 	const { refetch: refetchCommitList } = useCommitList({
-		graphId: currentGraphId || undefined,
+		graphId: undefined,
 	});
 
 	// Get all entities for filter options

@@ -1,6 +1,7 @@
 const { merge } = require("webpack-merge");
 const webpack = require("webpack");
 const TerserPlugin = require("terser-webpack-plugin");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 const { DefinePlugin } = webpack;
 const common = require("./webpack.common.js");
@@ -49,6 +50,10 @@ module.exports = merge(common, {
 		concatenateModules: false,
 	},
 	plugins: [
+		new HtmlWebpackPlugin({
+			template: "./public/index.html",
+			excludeChunks: [APP_NAME],
+		}),
 		new DefinePlugin({
 			"process.env": {},
 			"process.env.GIT_REVISION": JSON.stringify(git_revision || ""),

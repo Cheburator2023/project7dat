@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
+
+import { format, parseISO } from "date-fns/esm";
 import {
 	Box,
 	TextField,
 	InputAdornment,
 	Chip,
-	Alert,
 	CircularProgress,
 } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
@@ -19,13 +20,17 @@ import {
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { DataLineageEntity } from "@data-lineage/shared-schemas";
-import { useJsonDataList } from "@react-client/api/hooks";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
+import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useShallow } from "zustand/react/shallow";
+import { useDashboardStore } from "@react-client/features/dashboard/stores";
 
 // Extended interface based on DataLineageEntity for UI display purposes
 export interface Model extends DataLineageEntity {
 	graphId?: string;
 	description?: string;
+	container_description?: string;
 	createdDate?: string;
 	updatedDate?: string;
 	status?: "active" | "draft" | "archived";
@@ -38,27 +43,24 @@ export interface Model extends DataLineageEntity {
 	businessType?: "analytical" | "operational" | "dimensional";
 }
 
-const mapJsonDataItemToModels = (item: JsonDataItem): Model[] => {
+const mapJsonDataItemToModels = (item: JsonDataItem): any[] => {
 	const data = item.data;
 	const entities = data?.entities ?? [];
-	return entities.map((entity) => ({
+	const filterEntities = entities.filter(
+		(entity) => entity.type === "input_vector",
+	);
+
+	return filterEntities.map((entity) => ({
 		...entity,
 		graphId: item.id,
 		description:
 			// entity может не иметь description в shared-схеме, поэтому подстраховываемся
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			((entity as any).container_description as string | undefined) ||
 			((entity as any).description as string | undefined) ||
 			item.description ||
 			data.desc.appName,
-		createdDate: item.createdAt,
-		updatedDate: item.updatedAt,
-		status: item.deprecated ? "archived" : "active",
-		author: item.authorName,
-		version: item.version,
-		tags: [],
-		lastAccessDate: item.updatedAt,
-		objectsCount: entity.attrSeq?.length,
-		businessType: undefined,
+		updatedDate: item.container_change || item.entity_change,
 	}));
 };
 
@@ -119,15 +121,26 @@ const TagsRenderer = ({ value }: { value: string[] }) => {
 export const ModelsPage = () => {
 	const [searchQuery, setSearchQuery] = useState("");
 	const { mode } = useColorScheme();
-	const { data: jsonDataList, isLoading, error } = useJsonDataList();
+
+	const { currentGraph } = useDataLineageStore(
+		useShallow((state) => ({
+			currentGraph: state.currentGraph,
+		})),
+	);
+
+	const { selectEntity } = useDashboardStore();
+
+	const { isPending } = useCurrentDataLineageGraph();
+	// const { data: jsonDataList, isLoading, error } = useJsonDataList();
 	const navigate = useNavigate();
 
 	const baseModels = useMemo<Model[]>(() => {
-		if (!jsonDataList) {
+		if (!currentGraph) {
 			return [];
 		}
-		return jsonDataList.flatMap(mapJsonDataItemToModels);
-	}, [jsonDataList]);
+
+		return [{ data: currentGraph }].flatMap(mapJsonDataItemToModels);
+	}, [currentGraph]);
 
 	const filteredModels = useMemo(() => {
 		if (!searchQuery.trim()) return baseModels;
@@ -136,13 +149,11 @@ export const ModelsPage = () => {
 		return baseModels.filter(
 			(model) =>
 				(model.name?.toLowerCase().includes(query) ?? false) ||
-				(model.description?.toLowerCase().includes(query) ?? false) ||
-				(model.author?.toLowerCase().includes(query) ?? false) ||
-				(model.tags?.some((tag) => tag.toLowerCase().includes(query)) ?? false),
+				(model.description?.toLowerCase().includes(query) ?? false),
 		);
 	}, [baseModels, searchQuery]);
 
-	if (isLoading) {
+	if (isPending) {
 		return (
 			<Box
 				sx={{
@@ -157,160 +168,38 @@ export const ModelsPage = () => {
 		);
 	}
 
-	if (error) {
-		return (
-			<Box sx={{ p: 3 }}>
-				<Alert severity="error">Ошибка загрузки моделей: {error.message}</Alert>
-			</Box>
-		);
-	}
+	// if (error) {
+	// 	return (
+	// 		<Box sx={{ p: 3 }}>
+	// 			<Alert severity="error">Ошибка загрузки моделей: {error.message}</Alert>
+	// 		</Box>
+	// 	);
+	// }
 
 	const columnDefs: ColDef<Model>[] = [
 		{
-			headerName: "ID",
-			field: "id",
-			width: 150,
-			pinned: "left",
-		},
-		{
 			headerName: "Название",
-			field: "name",
+			field: "namespace",
 			flex: 2,
 			minWidth: 200,
 			cellStyle: { fontWeight: "bold" },
 		},
 		{
-			headerName: "Пространство имен",
-			field: "namespace",
-			width: 140,
-		},
-		{
-			headerName: "Тип",
-			field: "type",
-			width: 140,
-			cellRenderer: (params: any) => (
-				<Chip
-					label={params.value}
-					size="small"
-					variant="filled"
-					sx={{
-						background: TYPE_COLORS[params.value] || "#666",
-						color: "#fff",
-					}}
-				/>
-			),
-		},
-		{
-			headerName: "Роль",
-			field: "id",
-			width: 120,
-			headerTooltip: "Роль в линейке данных",
-			cellRenderer: (params: any) => {
-				// For now, simplified role detection based on type
-				// In real scenario, would need upstream/downstream counts
-				const type = params.data?.type;
-				const isVitrina = type === "view";
-				const isSource = type === "table" && !params.data?.modified;
-
-				if (isVitrina) {
-					return (
-						<Chip
-							label="витрина"
-							size="small"
-							sx={{ background: "#9c27b0", color: "#fff", fontSize: "0.7rem" }}
-							title="Витрина данных — конечная точка"
-						/>
-					);
-				}
-				if (isSource) {
-					return (
-						<Chip
-							label="источник"
-							size="small"
-							sx={{ background: "#00897b", color: "#fff", fontSize: "0.7rem" }}
-							title="Источник данных — начальная точка"
-						/>
-					);
-				}
-				return null;
-			},
-		},
-		{
-			headerName: "Изменен",
-			field: "modified",
-			width: 100,
-			cellRenderer: (params: any) => (
-				<Chip
-					label={params.value ? "Да" : "Нет"}
-					color={params.value ? "warning" : "success"}
-					size="small"
-					variant="outlined"
-				/>
-			),
-		},
-		{
 			headerName: "Описание",
-			field: "description",
+			field: "container_description",
 			flex: 3,
 			minWidth: 300,
 			autoHeight: true,
 		},
 		{
-			headerName: "Статус",
-			field: "status",
-			width: 120,
-			cellRenderer: StatusChipRenderer,
-		},
-		{
-			headerName: "Автор",
-			field: "author",
-			width: 150,
-		},
-		{
-			headerName: "Версия",
-			field: "version",
-			width: 100,
-		},
-		{
-			headerName: "Атрибуты",
-			field: "objectsCount",
-			width: 100,
-			type: "numericColumn",
-			cellRenderer: (params: any) => (
-				<Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
-					<Chip
-						label={params.value ?? 0}
-						size="small"
-						variant="outlined"
-						color="info"
-					/>
-				</Box>
-			),
-		},
-		{
-			headerName: "Теги",
-			field: "tags",
-			flex: 1,
-			minWidth: 200,
-			cellRenderer: TagsRenderer,
-		},
-		{
-			headerName: "Создана",
-			field: "createdDate",
-			width: 120,
-			type: "dateColumn",
-		},
-		{
 			headerName: "Обновлена",
 			field: "updatedDate",
 			width: 120,
-			type: "dateColumn",
-		},
-		{
-			headerName: "Последний доступ",
-			field: "lastAccessDate",
-			width: 140,
-			type: "dateColumn",
+			cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+				if (data.entity_change) {
+					return format(parseISO(data.entity_change), "dd.MM.yyyy, HH:mm");
+				}
+			},
 		},
 	];
 
@@ -360,6 +249,7 @@ export const ModelsPage = () => {
 					onRowDoubleClicked={(event) => {
 						if (event.data) {
 							const encodedId = encodeURIComponent(event.data.id);
+							selectEntity(encodedId);
 							navigate(`/entity/${encodedId}`);
 						}
 					}}
