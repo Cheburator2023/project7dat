@@ -126,7 +126,7 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 		onNodeDoubleClick,
 		onAttrHover,
 		onAttrClick,
-		onExpandToggle,
+		onToggleExpand,
 		isExpanded = false,
 		upstreamCount,
 		downstreamCount,
@@ -402,7 +402,7 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 						<div
 							onClick={(e) => {
 								e.stopPropagation();
-								onExpandToggle?.(id, !isExpanded);
+								onToggleExpand?.(id, !isExpanded);
 							}}
 							style={{
 								padding: "4px 10px",
@@ -1086,7 +1086,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 					onNodeDoubleClick: handleNodeDoubleClick,
 					onAttrHover: handleAttrHover,
 					onAttrClick: handleAttrClick,
-					onExpandToggle: handleExpandToggle,
+					onToggleExpand: handleExpandToggle,
 					isExpanded: expandedNodes.has(entity.id),
 					graphId: mainEntity.id,
 					upstreamCount: upstreamCounts.get(entity.id) || 0,
@@ -1493,10 +1493,13 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 						setDialogEntity(null);
 					}}
 					entity={dialogEntity}
-					connections={entityConnections.filter(
-						(c) =>
-							c.sourceId === dialogEntity.id || c.targetId === dialogEntity.id,
-					)}
+					connections={
+						entityConnections.filter(
+							(c) =>
+								c.sourceId === dialogEntity.id ||
+								c.targetId === dialogEntity.id,
+						) as any
+					}
 					onOpenEntity={handleOpenEntity}
 					onOpenConnection={handleOpenConnection}
 				/>

@@ -106,6 +106,22 @@ export const EntityNodeComponent = memo(
 								}}
 							>
 								{entity.type}
+								{entity.system_id && (
+									<span
+										style={{
+											marginLeft: 6,
+											background: "#607d8b",
+											color: "#fff",
+											padding: "1px 4px",
+											borderRadius: 3,
+											fontSize: 9,
+											textTransform: "none",
+										}}
+										title="Система"
+									>
+										{entity.system_id}
+									</span>
+								)}
 								{entity.modified && (
 									<span
 										style={{

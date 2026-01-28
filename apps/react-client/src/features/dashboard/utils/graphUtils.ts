@@ -22,6 +22,10 @@ export const getLayoutedElements = (
 	options?: {
 		fixedNodeHeight?: number;
 		showAttributesInNodes?: boolean;
+		nodesep?: number;
+		ranksep?: number;
+		marginx?: number;
+		marginy?: number;
 	},
 ) => {
 	const fixedNodeHeight = options?.fixedNodeHeight;
@@ -30,15 +34,17 @@ export const getLayoutedElements = (
 	dagreGraph.setDefaultEdgeLabel(() => ({}));
 
 	// Use smaller spacing when attributes are hidden
-	const nodesep = showAttributesInNodes ? 80 : 50;
-	const ranksep = showAttributesInNodes ? 150 : 100;
+	const nodesep = options?.nodesep ?? (showAttributesInNodes ? 70 : 35);
+	const ranksep = options?.ranksep ?? (showAttributesInNodes ? 120 : 80);
+	const marginx = options?.marginx ?? 50;
+	const marginy = options?.marginy ?? 50;
 
 	dagreGraph.setGraph({
 		rankdir: direction,
 		nodesep,
 		ranksep,
-		marginx: 50,
-		marginy: 50,
+		marginx,
+		marginy,
 	});
 
 	const getNodeHeight = (node: EntityNode) => {

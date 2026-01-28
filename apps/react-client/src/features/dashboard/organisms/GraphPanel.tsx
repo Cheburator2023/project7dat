@@ -99,6 +99,7 @@ export const GraphPanel = memo(() => {
 					sourceName: sourceEntity.name || sourceEntity.id,
 					targetName: targetEntity.name || targetEntity.id,
 					attrMaps: dep.attrMaps || [],
+					description: "",
 				});
 			}
 		}
