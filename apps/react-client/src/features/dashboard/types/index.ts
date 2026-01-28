@@ -7,9 +7,12 @@ import type { DataLineageEntity } from "@react-client/types/dataLineage";
 export interface EntityRow {
 	id: string;
 	graphId: string;
+	system_id?: string;
 	name: string;
 	type: string;
 	namespace: string;
+	description: string;
+	entity_change: string;
 	attributeCount: number;
 	upstreamCount: number;
 	downstreamCount: number;
@@ -50,6 +53,7 @@ export interface EntityConnection {
 	sourceName: string;
 	targetName: string;
 	attrMaps: Array<{ src: string; dst: string }>;
+	description: string;
 }
 
 // ============================================================================

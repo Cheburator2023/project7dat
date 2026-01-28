@@ -43,12 +43,23 @@ function analyzeSchema(
 	const mappings = schema.mappings || [];
 	const _gId = graphId || "current";
 
-	// Track seen IDs for duplicates
+	const getSystemId = (entity: any): string => {
+		const v = entity?.system_id;
+		return typeof v === "string" && v.trim().length > 0 ? v : "";
+	};
+	const getEntityKey = (entity: any): string => {
+		const sys = getSystemId(entity);
+		return sys ? `${entity.id}::${sys}` : String(entity.id);
+	};
+
+	// Track seen IDs for duplicates (id + system_id)
 	const seenEntityIds = new Map<string, number[]>();
+	const seenEntityIdAnySystem = new Set<string>();
 	const entityAttrMap = new Map<string, Set<string>>();
 
 	// Analyze entities
 	entities.forEach((entity, entityIdx) => {
+		const systemId = getSystemId(entity);
 		// Check for null/undefined ID
 		if (!entity.id) {
 			addIssue({
@@ -62,10 +73,12 @@ function analyzeSchema(
 		}
 
 		// Check for duplicate IDs
-		if (seenEntityIds.has(entity.id)) {
-			seenEntityIds.get(entity.id)!.push(entityIdx);
+		const entityKey = getEntityKey(entity);
+		seenEntityIdAnySystem.add(String(entity.id));
+		if (seenEntityIds.has(entityKey)) {
+			seenEntityIds.get(entityKey)!.push(entityIdx);
 		} else {
-			seenEntityIds.set(entity.id, [entityIdx]);
+			seenEntityIds.set(entityKey, [entityIdx]);
 		}
 
 		// Track attributes for this entity
@@ -78,7 +91,7 @@ function analyzeSchema(
 					type: "warning",
 					category: "Атрибут",
 					message: "У атрибута отсутствует имя",
-					location: `сущности[${entityIdx}] "${entity.id}" → attrSeq[${attrIdx}]`,
+					location: `сущности[${entityIdx}] "${entity.id}"${systemId ? ` [${systemId}]` : ""} → attrSeq[${attrIdx}]`,
 				});
 				return;
 			}
@@ -98,7 +111,7 @@ function analyzeSchema(
 					type: "warning",
 					category: "Дубликат Атрибута",
 					message: `Атрибут "${attrName}" встречается ${indices.length} раз(а)`,
-					location: `сущности[${entityIdx}] "${entity.id}"`,
+					location: `сущности[${entityIdx}] "${entity.id}"${systemId ? ` [${systemId}]` : ""}`,
 					details: `Индексы: ${indices.join(", ")}`,
 				});
 			}
@@ -110,10 +123,11 @@ function analyzeSchema(
 	// Report duplicate entity IDs
 	seenEntityIds.forEach((indices, entityId) => {
 		if (indices.length > 1) {
+			const [baseId, sys] = String(entityId).split("::");
 			addIssue({
 				type: "error",
 				category: "Дубликаты ID",
-				message: `ID сущности "${entityId}" встречается ${indices.length} раз(а)`,
+				message: `ID сущности "${baseId}"${sys ? ` [${sys}]` : ""} встречается ${indices.length} раз(а)`,
 				location: "",
 				details: `Индексы: ${indices.join(", ")}`,
 			});
@@ -133,7 +147,7 @@ function analyzeSchema(
 		}
 
 		// Check if target entity exists
-		if (!seenEntityIds.has(mapping.entityId)) {
+		if (!seenEntityIdAnySystem.has(String(mapping.entityId))) {
 			addIssue({
 				type: "warning",
 				category: "Не найден маппинг",
@@ -154,7 +168,7 @@ function analyzeSchema(
 			}
 
 			// Check if source entity exists
-			if (!seenEntityIds.has(dep.entityId)) {
+			if (!seenEntityIdAnySystem.has(String(dep.entityId))) {
 				addIssue({
 					type: "warning",
 					category: "Не найдена зависимость",

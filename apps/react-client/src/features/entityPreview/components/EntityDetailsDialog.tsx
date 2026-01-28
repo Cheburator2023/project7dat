@@ -36,16 +36,7 @@ import {
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
-
-interface EntityConnection {
-	id: string;
-	sourceId: string;
-	targetId: string;
-	sourceName: string;
-	targetName: string;
-	attrMaps: Array<{ src: string; dst: string }>;
-	description?: string;
-}
+import { EntityConnection } from "@react-client/features/dashboard";
 
 interface EntityDetailsDialogProps {
 	open: boolean;

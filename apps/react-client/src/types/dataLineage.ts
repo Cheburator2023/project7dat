@@ -29,8 +29,9 @@ export interface DataLineageAttribute {
 // Frontend-specific entity interface
 export interface DataLineageEntity {
 	id: string;
+	system_id?: string;
 	modified: boolean;
-	type: "table" | "view" | "rdd" | "unresolved";
+	type: "table" | "view" | "rdd" | "unresolved" | "input_vector";
 	namespace?: string;
 	name: string | null;
 	description?: string;

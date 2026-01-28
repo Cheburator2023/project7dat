@@ -83,6 +83,7 @@ export const EntitiesPanel = memo(() => {
 			rows.push({
 				id: entity.id,
 				graphId: effectiveGraphId || "",
+				system_id: entity.system_id,
 				name: entity.name ?? entity.id,
 				type: entity.type,
 				namespace: entity.namespace ?? "",
@@ -234,6 +235,12 @@ export const EntitiesPanel = memo(() => {
 				},
 			},
 			{
+				field: "system_id",
+				headerName: "Система",
+				width: 120,
+				cellRenderer: ({ value }: { value?: string }) => value || "—",
+			},
+			{
 				field: "name",
 				headerName: "Наименование",
 				flex: 2,
@@ -327,7 +334,7 @@ export const EntitiesPanel = memo(() => {
 				field: "entity_change",
 				headerName: "Изменено",
 				flex: 1,
-				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+				cellRenderer: ({ value }: { value: string }) => {
 					// const highlights = highlightsMap.get(data.id);
 					// const highlightedNs = highlights?.get("entity_change");
 					// if (highlightedNs) {
@@ -422,6 +429,7 @@ export const EntitiesPanel = memo(() => {
 					sourceName: sourceEntity.name,
 					targetName: targetEntity.name,
 					attrMaps: dep.attrMaps || [],
+					description: "",
 				});
 			}
 		}

@@ -1,14 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
-import {
-	CircularProgress,
-	styled,
-	Box,
-	Alert,
-	Typography,
-	Chip,
-} from "@mui/material";
+import { CircularProgress, styled, Box, Alert } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
@@ -19,7 +12,6 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
-import { Card } from "@react-client/common/muiCustom/Card";
 
 import {
 	Storage as StorageIcon,
@@ -233,9 +225,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						</EntityContainer>
 					);
 				case "entity-graph":
-					return (
-						<GraphPanel2 onSelectNode={onSelectNode} entity={selectedEntity} />
-					);
+					return <GraphPanel2 onSelectNode={onSelectNode} />;
 				default:
 					return <div>Unknown component: {component}</div>;
 			}
@@ -310,70 +300,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 					</Box>
 				)}
 			</Header>
-			<>
-				<div
-					style={{
-						padding: "0 0px",
-					}}
-				>
-					<Card
-						data-test-id="header--Card-0"
-						zoom={0.7}
-						uuid="header_uuid"
-						style={{ overflow: "visible", padding: "4px" }}
-					>
-						<Box
-							display="flex"
-							justifyContent="space-between"
-							alignItems="flex-start"
-						>
-							<Box display="flex" alignItems="center" gap={2}>
-								<Box
-									sx={{
-										bgcolor: "rgba(255,255,255,0.2)",
-										borderRadius: 1.5,
-										p: 1,
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-									}}
-								>
-									{TYPE_ICONS[selectedEntity?.type] || (
-										<StorageIcon fontSize={"large"} />
-									)}
-								</Box>
-								<Box>
-									<Flex>
-										<Chip
-											label={selectedEntity.type}
-											size="small"
-											color={
-												selectedEntity.type === "table"
-													? "primary"
-													: "secondary"
-											}
-										/>
 
-										{/*<EntityBadges*/}
-										{/*	isDataMart={selectedEntity.isDataMart}*/}
-										{/*	isSource={selectedEntity.isSource}*/}
-										{/*	modified={selectedEntity.modified}*/}
-										{/*/>*/}
-									</Flex>
-									<Typography variant="h5" fontWeight={600}>
-										{selectedEntity.name || entity.id}
-									</Typography>
-									{selectedEntity.namespace && (
-										<Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
-											{selectedEntity.namespace}
-										</Typography>
-									)}
-								</Box>
-							</Box>
-						</Box>
-					</Card>
-				</div>
-			</>
 			<Wrapper id="entity_preview_container">
 				<FlexLayoutContainer>
 					<Layout
