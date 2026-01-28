@@ -47,19 +47,26 @@ import { JsonBusinessRulesValidationService } from "./services/json-business-rul
 import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
 import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
 import { CacheService } from "./services/cache.service";
+import { JsonExportService } from "./services/json-export.service";
 
+// Abstract classes
+import {
+    JsonStructureValidator,
+    JsonBusinessRulesValidator,
+    JsonIntegrityValidator,
+    JsonSchemaVersionValidator
+} from "./services/interfaces/validation.interfaces";
 
 // Controllers
 import { JsonDataController } from "./controllers/json-data.controller";
 import { JsonCommitController } from "./controllers/json-commit.controller";
 import { JsonImportController } from "./controllers/json-import.controller";
 import { JsonValidationController } from "./controllers/json-validation.controller";
+import { JsonExportController } from "./controllers/json-export.controller";
+import { CacheMonitorController } from "./controllers/cache-monitor.controller";
 
 // Modules
 import { ChangelogModule } from "../changelog/changelog.module";
-import { JsonExportService } from "./services/json-export.service";
-import { JsonExportController } from "./controllers/json-export.controller";
-import { CacheMonitorController } from "./controllers/cache-monitor.controller";
 
 @Global()
 @Module({})
@@ -140,21 +147,21 @@ export class JsonDataModule {
             JsonSchemaVersionValidationService,
             JsonValidationOrchestratorService,
 
-            // Register interfaces with implementations
+            // Registering abstract classes as providers (DI tokens)
             {
-                provide: 'IJsonStructureValidator',
+                provide: JsonStructureValidator,
                 useClass: JsonStructureValidationService
             },
             {
-                provide: 'IJsonBusinessRulesValidator',
+                provide: JsonBusinessRulesValidator,
                 useClass: JsonBusinessRulesValidationService
             },
             {
-                provide: 'IJsonIntegrityValidator',
+                provide: JsonIntegrityValidator,
                 useClass: JsonIntegrityValidationService
             },
             {
-                provide: 'IJsonSchemaVersionValidator',
+                provide: JsonSchemaVersionValidator,
                 useClass: JsonSchemaVersionValidationService
             },
 
@@ -193,6 +200,12 @@ export class JsonDataModule {
             JsonValidationOrchestratorService,
             JsonExportService,
             CacheService,
+
+            // Abstract classes
+            JsonStructureValidator,
+            JsonBusinessRulesValidator,
+            JsonIntegrityValidator,
+            JsonSchemaVersionValidator,
         ];
 
         return {
