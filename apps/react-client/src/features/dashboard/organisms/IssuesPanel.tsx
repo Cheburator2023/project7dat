@@ -41,7 +41,7 @@ function analyzeSchema(
 
 	const entities = schema.entities || [];
 	const mappings = schema.mappings || [];
-	const gId = graphId || "current";
+	const _gId = graphId || "current";
 
 	// Track seen IDs for duplicates
 	const seenEntityIds = new Map<string, number[]>();

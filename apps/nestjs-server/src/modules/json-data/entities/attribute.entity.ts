@@ -1,11 +1,11 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    ManyToOne,
-    JoinColumn,
-    Unique,
-    Index,
+	Entity,
+	PrimaryGeneratedColumn,
+	Column,
+	ManyToOne,
+	JoinColumn,
+	Unique,
+	Index,
 } from "typeorm";
 import { ChangeEntity } from "./change.entity";
 import { AttributeTypeEntity } from "./attribute-type.entity";
@@ -40,9 +40,9 @@ export class AttributeEntity {
 	@JoinColumn({ name: "change_id" })
 	change: ChangeEntity;
 
-    @ManyToOne(() => AttributeTypeEntity)
-    @JoinColumn({ name: "type_id" })
-    attribute_type: AttributeTypeEntity;
+	@ManyToOne(() => AttributeTypeEntity)
+	@JoinColumn({ name: "type_id" })
+	attribute_type: AttributeTypeEntity;
 
 	@ManyToOne(() => EntityEntity)
 	@JoinColumn({ name: "entity_id" })

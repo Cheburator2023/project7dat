@@ -9,13 +9,8 @@ import { useAuthStore } from "../common/store/authStore";
 import { jsonDataApi } from "./hooks/jsonDataApi";
 import { jsonCommitApi } from "./hooks/jsonCommitApi";
 import { jsonDataListApi } from "@react-client/api/hooks/jsonDataListApi";
-
-interface ApiCallInfo {
-	method: string;
-	url: string;
-	status?: number;
-	errorMessage?: string;
-}
+import { processesApi } from "@react-client/api/hooks/processesApi";
+import { s2tCommitStoreApi } from "@react-client/api/hooks/s2tCommitStoreApi";
 
 const getMethodFromConfig = (config: any): string => {
 	return config?.method?.toUpperCase() || "GET";
@@ -30,6 +25,8 @@ const shouldShowToast = (url: string): boolean => {
 };
 
 const getSuccessMessage = (method: string, url: string): string => {
+	const IS_DEV = process.env.NODE_ENV === "development";
+	const debugMessage = IS_DEV ? ` ${url}, ${method}` : "";
 	const operation =
 		method === "GET"
 			? "загружены"
@@ -41,11 +38,20 @@ const getSuccessMessage = (method: string, url: string): string => {
 						? "удалены"
 						: "обработаны";
 
-	if (url.includes("/json-data")) return `Данные успешно ${operation}`;
-	if (url.includes("/json-commits")) return `Коммиты успешно ${operation}`;
-	if (url.includes("/debug")) return `Отладочная информация ${operation}`;
+	if (url.includes("validate")) return "Валидация выполнена";
+	if (url.includes("/s2t/convert-xlsx-to-commit-json"))
+		return "Конвертация выполнена" + debugMessage;
+	if (method === "POST" && url.includes("/s2t-commits"))
+		return "Коммит сохранён" + debugMessage;
 
-	return `Операция выполнена успешно`;
+	if (url.includes("/json-data"))
+		return `Данные успешно ${operation} ${debugMessage}`;
+	if (url.includes("/json-commits"))
+		return `Коммиты успешно ${operation} ${debugMessage}`;
+	if (url.includes("/debug"))
+		return `Отладочная информация ${operation} ${debugMessage}`;
+
+	return `Операция выполнена успешно${debugMessage}`;
 };
 
 const getErrorMessage = (
@@ -168,6 +174,8 @@ export const setupApiInterceptors = () => {
 	setupInterceptorsForInstance(jsonDataApi);
 	setupInterceptorsForInstance(jsonDataListApi);
 	setupInterceptorsForInstance(jsonCommitApi);
+	setupInterceptorsForInstance(processesApi);
+	setupInterceptorsForInstance(s2tCommitStoreApi);
 
 	// Also setup for global axios instance for any other API calls
 	setupInterceptorsForInstance(axios);

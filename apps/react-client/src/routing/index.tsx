@@ -17,6 +17,8 @@ import { DataMartPreview } from "@react-client/features/dataMart/pages/DataMartP
 import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { SettingsPage } from "@react-client/features/settings/SettingsPage";
 import { DashboardBuilderPage } from "@react-client/features/dashboardBuilder/DashboardBuilderPage";
+import { S2tCommitCreatePage } from "@react-client/features/s2tImport/S2tCommitCreatePage";
+import { S2tCommitDetailsPage } from "@react-client/features/s2tImport/S2tCommitDetailsPage";
 
 export const Routing = () => (
 	<Routes>
@@ -27,6 +29,14 @@ export const Routing = () => (
 		<Route path={routes.snapshots.rootPath} element={<SnapshotsPage />} />
 		<Route path={routes.jsonData.rootPath} element={<JsonDataPage />} />
 		<Route path={routes.allCommits.rootPath} element={<AllCommitsPage />} />
+		<Route
+			path={routes.s2tCommitCreate.rootPath}
+			element={<S2tCommitCreatePage />}
+		/>
+		<Route
+			path={routes.s2tCommitDetails.rootPath}
+			element={<S2tCommitDetailsPage />}
+		/>
 		<Route path={routes.objects.rootPath} element={<ObjectsPage />} />
 		<Route path={routes.objectCard.rootPath} element={<ObjectCardPage />} />
 		<Route path={routes.models.rootPath} element={<ModelsPage />} />

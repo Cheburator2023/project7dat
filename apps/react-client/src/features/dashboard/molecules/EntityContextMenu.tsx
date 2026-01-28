@@ -50,7 +50,7 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 		const [selectedConnection, setSelectedConnection] =
 			useState<EntityConnection | null>(null);
 
-		const handleViewDetails = useCallback(() => {
+		const _handleViewDetails = useCallback(() => {
 			if (entity) {
 				setIsEntityDialogOpen(true);
 			}

@@ -28,9 +28,9 @@ export class VersioningService {
 		);
 		const incomingMinor = Number.parseInt(version.split(".")[1] || "0", 10);
 
-        let compatible: boolean;
-        let migrationRequired: boolean;
-        let message: string;
+		let compatible: boolean;
+		let migrationRequired: boolean;
+		let message: string;
 
 		// Проверка поддержки версии
 		const isSupported = this.supportedVersions.includes(version);
@@ -279,6 +279,6 @@ export class VersioningService {
 			});
 		}
 
-        return migrated;
-    }
+		return migrated;
+	}
 }

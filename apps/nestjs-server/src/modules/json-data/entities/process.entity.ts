@@ -1,10 +1,10 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    ManyToOne,
-    JoinColumn,
-    Index,
+	Entity,
+	PrimaryGeneratedColumn,
+	Column,
+	ManyToOne,
+	JoinColumn,
+	Index,
 } from "typeorm";
 import { ChangeEntity } from "./change.entity";
 import { ProcessTypeEntity } from "./process-type.entity";
@@ -28,21 +28,21 @@ export class ProcessEntity {
 	@Column({ type: "varchar", nullable: true })
 	name: string;
 
-    @Column({ nullable: true })
-    group_id: number | null;
+	@Column({ nullable: true })
+	group_id: number | null;
 
-    @Column({ type: "text", nullable: true })
-    description: string;
+	@Column({ type: "text", nullable: true })
+	description: string;
 
-    @ManyToOne(() => ChangeEntity)
-    @JoinColumn({ name: "change_id" })
-    change: ChangeEntity;
+	@ManyToOne(() => ChangeEntity)
+	@JoinColumn({ name: "change_id" })
+	change: ChangeEntity;
 
-    @ManyToOne(() => ProcessTypeEntity)
-    @JoinColumn({ name: "process_type" })
-    process_type_entity: ProcessTypeEntity;
+	@ManyToOne(() => ProcessTypeEntity)
+	@JoinColumn({ name: "process_type" })
+	process_type_entity: ProcessTypeEntity;
 
-    @ManyToOne(() => ProcessGroupEntity, { nullable: true })
-    @JoinColumn({ name: "group_id" })
-    process_group: ProcessGroupEntity;
+	@ManyToOne(() => ProcessGroupEntity, { nullable: true })
+	@JoinColumn({ name: "group_id" })
+	process_group: ProcessGroupEntity;
 }

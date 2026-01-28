@@ -36,6 +36,18 @@ export const routes = {
 		disabled: false,
 		showInNavbar: true,
 	},
+	s2tCommitCreate: {
+		name: "Создание S2T коммита",
+		rootPath: "/s2t-commits/new",
+		disabled: false,
+		showInNavbar: false,
+	},
+	s2tCommitDetails: {
+		name: "S2T коммит",
+		rootPath: "/s2t-commits/:id",
+		disabled: false,
+		showInNavbar: false,
+	},
 	allCommits: {
 		name: "Реестр коммитов",
 		rootPath: "/reports/all-commits",

@@ -255,7 +255,7 @@ export const GraphPanel = memo(() => {
 		handleCloseContextMenu();
 	}, [contextMenu?.entityId, handleCloseContextMenu]);
 
-	const handleSelectUpstreamEntity = useCallback(
+	const _handleSelectUpstreamEntity = useCallback(
 		(entityId: string) => {
 			selectEntity(entityId, effectiveGraphId);
 			handleCloseContextMenu();
@@ -263,7 +263,7 @@ export const GraphPanel = memo(() => {
 		[selectEntity, effectiveGraphId, handleCloseContextMenu],
 	);
 
-	const handleSelectDownstreamEntity = useCallback(
+	const _handleSelectDownstreamEntity = useCallback(
 		(entityId: string) => {
 			selectEntity(entityId, effectiveGraphId);
 			handleCloseContextMenu();

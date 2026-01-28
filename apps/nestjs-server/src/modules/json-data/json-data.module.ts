@@ -62,6 +62,8 @@ import { JsonExportService } from "./services/json-export.service";
 import { JsonExportController } from "./controllers/json-export.controller";
 import { S2tToCommitJsonService } from "src/modules/json-data/services/s2t-to-commit-json.service";
 import { S2tCommitStoreService } from "./services/s2t-commit-store.service";
+import { ProcessesController } from "./controllers/processes.controller";
+import { ProcessesService } from "./services/processes.service";
 
 @Global()
 @Module({})
@@ -107,6 +109,7 @@ export class JsonDataModule {
 			S2tConversionService,
 			S2tToCommitJsonService,
 			S2tCommitStoreService,
+			ProcessesService,
 
 			// Conflict and Migration services
 			JsonConflictService,
@@ -162,6 +165,7 @@ export class JsonDataModule {
 			JsonExportController,
 			S2tConversionController,
 			S2tCommitStoreController,
+			ProcessesController,
 		];
 
 		const exports = [

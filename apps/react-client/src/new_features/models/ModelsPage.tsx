@@ -77,14 +77,14 @@ const getStatusColor = (status: Model["status"]) => {
 	}
 };
 
-const TYPE_COLORS: Record<string, string> = {
+const _TYPE_COLORS: Record<string, string> = {
 	table: "#1976d2",
 	view: "#9c27b0",
 	rdd: "#f57c00",
 	unresolved: "#c2185b",
 };
 
-const StatusChipRenderer = ({ value }: { value: Model["status"] }) => {
+const _StatusChipRenderer = ({ value }: { value: Model["status"] }) => {
 	const statusLabels = {
 		active: "Активная",
 		draft: "Черновик",
@@ -102,7 +102,7 @@ const StatusChipRenderer = ({ value }: { value: Model["status"] }) => {
 	);
 };
 
-const TagsRenderer = ({ value }: { value: string[] }) => {
+const _TagsRenderer = ({ value }: { value: string[] }) => {
 	return (
 		<Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
 			{value.map((tag, index) => (
