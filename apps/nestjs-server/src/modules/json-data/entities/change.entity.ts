@@ -22,7 +22,7 @@ export class ChangeEntity {
 	@Column({ type: "varchar", nullable: true })
 	app_id: string;
 
-	@Column({ type: "varchar", default: "1.0", nullable: true})
+	@Column({ type: "varchar", default: "1.0", nullable: true })
 	schema_version: string;
 
 	@Column({ type: "boolean", default: false, nullable: true })

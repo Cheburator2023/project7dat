@@ -11,17 +11,17 @@ export class EntityContainerService {
 		private readonly dataSource: DataSource,
 	) {}
 
-    /**
-     * Разрешение entity_container по namespace
-     */
-    async resolveEntityContainer(
-        namespace: string | null | undefined,
-        changeId: number,
-        queryRunner: any,
-    ): Promise<number | null> {
-        if (!namespace) {
-            return null;
-        }
+	/**
+	 * Разрешение entity_container по namespace
+	 */
+	async resolveEntityContainer(
+		namespace: string | null | undefined,
+		changeId: number,
+		queryRunner: any,
+	): Promise<number | null> {
+		if (!namespace) {
+			return null;
+		}
 
 		// Проверяем кэш
 		if (this.containerCache.has(namespace)) {

@@ -251,7 +251,7 @@ export const GraphPanel2: React.FC<{ onSelectNode?: (data: any) => void }> =
 			handleCloseContextMenu();
 		}, [contextMenu?.entityId, handleCloseContextMenu]);
 
-		const handleSelectUpstreamEntity = useCallback(
+		const _handleSelectUpstreamEntity = useCallback(
 			(entityId: string) => {
 				selectEntity(entityId, effectiveGraphId);
 				handleCloseContextMenu();
@@ -259,7 +259,7 @@ export const GraphPanel2: React.FC<{ onSelectNode?: (data: any) => void }> =
 			[selectEntity, effectiveGraphId, handleCloseContextMenu],
 		);
 
-		const handleSelectDownstreamEntity = useCallback(
+		const _handleSelectDownstreamEntity = useCallback(
 			(entityId: string) => {
 				selectEntity(entityId, effectiveGraphId);
 				handleCloseContextMenu();

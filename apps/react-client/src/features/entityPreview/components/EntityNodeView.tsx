@@ -1135,7 +1135,9 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		const edgeList: Edge[] = [];
 		const edgeSet = new Set<string>();
 
-		attrEdges.forEach((attr) => edgeList.push(attr));
+		attrEdges.forEach((attr) => {
+			edgeList.push(attr);
+		});
 
 		if (attrEdges.length === 0) {
 			mappings.forEach((mapping) => {
@@ -1162,7 +1164,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 						dep.entityId === selectedNode ||
 						mapping.entityId === selectedNode;
 
-					const isSelected =
+					const _isSelected =
 						(dep.entityId === selectedAttribute?.entityId ||
 							mapping.entityId === selectedAttribute?.entityId) &&
 						attrEdges.length === 0;

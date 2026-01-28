@@ -71,7 +71,7 @@ export function App({ bridged, user, onLogout, keycloak }: AppProps) {
 		console.log({ AppProps: { bridged, user, onLogout, keycloak } });
 	}, [bridged, user, onLogout, keycloak]);
 
-	const onLogoutHandler = () => {
+	const _onLogoutHandler = () => {
 		if (onLogout || keycloak) {
 			keycloak.logout({ redirectUri: window.location.origin });
 			onLogout?.();

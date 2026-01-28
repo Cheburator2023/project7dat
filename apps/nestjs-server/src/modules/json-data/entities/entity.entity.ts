@@ -4,7 +4,7 @@ import {
 	Column,
 	ManyToOne,
 	JoinColumn,
-    Index,
+	Index,
 } from "typeorm";
 import { ChangeEntity } from "./change.entity";
 import { EntityTypeEntity } from "./entity-type.entity";
@@ -27,7 +27,7 @@ export class EntityEntity {
 	entity_type_id: number;
 
 	@Column({ nullable: true })
-    entity_container_id: number | null;
+	entity_container_id: number | null;
 
 	@Column({ type: "varchar", nullable: true })
 	name: string;
@@ -42,11 +42,11 @@ export class EntityEntity {
 	@JoinColumn({ name: "change_id" })
 	change: ChangeEntity;
 
-    @ManyToOne(() => EntityTypeEntity)
-    @JoinColumn({ name: "entity_type_id" })
-    entity_type: EntityTypeEntity;
+	@ManyToOne(() => EntityTypeEntity)
+	@JoinColumn({ name: "entity_type_id" })
+	entity_type: EntityTypeEntity;
 
-    @ManyToOne(() => EntityContainerEntity, { nullable: true })
-    @JoinColumn({ name: "entity_container_id" })
-    entity_container: EntityContainerEntity;
+	@ManyToOne(() => EntityContainerEntity, { nullable: true })
+	@JoinColumn({ name: "entity_container_id" })
+	entity_container: EntityContainerEntity;
 }

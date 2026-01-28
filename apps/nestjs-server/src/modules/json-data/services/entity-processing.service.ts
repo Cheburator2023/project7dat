@@ -15,13 +15,13 @@ export class EntityProcessingService {
 
 	constructor(
 		@InjectRepository(EntityEntity)
-		private readonly entityRepository: Repository<EntityEntity>,
+		readonly _entityRepository: Repository<EntityEntity>,
 		@InjectRepository(AttributeEntity)
-		private readonly attributeRepository: Repository<AttributeEntity>,
+		readonly _attributeRepository: Repository<AttributeEntity>,
 		@InjectRepository(EntityMapEntity)
-		private readonly entityMapRepository: Repository<EntityMapEntity>,
+		readonly _entityMapRepository: Repository<EntityMapEntity>,
 		@InjectRepository(EntityContainerEntity)
-		private readonly entityContainerRepository: Repository<EntityContainerEntity>,
+		readonly _entityContainerRepository: Repository<EntityContainerEntity>,
 		private readonly entityTypeService: EntityTypeService,
 		private readonly attributeTypeService: AttributeTypeService,
 	) {}

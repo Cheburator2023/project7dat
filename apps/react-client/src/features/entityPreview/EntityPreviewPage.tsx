@@ -36,7 +36,7 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 	unresolved: <HelpOutlineIcon fontSize={"large"} />,
 };
 
-const TYPE_LABELS: Record<string, string> = {
+const _TYPE_LABELS: Record<string, string> = {
 	table: "Таблица",
 	view: "Представление",
 	rdd: "RDD",
@@ -120,7 +120,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 }) => {
 	const [currentEntityId, setCurrentEntityId] = useState();
 	const { isPending } = useCurrentDataLineageGraph();
-	const [calculatedEntities, setCalculatedEntities] = useState<
+	const [calculatedEntities, _setCalculatedEntities] = useState<
 		DataLineageEntity[]
 	>([]);
 

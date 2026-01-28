@@ -33,7 +33,7 @@ const nonDevEntries = Object.entries(routes).filter(
 	([, route]) => route.showInNavbar && !(route as any).devOnly,
 );
 
-const backendItems = nonDevEntries
+const _backendItems = nonDevEntries
 	.filter(([key]: any) =>
 		(OLD_ROUTE_KEYS as ReadonlyArray<string>).includes(key),
 	)

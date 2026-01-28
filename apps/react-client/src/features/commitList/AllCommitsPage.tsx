@@ -1,8 +1,10 @@
-import React, { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
+import type { ChangeEvent, FC } from "react";
 import { Box, Typography, Button, Alert } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
+import { useNavigate } from "react-router";
 import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
@@ -10,18 +12,18 @@ import {
 import {
 	useAllCommitsFromAllGraphs,
 	useCommitList,
+	useS2tCommitList,
 } from "@react-client/api/hooks";
 import type { JsonCommitItem } from "@react-client/api/hooks/jsonDataApi";
+import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { JsonViewerCell } from "@react-client/common/grid/JsonViewerCell";
 import { JsonDiffViewerCell } from "@react-client/common/grid/JsonDiffViewerCell";
-import { DataLineageGraph } from "@react-client/types/dataLineage";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { useShallow } from "zustand/react/shallow";
 
-export const AllCommitsPage: React.FC = () => {
+export const AllCommitsPage: FC = () => {
 	const { mode } = useColorScheme();
+	const navigate = useNavigate();
 	const [_refreshKey, setRefreshKey] = useState(0);
 	const [showAllGraphs, setShowAllGraphs] = useState(false);
 
@@ -48,11 +50,15 @@ export const AllCommitsPage: React.FC = () => {
 	const refetchSingle = singleGraphQuery.refetch;
 	const refetchAll = allGraphsQuery.refetch;
 
-	const commitsList = showAllGraphs
+	const _commitsList = showAllGraphs
 		? allGraphsCommitsResponse?.data || []
 		: singleGraphCommitsResponse?.data || [];
 
-	const isLoading = showAllGraphs ? isLoadingAll : isLoadingSingle;
+	const s2tCommitsQuery = useS2tCommitList({ enabled: true });
+	const s2tCommits = s2tCommitsQuery.data ?? [];
+	const _s2tCommitsError = s2tCommitsQuery.error;
+
+	const _isLoading = showAllGraphs ? isLoadingAll : isLoadingSingle;
 	const error = showAllGraphs ? errorAll : errorSingle;
 
 	const handleRefresh = () => {
@@ -64,11 +70,11 @@ export const AllCommitsPage: React.FC = () => {
 		}
 	};
 
-	const _handleToggleView = (event: React.ChangeEvent<HTMLInputElement>) => {
+	const _handleToggleView = (event: ChangeEvent<HTMLInputElement>) => {
 		setShowAllGraphs(event.target.checked);
 	};
 
-	const columnDefs: ColDef<JsonCommitItem>[] = useMemo(() => {
+	const _columnDefs: ColDef<JsonCommitItem>[] = useMemo(() => {
 		const baseColumns: ColDef<JsonCommitItem>[] = [
 			{
 				headerName: "ID",
@@ -165,6 +171,81 @@ export const AllCommitsPage: React.FC = () => {
 		return baseColumns;
 	}, [showAllGraphs]);
 
+	const s2tColumnDefs: ColDef<S2tCommitItem>[] = useMemo(
+		() => [
+			{
+				headerName: "ID",
+				field: "id",
+				width: 220,
+				pinned: "left",
+				cellRenderer: (params: any) => (
+					<Typography variant="body2" noWrap fontFamily="monospace">
+						{params.value ? String(params.value).slice(0, 8) : "—"}
+					</Typography>
+				),
+			},
+			{
+				headerName: "Название",
+				field: "commit_name",
+				width: 260,
+				cellRenderer: (params: any) => (
+					<Box sx={{ padding: 1 }}>
+						<Typography variant="body2" noWrap>
+							{params.value || "—"}
+						</Typography>
+					</Box>
+				),
+			},
+			{
+				headerName: "Тип",
+				field: "type",
+				width: 110,
+			},
+			{
+				headerName: "Статус",
+				field: "state",
+				width: 130,
+			},
+			{
+				headerName: "Пользователь",
+				field: "user",
+				width: 160,
+				cellRenderer: (params: any) => params.value || "—",
+			},
+			{
+				headerName: "Change ID",
+				field: "change_id",
+				width: 120,
+				cellRenderer: (params: any) =>
+					typeof params.value === "number" ? params.value : "—",
+			},
+			{
+				headerName: "Создан",
+				field: "created_at",
+				width: 180,
+				cellRenderer: (params: any) => {
+					if (!params.value) return "—";
+					return new Date(params.value).toLocaleString("ru-RU");
+				},
+			},
+			{
+				headerName: "Ошибка",
+				field: "error",
+				width: 260,
+				cellRenderer: (params: any) => (
+					<Typography
+						variant="body2"
+						noWrap
+						color={params.value ? "error" : "text.secondary"}
+					>
+						{params.value || "—"}
+					</Typography>
+				),
+			},
+		],
+		[],
+	);
+
 	const defaultColDef = useMemo(
 		() => ({
 			resizable: true,
@@ -174,85 +255,17 @@ export const AllCommitsPage: React.FC = () => {
 		[],
 	);
 
-	// Data lineage store for commit functionality
-	const { setCurrentGraph, markAsChanged } = useDataLineageStore(
-		useShallow((state) => ({
-			setCurrentGraph: state.setCurrentGraph,
-			markAsChanged: state.markAsChanged,
-		})),
-	);
+	const handleOpenS2tCommitCreatePage = useCallback(() => {
+		navigate("/s2t-commits/new");
+	}, [navigate]);
 
-	const convertS2TToGraph = (s2t: S2TFormat): DataLineageGraph => {
-		return {
-			desc: {
-				appId: s2t.desc?.appId ?? "imported",
-				appName: s2t.desc?.appName ?? "Imported S2T",
-			},
-			entities:
-				s2t.entities?.map((entity) => ({
-					id: entity.id,
-					name: entity.name,
-					type:
-						(entity.type as "table" | "view" | "rdd" | "unresolved") || "table",
-					namespace: entity.namespace,
-					modified: entity.modified ?? false,
-					description: entity.description,
-					attrSeq: entity.attrSeq,
-				})) ?? [],
-			mappings:
-				s2t.mappings?.map((mapping, index) => ({
-					id: mapping.id ?? index,
-					entityId: mapping.entityId,
-					deps: mapping.deps?.map((dep) => ({
-						entityId: dep.entityId,
-						attrMaps: dep.attrMaps,
-						atrDeps: dep.atrDeps?.map((atrDep) => ({
-							attr: atrDep.attr,
-							linkTypes: atrDep.linkTypes as Array<
-								"window" | "join" | "where" | "groupby"
-							>,
-						})),
-					})),
-				})) ?? [],
-			failedMappings: [],
-		};
-	};
-
-	const handleImport = useCallback(
-		(format: "json" | "s2t") => {
-			const input = document.createElement("input");
-			input.type = "file";
-			input.accept = ".json";
-			input.onchange = (event) => {
-				const file = (event.target as HTMLInputElement).files?.[0];
-				if (file) {
-					const reader = new FileReader();
-					reader.onload = (e) => {
-						try {
-							const content = e.target?.result as string;
-							const parsedData = JSON.parse(content);
-
-							let graphData: DataLineageGraph;
-							if (format === "s2t") {
-								// Convert S2T format to DataLineageGraph
-								graphData = convertS2TToGraph(parsedData);
-							} else {
-								graphData = parsedData as DataLineageGraph;
-							}
-
-							setCurrentGraph(graphData);
-							markAsChanged();
-						} catch (error) {
-							console.error("Ошибка при парсинге JSON:", error);
-							alert("Ошибка при загрузке файла. Проверьте формат JSON.");
-						}
-					};
-					reader.readAsText(file);
-				}
-			};
-			input.click();
+	const handleS2tRowDoubleClick = useCallback(
+		(event: any) => {
+			const id = event?.data?.id;
+			if (!id) return;
+			navigate(`/s2t-commits/${id}`);
 		},
-		[setCurrentGraph, markAsChanged],
+		[navigate],
 	);
 
 	if (error) {
@@ -275,57 +288,39 @@ export const AllCommitsPage: React.FC = () => {
 	return (
 		<Box>
 			<Header>
-				<Button onClick={() => handleImport("s2t")} title="Импорт S2T">
+				<Button onClick={handleOpenS2tCommitCreatePage} title="Импорт S2T">
 					Импорт S2T
 				</Button>
 			</Header>
 
-			<GridWrapper height="-webkit-fill-available">
-				<AgGridReact<JsonCommitItem>
-					rowData={commitsList}
-					columnDefs={columnDefs}
-					defaultColDef={defaultColDef}
-					pagination={true}
-					paginationPageSize={20}
-					paginationPageSizeSelector={[10, 20, 50, 100]}
-					loading={isLoading}
-					theme={
-						mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
-					}
-					loadingOverlayComponent={() => (
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								height: "100%",
-							}}
-						>
-							<Typography>Загрузка коммитов...</Typography>
-						</div>
-					)}
-					noRowsOverlayComponent={() => (
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								height: "100%",
-							}}
-						>
-							<Typography color="text.secondary">
-								{showAllGraphs
-									? "Коммиты не найдены во всех JSONах"
-									: "Коммиты не найдены в текущем JSONе"}
-							</Typography>
-						</div>
-					)}
-					animateRows={true}
-					enableCellTextSelection={true}
-					ensureDomOrder={true}
-					maintainColumnOrder={true}
-				/>
-			</GridWrapper>
+			<Box
+				sx={{
+					display: "flex",
+					flexDirection: "column",
+					gap: 2,
+					height: "100%",
+				}}
+			>
+				<GridWrapper height="100%">
+					<AgGridReact<S2tCommitItem>
+						rowData={s2tCommits}
+						columnDefs={s2tColumnDefs}
+						defaultColDef={defaultColDef}
+						onRowDoubleClicked={handleS2tRowDoubleClick}
+						pagination={true}
+						paginationPageSize={20}
+						paginationPageSizeSelector={[10, 20, 50, 100]}
+						loading={s2tCommitsQuery.isLoading}
+						theme={
+							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
+						}
+						animateRows={true}
+						enableCellTextSelection={true}
+						ensureDomOrder={true}
+						maintainColumnOrder={true}
+					/>
+				</GridWrapper>
+			</Box>
 		</Box>
 	);
 };
