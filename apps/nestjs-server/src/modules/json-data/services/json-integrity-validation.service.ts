@@ -1,9 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { IntegrityResult } from "../types/validation.types";
-import { IJsonIntegrityValidator } from "./interfaces/validation.interfaces";
+import { IntegrityResult } from "../types";
+import { JsonIntegrityValidator } from "./interfaces/validation.interfaces";
 
 @Injectable()
-export class JsonIntegrityValidationService implements IJsonIntegrityValidator {
+export class JsonIntegrityValidationService extends JsonIntegrityValidator {
     private readonly logger = new Logger(JsonIntegrityValidationService.name);
 
     validateIntegrity(data: any): IntegrityResult {
