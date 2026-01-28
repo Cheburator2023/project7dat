@@ -72,6 +72,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		onNodeContextMenu,
 	}) => {
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
+		const [isTopLeftPanelVisible, setIsTopLeftPanelVisible] = useState(false);
 		const [graphMode, setGraphMode] = useState<"entities" | "attributes">(
 			"entities",
 		);
@@ -835,59 +836,104 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 					/>
 				)}
 				<Panel position="top-left">
-					<div
-						style={{
-							background: "#fff",
-							padding: 12,
-							borderRadius: 8,
-							boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-						}}
-					>
-						<div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-							{data.entities?.length || 0} сущностей
-						</div>
-						<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-							<button
-								onClick={() =>
-									setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
-								}
+					{isTopLeftPanelVisible ? (
+						<div
+							id="graph-panel-inner-top-left"
+							style={{
+								background: "#fff",
+								padding: 12,
+								borderRadius: 8,
+								boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+							}}
+						>
+							<div
 								style={{
-									padding: "6px 12px",
-									border: "1px solid #ddd",
-									borderRadius: 6,
-									background: "#fff",
-									cursor: "pointer",
-									fontSize: 11,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "space-between",
+									gap: 8,
+									marginBottom: 8,
 								}}
-								type="button"
 							>
-								{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
-							</button>
-							<button
-								onClick={() =>
-									setGraphMode(
-										graphMode === "entities" ? "attributes" : "entities",
-									)
-								}
-								style={{
-									padding: "6px 12px",
-									border: "1px solid #ddd",
-									borderRadius: 6,
-									background: graphMode === "attributes" ? "#e3f2fd" : "#fff",
-									cursor: "pointer",
-									fontSize: 11,
-								}}
-								title={
-									graphMode === "attributes"
-										? "Показаны связи атрибутов"
-										: "Показаны связи объектов"
-								}
-								type="button"
-							>
-								{graphMode === "attributes" ? "Атрибуты" : "Объекты"}
-							</button>
+								<div style={{ fontSize: 12, fontWeight: 600 }}>
+									{data.entities?.length || 0} сущностей
+								</div>
+								<button
+									onClick={() => setIsTopLeftPanelVisible(false)}
+									style={{
+										padding: "4px 8px",
+										border: "1px solid #ddd",
+										borderRadius: 6,
+										background: "#fff",
+										cursor: "pointer",
+										fontSize: 11,
+									}}
+									type="button"
+									title="Скрыть панель"
+								>
+									×
+								</button>
+							</div>
+							<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+								<button
+									onClick={() =>
+										setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
+									}
+									style={{
+										padding: "6px 12px",
+										border: "1px solid #ddd",
+										borderRadius: 6,
+										background: "#fff",
+										cursor: "pointer",
+										fontSize: 11,
+									}}
+									type="button"
+								>
+									{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
+								</button>
+								<button
+									onClick={() =>
+										setGraphMode(
+											graphMode === "entities" ? "attributes" : "entities",
+										)
+									}
+									style={{
+										padding: "6px 12px",
+										border: "1px solid #ddd",
+										borderRadius: 6,
+										background: graphMode === "attributes" ? "#e3f2fd" : "#fff",
+										cursor: "pointer",
+										fontSize: 11,
+									}}
+									title={
+										graphMode === "attributes"
+											? "Показаны связи атрибутов"
+											: "Показаны связи объектов"
+									}
+									type="button"
+								>
+									{graphMode === "attributes" ? "Атрибуты" : "Объекты"}
+								</button>
+							</div>
 						</div>
-					</div>
+					) : (
+						<button
+							onClick={() => setIsTopLeftPanelVisible(true)}
+							style={{
+								padding: "6px 10px",
+								border: "1px solid #ddd",
+								borderRadius: 8,
+								background: "#fff",
+								boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+								cursor: "pointer",
+								fontSize: 11,
+							}}
+							type="button"
+							title="Показать панель"
+						>
+							≡
+						</button>
+					)}
 				</Panel>
 			</ReactFlow>
 		);
