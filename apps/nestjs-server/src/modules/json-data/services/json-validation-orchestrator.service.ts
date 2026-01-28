@@ -1,4 +1,4 @@
-import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
     ValidationResult,
     IntegrityResult,
@@ -9,20 +9,22 @@ import {
     ComprehensiveValidationResponse
 } from "../types";
 import { VersioningService } from "./versioning.service";
+import {
+    JsonStructureValidator,
+    JsonBusinessRulesValidator,
+    JsonIntegrityValidator,
+    JsonSchemaVersionValidator
+} from "./interfaces/validation.interfaces";
 
 @Injectable()
 export class JsonValidationOrchestratorService {
     private readonly logger = new Logger(JsonValidationOrchestratorService.name);
 
     constructor(
-        @Inject('IJsonStructureValidator')
-        private readonly structureValidator: any,
-        @Inject('IJsonIntegrityValidator')
-        private readonly integrityValidator: any,
-        @Inject('IJsonBusinessRulesValidator')
-        private readonly businessRulesValidator: any,
-        @Inject('IJsonSchemaVersionValidator')
-        private readonly schemaVersionValidator: any,
+        private readonly structureValidator: JsonStructureValidator,
+        private readonly businessRulesValidator: JsonBusinessRulesValidator,
+        private readonly integrityValidator: JsonIntegrityValidator,
+        private readonly schemaVersionValidator: JsonSchemaVersionValidator,
         private readonly versioningService: VersioningService,
     ) {}
 
