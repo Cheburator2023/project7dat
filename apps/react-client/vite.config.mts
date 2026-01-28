@@ -73,6 +73,29 @@ export default defineConfig({
 	},
 
 	plugins: [
+		{
+			name: "dev-url-config",
+			apply: "serve",
+			enforce: "pre",
+			transformIndexHtml(html) {
+				return html.replace(
+					"</head>",
+					`
+						<script>
+							window.urlConfig = {
+								SUM_FRONTEND: "http://test.host:8002/test",
+								SUM_API: "https://test.host",
+								SMART_ANKETA_FRONTEND: "http://test.host:8004",
+								SMART_ANKETA_API: "http://test.host:8004",
+								DATA_LINEAGE_API: "http://localhost:3000",
+								SUM_RM_API: "https://test.host/api/rest/v1",
+								KEYCLOAK_URL: "https://test.host/auth",
+							};
+						</script>
+					</head>`,
+				);
+			},
+		} as PluginOption,
 		tsconfigPaths() as PluginOption,
 		nodePolyfills({
 			include: ["net"],

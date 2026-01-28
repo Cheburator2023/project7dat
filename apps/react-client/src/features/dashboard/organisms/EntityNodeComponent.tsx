@@ -12,18 +12,18 @@ export const EntityNodeComponent = memo(
 			highlightType,
 			onNodeClick,
 			onNodeDoubleClick,
-			onAttrHover,
 			onAttrClick,
 			graphId,
 			upstreamCount,
 			downstreamCount,
 			highlightedSourceAttrs = new Set<string>(),
 			highlightedTargetAttrs = new Set<string>(),
-			hoverHighlightedAttrs = new Set<string>(),
 			selectedHighlightedAttrs = new Set<string>(),
 			isSearchActive = false,
 			isSearchMatch = false,
 			showAllAttrs = false,
+			isExpanded = false,
+			onToggleExpand,
 		} = data;
 		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 		const attrs = entity.attrSeq || [];
@@ -196,26 +196,44 @@ export const EntityNodeComponent = memo(
 							</span>
 						)}
 						<span style={{ color: "#888", marginLeft: "auto" }}>
-							{visibleAttrs.length}/{attrs.length} атр.
+							{attrs.length} атр.
 						</span>
+						{attrs.length > 0 && onToggleExpand && (
+							<button
+								type="button"
+								onClick={(e) => {
+									e.stopPropagation();
+									onToggleExpand(id);
+								}}
+								style={{
+									background: "none",
+									border: "none",
+									cursor: "pointer",
+									padding: "2px 4px",
+									marginLeft: 4,
+									color: "#1976d2",
+									fontSize: 12,
+								}}
+								title={isExpanded ? "Скрыть атрибуты" : "Показать атрибуты"}
+							>
+								{isExpanded ? "▼" : "▶"}
+							</button>
+						)}
 					</div>
 				</div>
 
 				{/* Related attributes */}
-				{visibleAttrs.length > 0 && (
-					<div onMouseLeave={() => onAttrHover(id, null)}>
+				{isExpanded && visibleAttrs.length > 0 && (
+					<div>
 						{visibleAttrs.map((attr, idx) => {
 							const isSourceHighlighted = highlightedSourceAttrs.has(attr.name);
 							const isTargetHighlighted = highlightedTargetAttrs.has(attr.name);
-							const isHoverHighlighted = hoverHighlightedAttrs.has(attr.name);
 							const isSelectedHighlighted = selectedHighlightedAttrs.has(
 								attr.name,
 							);
-							const isHighlighted = isHoverHighlighted || isSelectedHighlighted;
 							return (
 								<div
 									key={attr.name}
-									onMouseEnter={() => onAttrHover(id, attr.name)}
 									onClick={(e) => {
 										e.stopPropagation();
 										onAttrClick(id, attr.name);
@@ -231,11 +249,9 @@ export const EntityNodeComponent = memo(
 												: "none",
 										background: isSelectedHighlighted
 											? `${HIGHLIGHT_COLORS.selected}70`
-											: isHoverHighlighted
-												? `${HIGHLIGHT_COLORS.selected}30`
-												: idx % 2 === 0
-													? "#fafafa"
-													: "#fff",
+											: idx % 2 === 0
+												? "#fafafa"
+												: "#fff",
 										position: "relative",
 										cursor: "pointer",
 										transition: "background 0.15s ease",
@@ -248,11 +264,11 @@ export const EntityNodeComponent = memo(
 										id={`attr-target-${attr.name}`}
 										style={{
 											background:
-												isTargetHighlighted || isHighlighted
+												isTargetHighlighted || isSelectedHighlighted
 													? HIGHLIGHT_COLORS.selected
 													: colors.border,
-											width: isHighlighted ? 8 : 6,
-											height: isHighlighted ? 8 : 6,
+											width: isSelectedHighlighted ? 8 : 6,
+											height: isSelectedHighlighted ? 8 : 6,
 											left: -3,
 											border: "1px solid #fff",
 											transition: "all 0.15s ease",
@@ -260,12 +276,12 @@ export const EntityNodeComponent = memo(
 									/>
 									<span
 										style={{
-											color: isHighlighted ? "#333" : "#555",
+											color: isSelectedHighlighted ? "#333" : "#555",
 											whiteSpace: "nowrap",
 											overflow: "hidden",
 											textOverflow: "ellipsis",
 											flex: 1,
-											fontWeight: isHighlighted ? 600 : 400,
+											fontWeight: isSelectedHighlighted ? 600 : 400,
 										}}
 									>
 										{attr.name}
@@ -280,11 +296,11 @@ export const EntityNodeComponent = memo(
 										id={`attr-source-${attr.name}`}
 										style={{
 											background:
-												isSourceHighlighted || isHighlighted
+												isSourceHighlighted || isSelectedHighlighted
 													? HIGHLIGHT_COLORS.selected
 													: colors.border,
-											width: isHighlighted ? 8 : 6,
-											height: isHighlighted ? 8 : 6,
+											width: isSelectedHighlighted ? 8 : 6,
+											height: isSelectedHighlighted ? 8 : 6,
 											right: -3,
 											border: "1px solid #fff",
 											transition: "all 0.15s ease",

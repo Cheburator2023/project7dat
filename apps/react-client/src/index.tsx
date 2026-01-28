@@ -1,29 +1,35 @@
 import ReactDOM from "react-dom/client";
 
-import { App } from "./App";
-
 import { reportWebVitals } from "./reportWebVitals";
 import { AuthProvider } from "@react-client/common/AuthProvider";
 import { globalStyles } from "@react-client/theme/GlobalStyle";
-
-(window as any).urlConfig = {
-	SUM_FRONTEND: "http://test.host:8002/test",
-	SUM_API: "https://test.host",
-	SMART_ANKETA_FRONTEND: "http://test.host:8004",
-	SMART_ANKETA_API: "http://test.host:8004",
-	SUM_RM_API: "https://test.host/api/rest/v1",
-	KEYCLOAK_URL: "https://test.host/auth",
-};
+import { CircularProgress } from "@mui/material";
+import { useEffect, useState } from "react";
+import { App } from "./App";
 
 const root = ReactDOM.createRoot(
 	document.getElementById("root") as HTMLElement,
 );
 
-root.render(
-	<AuthProvider token={"test-token"}>
-		{globalStyles}
-		<App />
-	</AuthProvider>,
-);
+const RenderApp = () => {
+	const [urlConfig, setUrlConfig] = useState<any>();
+
+	useEffect(() => {
+		setTimeout(() => {
+			setUrlConfig((window as any).urlConfig);
+		}, 1000);
+	}, []);
+
+	return urlConfig?.SUM_FRONTEND ? (
+		<AuthProvider token={"test-token"}>
+			{globalStyles}
+			<App />
+		</AuthProvider>
+	) : (
+		<CircularProgress />
+	);
+};
+
+root.render(<RenderApp />);
 
 reportWebVitals(console.log);

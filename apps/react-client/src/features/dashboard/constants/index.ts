@@ -18,6 +18,7 @@ export const TYPE_COLORS: Record<
 	{ bg: string; border: string; text: string }
 > = {
 	table: { bg: "#e3f2fd", border: "#1976d2", text: "#1565c0" },
+	model: { bg: "#e3f2fd", border: "#1976d2", text: "#1565c0" },
 	view: { bg: "#f3e5f5", border: "#7b1fa2", text: "#6a1b9a" },
 	rdd: { bg: "#fff3e0", border: "#f57c00", text: "#e65100" },
 	unresolved: { bg: "#fce4ec", border: "#c2185b", text: "#ad1457" },
@@ -73,6 +74,12 @@ export const flexLayoutJson: IJsonModel = {
 								component: "entities",
 								id: "entities-tab",
 							},
+							{
+								type: "tab",
+								name: "ℹ️ Информация",
+								component: "selection-info",
+								id: "selection-info-tab",
+							},
 						],
 					},
 					{
@@ -100,6 +107,18 @@ export const flexLayoutJson: IJsonModel = {
 						component: "graph",
 						id: "graph-tab",
 					},
+					{
+						type: "tab",
+						name: "⚠️ Ошибки",
+						component: "issues",
+						id: "issues-tab",
+					},
+					{
+						type: "tab",
+						name: "📋 Схема",
+						component: "schema",
+						id: "schema-tab",
+					},
 				],
 			},
 			// Right column: Code Editor, Commit History, Info
@@ -111,45 +130,39 @@ export const flexLayoutJson: IJsonModel = {
 						type: "tabset",
 						weight: 50,
 						children: [
-							{
-								type: "tab",
-								name: "ℹ️ Информация",
-								component: "selection-info",
-								id: "selection-info-tab",
-							},
-							{
-								type: "tab",
-								name: "✏️ Редактор",
-								component: "code-editor",
-								id: "code-editor-tab",
-							},
-
-							{
-								type: "tab",
-								name: "⚠️ Ошибки",
-								component: "issues",
-								id: "issues-tab",
-							},
-							{
-								type: "tab",
-								name: "📋 Схема",
-								component: "schema",
-								id: "schema-tab",
-							},
+							// {
+							// 	type: "tab",
+							// 	name: "✏️ Редактор",
+							// 	component: "code-editor",
+							// 	id: "code-editor-tab",
+							// },
+							//
+							// {
+							// 	type: "tab",
+							// 	name: "⚠️ Ошибки",
+							// 	component: "issues",
+							// 	id: "issues-tab",
+							// },
+							// {
+							// 	type: "tab",
+							// 	name: "📋 Схема",
+							// 	component: "schema",
+							// 	id: "schema-tab",
+							// },
 						],
 					},
-					{
-						type: "tabset",
-						weight: 50,
-						children: [
-							{
-								type: "tab",
-								name: "📜 История",
-								component: "commit-history",
-								id: "commit-history-tab",
-							},
-						],
-					},
+					// {
+					// 	type: "tabset",
+					// 	weight: 50,
+					// 	children: [
+					// 		{
+					// 			type: "tab",
+					// 			name: "📜 История",
+					// 			component: "commit-history",
+					// 			id: "commit-history-tab",
+					// 		},
+					// 	],
+					// },
 				],
 			},
 		],
