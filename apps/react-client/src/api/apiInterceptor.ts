@@ -41,6 +41,12 @@ const getSuccessMessage = (method: string, url: string): string => {
 	if (url.includes("validate")) return "Валидация выполнена";
 	if (url.includes("/s2t/convert-xlsx-to-commit-json"))
 		return "Конвертация выполнена" + debugMessage;
+	if (
+		method === "POST" &&
+		url.includes("/s2t-commits") &&
+		url.includes("apply")
+	)
+		return "Коммит применён" + debugMessage;
 	if (method === "POST" && url.includes("/s2t-commits"))
 		return "Коммит сохранён" + debugMessage;
 

@@ -106,7 +106,7 @@ export const EntityNodeComponent = memo(
 								}}
 							>
 								{entity.type}
-								{entity.system_id && (
+								{entity.system_code && (
 									<span
 										style={{
 											marginLeft: 6,
@@ -119,7 +119,7 @@ export const EntityNodeComponent = memo(
 										}}
 										title="Система"
 									>
-										{entity.system_id}
+										{entity.system_code}
 									</span>
 								)}
 								{entity.modified && (

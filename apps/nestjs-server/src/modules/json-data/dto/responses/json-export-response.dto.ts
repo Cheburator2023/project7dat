@@ -55,6 +55,9 @@ export class JsonExportEntityDto {
 	@ApiProperty({ description: "Описание контейнера", required: false })
 	container_description?: string;
 
+	@ApiProperty({ description: "Код системы", required: false })
+	system_code?: string;
+
 	@ApiProperty({ description: "Дата изменения контейнера" })
 	container_change: string;
 

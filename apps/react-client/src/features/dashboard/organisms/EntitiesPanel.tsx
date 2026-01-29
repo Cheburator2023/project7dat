@@ -46,6 +46,7 @@ export const EntitiesPanel = memo(() => {
 	// Use currentSchema hook to get data synced with editor
 	const { currentSchema, effectiveGraphId, isLoading, error } =
 		useCurrentSchema();
+	console.log("🐸 Pepe said >> currentSchema:", currentSchema);
 
 	// Transform data to entity rows
 	const entities: EntityRow[] = useMemo(() => {
@@ -83,7 +84,7 @@ export const EntitiesPanel = memo(() => {
 			rows.push({
 				id: entity.id,
 				graphId: effectiveGraphId || "",
-				system_id: entity.system_id,
+				system_code: entity.system_code,
 				name: entity.name ?? entity.id,
 				type: entity.type,
 				namespace: entity.namespace ?? "",
@@ -235,7 +236,7 @@ export const EntitiesPanel = memo(() => {
 				},
 			},
 			{
-				field: "system_id",
+				field: "system_code",
 				headerName: "Система",
 				width: 120,
 				cellRenderer: ({ value }: { value?: string }) => value || "—",

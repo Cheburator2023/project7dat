@@ -73,11 +73,12 @@ export const SettingsPage = () => {
 						<FormControlLabel
 							control={
 								<Switch
-									checked={showFullGraphByDefault}
+									checked={false}
 									onChange={(e) => setShowFullGraphByDefault(e.target.checked)}
 								/>
 							}
 							label="Показывать полный граф по умолчанию"
+							disabled
 						/>
 						<Typography
 							variant="body2"

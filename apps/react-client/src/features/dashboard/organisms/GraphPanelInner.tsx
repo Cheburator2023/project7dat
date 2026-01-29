@@ -34,6 +34,8 @@ import {
 } from "../constants";
 import type { EntityNodeData } from "../types";
 
+const showFullGraphByDefault = false;
+
 const EMPTY_STRING_SET = new Set<string>();
 const EMPTY_ATTR_CONNECTION_MAP = new Map<string, Set<string>>();
 const EMPTY_SEARCH_MATCHES = new Map<string, number>();
@@ -100,13 +102,12 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			})),
 		);
 
-		const { showFullGraphByDefault, showAttributesInNodes } =
-			useGraphSettingsStore(
-				useShallow((state) => ({
-					showFullGraphByDefault: state.showFullGraphByDefault,
-					showAttributesInNodes: state.showAttributesInNodes,
-				})),
-			);
+		const { showAttributesInNodes } = useGraphSettingsStore(
+			useShallow((state) => ({
+				showFullGraphByDefault: state.showFullGraphByDefault,
+				showAttributesInNodes: state.showAttributesInNodes,
+			})),
+		);
 
 		const lineageGraph = useMemo(
 			() => buildLineageGraph(data.mappings || []),
@@ -628,7 +629,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			topologySearchMatches,
 			upstreamCounts,
 			downstreamCounts,
-			showFullGraphByDefault,
 			showAttributesInNodes,
 		]);
 

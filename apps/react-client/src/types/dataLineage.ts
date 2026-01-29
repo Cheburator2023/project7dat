@@ -30,6 +30,7 @@ export interface DataLineageAttribute {
 export interface DataLineageEntity {
 	id: string;
 	system_id?: string;
+	system_code?: string;
 	modified: boolean;
 	type: "table" | "view" | "rdd" | "unresolved" | "input_vector";
 	namespace?: string;

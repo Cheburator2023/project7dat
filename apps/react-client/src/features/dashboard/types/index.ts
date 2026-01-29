@@ -8,6 +8,7 @@ export interface EntityRow {
 	id: string;
 	graphId: string;
 	system_id?: string;
+	system_code?: string;
 	name: string;
 	type: string;
 	namespace: string;

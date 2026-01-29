@@ -158,6 +158,8 @@ export const DashboardHeader = memo(() => {
 					isDataMart: upstreamNodes.size > 0 && downstreamNodes.size === 0,
 					isSource: upstreamNodes.size === 0 && downstreamNodes.size > 0,
 					modified: entity.modified ?? false,
+					description: item.description || "",
+					entity_change: entity.entity_change ?? "",
 				});
 			});
 		});
@@ -326,7 +328,7 @@ export const DashboardHeader = memo(() => {
 					{/* <EntityPreviewNavigationButton /> */}
 
 					{/* Import format selector */}
-					<Select
+					{/* <Select
 						value=""
 						onChange={handleImportFormatChange}
 						displayEmpty
@@ -342,7 +344,7 @@ export const DashboardHeader = memo(() => {
 					>
 						<MenuItem value="json">JSON</MenuItem>
 						<MenuItem value="s2t">S2T</MenuItem>
-					</Select>
+					</Select> */}
 
 					{/* Export format selector */}
 					<Select
