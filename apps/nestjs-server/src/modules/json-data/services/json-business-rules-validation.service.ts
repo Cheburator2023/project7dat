@@ -1,15 +1,15 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { BusinessValidationResult } from "../types/validation.types";
-import { IJsonBusinessRulesValidator } from "./interfaces/validation.interfaces";
+import { BusinessValidationResult } from "../types";
+import { JsonBusinessRulesValidator } from "./interfaces/validation.interfaces";
 
 @Injectable()
-export class JsonBusinessRulesValidationService
-	implements IJsonBusinessRulesValidator
-{
+export class JsonBusinessRulesValidationService extends JsonBusinessRulesValidator {
+	private readonly logger = new Logger(JsonBusinessRulesValidationService.name);
 	private readonly maxEntities: number;
 
 	constructor(private readonly configService: ConfigService) {
+		super();
 		this.maxEntities = this.configService.get<number>(
 			"MAX_ENTITIES_PER_IMPORT",
 			1000,

@@ -14,6 +14,7 @@ import { ChangeRecordService } from "./change-record.service";
 import { ProcessHandlingService } from "./process-handling.service";
 import { EntityProcessingService } from "./entity-processing.service";
 import { MappingProcessingService } from "./mapping-processing.service";
+import { CacheService } from "./cache.service";
 
 interface ImportResult {
 	success: boolean;
@@ -41,6 +42,7 @@ export class JsonImportService {
 		private readonly processHandlingService: ProcessHandlingService,
 		private readonly entityProcessingService: EntityProcessingService,
 		private readonly mappingProcessingService: MappingProcessingService,
+		private readonly cacheService: CacheService,
 	) {}
 
 	async importJsonData(
@@ -50,9 +52,13 @@ export class JsonImportService {
 
 		const importId = randomUUID();
 
-		this.logger.log(
-			`[importId=${importId}] Импорт JSON данных пользователем: ${user}`,
-		);
+		this.logger.log(`Импорт JSON данных пользователем: ${user}`, {
+			user,
+			changeName,
+			validated,
+			dataSize: JSON.stringify(data).length,
+			importId,
+		});
 
 		// Валидация и предобработка данных
 		const processedData = await this.validateAndPreprocessData(data, validated);
@@ -209,9 +215,19 @@ export class JsonImportService {
 	): Promise<ImportResult> {
 		const queryRunner = this.dataSource.createQueryRunner();
 		await queryRunner.connect();
-		await queryRunner.startTransaction();
+
+		const importStartTime = Date.now();
 
 		try {
+			await queryRunner.startTransaction();
+
+			this.logger.debug("Начало транзакции импорта", {
+				user,
+				changeName,
+				importId,
+				transactionStart: new Date().toISOString(),
+			});
+
 			const importStats = await this.processImportData(
 				processedData,
 				user,
@@ -221,8 +237,43 @@ export class JsonImportService {
 			);
 			await queryRunner.commitTransaction();
 
+			const transactionDuration = Date.now() - importStartTime;
+
+			this.logger.debug("Транзакция импорта успешно завершена", {
+				duration: transactionDuration,
+				changeId: importStats.changeId,
+				importId,
+			});
+
+			// Очищаем кэши после успешного импорта
+			const cacheStartTime = Date.now();
+			this.logger.debug("Начало очистки кэшей после импорта");
+
+			await this.cacheService.invalidateAllCaches();
+
+			const cacheDuration = Date.now() - cacheStartTime;
+			this.logger.debug("Кэши успешно очищены", {
+				cacheDuration,
+				operation: "invalidate_all_caches",
+			});
+
+			const totalDuration = Date.now() - importStartTime;
+
 			this.logger.log(
-				`[importId=${importId}] Импорт успешно завершен. Change ID: ${importStats.changeId}`,
+				`[importId=${importId}] Импорт успешно завершен за ${totalDuration}ms`,
+				{
+					success: true,
+					changeId: importStats.changeId,
+					user,
+					changeName,
+					importId,
+					totalDuration,
+					transactionDuration,
+					cacheDuration,
+					stats: importStats.stats,
+					warningsCount: importStats.warnings.length,
+					timestamp: new Date().toISOString(),
+				},
 			);
 
 			return {
@@ -236,10 +287,19 @@ export class JsonImportService {
 			await queryRunner.rollbackTransaction();
 			const context = this.getImportErrorContext(error);
 			const pg = this.getPostgresErrorInfo(error);
+			const totalDuration = Date.now() - importStartTime;
 
 			this.logger.error(
 				`[importId=${importId}] Ошибка импорта${context ? ` (step=${context})` : ""}: ${error?.message}`,
-				error?.stack,
+				{
+					error: error?.message,
+					stack: error?.stack,
+					user,
+					changeName,
+					importId,
+					duration: totalDuration,
+					timestamp: new Date().toISOString(),
+				},
 			);
 
 			if (pg) {
@@ -250,6 +310,7 @@ export class JsonImportService {
 			throw error;
 		} finally {
 			await queryRunner.release();
+			this.logger.debug("Транзакция импорта завершена, queryRunner освобожден");
 		}
 	}
 
