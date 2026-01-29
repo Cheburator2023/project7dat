@@ -13,6 +13,7 @@ import {
 	CircularProgress,
 	Alert,
 	Divider,
+	useColorScheme,
 } from "@mui/material";
 import {
 	ReactFlow,
@@ -931,6 +932,8 @@ export const ModelGraphWindow = ({
 		setSelectedConnection(null);
 	};
 
+	const { mode } = useColorScheme();
+
 	return (
 		<>
 			<Dialog open={isOpen} onClose={onClose} maxWidth="xl" fullWidth>
@@ -1130,6 +1133,7 @@ export const ModelGraphWindow = ({
 											animated: false,
 										}}
 										proOptions={{ hideAttribution: true }}
+										colorMode={mode}
 									>
 										<Controls />
 										<Background />
