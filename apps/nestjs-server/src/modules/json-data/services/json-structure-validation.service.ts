@@ -5,14 +5,15 @@ import {
 	RecursionCheckResult,
 	DuplicateCheckResult,
 } from "../types";
-import { IJsonStructureValidator } from "./interfaces/validation.interfaces";
+import { JsonStructureValidator } from "./interfaces/validation.interfaces";
 
 @Injectable()
-export class JsonStructureValidationService implements IJsonStructureValidator {
+export class JsonStructureValidationService extends JsonStructureValidator {
 	private readonly logger = new Logger(JsonStructureValidationService.name);
 	private readonly maxJsonSize: number;
 	private readonly maxEntities: number;
 	private readonly maxAttributes: number;
+
 	private readonly validEntityTypes = [
 		"table",
 		"view",
@@ -42,6 +43,7 @@ export class JsonStructureValidationService implements IJsonStructureValidator {
 	];
 
 	constructor(private readonly configService: ConfigService) {
+		super();
 		this.maxJsonSize = this.configService.get<number>(
 			"MAX_JSON_SIZE",
 			52428800,

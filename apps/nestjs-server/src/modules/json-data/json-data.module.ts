@@ -1,6 +1,7 @@
 import { Module, DynamicModule, Provider, Global } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { CacheModule } from "@nestjs/cache-manager";
 
 // Entities
 import { JsonDataEntity } from "./entities/json-data.entity";
@@ -47,6 +48,19 @@ import { JsonBusinessRulesValidationService } from "./services/json-business-rul
 import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
 import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
 import { S2tConversionService } from "./services/s2t-conversion.service";
+import { CacheService } from "./services/cache.service";
+import { JsonExportService } from "./services/json-export.service";
+import { S2tToCommitJsonService } from "src/modules/json-data/services/s2t-to-commit-json.service";
+import { S2tCommitStoreService } from "./services/s2t-commit-store.service";
+import { ProcessesService } from "./services/processes.service";
+
+// Abstract classes
+import {
+	JsonStructureValidator,
+	JsonBusinessRulesValidator,
+	JsonIntegrityValidator,
+	JsonSchemaVersionValidator,
+} from "./services/interfaces/validation.interfaces";
 
 // Controllers
 import { JsonDataController } from "./controllers/json-data.controller";
@@ -55,15 +69,12 @@ import { JsonImportController } from "./controllers/json-import.controller";
 import { JsonValidationController } from "./controllers/json-validation.controller";
 import { S2tConversionController } from "./controllers/s2t-conversion.controller";
 import { S2tCommitStoreController } from "./controllers/s2t-commit-store.controller";
+import { JsonExportController } from "./controllers/json-export.controller";
+import { CacheMonitorController } from "./controllers/cache-monitor.controller";
+import { ProcessesController } from "./controllers/processes.controller";
 
 // Modules
 import { ChangelogModule } from "../changelog/changelog.module";
-import { JsonExportService } from "./services/json-export.service";
-import { JsonExportController } from "./controllers/json-export.controller";
-import { S2tToCommitJsonService } from "src/modules/json-data/services/s2t-to-commit-json.service";
-import { S2tCommitStoreService } from "./services/s2t-commit-store.service";
-import { ProcessesController } from "./controllers/processes.controller";
-import { ProcessesService } from "./services/processes.service";
 
 @Global()
 @Module({})
@@ -93,11 +104,23 @@ export class JsonDataModule {
 			EntityMapSourceEntity,
 			S2tCommitEntity,
 		];
-
 		const imports = [
 			TypeOrmModule.forFeature(entities),
 			ConfigModule.forRoot(),
 			ChangelogModule,
+			CacheModule.registerAsync({
+				imports: [ConfigModule],
+				useFactory: async (configService: ConfigService) => {
+					const cacheTtl = configService.get<number>("CACHE_TTL", 600); // 10 минут в секундах
+
+					return {
+						store: "memory", // Используем in-memory хранилище
+						ttl: cacheTtl, // TTL в секундах
+						max: 100, // Максимальное количество элементов в кэше
+					};
+				},
+				inject: [ConfigService],
+			}),
 		];
 
 		const providers: Provider[] = [
@@ -106,6 +129,7 @@ export class JsonDataModule {
 			JsonCommitService,
 			JsonImportService,
 			JsonExportService,
+			CacheService,
 			S2tConversionService,
 			S2tToCommitJsonService,
 			S2tCommitStoreService,
@@ -135,21 +159,21 @@ export class JsonDataModule {
 			JsonSchemaVersionValidationService,
 			JsonValidationOrchestratorService,
 
-			// Register interfaces with implementations
+			// Registering abstract classes as providers (DI tokens) - incoming подход
 			{
-				provide: "IJsonStructureValidator",
+				provide: JsonStructureValidator,
 				useClass: JsonStructureValidationService,
 			},
 			{
-				provide: "IJsonBusinessRulesValidator",
+				provide: JsonBusinessRulesValidator,
 				useClass: JsonBusinessRulesValidationService,
 			},
 			{
-				provide: "IJsonIntegrityValidator",
+				provide: JsonIntegrityValidator,
 				useClass: JsonIntegrityValidationService,
 			},
 			{
-				provide: "IJsonSchemaVersionValidator",
+				provide: JsonSchemaVersionValidator,
 				useClass: JsonSchemaVersionValidationService,
 			},
 
@@ -163,6 +187,7 @@ export class JsonDataModule {
 			JsonImportController,
 			JsonValidationController,
 			JsonExportController,
+			CacheMonitorController,
 			S2tConversionController,
 			S2tCommitStoreController,
 			ProcessesController,
@@ -189,8 +214,15 @@ export class JsonDataModule {
 			JsonSchemaVersionValidationService,
 			JsonValidationOrchestratorService,
 			JsonExportService,
+			CacheService,
 			S2tConversionService,
 			S2tToCommitJsonService,
+
+			// Abstract classes
+			JsonStructureValidator,
+			JsonBusinessRulesValidator,
+			JsonIntegrityValidator,
+			JsonSchemaVersionValidator,
 		];
 
 		return {

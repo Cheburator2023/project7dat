@@ -1,10 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { IJsonSchemaVersionValidator } from "./interfaces/validation.interfaces";
+import { Injectable, Logger } from "@nestjs/common";
+import { JsonSchemaVersionValidator } from "./interfaces/validation.interfaces";
 
 @Injectable()
-export class JsonSchemaVersionValidationService
-	implements IJsonSchemaVersionValidator
-{
+export class JsonSchemaVersionValidationService extends JsonSchemaVersionValidator {
+	private readonly logger = new Logger(JsonSchemaVersionValidationService.name);
 	private readonly supportedVersions = ["1.0", "1.1", "2.0"];
 
 	validateSchemaVersion(data: any): {
