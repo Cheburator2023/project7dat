@@ -202,7 +202,7 @@ export const EntityNodePreviewComponent = memo(
 								→ {downstreamCount}
 							</span>
 						)}
-						{attrs.length && (
+						{attrs.length > 0 && (
 							<span style={{ color: "#888", marginLeft: "auto" }}>
 								{visibleAttrs.length}/{attrs.length} атр.
 							</span>
