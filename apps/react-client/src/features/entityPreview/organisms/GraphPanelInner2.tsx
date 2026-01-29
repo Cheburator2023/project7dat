@@ -583,97 +583,94 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			const isSearchActive =
 				!!globalSearchQuery && searchMatchedEntities.size > 0;
 
-			const nodes: any[] = filteredEntities
-				.map((entity) => {
-					let highlightType: EntityNodeData["highlightType"] = "none";
-					const searchScore = searchMatchedEntities.get(entity.id);
-					const isSearchMatch = globalSearchQuery && searchScore !== undefined;
+			const nodes: any[] = filteredEntities.flatMap((entity) => {
+				let highlightType: EntityNodeData["highlightType"] = "none";
+				const searchScore = searchMatchedEntities.get(entity.id);
+				const isSearchMatch = globalSearchQuery && searchScore !== undefined;
 
-					if (entity.id === selectedNode) highlightType = "selected";
-					else if (upstreamNodes.has(entity.id)) highlightType = "upstream";
-					else if (downstreamNodes.has(entity.id)) highlightType = "downstream";
-					else if (isSearchMatch) highlightType = "searchMatch";
+				if (entity.id === selectedNode) highlightType = "selected";
+				else if (upstreamNodes.has(entity.id)) highlightType = "upstream";
+				else if (downstreamNodes.has(entity.id)) highlightType = "downstream";
+				else if (isSearchMatch) highlightType = "searchMatch";
 
-					const node = {
-						id: entity.id,
-						type: "entityNode",
-						position: { x: 0, y: 0 },
-						data: {
-							entity,
-							highlightType,
-							onNodeClick: handleNodeClick,
-							onNodeDoubleClick: handleNodeDblClick,
-							onAttrHover: handleAttrHover,
-							onAttrClick: handleAttrClick,
-							graphId,
-							upstreamCount: upstreamCounts.get(entity.id) || 0,
-							downstreamCount: downstreamCounts.get(entity.id) || 0,
-							highlightedSourceAttrs:
-								entitySourceAttrs.get(entity.id) || new Set<string>(),
-							highlightedTargetAttrs:
-								entityTargetAttrs.get(entity.id) || new Set<string>(),
-							hoverHighlightedAttrs:
-								hoverHighlightedByEntity.get(entity.id) || new Set<string>(),
-							selectedHighlightedAttrs:
-								selectedHighlightedByEntity.get(entity.id) || new Set<string>(),
-							isSearchActive,
-							isSearchMatch: !!isSearchMatch,
-							onExpandToggle: handleExpandToggle,
-							isExpanded: expandedNodes.has(entity.id),
+				const node = {
+					id: entity.id,
+					type: "entityNode",
+					position: { x: 0, y: 0 },
+					data: {
+						entity,
+						highlightType,
+						onNodeClick: handleNodeClick,
+						onNodeDoubleClick: handleNodeDblClick,
+						onAttrHover: handleAttrHover,
+						onAttrClick: handleAttrClick,
+						graphId,
+						upstreamCount: upstreamCounts.get(entity.id) || 0,
+						downstreamCount: downstreamCounts.get(entity.id) || 0,
+						highlightedSourceAttrs:
+							entitySourceAttrs.get(entity.id) || new Set<string>(),
+						highlightedTargetAttrs:
+							entityTargetAttrs.get(entity.id) || new Set<string>(),
+						hoverHighlightedAttrs:
+							hoverHighlightedByEntity.get(entity.id) || new Set<string>(),
+						selectedHighlightedAttrs:
+							selectedHighlightedByEntity.get(entity.id) || new Set<string>(),
+						isSearchActive,
+						isSearchMatch: !!isSearchMatch,
+						onExpandToggle: handleExpandToggle,
+						isExpanded: expandedNodes.has(entity.id),
+					},
+				};
+
+				if (entity.type === "input_vector") {
+					const edgeId = `${entity.id}->${entity.namespace}`;
+
+					edges.push({
+						id: edgeId,
+						source: entity.id,
+						target: entity.namespace,
+						sourceHandle: "entity-source",
+						targetHandle: "entity-target",
+						type: "default",
+						animated: true,
+						style: {
+							stroke: ATTR_EDGE_COLORS[0],
+							strokeWidth: 1,
+							opacity: 0.8,
 						},
-					};
+						markerEnd: {
+							type: MarkerType.ArrowClosed,
+							color: "#b1b1b7",
+						},
+					});
 
-					if (entity.type === "input_vector") {
-
-						const edgeId = `${entity.id}->${entity.namespace}`;
-
-						edges.push({
-							id: edgeId,
-							source: entity.id,
-							target: entity.namespace,
-							sourceHandle: "entity-source",
-							targetHandle: "entity-target",
-							type: "default",
-							animated: true,
-							style: {
-								stroke: ATTR_EDGE_COLORS[0],
-								strokeWidth:  1,
-								opacity:0.8,
-							},
-							markerEnd: {
-								type: MarkerType.ArrowClosed,
-								color: '#b1b1b7',
-							}
-						});
-
-						return [
-							{
-								id: entity.namespace,
-								type: "entityNode",
-								position: { x: 0, y: 0 },
-								data: {
-									onNodeClick: ()=>{},
-									onNodeDoubleClick: ()=>{},
-									onAttrHover: ()=>{},
-									onAttrClick: ()=>{},
-									onExpandToggle: ()=>{},
-									entity: {
-										type: 'model',
-										id:entity.namespace,
-										namespace:entity.name
-									},
-									graphId,
-									isExpanded: true,
-									highlightType: 'downstream'
+					return [
+						{
+							id: entity.namespace,
+							type: "entityNode",
+							position: { x: 0, y: 0 },
+							data: {
+								onNodeClick: () => {},
+								onNodeDoubleClick: () => {},
+								onAttrHover: () => {},
+								onAttrClick: () => {},
+								onExpandToggle: () => {},
+								entity: {
+									type: "model",
+									id: entity.namespace,
+									namespace: entity.name,
 								},
+								graphId,
+								isExpanded: true,
+								highlightType: "downstream",
 							},
-							node,
-						];
-					}
+						},
+						node,
+					];
+				}
 
-					return node;
-				})
-				.flat();
+				return node;
+			});
 
 			// Build a map of all attributes each entity actually has
 			const entityAttrNames = new Map<string, Set<string>>();
