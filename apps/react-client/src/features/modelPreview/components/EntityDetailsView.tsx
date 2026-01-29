@@ -115,10 +115,63 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 	return (
 		<Container>
 			<ContentContainer>
-				{/* Basic Information */}
+				{/* Model Information */}
 				<CompactAccordion defaultExpanded>
 					<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
 						<AccordionTitle>Основная информация</AccordionTitle>
+					</CompactAccordionSummary>
+					<CompactAccordionDetails>
+						<TableContainer component={Paper} variant="outlined">
+							<Table size="small">
+								<TableBody>
+									{entity.namespace && (
+										<TableRow>
+											<TableCell
+												component="th"
+												scope="row"
+												sx={{ fontWeight: 600 }}
+											>
+												Название
+											</TableCell>
+											<TableCell>{entity.namespace}</TableCell>
+										</TableRow>
+									)}
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
+											Описание
+										</TableCell>
+										<TableCell>{entity.container_description}</TableCell>
+									</TableRow>
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
+											Обновлена
+										</TableCell>
+										<TableCell>
+											{entity.container_change &&
+												format(
+													parseISO(entity.container_change),
+													"dd.MM.yyyy, HH:mm",
+												)}
+										</TableCell>
+									</TableRow>
+								</TableBody>
+							</Table>
+						</TableContainer>
+					</CompactAccordionDetails>
+				</CompactAccordion>
+
+				{/* Vector Information */}
+				<CompactAccordion defaultExpanded>
+					<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
+						<AccordionTitle>Информация о входящем векторе</AccordionTitle>
 					</CompactAccordionSummary>
 					<CompactAccordionDetails>
 						<TableContainer component={Paper} variant="outlined">
@@ -263,7 +316,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 					<CompactAccordion defaultExpanded>
 						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
 							<AccordionTitle>
-								Атрибуты ({entity.attrSeq.length})
+								Атрибуты входящего вектора ({entity.attrSeq.length})
 							</AccordionTitle>
 						</CompactAccordionSummary>
 						<CompactAccordionDetails>

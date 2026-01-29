@@ -38,18 +38,6 @@ const flexLayoutJson = {
 				children: [
 					{
 						type: "tab",
-						name: "Граф",
-						component: "object-graph",
-						id: "object-graph-tab",
-					},
-				],
-			},
-			{
-				type: "tabset",
-				weight: 30,
-				children: [
-					{
-						type: "tab",
 						name: "Детали",
 						component: "object-details",
 						id: "object-details-tab",
@@ -60,17 +48,11 @@ const flexLayoutJson = {
 						component: "object-related",
 						id: "object-related-tab",
 					},
-				],
-			},
-			{
-				type: "tabset",
-				weight: 20,
-				children: [
 					{
 						type: "tab",
-						name: "JSON",
-						component: "object-json",
-						id: "object-json-tab",
+						name: "Граф",
+						component: "object-graph",
+						id: "object-graph-tab",
 					},
 				],
 			},
@@ -95,8 +77,8 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 			id: `${entity.id}`,
 			graphId,
 			object: entity.name ?? entity.id,
-			objectType: entity.modified ? "Витрина" : "Источник",
-			description: processDescription,
+			objectType: entity.type as any,
+			description: entity.description,
 			modelId: entity.id,
 			database,
 			process,
@@ -208,6 +190,7 @@ export const ObjectCardPage: React.FC = () => {
 	const currentObject = useMemo(() => {
 		if (!objectId) return null;
 		const decodedId = decodeURIComponent(objectId);
+		console.log(allObjects.find((obj) => obj.id === decodedId) ?? null);
 		return allObjects.find((obj) => obj.id === decodedId) ?? null;
 	}, [allObjects, objectId]);
 

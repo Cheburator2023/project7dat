@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, useMemo } from "react";
-import { Divider, Button, type SelectChangeEvent } from "@mui/material";
+import { Button, type SelectChangeEvent } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
@@ -257,7 +257,7 @@ export const DashboardHeader = memo(() => {
 	);
 
 	// Import/Export format selection handlers
-	const handleImportFormatChange = useCallback(
+	const _handleImportFormatChange = useCallback(
 		(event: SelectChangeEvent<string>) => {
 			const format = event.target.value as "json" | "s2t";
 			handleImport(format);
@@ -265,7 +265,7 @@ export const DashboardHeader = memo(() => {
 		[handleImport],
 	);
 
-	const handleExportFormatChange = useCallback(
+	const _handleExportFormatChange = useCallback(
 		(event: SelectChangeEvent<string>) => {
 			const format = event.target.value as "json" | "s2t";
 			handleExport(format);
