@@ -29,6 +29,7 @@ import {
 	ListItemIcon,
 	ListItemText,
 	Divider,
+	useColorScheme,
 } from "@mui/material";
 import {
 	Code,
@@ -1252,6 +1253,8 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 		return filteredEntities.find((e) => e.id === selectedNode) || null;
 	}, [selectedNode, filteredEntities]);
 
+	const { mode } = useColorScheme();
+
 	return (
 		<div style={{ width: "100%", height: "100%", position: "relative" }}>
 			<ReactFlow
@@ -1266,6 +1269,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 				minZoom={0.1}
 				maxZoom={2}
 				proOptions={{ hideAttribution: true }}
+				colorMode={mode}
 			>
 				<Background color="#e0e0e0" gap={16} />
 				<Controls />

@@ -17,7 +17,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "@dagrejs/dagre";
-import { styled, Box, Typography, Chip } from "@mui/material";
+import { styled, Box, Typography, Chip, useColorScheme } from "@mui/material";
 import type { ObjectItem, AttributeConnection } from "../types";
 
 // ============================================================================
@@ -387,6 +387,7 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 
 	const [nodes, , onNodesChange] = useNodesState(initialNodes);
 	const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+	const { mode } = useColorScheme();
 
 	return (
 		<ReactFlow
@@ -403,6 +404,8 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 				type: "smoothstep",
 				animated: true,
 			}}
+			proOptions={{ hideAttribution: true }}
+			colorMode={mode}
 		>
 			<Background color="#e0e0e0" gap={16} />
 			<Controls />

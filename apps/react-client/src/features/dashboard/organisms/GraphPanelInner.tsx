@@ -33,6 +33,7 @@ import {
 	ATTR_EDGE_COLORS,
 } from "../constants";
 import type { EntityNodeData } from "../types";
+import { useColorScheme } from "@mui/material";
 
 const showFullGraphByDefault = false;
 
@@ -797,6 +798,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 		}, [zoomToNodeId, getNode, setCenter, setZoomToNode]);
 
+		const { mode } = useColorScheme();
+
 		return (
 			<ReactFlow
 				nodes={nodes}
@@ -813,6 +816,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				maxZoom={2}
 				defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
 				proOptions={{ hideAttribution: true }}
+				colorMode={mode}
 			>
 				<Background color="#e0e0e0" gap={20} />
 				<Controls />

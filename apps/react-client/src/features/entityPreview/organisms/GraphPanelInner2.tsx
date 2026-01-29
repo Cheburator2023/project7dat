@@ -36,6 +36,7 @@ import {
 	ListItemText,
 	Menu,
 	MenuItem,
+	useColorScheme,
 } from "@mui/material";
 import {
 	CenterFocusStrong,
@@ -1057,6 +1058,8 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			}
 		}, [zoomToNodeId, getNode, setCenter, setZoomToNode]);
 
+		const { mode } = useColorScheme();
+
 		return (
 			<div style={{ width: "100%", height: "100%", position: "relative" }}>
 				<ReactFlow
@@ -1073,6 +1076,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 					maxZoom={2}
 					defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
 					proOptions={{ hideAttribution: true }}
+					colorMode={mode}
 				>
 					<Background color="#e0e0e0" gap={20} />
 					<Controls />
