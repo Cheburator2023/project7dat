@@ -11,7 +11,7 @@ interface GraphSettingsState {
 export const useGraphSettingsStore = create<GraphSettingsState>()(
 	persist(
 		(set) => ({
-			showFullGraphByDefault: true,
+			showFullGraphByDefault: false,
 			setShowFullGraphByDefault: (enabled: boolean) => {
 				set({ showFullGraphByDefault: enabled });
 				if (!enabled) {

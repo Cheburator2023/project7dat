@@ -5,6 +5,7 @@ import { ConfigService } from "@nestjs/config";
 @Injectable()
 export class EntityContainerService {
 	private containerCache: Map<string, number> = new Map();
+	private defaultContainerTypeId: number | null = null;
 
 	constructor(
 		readonly _configService: ConfigService,
@@ -44,6 +45,12 @@ export class EntityContainerService {
 			return containerId;
 		}
 
+		// Получаем или создаем тип контейнера по умолчанию
+		const containerTypeId = await this.getOrCreateDefaultContainerType(
+			changeId,
+			queryRunner,
+		);
+
 		// Создаем новый контейнер
 		const insertQuery = `
             INSERT INTO entity_container
@@ -54,7 +61,7 @@ export class EntityContainerService {
 
 		const newContainer = await queryRunner.query(insertQuery, [
 			changeId,
-			1, // DEFAULT_TYPE
+			containerTypeId,
 			namespace,
 			`Автоматически созданный контейнер для ${namespace}`,
 		]);
@@ -63,6 +70,50 @@ export class EntityContainerService {
 		this.containerCache.set(namespace, containerId);
 
 		return containerId;
+	}
+
+	/**
+	 * Получение или создание типа контейнера по умолчанию
+	 */
+	private async getOrCreateDefaultContainerType(
+		changeId: number,
+		queryRunner: any,
+	): Promise<number> {
+		// Используем кэш
+		if (this.defaultContainerTypeId !== null) {
+			return this.defaultContainerTypeId;
+		}
+
+		// Ищем существующий тип "DEFAULT" или любой первый тип
+		const findTypeQuery = `
+			SELECT entity_container_type_id
+			FROM entity_container_type
+			ORDER BY entity_container_type_id
+			LIMIT 1
+		`;
+
+		const existingType = await queryRunner.query(findTypeQuery);
+
+		if (existingType.length > 0) {
+			this.defaultContainerTypeId = existingType[0].entity_container_type_id;
+			return this.defaultContainerTypeId as number;
+		}
+
+		// Создаем новый тип контейнера "DEFAULT"
+		const insertTypeQuery = `
+			INSERT INTO entity_container_type (change_id, value, description)
+			VALUES ($1, $2, $3)
+			RETURNING entity_container_type_id
+		`;
+
+		const newType = await queryRunner.query(insertTypeQuery, [
+			changeId,
+			"DEFAULT",
+			"Тип контейнера по умолчанию",
+		]);
+
+		this.defaultContainerTypeId = newType[0].entity_container_type_id;
+		return this.defaultContainerTypeId as number;
 	}
 
 	/**
@@ -93,5 +144,6 @@ export class EntityContainerService {
 	 */
 	clearCache(): void {
 		this.containerCache.clear();
+		this.defaultContainerTypeId = null;
 	}
 }

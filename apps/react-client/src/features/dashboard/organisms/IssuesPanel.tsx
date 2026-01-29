@@ -43,23 +43,23 @@ function analyzeSchema(
 	const mappings = schema.mappings || [];
 	const _gId = graphId || "current";
 
-	const getSystemId = (entity: any): string => {
-		const v = entity?.system_id;
+	const getSystemCode = (entity: any): string => {
+		const v = entity?.system_code;
 		return typeof v === "string" && v.trim().length > 0 ? v : "";
 	};
 	const getEntityKey = (entity: any): string => {
-		const sys = getSystemId(entity);
+		const sys = getSystemCode(entity);
 		return sys ? `${entity.id}::${sys}` : String(entity.id);
 	};
 
-	// Track seen IDs for duplicates (id + system_id)
+	// Track seen IDs for duplicates (id + system_code)
 	const seenEntityIds = new Map<string, number[]>();
 	const seenEntityIdAnySystem = new Set<string>();
 	const entityAttrMap = new Map<string, Set<string>>();
 
 	// Analyze entities
 	entities.forEach((entity, entityIdx) => {
-		const systemId = getSystemId(entity);
+		const systemCode = getSystemCode(entity);
 		// Check for null/undefined ID
 		if (!entity.id) {
 			addIssue({
@@ -91,7 +91,7 @@ function analyzeSchema(
 					type: "warning",
 					category: "Атрибут",
 					message: "У атрибута отсутствует имя",
-					location: `сущности[${entityIdx}] "${entity.id}"${systemId ? ` [${systemId}]` : ""} → attrSeq[${attrIdx}]`,
+					location: `сущности[${entityIdx}] "${entity.id}"${systemCode ? ` [${systemCode}]` : ""} → attrSeq[${attrIdx}]`,
 				});
 				return;
 			}
@@ -111,7 +111,7 @@ function analyzeSchema(
 					type: "warning",
 					category: "Дубликат Атрибута",
 					message: `Атрибут "${attrName}" встречается ${indices.length} раз(а)`,
-					location: `сущности[${entityIdx}] "${entity.id}"${systemId ? ` [${systemId}]` : ""}`,
+					location: `сущности[${entityIdx}] "${entity.id}"${systemCode ? ` [${systemCode}]` : ""}`,
 					details: `Индексы: ${indices.join(", ")}`,
 				});
 			}

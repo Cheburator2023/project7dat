@@ -19,6 +19,7 @@ interface EntityWithDetails {
 	entity_type_name: string;
 	container_value?: string;
 	container_description?: string;
+	system_code?: string;
 	entity_change_date: Date;
 	container_change_date?: Date;
 	attributes: Array<{
@@ -325,11 +326,13 @@ export class JsonExportService {
                 et.name as entity_type_name,
                 ec.value as container_value,
                 ec.description as container_description,
+                s.code as system_code,
                 c_entity.change_date as entity_change_date,
                 c_container.change_date as container_change_date
             FROM entity e
                      LEFT JOIN entity_type et ON e.entity_type_id = et.entity_type_id
                      LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
+                     LEFT JOIN systems s ON ec.system_id = s.system_id
                      LEFT JOIN changes c_entity ON e.change_id = c_entity.change_id
                      LEFT JOIN changes c_container ON ec.change_id = c_container.change_id
             WHERE 1=1 ${dateFilter}
@@ -731,6 +734,7 @@ export class JsonExportService {
 				entity_change: entity.entity_change_date.toISOString(),
 				description: entity.description || undefined,
 				container_description: entity.container_description || undefined,
+				system_code: entity.system_code || undefined,
 				container_change:
 					entity.container_change_date?.toISOString() ||
 					entity.entity_change_date.toISOString(),

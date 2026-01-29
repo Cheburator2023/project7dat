@@ -16,7 +16,6 @@ import type {
 	DataLineageSchema,
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
-import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 import { useDashboardStore } from "../../dashboard/stores";
 import { graphNodeTypes } from "./EntityNodePreviewComponent";
 import { getLayoutedElements, buildLineageGraph } from "../../dashboard/utils";
@@ -180,7 +179,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		const [selectedConnection, setSelectedConnection] =
 			useState<EntityConnection | null>(null);
 
-		const { showFullGraphByDefault } = useGraphSettingsStore();
+		const showFullGraphByDefault = false;
 
 		const lineageGraph = useMemo(
 			() => buildLineageGraph(data?.mappings || []),
