@@ -12,7 +12,7 @@ import { globalStyles } from "@react-client/theme/GlobalStyle";
 	SMART_ANKETA_FRONTEND: "http://test.host:8004",
 	SMART_ANKETA_API: "http://test.host:8004",
 	DATA_LINEAGE_API: "http://localhost:3000",
-	//DATA_LINEAGE_API: "https://data-lineage-api-sumd.sumd.dk1-sumd01.innodev.local",
+	// DATA_LINEAGE_API: "https://data-lineage-api-sumd.sumd.dk1-sumd01.innodev.local",
 	SUM_RM_API: "https://test.host/api/rest/v1",
 	KEYCLOAK_URL: "https://test.host/auth",
 };

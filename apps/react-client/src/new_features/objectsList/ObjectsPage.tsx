@@ -5,7 +5,7 @@ import {
 	TextField,
 	InputAdornment,
 	Button,
-	CircularProgress,
+	CircularProgress, Chip,
 } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { Search as SearchIcon } from "@mui/icons-material";
@@ -24,12 +24,14 @@ import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
+import {TypeChip} from "@react-client/features/dashboard/atoms";
+import { format, parseISO } from "date-fns/esm";
 
 interface ObjectItem {
 	id: string;
 	graphId?: string;
 	object: string;
-	objectType: "Модель" | "Витрина" | "Признак";
+	objectType: string;
 	description: string;
 	modelId: string;
 	database: string;
@@ -59,8 +61,9 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 			id: `${entity.id}`,
 			graphId,
 			object: entity.name ?? entity.id,
-			objectType: entity.type === "view" ? "Витрина" : "Модель",
-			description: processDescription,
+			objectType: entity.type,
+			description: entity.description,
+			entity_change: entity.entity_change ?? "",
 			modelId: entity.id,
 			database,
 			process,
@@ -134,6 +137,20 @@ export const ObjectsPage: React.FC = () => {
 	const columnDefs: ColDef<ObjectItem>[] = useMemo(
 		() => [
 			{
+				headerName: "БД",
+				field: "database",
+				width: 150,
+				sortable: true,
+				filter: true,
+				cellRenderer: (params: any) => (
+					<Box sx={{ padding: 1 }}>
+						<Typography variant="body2" fontFamily="monospace">
+							{params.value || "—"}
+						</Typography>
+					</Box>
+				),
+			},
+			{
 				headerName: "Объект",
 				field: "object",
 				width: 200,
@@ -149,77 +166,16 @@ export const ObjectsPage: React.FC = () => {
 				),
 			},
 			{
-				headerName: "Тип объекта",
+				headerName: "Тип",
 				field: "objectType",
 				width: 130,
 				sortable: true,
 				filter: true,
 				cellRenderer: (params: any) => {
-					const colors: Record<string, { bg: string; color: string }> = {
-						Источник: { bg: "#00897b", color: "#fff" },
-						Витрина: { bg: "#9c27b0", color: "#fff" },
-						Признак: { bg: "#1976d2", color: "#fff" },
-					};
-					const style = colors[params.value] || { bg: "#666", color: "#fff" };
+
 
 					return (
-						<Box sx={{ padding: 0, display: "flex", alignItems: "center" }}>
-							<Box
-								sx={{
-									background: style.bg,
-									color: style.color,
-									padding: "0 8px",
-									borderRadius: 1,
-									fontSize: "0.75rem",
-									fontWeight: 500,
-								}}
-							>
-								{params.value || "—"}
-							</Box>
-						</Box>
-					);
-				},
-			},
-			{
-				headerName: "Тип данных",
-				field: "dataType",
-				width: 120,
-				sortable: true,
-				filter: true,
-				cellRenderer: (params: any) => {
-					if (!params.value) return null;
-					return (
-						<Box sx={{ padding: 1 }}>
-							<Typography
-								variant="body2"
-								fontFamily="monospace"
-								sx={{
-									background: "#f5f5f5",
-									padding: "2px 6px",
-									borderRadius: 1,
-									fontSize: "0.75rem",
-								}}
-							>
-								{params.value}
-							</Typography>
-						</Box>
-					);
-				},
-			},
-			{
-				headerName: "Кол-во атр.",
-				field: "attributeCount",
-				width: 100,
-				sortable: true,
-				filter: "agNumberColumnFilter",
-				cellRenderer: (params: any) => {
-					if (params.data?.objectType === "Признак") return null;
-					return (
-						<Box sx={{ padding: 1 }}>
-							<Typography variant="body2" color="text.secondary">
-								{params.value ?? 0}
-							</Typography>
-						</Box>
+						<TypeChip type={params.value} />
 					);
 				},
 			},
@@ -238,71 +194,24 @@ export const ObjectsPage: React.FC = () => {
 				),
 			},
 			{
-				headerName: "Модель ID",
-				field: "modelId",
-				width: 120,
-				sortable: true,
-				filter: true,
-				cellRenderer: (params: any) => (
-					<Box sx={{ padding: 1 }}>
-						<Typography variant="body2" fontFamily="monospace">
-							{params.value || "—"}
-						</Typography>
-					</Box>
-				),
-			},
-			{
-				headerName: "БД",
-				field: "database",
-				width: 150,
-				sortable: true,
-				filter: true,
-				cellRenderer: (params: any) => (
-					<Box sx={{ padding: 1 }}>
-						<Typography variant="body2" fontFamily="monospace">
-							{params.value || "—"}
-						</Typography>
-					</Box>
-				),
-			},
-			{
-				headerName: "Процесс",
-				field: "process",
-				width: 180,
-				sortable: true,
-				filter: true,
-				cellRenderer: (params: any) => (
-					<Box sx={{ padding: 1 }}>
-						<Typography variant="body2" fontFamily="monospace">
-							{params.value || "—"}
-						</Typography>
-					</Box>
-				),
-			},
-			{
-				headerName: "Описание процесса",
-				field: "processDescription",
-				width: 300,
-				sortable: true,
-				filter: true,
-				cellRenderer: (params: any) => (
-					<Box sx={{ padding: 1 }}>
-						<Typography variant="body2" noWrap>
-							{params.value || "—"}
-						</Typography>
-					</Box>
-				),
-			},
-			{
-				headerName: "История",
-				field: "graphId",
-				width: 140,
-				pinned: "right",
-				sortable: false,
-				filter: false,
-				cellRenderer: (params: any) => (
-					<ChangelogButton graphId={params.data.graphId} size="small" />
-				),
+				field: "entity_change",
+				headerName: "Изменено",
+				flex: 1,
+				cellRenderer: ({ value, data }: { value: string; data: EntityRow }) => {
+					// const highlights = highlightsMap.get(data.id);
+					// const highlightedNs = highlights?.get("entity_change");
+					// if (highlightedNs) {
+					// 	return (
+					// 		<span
+					// 			dangerouslySetInnerHTML={{ __html: highlightedNs }}
+					// 			style={{ display: "block" }}
+					// 		/>
+					// 	);
+					// }
+					if (value) {
+						return format(parseISO(value), "dd.MM.yyyy, HH:mm");
+					}
+				},
 			},
 		],
 		[navigate],
@@ -396,15 +305,11 @@ export const ObjectsPage: React.FC = () => {
 							),
 						}}
 					/>
-					<Button variant="outlined" size="small" onClick={handleExportJson}>
-						Экспорт JSON
-					</Button>
-					<Button variant="outlined" size="small" onClick={handleExportS2T}>
-						Экспорт S2T JSON
-					</Button>
-					<Typography variant="body2" color="text.secondary">
-						{filteredData.length} объектов
-					</Typography>
+					<Chip
+						label={`${filteredData.length} объектов`}
+						color="primary"
+						variant="outlined"
+					/>
 				</Flex>
 			</Header>
 
