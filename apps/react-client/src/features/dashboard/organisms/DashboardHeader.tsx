@@ -1,11 +1,5 @@
 import { memo, useState, useCallback, useMemo } from "react";
-import {
-	Divider,
-	Button,
-	Select,
-	MenuItem,
-	type SelectChangeEvent,
-} from "@mui/material";
+import { Divider, Button, type SelectChangeEvent } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
@@ -300,7 +294,7 @@ export const DashboardHeader = memo(() => {
 					<FilterButton filterOptions={filterOptions} />
 
 					{/* Divider */}
-					<Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+					{/* <Divider orientation="vertical" flexItem sx={{ mx: 1 }} /> */}
 
 					{/* Commit buttons */}
 					{hasUnsavedChanges && (
@@ -347,7 +341,7 @@ export const DashboardHeader = memo(() => {
 					</Select> */}
 
 					{/* Export format selector */}
-					<Select
+					{/* <Select
 						value=""
 						onChange={handleExportFormatChange}
 						displayEmpty
@@ -363,7 +357,7 @@ export const DashboardHeader = memo(() => {
 					>
 						<MenuItem value="json">JSON</MenuItem>
 						<MenuItem value="s2t">S2T</MenuItem>
-					</Select>
+					</Select> */}
 
 					{/* Refresh button */}
 					{/* <IconButton

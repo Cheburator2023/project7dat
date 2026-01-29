@@ -210,14 +210,14 @@ export function Header({
 
 							<Divider orientation="vertical" variant="middle" flexItem />
 
-							{currentGraphId && (
+							{/* {currentGraphId && (
 								<IconButton
 									onClick={() => setIsSnapshotDialogOpen(true)}
 									title="Создать снимок текущих данных"
 								>
 									<CameraAltIcon />
 								</IconButton>
-							)}
+							)} */}
 
 							<NotificationButton />
 							<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
