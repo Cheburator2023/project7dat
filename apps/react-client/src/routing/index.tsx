@@ -17,6 +17,7 @@ import { DataMartPreview } from "@react-client/features/dataMart/pages/DataMartP
 import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { SettingsPage } from "@react-client/features/settings/SettingsPage";
 import { DashboardBuilderPage } from "@react-client/features/dashboardBuilder/DashboardBuilderPage";
+import {ModelPreviewPage} from "@react-client/features/modelPreview";
 
 export const Routing = () => (
 	<Routes>
@@ -30,6 +31,7 @@ export const Routing = () => (
 		<Route path={routes.objects.rootPath} element={<ObjectsPage />} />
 		<Route path={routes.objectCard.rootPath} element={<ObjectCardPage />} />
 		<Route path={routes.models.rootPath} element={<ModelsPage />} />
+		<Route path={routes.modelCard.rootPath} element={<ModelPreviewPage />} />
 		<Route path={routes.commitQueue.rootPath} element={<CommitQueuePage />} />
 		<Route
 			path={routes.changelogTable.rootPath}
