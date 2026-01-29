@@ -72,6 +72,12 @@ export const routes = {
 		disabled: false,
 		showInNavbar: true,
 	},
+	modelCard: {
+		name: "Модели",
+		rootPath: "/services/models/:entityId",
+		disabled: false,
+		showInNavbar: false,
+	},
 	modelServices: {
 		name: "Модельные сервисы",
 		rootPath: "/services/model-services",

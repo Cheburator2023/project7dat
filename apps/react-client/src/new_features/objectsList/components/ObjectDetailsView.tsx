@@ -3,7 +3,6 @@ import {
 	styled,
 	Box,
 	Typography,
-	Chip,
 	Table,
 	TableBody,
 	TableCell,
@@ -16,6 +15,7 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { ObjectItem } from "../types";
+import { TypeChip } from "@react-client/features/dashboard/atoms";
 
 interface ObjectDetailsViewProps {
 	object: ObjectItem | null;
@@ -24,7 +24,7 @@ interface ObjectDetailsViewProps {
 export const ObjectDetailsView: React.FC<ObjectDetailsViewProps> = ({
 	object,
 }) => {
-	const getTypeColor = (type: string) => {
+	const _getTypeColor = (type: string) => {
 		switch (type) {
 			case "Источник":
 				return "primary";
@@ -78,11 +78,7 @@ export const ObjectDetailsView: React.FC<ObjectDetailsViewProps> = ({
 											Тип
 										</TableCell>
 										<TableCell>
-											<Chip
-												label={object.objectType}
-												size="small"
-												color={getTypeColor(object.objectType) as any}
-											/>
+											<TypeChip type={object.objectType} />
 										</TableCell>
 									</TableRow>
 									<TableRow>
@@ -107,59 +103,6 @@ export const ObjectDetailsView: React.FC<ObjectDetailsViewProps> = ({
 											{object.id}
 										</TableCell>
 									</TableRow>
-								</TableBody>
-							</Table>
-						</TableContainer>
-					</CompactAccordionDetails>
-				</CompactAccordion>
-
-				{/* Model Information */}
-				<CompactAccordion defaultExpanded>
-					<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
-						<AccordionTitle>Информация о модели</AccordionTitle>
-					</CompactAccordionSummary>
-					<CompactAccordionDetails>
-						<TableContainer component={Paper} variant="outlined">
-							<Table size="small">
-								<TableBody>
-									<TableRow>
-										<TableCell
-											component="th"
-											scope="row"
-											sx={{ fontWeight: 600, width: 180 }}
-										>
-											Модель ID
-										</TableCell>
-										<TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
-											{object.modelId}
-										</TableCell>
-									</TableRow>
-									<TableRow>
-										<TableCell
-											component="th"
-											scope="row"
-											sx={{ fontWeight: 600 }}
-										>
-											База данных
-										</TableCell>
-										<TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
-											{object.database}
-										</TableCell>
-									</TableRow>
-									{object.graphId && (
-										<TableRow>
-											<TableCell
-												component="th"
-												scope="row"
-												sx={{ fontWeight: 600 }}
-											>
-												Graph ID
-											</TableCell>
-											<TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
-												{object.graphId}
-											</TableCell>
-										</TableRow>
-									)}
 								</TableBody>
 							</Table>
 						</TableContainer>

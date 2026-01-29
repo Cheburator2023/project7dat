@@ -68,7 +68,7 @@ export class CacheService {
 	async setCachedExportByChangeId(
 		changeId: number,
 		data: any,
-		ttl?: number,
+		_ttl?: number,
 	): Promise<void> {
 		const cacheKey = `${this.changeCachePrefix}${changeId}`;
 

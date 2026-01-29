@@ -66,9 +66,11 @@ interface AppProps {
 	onLogout?: () => void;
 }
 
-export function App({ bridged, user, onLogout, keycloak }: AppProps) {
+export function App({ token, bridged, user, onLogout, keycloak }: AppProps) {
 	useEffect(() => {
-		console.log({ AppProps: { bridged, user, onLogout, keycloak } });
+		console.log("App", {
+			AppProps: { token, bridged, user, onLogout, keycloak },
+		});
 	}, [bridged, user, onLogout, keycloak]);
 
 	const _onLogoutHandler = () => {

@@ -1,7 +1,6 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import SettingsIcon from "@mui/icons-material/Settings";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { Chip, Divider, IconButton, Typography } from "@mui/material";

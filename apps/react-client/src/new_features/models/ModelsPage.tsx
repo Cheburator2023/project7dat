@@ -25,6 +25,7 @@ import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import { routes } from "@react-client/routing/routes";
 
 // Extended interface based on DataLineageEntity for UI display purposes
 export interface Model extends DataLineageEntity {
@@ -206,12 +207,13 @@ export const ModelsPage = () => {
 	return (
 		<div>
 			<Header>
-				<Flex alignItems="center" gap={10} width="666px">
+				<Flex alignItems="center" gap={10} width="100%">
 					<TextField
+						fullWidth
+						variant="outlined"
 						placeholder="Поиск моделей по названию, описанию, автору или тегам..."
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						fullWidth
 						size="small"
 						InputProps={{
 							startAdornment: (
@@ -248,9 +250,12 @@ export const ModelsPage = () => {
 					rowSelection="single"
 					onRowDoubleClicked={(event) => {
 						if (event.data) {
+							console.log(event.data);
 							const encodedId = encodeURIComponent(event.data.id);
 							selectEntity(encodedId);
-							navigate(`/entity/${encodedId}`);
+							navigate(
+								routes.modelCard.rootPath.replace(":entityId", encodedId),
+							);
 						}
 					}}
 					domLayout="normal"

@@ -1,11 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { BusinessValidationResult } from "../types";
 import { JsonBusinessRulesValidator } from "./interfaces/validation.interfaces";
 
 @Injectable()
 export class JsonBusinessRulesValidationService extends JsonBusinessRulesValidator {
-	private readonly logger = new Logger(JsonBusinessRulesValidationService.name);
 	private readonly maxEntities: number;
 
 	constructor(private readonly configService: ConfigService) {

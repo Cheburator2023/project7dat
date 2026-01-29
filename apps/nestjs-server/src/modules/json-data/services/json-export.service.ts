@@ -87,9 +87,9 @@ export class JsonExportService {
 		@InjectRepository(ChangeEntity)
 		private readonly changeRepository: Repository<ChangeEntity>,
 		@InjectRepository(EntityEntity)
-		private readonly entityRepository: Repository<EntityEntity>,
+		readonly _entityRepository: Repository<EntityEntity>,
 		@InjectRepository(ProcessEntity)
-		private readonly processRepository: Repository<ProcessEntity>,
+		readonly _processRepository: Repository<ProcessEntity>,
 		private readonly dataSource: DataSource,
 		private readonly configService: ConfigService,
 		private readonly cacheService: CacheService,

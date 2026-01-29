@@ -1,31 +1,32 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { EntityNodeData } from "../../dashboard/types";
 import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../dashboard/constants";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
 
-const DEFAULT_VISIBLE_ATTRS = 0;
-
-const EMPTY_STRING_SET = new Set<string>();
+const DEFAULT_VISIBLE_ATTRS = 10;
 
 export const EntityNodePreviewComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
 		const {
 			entity,
 			highlightType,
+			onNodeClick,
+			onNodeDoubleClick,
 			onAttrHover,
 			onAttrClick,
+			graphId,
 			upstreamCount,
 			downstreamCount,
-			highlightedSourceAttrs = EMPTY_STRING_SET,
-			highlightedTargetAttrs = EMPTY_STRING_SET,
-			hoverHighlightedAttrs = EMPTY_STRING_SET,
-			selectedHighlightedAttrs = EMPTY_STRING_SET,
+			highlightedSourceAttrs = new Set<string>(),
+			highlightedTargetAttrs = new Set<string>(),
+			hoverHighlightedAttrs = new Set<string>(),
+			selectedHighlightedAttrs = new Set<string>(),
 			isSearchActive = false,
 			isSearchMatch = false,
 			showAllAttrs = false,
-			onToggleExpand,
+			onExpandToggle,
 			isExpanded = false,
 		} = data;
 		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
@@ -34,37 +35,20 @@ export const EntityNodePreviewComponent = memo(
 		// Show only related attributes (those that have mappings), limited by MAX_VISIBLE_ATTRS
 		// Or show all attrs if showAllAttrs is true (for entity preview page)
 		// Also include selected highlighted attrs so they're always visible when navigating from entity page
-		const shouldComputeAttrs = showAllAttrs || isExpanded;
-		const { visibleAttrs } = useMemo(() => {
-			if (!shouldComputeAttrs) {
-				return { visibleAttrs: [], moreCount: 0 };
-			}
-
-			const allRelatedAttrs = showAllAttrs
-				? attrs
-				: attrs.filter((attr) => {
-						if (selectedHighlightedAttrs.has(attr.name)) return true;
-						if (highlightedSourceAttrs.has(attr.name)) return true;
-						return highlightedTargetAttrs.has(attr.name);
-					});
-
-			const maxAttrs = isExpanded
-				? allRelatedAttrs.length
-				: DEFAULT_VISIBLE_ATTRS;
-			const nextVisibleAttrs = isExpanded
-				? allRelatedAttrs.slice(0, maxAttrs)
-				: [];
-			const nextMoreCount = allRelatedAttrs.length - nextVisibleAttrs.length;
-			return { visibleAttrs: nextVisibleAttrs, moreCount: nextMoreCount };
-		}, [
-			attrs,
-			highlightedSourceAttrs,
-			highlightedTargetAttrs,
-			isExpanded,
-			selectedHighlightedAttrs,
-			showAllAttrs,
-			shouldComputeAttrs,
+		const relatedAttrNames = new Set([
+			...highlightedSourceAttrs,
+			...highlightedTargetAttrs,
+			...selectedHighlightedAttrs,
 		]);
+		const allRelatedAttrs = showAllAttrs
+			? attrs
+			: attrs.filter((attr) => relatedAttrNames.has(attr.name));
+
+		const maxAttrs = isExpanded
+			? allRelatedAttrs.length
+			: DEFAULT_VISIBLE_ATTRS;
+		const visibleAttrs = allRelatedAttrs.slice(0, maxAttrs);
+		const moreCount = allRelatedAttrs.length - visibleAttrs.length;
 
 		const _isDataMart = upstreamCount > 0 && downstreamCount === 0;
 		const _isSource = upstreamCount === 0 && downstreamCount > 0;
@@ -83,9 +67,6 @@ export const EntityNodePreviewComponent = memo(
 			isSearchActive && !isSearchMatch && highlightType === "none";
 		const nodeOpacity = shouldDim ? 0.3 : 1;
 
-		const hasAttrs = attrs.length > 0;
-		const showAttrToggle = hasAttrs && !showAllAttrs;
-
 		return (
 			<div
 				style={{
@@ -102,6 +83,8 @@ export const EntityNodePreviewComponent = memo(
 					opacity: nodeOpacity,
 					transition: "all 0.2s ease",
 				}}
+				onClick={() => onNodeClick(id)}
+				onDoubleClick={() => onNodeDoubleClick(id, graphId)}
 			>
 				{/* Header */}
 				<div
@@ -227,40 +210,6 @@ export const EntityNodePreviewComponent = memo(
 					</div>
 				</div>
 
-				{showAttrToggle && (
-					<div
-						onPointerDown={(e) => {
-							e.stopPropagation();
-						}}
-						onMouseDown={(e) => {
-							e.stopPropagation();
-						}}
-						onClick={(e) => {
-							e.stopPropagation();
-							onToggleExpand?.(id);
-						}}
-						style={{
-							padding: "6px 10px",
-							fontSize: 10,
-							color: "#1976d2",
-							background: "#f8f9fa",
-							textAlign: "center",
-							cursor: "pointer",
-							fontWeight: 500,
-							borderBottom: "1px solid #e0e0e0",
-						}}
-						title={
-							isExpanded
-								? "Свернуть атрибуты"
-								: `Показать ${attrs.length} атрибутов`
-						}
-					>
-						{isExpanded
-							? "▲ Свернуть атрибуты"
-							: `▼ Атрибуты (${attrs.length})`}
-					</div>
-				)}
-
 				{/* Related attributes */}
 				{visibleAttrs.length > 0 && (
 					<div onMouseLeave={() => onAttrHover(id, null)}>
@@ -353,6 +302,31 @@ export const EntityNodePreviewComponent = memo(
 								</div>
 							);
 						})}
+						{(moreCount > 0 || isExpanded) && (
+							<div
+								onClick={(e) => {
+									e.stopPropagation();
+									onExpandToggle?.(id, !isExpanded);
+								}}
+								style={{
+									padding: "4px 10px",
+									fontSize: 10,
+									color: "#1976d2",
+									background: "#f8f9fa",
+									textAlign: "center",
+									cursor: "pointer",
+									fontWeight: 500,
+									borderTop: "1px solid #e0e0e0",
+								}}
+								title={
+									isExpanded
+										? "Свернуть атрибуты"
+										: `Показать все ${attrs.length} атрибутов`
+								}
+							>
+								{isExpanded ? "▲ Свернуть" : `▼ Ещё ${moreCount} атрибутов...`}
+							</div>
+						)}
 					</div>
 				)}
 
