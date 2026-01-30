@@ -13,12 +13,13 @@ export class JsonStructureValidationService extends JsonStructureValidator {
     private readonly maxJsonSize: number;
     private readonly maxEntities: number;
     private readonly maxAttributes: number;
-    private readonly validEntityTypes = ["table", "view", "unresolved", "rdd"];
+    private readonly validEntityTypes = ["table", "view", "json", "input_vector", "unresolved", "rdd"];
     private readonly validAttributeTypes = [
         "timestamp", "date", "datetime", "decimal", "numeric",
         "double", "float", "string", "varchar", "text", "char",
         "integer", "int", "bigint", "smallint", "boolean", "bool"
     ];
+    private readonly validSystemCodes = ["1642", "1655"]; // DAPP и ПИМ
 
     constructor(private readonly configService: ConfigService) {
         super();
@@ -196,11 +197,15 @@ export class JsonStructureValidationService extends JsonStructureValidator {
                     entity.namespace = "default";
                 }
 
+                // Нормализация system_code
+                if (!entity.system_code) {
+                    entity.system_code = "1642"; // Значение по умолчанию для DAPP
+                }
+
                 // Нормализация атрибутов
                 if (entity.attrSeq && Array.isArray(entity.attrSeq)) {
                     entity.attrSeq.forEach((attr: any) => {
                         if (attr.type) {
-                            // Нормализация типа атрибута - приведение к базовому типу
                             attr.type = this.normalizeAttributeType(attr.type);
                         }
                         if (attr.comment === undefined) {
@@ -210,11 +215,15 @@ export class JsonStructureValidationService extends JsonStructureValidator {
                 }
             });
         }
-// Нормализация маппингов
+
+        // Нормализация маппингов
         if (normalized.mappings && Array.isArray(normalized.mappings)) {
             normalized.mappings.forEach((mapping: any) => {
                 if (!mapping.deps) {
                     mapping.deps = [];
+                }
+                if (!mapping.system_code) {
+                    mapping.system_code = "1642"; // Значение по умолчанию
                 }
 
                 // Нормализация зависимостей
@@ -225,6 +234,9 @@ export class JsonStructureValidationService extends JsonStructureValidator {
                         }
                         if (!dep.atrDeps) {
                             dep.atrDeps = [];
+                        }
+                        if (!dep.system_code) {
+                            dep.system_code = mapping.system_code || "1642";
                         }
                     });
                 }
@@ -336,9 +348,18 @@ export class JsonStructureValidationService extends JsonStructureValidator {
                 `Сущность ${index}: отсутствует флаг modified (будет установлен в false)`,
             );
         }
+        if (!entity.system_code) {
+            warnings.push(
+                `Сущность ${index}: отсутствует system_code (будет установлено значение по умолчанию 1642)`,
+            );
+        }
 
         if (entity.type && !this.validEntityTypes.includes(entity.type)) {
             errors.push(`Сущность ${index}: неверный тип '${entity.type}'`);
+        }
+
+        if (entity.system_code && !this.validSystemCodes.includes(entity.system_code)) {
+            warnings.push(`Сущность ${index}: неизвестный system_code '${entity.system_code}'`);
         }
 
         this.validateEntityAttributes(entity, index, errors, warnings);
@@ -415,6 +436,9 @@ export class JsonStructureValidationService extends JsonStructureValidator {
         if (!mapping.entityId) {
             errors.push(`Маппинг ${index}: отсутствует entityId`);
         }
+        if (!mapping.system_code) {
+            warnings.push(`Маппинг ${index}: отсутствует system_code (будет установлено значение по умолчанию 1642)`);
+        }
 
         const targetEntity = entities.find((e: any) => e.id === mapping.entityId);
         if (!targetEntity) {
@@ -450,6 +474,9 @@ export class JsonStructureValidationService extends JsonStructureValidator {
     ): void {
         if (!dep.entityId) {
             errors.push(`Маппинг ${mappingIndex}, зависимость ${depIndex}: отсутствует entityId`);
+        }
+        if (!dep.system_code) {
+            warnings.push(`Маппинг ${mappingIndex}, зависимость ${depIndex}: отсутствует system_code (будет установлено значение по умолчанию 1642)`);
         }
 
         const sourceEntity = entities.find((e: any) => e.id === dep.entityId);

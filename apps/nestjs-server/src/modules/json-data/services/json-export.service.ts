@@ -631,7 +631,6 @@ export class JsonExportService {
         entitiesWithDetails: EntityWithDetails[],
         mappingsWithDetails: MappingWithDetails[]
     ): JsonExportResponseDto['entities'] {
-        // Собираем Set entity_id, которые являются целевыми (присутствуют в entity_map)
         const targetEntityIds = new Set<number>();
         mappingsWithDetails.forEach(mapping => {
             targetEntityIds.add(mapping.target_entity_id);
@@ -640,12 +639,25 @@ export class JsonExportService {
         return entitiesWithDetails.map(entity => {
             const entityType = this.mapEntityTypeToJson(entity.entity_type_name);
 
+            // Получаем system_code из связанной системы
+            let systemCode = "1642"; // Значение по умолчанию для DAPP
+
+            if (entity.container_value) {
+                // Пытаемся извлечь system_code из namespace или использовать значение по умолчанию
+                const namespaceParts = entity.container_value.split('.');
+                if (namespaceParts.length > 0) {
+                    // Предполагаем, что первый элемент namespace может содержать указание на систему
+                    systemCode = this.extractSystemCodeFromNamespace(entity.container_value);
+                }
+            }
+
             return {
-                id: entity.full_name, // Используем full_name как полное составное имя
+                id: entity.full_name,
                 modified: targetEntityIds.has(entity.entity_id),
                 type: entityType,
                 namespace: entity.container_value || 'default',
                 name: entity.name,
+                system_code: systemCode,
                 entity_change: entity.entity_change_date.toISOString(),
                 description: entity.description || undefined,
                 container_description: entity.container_description || undefined,
@@ -661,29 +673,76 @@ export class JsonExportService {
     }
 
     private transformMappings(mappingsWithDetails: MappingWithDetails[]): JsonExportResponseDto['mappings'] {
-        return mappingsWithDetails.map(mapping => ({
-            entityId: mapping.target_full_name, // Полное составное имя сущности
-            process: mapping.process_name || undefined, // Имя процесса
-            process_description: mapping.process_description || undefined, // Описание процесса
-            process_change: mapping.process_change_date?.toISOString() || undefined,
-            description: mapping.entity_map_description || undefined,
-            relation_change: mapping.relation_change_date.toISOString(),
-            deps: mapping.dependencies.map(dep => ({
-                entityId: dep.source_full_name, // Полное составное имя source entity
-                attrMaps: dep.attr_maps.map(attrMap => ({
-                    src: attrMap.source_attribute_name,
-                    dst: attrMap.target_attribute_name,
-                    relation_change: attrMap.relation_change_date.toISOString()
+        return mappingsWithDetails.map(mapping => {
+            // Определяем system_code для маппинга
+            let systemCode = "1642"; // Значение по умолчанию
+
+            // Пытаемся извлечь system_code из target entity
+            const targetNamespace = this.extractNamespaceFromFullName(mapping.target_full_name);
+            if (targetNamespace) {
+                systemCode = this.extractSystemCodeFromNamespace(targetNamespace);
+            }
+
+            return {
+                entityId: mapping.target_full_name,
+                system_code: systemCode,
+                process: mapping.process_name || undefined,
+                process_description: mapping.process_description || undefined,
+                process_change: mapping.process_change_date?.toISOString() || undefined,
+                description: mapping.entity_map_description || undefined,
+                relation_change: mapping.relation_change_date.toISOString(),
+                deps: mapping.dependencies.map(dep => ({
+                    entityId: dep.source_full_name,
+                    system_code: this.extractSystemCodeFromFullName(dep.source_full_name),
+                    attrMaps: dep.attr_maps.map(attrMap => ({
+                        src: attrMap.source_attribute_name,
+                        dst: attrMap.target_attribute_name,
+                        relation_change: attrMap.relation_change_date.toISOString()
+                    })),
+                    atrDeps: dep.attr_deps.map(attrDep => ({
+                        attr: attrDep.source_attribute_name,
+                        linkTypes: attrDep.linkTypes,
+                        relation_change: attrDep.relation_change_date.toISOString()
+                    }))
                 })),
-                atrDeps: dep.attr_deps.map(attrDep => ({
-                    attr: attrDep.source_attribute_name,
-                    linkTypes: attrDep.linkTypes,
-                    relation_change: attrDep.relation_change_date.toISOString()
-                }))
-            })),
-            unmatched: mapping.unmatched || undefined
-        }));
+                unmatched: mapping.unmatched || undefined
+            };
+        });
     }
+
+    private extractSystemCodeFromNamespace(namespace: string): string {
+        // Пытаемся извлечь system_code из namespace
+        const match = namespace.match(/(?:^|\.)(\d{4})(?:_|\.|$)/);
+        if (match && match[1]) {
+            return match[1];
+        }
+
+        // Проверяем известные префиксы
+        if (namespace.includes('dwh_1642') || namespace.includes('1642_')) {
+            return "1642";
+        } else if (namespace.includes('pim_1655') || namespace.includes('1655_')) {
+            return "1655";
+        }
+
+        return "1642"; // Значение по умолчанию для DAPP
+    }
+
+    private extractSystemCodeFromFullName(fullName: string): string {
+        const namespace = this.extractNamespaceFromFullName(fullName);
+        if (namespace) {
+            return this.extractSystemCodeFromNamespace(namespace);
+        }
+        return "1642";
+    }
+
+    private extractNamespaceFromFullName(fullName: string): string | null {
+        const parts = fullName.split('.');
+        if (parts.length > 1) {
+            return parts.slice(0, -1).join('.');
+        }
+        return null;
+    }
+
 
     private mapEntityTypeToJson(entityTypeName: string): string {
         const typeMapping: { [key: string]: string } = {
