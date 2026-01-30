@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useLocation } from "react-router";
-import { Box, CircularProgress } from "@mui/material";
+import { Box, LinearProgress, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
@@ -121,20 +121,29 @@ export const DashboardPage = () => {
 	);
 
 	const { isPending } = useCurrentDataLineageGraph();
-	if (isPending) {
-		return (
-			<Box
-				sx={{
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					minHeight: "50vh",
-				}}
-			>
-				<CircularProgress />
-			</Box>
-		);
-	}
+	const [progress, setProgress] = useState(0);
+
+	useEffect(() => {
+		if (isPending) {
+			setProgress(0);
+			const duration = 60000;
+			const interval = 100;
+			const increment = (interval / duration) * 100;
+
+			const timer = setInterval(() => {
+				setProgress((prev) => {
+					const next = prev + increment;
+					return next >= 95 ? 95 : next;
+				});
+			}, interval);
+
+			return () => clearInterval(timer);
+		} else {
+			setProgress(100);
+			const timeout = setTimeout(() => setProgress(0), 500);
+			return () => clearTimeout(timeout);
+		}
+	}, [isPending]);
 
 	return (
 		<Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -147,6 +156,57 @@ export const DashboardPage = () => {
 					onAction={onAction}
 					realtimeResize
 				/>
+
+				{isPending && (
+					<Box
+						sx={{
+							position: "absolute",
+							top: 0,
+							left: 0,
+							width: "100%",
+							height: "100%",
+							backdropFilter: "blur(2px)",
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							justifyContent: "center",
+							zIndex: 9999,
+						}}
+					>
+						<Box
+							sx={{
+								width: "400px",
+								backgroundColor: "background.paper",
+								borderRadius: "12px",
+								padding: "32px",
+								boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+							}}
+						>
+							<Typography
+								variant="h6"
+								sx={{ mb: 3, textAlign: "center", fontWeight: 600 }}
+							>
+								Загрузка данных...
+							</Typography>
+							<LinearProgress
+								variant="determinate"
+								value={progress}
+								sx={{
+									height: "8px",
+									borderRadius: "4px",
+									mb: 2,
+								}}
+							/>
+							<Typography
+								variant="body2"
+								color="text.secondary"
+								sx={{ textAlign: "center" }}
+							>
+								{Math.round(progress)}%
+							</Typography>
+						</Box>
+					</Box>
+				)}
 			</FlexLayoutWrapper>
 		</Box>
 	);
