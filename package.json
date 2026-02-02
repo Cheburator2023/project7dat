@@ -34,6 +34,7 @@
 		"lint": "turbo run lint",
 		"biome": "npx @biomejs/biome check",
 		"biome:fix": "npx @biomejs/biome@2.3.2 check --log-level=error --diagnostic-level=error --unsafe --fix ./apps/react-client/src ./apps/nestjs-server/src",
+		"biome:fix:staged": "node -e 'const { execSync } = require(\"child_process\"); const out = execSync(\"git diff --name-only --cached --diff-filter=ACMR\", { encoding: \"utf8\" }); const files = out.split(/\\r?\\n/).map((s) => s.trim()).filter(Boolean); if (!files.length) { console.log(\"No staged files\"); process.exit(0); } const args = files.map((f) => JSON.stringify(f)).join(\" \"); const cmd = `npx @biomejs/biome@2.3.2 check --write --unsafe --files-ignore-unknown=true --log-level=error --diagnostic-level=error ${args}`; execSync(cmd, { stdio: \"inherit\" });'",
 		"prepare": "husky",
 		"db:reset": "npm run db:reset:dev",
 		"db:reset:dev": "node ./apps/nestjs-server/scripts/reset-dev-db.js",

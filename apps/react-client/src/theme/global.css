@@ -1,5 +1,24 @@
 /* Custom CSS Variables */
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	height: 100%;
+	overflow: hidden;
+}
+
+#root {
+	min-height: -webkit-fill-available;
+	height: 100%;
+}
+
 :root {
+	height: 100%;
+	overflow: hidden;
+
 	--background: 0 0% 100%;
 	--foreground: 222.2 84% 4.9%;
 

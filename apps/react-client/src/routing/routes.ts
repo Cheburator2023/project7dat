@@ -6,45 +6,27 @@ export const routes = {
 		showInNavbar: true,
 		subRoutes: {},
 	},
-	dataMartPreview: {
-		name: "Витрина",
-		rootPath: "/datamart/:datamartId",
-		disabled: false,
-		showInNavbar: false,
-	},
-	entityPreview: {
-		name: "Просмотр сущности",
-		rootPath: "/entity/:entityId",
-		disabled: false,
-		showInNavbar: false,
-	},
 	snapshots: {
 		name: "Реестр снепшотов",
 		rootPath: "/snapshots",
 		disabled: false,
 		showInNavbar: false,
 	},
-	jsonData: {
-		name: "Формат JSON",
-		rootPath: "/import-data/json-data",
+	s2tDataReport: {
+		name: "Формат S2T",
+		rootPath: "/reports/s2t-data",
 		disabled: false,
 		showInNavbar: true,
 	},
-	s2tData: {
-		name: "Формат S2T",
-		rootPath: "/reports/s2t-data",
+	jsonDataReport: {
+		name: "Формат JSON",
+		rootPath: "/reports/json-data",
 		disabled: false,
 		showInNavbar: true,
 	},
 	s2tCommitCreate: {
 		name: "Создание S2T коммита",
 		rootPath: "/s2t-commits/new",
-		disabled: false,
-		showInNavbar: false,
-	},
-	s2tCommitDetails: {
-		name: "S2T коммит",
-		rootPath: "/s2t-commits/:id",
 		disabled: false,
 		showInNavbar: false,
 	},
@@ -60,17 +42,37 @@ export const routes = {
 		disabled: false,
 		showInNavbar: true,
 	},
-	objectCard: {
-		name: "Карточка объекта",
-		rootPath: "/objects/:objectId",
-		disabled: false,
-		showInNavbar: false,
-	},
 	models: {
 		name: "Модели",
 		rootPath: "/services/models",
 		disabled: false,
 		showInNavbar: true,
+	},
+
+	modelServices: {
+		name: "Модельные сервисы",
+		rootPath: "/services/model-services",
+		disabled: false,
+		showInNavbar: true,
+	},
+	// CRUD pages
+	entityPreview: {
+		name: "Просмотр сущности",
+		rootPath: "/entity/:entityId",
+		disabled: false,
+		showInNavbar: false,
+	},
+	s2tCommitDetails: {
+		name: "S2T коммит",
+		rootPath: "/s2t-commits/:id",
+		disabled: false,
+		showInNavbar: false,
+	},
+	objectCard: {
+		name: "Карточка объекта",
+		rootPath: "/objects/:objectId",
+		disabled: false,
+		showInNavbar: false,
 	},
 	modelCard: {
 		name: "Модели",
@@ -78,28 +80,10 @@ export const routes = {
 		disabled: false,
 		showInNavbar: false,
 	},
-	modelServices: {
-		name: "Модельные сервисы",
-		rootPath: "/services/model-services",
-		disabled: false,
-		showInNavbar: true,
-	},
-	commitQueue: {
-		name: "Очередь коммитов",
-		rootPath: "/import-data/commit-queue",
-		disabled: true,
-		showInNavbar: false,
-	},
-	changelogTable: {
-		name: "История изменений",
-		rootPath: "/changelog",
-		disabled: false,
-		showInNavbar: true,
-		devOnly: false,
-	},
-	graphChangelog: {
-		name: "История графика",
-		rootPath: "/changelog/:graphId",
+	// aux
+	settings: {
+		name: "Настройки",
+		rootPath: "/settings",
 		disabled: false,
 		showInNavbar: false,
 	},
@@ -115,18 +99,6 @@ export const routes = {
 		name: "API Документация",
 		rootPath: "/swagger",
 		devOnly: true,
-		disabled: false,
-		showInNavbar: true,
-	},
-	settings: {
-		name: "Настройки",
-		rootPath: "/settings",
-		disabled: false,
-		showInNavbar: false,
-	},
-	dashboardBuilder: {
-		name: "Конструктор дашборда",
-		rootPath: "/dashboard-builder",
 		disabled: false,
 		showInNavbar: true,
 	},

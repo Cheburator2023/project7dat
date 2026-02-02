@@ -16,8 +16,8 @@ import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
 
 @ApiBearerAuth("JWT-auth")
-@ApiTags("S2T")
-@Controller("s2t")
+@ApiTags("Импорт S2T")
+@Controller("s2t-import")
 export class S2tConversionController {
 	constructor(
 		private readonly s2tConversionService: S2tConversionService,
@@ -27,7 +27,7 @@ export class S2tConversionController {
 	@Post("convert-xlsx-to-json")
 	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
-		summary: "Конвертация S2T xlsx в JSON-представление workbook",
+		summary: "Конвертация S2T (.xlsx) в JSON-представление workbook",
 		description:
 			"Принимает xlsx (base64) и возвращает JSON-представление структуры Excel (для последующего парсинга в commit JSON).",
 	})
@@ -56,7 +56,7 @@ export class S2tConversionController {
 	@Post("convert-xlsx-to-commit-json")
 	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
-		summary: "Конвертация S2T xlsx напрямую в commit JSON",
+		summary: "Конвертация S2T (.xlsx) напрямую в commit JSON",
 		description:
 			"Принимает xlsx (base64) и возвращает готовый commit JSON в формате DataLineageSchema для валидации и импорта.",
 	})

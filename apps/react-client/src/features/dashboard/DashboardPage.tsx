@@ -122,28 +122,56 @@ export const DashboardPage = () => {
 
 	const { isPending } = useCurrentDataLineageGraph();
 	const [progress, setProgress] = useState(0);
+	const [isLoaderVisible, setIsLoaderVisible] = useState(false);
 
 	useEffect(() => {
 		if (isPending) {
+			setIsLoaderVisible(true);
 			setProgress(0);
 			const duration = 60000;
-			const interval = 100;
-			const increment = (interval / duration) * 100;
+			const interval = 50;
+			const increment = (interval / duration) * 50;
 
-			const timer = setInterval(() => {
+			const timer = window.setInterval(() => {
 				setProgress((prev) => {
 					const next = prev + increment;
-					return next >= 95 ? 95 : next;
+					return next >= 99 ? 99 : next;
 				});
 			}, interval);
 
-			return () => clearInterval(timer);
-		} else {
-			setProgress(100);
-			const timeout = setTimeout(() => setProgress(0), 500);
-			return () => clearTimeout(timeout);
+			return () => window.clearInterval(timer);
 		}
-	}, [isPending]);
+
+		if (!isLoaderVisible) {
+			return;
+		}
+
+		// finish phase: довести до 100% и только потом скрыть
+		let finishTimer: number | null = null;
+		let hideTimer: number | null = null;
+
+		finishTimer = window.setInterval(() => {
+			setProgress((prev) => {
+				const next = prev + 2;
+				if (next >= 100) {
+					if (finishTimer) window.clearInterval(finishTimer);
+					finishTimer = null;
+					// Дать браузеру отрисовать 100%
+					hideTimer = window.setTimeout(() => {
+						setIsLoaderVisible(false);
+						setProgress(0);
+					}, 100);
+					return 100;
+				}
+				return next;
+			});
+		}, 20);
+
+		return () => {
+			if (finishTimer) window.clearInterval(finishTimer);
+			if (hideTimer) window.clearTimeout(hideTimer);
+		};
+	}, [isPending, isLoaderVisible]);
 
 	return (
 		<Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -157,8 +185,9 @@ export const DashboardPage = () => {
 					realtimeResize
 				/>
 
-				{isPending && (
+				{isLoaderVisible && (
 					<Box
+						id="main_data_loader"
 						sx={{
 							position: "absolute",
 							top: 0,

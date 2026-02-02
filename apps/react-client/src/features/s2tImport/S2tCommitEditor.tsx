@@ -173,7 +173,7 @@ export const S2tCommitEditor = ({
 
 			try {
 				const res = await axios.get(
-					`${API_BASE_URL}/api/s2t-commits/${prefillCommitId}`,
+					`${API_BASE_URL}/api/s2t-import/commits/${prefillCommitId}`,
 				);
 				const commit = (res.data?.commit ?? res.data) as any;
 				const payload = (commit?.payload ??
@@ -314,7 +314,7 @@ export const S2tCommitEditor = ({
 					const xlsxBase64 = await fileToBase64(selectedFile);
 
 					const convertResponse = await axios.post(
-						`${API_BASE_URL}/api/s2t/convert-xlsx-to-commit-json`,
+						`${API_BASE_URL}/api/s2t-import/convert-xlsx-to-commit-json`,
 						{
 							xlsxBase64,
 							fileName: selectedFile.name,
@@ -367,7 +367,7 @@ export const S2tCommitEditor = ({
 				}
 
 				const saveResponse = await axios.post(
-					`${API_BASE_URL}/api/s2t-commits`,
+					`${API_BASE_URL}/api/s2t-import/commits`,
 					{
 						id: mode === "overwrite" ? savedCommit?.id : undefined,
 						parent_id:
@@ -458,7 +458,7 @@ export const S2tCommitEditor = ({
 			);
 
 			const applyResponse = await axios.post(
-				`${API_BASE_URL}/api/s2t-commits/${savedCommit.id}/apply`,
+				`${API_BASE_URL}/api/s2t-import/commits/${savedCommit.id}/apply`,
 				{ user: username, sourceType: "DAPP" },
 			);
 

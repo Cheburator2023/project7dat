@@ -19,14 +19,17 @@ import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
+import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 
 import { useDashboardStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
-import { LoadingSpinner, ErrorAlert, TypeChip } from "../atoms";
+import { TypeChip } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
 import { fuzzySearchEntities } from "../utils";
 import { EntityContextMenu, type EntityContextMenuState } from "../molecules";
 import type { EntityRow, EntityConnection } from "../types";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 export const EntitiesPanel = memo(() => {
 	const { mode } = useColorScheme();
@@ -346,8 +349,11 @@ export const EntitiesPanel = memo(() => {
 					// 		/>
 					// 	);
 					// }
-					if (value) {
+					if (!value) return "";
+					try {
 						return format(parseISO(value), "dd.MM.yyyy, HH:mm");
+					} catch {
+						return value;
 					}
 				},
 			},
@@ -456,16 +462,8 @@ export const EntitiesPanel = memo(() => {
 		[selectedEntityId, upstreamEntities, downstreamEntities],
 	);
 
-	if (isLoading) {
-		return <LoadingSpinner />;
-	}
-
-	if (error) {
-		return <ErrorAlert message={error.message} />;
-	}
-
 	return (
-		<Box sx={{ height: "100%", width: "100%" }}>
+		<Box sx={{ height: "100%", width: "100%", minHeight: 0 }}>
 			<AgGridReact
 				rowData={filteredEntities}
 				columnDefs={columnDefs}
@@ -480,6 +478,7 @@ export const EntitiesPanel = memo(() => {
 				animateRows
 				rowHeight={28}
 				headerHeight={32}
+				loading={isLoading}
 			/>
 
 			<EntityContextMenu

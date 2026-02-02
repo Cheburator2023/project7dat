@@ -39,15 +39,15 @@ const getSuccessMessage = (method: string, url: string): string => {
 						: "обработаны";
 
 	if (url.includes("validate")) return "Валидация выполнена";
-	if (url.includes("/s2t/convert-xlsx-to-commit-json"))
+	if (url.includes("/s2t-import/convert-xlsx-to-commit-json"))
 		return "Конвертация выполнена" + debugMessage;
 	if (
 		method === "POST" &&
-		url.includes("/s2t-commits") &&
+		url.includes("/s2t-import/commits") &&
 		url.includes("apply")
 	)
 		return "Коммит применён" + debugMessage;
-	if (method === "POST" && url.includes("/s2t-commits"))
+	if (method === "POST" && url.includes("/s2t-import/commits"))
 		return "Коммит сохранён" + debugMessage;
 
 	if (url.includes("/json-data"))

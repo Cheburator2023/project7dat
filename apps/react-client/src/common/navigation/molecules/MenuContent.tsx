@@ -13,15 +13,6 @@ import { routes } from "@react-client/routing/routes";
 import { useMergeStore } from "@react-client/stores/mergeStore";
 
 // Классификация роутов по категориям меню (статический контекст)
-const OLD_ROUTE_KEYS = [
-	"home",
-	"snapshots",
-	"jsonData",
-	"allCommits",
-	"commitQueue",
-	"changelog",
-] as const;
-
 const MOCKED_NEW_ROUTE_KEYS = [
 	// "objects",
 	// "models",
@@ -32,12 +23,6 @@ const MOCKED_NEW_ROUTE_KEYS = [
 const nonDevEntries = Object.entries(routes).filter(
 	([, route]) => route.showInNavbar && !(route as any).devOnly,
 );
-
-const _backendItems = nonDevEntries
-	.filter(([key]: any) =>
-		(OLD_ROUTE_KEYS as ReadonlyArray<string>).includes(key),
-	)
-	.map(([, route]) => route);
 
 const mockedItems = nonDevEntries
 	.filter(([key]: any) =>
@@ -73,13 +58,7 @@ export function MenuContent() {
 	const navigate = useNavigate();
 	const location = useLocation();
 
-	const {
-		isMergeActive,
-		confirmMerge,
-		cancelMerge,
-		openDemoMergeGraphWindow,
-		openDemoDiffWindow,
-	} = useMergeStore();
+	const { isMergeActive, confirmMerge, cancelMerge } = useMergeStore();
 
 	const handler = (path: string) => {
 		navigate(path);
@@ -194,36 +173,44 @@ export function MenuContent() {
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
+
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handler(routes.jsonData.rootPath.replace("/", ""))}
+						onClick={() =>
+							handler(routes.jsonDataReport.rootPath.replace("/", ""))
+						}
 						data-test-id="menu-content--ListItem-backend"
 					>
 						<ListItemButton
 							selected={
-								routes.jsonData.rootPath === location.pathname.replace("/", "")
+								routes.jsonDataReport.rootPath ===
+								location.pathname.replace("/", "")
 							}
 							data-test-id="menu-content--ListItemButton-backend"
 						>
 							<ListItemText
-								primary={routes.jsonData.name}
+								primary={routes.jsonDataReport.name}
 								data-test-id="menu-content--ListItemText-backend"
 							/>
 						</ListItemButton>
 					</ListItem>
+
 					<ListItem
 						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handler(routes.s2tData.rootPath.replace("/", ""))}
+						onClick={() =>
+							handler(routes.s2tDataReport.rootPath.replace("/", ""))
+						}
 						data-test-id="menu-content--ListItem-backend"
 					>
 						<ListItemButton
 							selected={
-								routes.s2tData.rootPath === location.pathname.replace("/", "")
+								routes.s2tDataReport.rootPath ===
+								location.pathname.replace("/", "")
 							}
 							data-test-id="menu-content--ListItemButton-backend"
 						>
 							<ListItemText
-								primary={routes.s2tData.name}
+								primary={routes.s2tDataReport.name}
 								data-test-id="menu-content--ListItemText-backend"
 							/>
 						</ListItemButton>
@@ -302,7 +289,7 @@ export function MenuContent() {
 						</ListItemButton>
 					</ListItem>
 				</ListItem>
-				<Divider sx={{ my: 1 }} data-test-id="menu-content--Divider-mocked" />
+				{/* <Divider sx={{ my: 1 }} data-test-id="menu-content--Divider-mocked" /> */}
 
 				{/*{backendItems.map((item, index) => (*/}
 				{/*	<ListItem*/}
