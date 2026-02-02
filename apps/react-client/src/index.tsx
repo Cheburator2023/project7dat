@@ -3,9 +3,9 @@ import ReactDOM from "react-dom/client";
 import { reportWebVitals } from "./reportWebVitals";
 import { AuthProvider } from "@react-client/common/AuthProvider";
 import { globalStyles } from "@react-client/theme/GlobalStyle";
-import { CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 import { App } from "./App";
+import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
 
 const root = ReactDOM.createRoot(
 	document.getElementById("root") as HTMLElement,
@@ -26,7 +26,7 @@ const RenderApp = () => {
 			<App />
 		</AuthProvider>
 	) : (
-		<CircularProgress />
+		<FullScreenLoader />
 	);
 };
 

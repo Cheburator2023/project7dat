@@ -58,7 +58,7 @@ export function Header({
 			);
 
 			const res = await axios.post(
-				`${API_BASE_URL}/api/s2t-commits/${pendingS2t.commitId}/apply`,
+				`${API_BASE_URL}/api/s2t-import/commits/${pendingS2t.commitId}/apply`,
 				{},
 			);
 			localStorage.removeItem(S2T_PENDING_COMMIT_LS_KEY);

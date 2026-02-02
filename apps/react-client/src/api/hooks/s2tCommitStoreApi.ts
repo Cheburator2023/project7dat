@@ -21,7 +21,7 @@ export interface S2tCommitItem {
 }
 
 export const s2tCommitStoreApi = axios.create({
-	baseURL: `${API_BASE_URL}/api/s2t-commits`,
+	baseURL: `${API_BASE_URL}/api/s2t-import/commits`,
 	headers: {
 		"Content-Type": "application/json",
 	},

@@ -50,6 +50,10 @@ async function bootstrap() {
 		.addTag("Основное", "Основные эндпоинты приложения")
 		.addTag("JSON Данные", "CRUD операции для JSON документов")
 		.addTag("JSON Коммиты", "Управление версиями JSON документов")
+		.addTag("Импорт JSON", "Импорт JSON данных в БД DL")
+		.addTag("Экспорт JSON", "Экспорт данных РБД в JSON")
+		.addTag("Импорт S2T", "Импорт данных из S2T (.xlsx)")
+		.addTag("Экспорт S2T", "Экспорт отчётов в формате S2T (.xlsx)")
 		.addBearerAuth(
 			{
 				type: "http",

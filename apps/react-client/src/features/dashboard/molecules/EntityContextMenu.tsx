@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
 	Menu,
 	MenuItem,
@@ -16,12 +16,84 @@ import {
 import { useNavigate } from "react-router-dom";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { toast } from "sonner";
+import { useAuthStore } from "@react-client/common/store/authStore";
 import { useDashboardStore } from "../stores";
 import {
 	EntityDetailsDialog,
 	MappingDetailsDialog,
 } from "@react-client/features/entityPreview";
 import type { EntityConnection } from "../types";
+
+const sanitizeFilePart = (value: string) =>
+	value.replace(/[^a-zA-Z0-9._-]+/g, "_");
+
+const buildDefaultFileName = (params: {
+	schemaName?: string;
+	entityName: string;
+	extension: "json" | "xlsx";
+}) => {
+	const date = new Date();
+	const yy = String(date.getFullYear() % 100).padStart(2, "0");
+	const mm = String(date.getMonth() + 1).padStart(2, "0");
+	const dd = String(date.getDate()).padStart(2, "0");
+	const hh = String(date.getHours()).padStart(2, "0");
+	const min = String(date.getMinutes()).padStart(2, "0");
+	const timestamp = `${yy}${mm}${dd}${hh}${min}`;
+	const schemaPart = params.schemaName
+		? sanitizeFilePart(params.schemaName)
+		: "";
+	const entityPart = sanitizeFilePart(params.entityName);
+	const base = schemaPart ? `${schemaPart}.${entityPart}` : entityPart;
+	return `${base}${timestamp}.${params.extension}`;
+};
+
+const downloadJson = (params: { data: unknown; fileName: string }) => {
+	const dataStr = JSON.stringify(params.data, null, 2);
+	const dataBlob = new Blob([dataStr], { type: "application/json" });
+	const url = URL.createObjectURL(dataBlob);
+
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = params.fileName;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+	URL.revokeObjectURL(url);
+};
+
+const getFileNameFromContentDisposition = (value: string | null) => {
+	if (!value) return null;
+
+	const parts = value.split(";").map((p) => p.trim());
+	const filenameStar = parts.find((p) =>
+		p.toLowerCase().startsWith("filename*="),
+	);
+	if (filenameStar) {
+		const raw = filenameStar.split("=")[1] ?? "";
+		const cleaned = raw.replace(/^UTF-8''/i, "").replace(/^"|"$/g, "");
+		try {
+			return decodeURIComponent(cleaned);
+		} catch {
+			return cleaned;
+		}
+	}
+
+	const filename = parts.find((p) => p.toLowerCase().startsWith("filename="));
+	if (!filename) return null;
+	return (filename.split("=")[1] ?? "").replace(/^"|"$/g, "");
+};
+
+const downloadBlob = (params: { blob: Blob; fileName: string }) => {
+	const url = URL.createObjectURL(params.blob);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = params.fileName;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+	URL.revokeObjectURL(url);
+};
 
 export interface EntityContextMenuState {
 	entityId: string;
@@ -43,6 +115,8 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 		const navigate = useNavigate();
 		const { setRevealPosition } = useDataLineageStore();
 		const { setZoomToNode, selectEntity } = useDashboardStore();
+		const { accessToken } = useAuthStore();
+		const { currentGraph } = useDataLineageStore();
 
 		// Dialog state
 		const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);
@@ -124,6 +198,144 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 				c.targetId === contextMenu?.entityId,
 		);
 
+		const isAllowedReportEntityType = useMemo(() => {
+			return entity?.type === "table" || entity?.type === "view";
+		}, [entity?.type]);
+
+		const relatedMappingsCount = useMemo(() => {
+			if (!currentGraph || !contextMenu?.entityId) return 0;
+			const selectedEntityId = contextMenu.entityId;
+			return (currentGraph.mappings ?? []).filter(
+				(m) =>
+					m.entityId === selectedEntityId ||
+					(m.deps ?? []).some((d) => d.entityId === selectedEntityId),
+			).length;
+		}, [contextMenu?.entityId, currentGraph]);
+
+		const reportMenuDisabledReason = useMemo(() => {
+			if (!contextMenu?.entityId) return "Сущность не выбрана";
+			if (!entity) return "Не удалось определить сущность";
+			if (!isAllowedReportEntityType)
+				return "Отчёт доступен только для сущностей типа table или view";
+			if (relatedMappingsCount === 0)
+				return "Нет маппингов для выбранной витрины";
+			return null;
+		}, [
+			contextMenu?.entityId,
+			entity,
+			isAllowedReportEntityType,
+			relatedMappingsCount,
+		]);
+
+		const handleDownloadJsonReport = useCallback(async () => {
+			if (!contextMenu?.entityId) return;
+			if (!currentGraph) {
+				toast.error("Нет текущих данных для формирования отчёта");
+				return;
+			}
+			if (!entity) {
+				toast.error("Не удалось определить сущность");
+				return;
+			}
+			if (!isAllowedReportEntityType) {
+				toast.error("Отчёт доступен только для сущностей типа table или view");
+				return;
+			}
+			if (relatedMappingsCount === 0) {
+				toast.error("Нет маппингов для выбранной витрины");
+				return;
+			}
+
+			const selectedEntityId = contextMenu.entityId;
+			const mappings = (currentGraph.mappings ?? []).filter(
+				(m) =>
+					m.entityId === selectedEntityId ||
+					(m.deps ?? []).some((d) => d.entityId === selectedEntityId),
+			);
+			const entityIds = new Set<string>([selectedEntityId]);
+			for (const mapping of mappings) {
+				entityIds.add(mapping.entityId);
+				for (const dep of mapping.deps ?? []) {
+					entityIds.add(dep.entityId);
+				}
+			}
+			const entities = (currentGraph.entities ?? []).filter((e) =>
+				entityIds.has(e.id),
+			);
+			const report = {
+				generatedAt: new Date().toISOString(),
+				format: "DATA_LINEAGE_REPORT_JSON",
+				selectedEntityId,
+				desc: currentGraph.desc,
+				entities,
+				mappings,
+			};
+			const fileName = buildDefaultFileName({
+				entityName: entity.name ?? entity.id,
+				schemaName: entity.namespace,
+				extension: "json",
+			});
+
+			downloadJson({ data: report, fileName });
+		}, [
+			contextMenu?.entityId,
+			currentGraph,
+			entity,
+			isAllowedReportEntityType,
+		]);
+
+		const handleDownloadS2tReport = useCallback(async () => {
+			const API_BASE_URL =
+				window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
+			if (!contextMenu?.entityId) return;
+			if (!entity) {
+				toast.error("Не удалось определить сущность");
+				return;
+			}
+			if (!isAllowedReportEntityType) {
+				toast.error("Отчёт доступен только для сущностей типа table или view");
+				return;
+			}
+			if (relatedMappingsCount === 0) {
+				toast.error("Нет маппингов для выбранной витрины");
+				return;
+			}
+
+			try {
+				const url = new URL(`${API_BASE_URL}/api/s2t-export/dl`);
+				url.searchParams.set("entityId", contextMenu.entityId);
+
+				const res = await fetch(url.toString(), {
+					method: "GET",
+					headers: {
+						...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+					},
+				});
+
+				if (!res.ok) {
+					throw new Error(`HTTP ${res.status}`);
+				}
+
+				const blob = await res.blob();
+				const cd = res.headers.get("content-disposition");
+				const responseFileName = getFileNameFromContentDisposition(cd);
+				const fallbackName = buildDefaultFileName({
+					entityName: entity.name ?? entity.id,
+					schemaName: entity.namespace,
+					extension: "xlsx",
+				});
+				downloadBlob({ blob, fileName: responseFileName ?? fallbackName });
+			} catch (e: any) {
+				toast.error(`Не удалось скачать отчёт: ${e?.message ?? "ошибка"}`);
+			}
+		}, [
+			accessToken,
+			contextMenu?.entityId,
+			entity,
+			isAllowedReportEntityType,
+			relatedMappingsCount,
+		]);
+
 		return (
 			<>
 				<Menu
@@ -159,6 +371,35 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 						</ListItemIcon>
 						<ListItemText primary="Открыть в новой вкладке" />
 					</MenuItem>
+					<Divider />
+					<span title={reportMenuDisabledReason ?? undefined}>
+						<MenuItem
+							onClick={() => {
+								handleDownloadJsonReport();
+								onClose();
+							}}
+							disabled={Boolean(reportMenuDisabledReason)}
+						>
+							<ListItemIcon>
+								<Code fontSize="small" />
+							</ListItemIcon>
+							<ListItemText primary="Выгрузить JSON отчёт" />
+						</MenuItem>
+					</span>
+					<span title={reportMenuDisabledReason ?? undefined}>
+						<MenuItem
+							onClick={() => {
+								handleDownloadS2tReport();
+								onClose();
+							}}
+							disabled={Boolean(reportMenuDisabledReason)}
+						>
+							<ListItemIcon>
+								<LinkIcon fontSize="small" />
+							</ListItemIcon>
+							<ListItemText primary="Скачать S2T отчёт (.xlsx)" />
+						</MenuItem>
+					</span>
 					<Divider />
 					<MenuItem onClick={handleZoomToNode}>
 						<ListItemIcon>

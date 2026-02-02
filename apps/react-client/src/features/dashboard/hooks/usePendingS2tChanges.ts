@@ -65,7 +65,7 @@ export function usePendingS2tChanges(currentSchema: DataLineageSchema | null) {
 			}
 			try {
 				const res = await axios.get(
-					`${API_BASE_URL}/api/s2t-commits/${pendingCommitId}`,
+					`${API_BASE_URL}/api/s2t-import/commits/${pendingCommitId}`,
 				);
 				const payload = res.data?.payload as DataLineageSchema | undefined;
 				if (!cancelled) setPendingSchema(payload ?? null);

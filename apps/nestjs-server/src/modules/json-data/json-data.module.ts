@@ -50,6 +50,7 @@ import { JsonValidationOrchestratorService } from "./services/json-validation-or
 import { S2tConversionService } from "./services/s2t-conversion.service";
 import { CacheService } from "./services/cache.service";
 import { JsonExportService } from "./services/json-export.service";
+import { S2tExportService } from "./services/s2t-export.service";
 import { S2tToCommitJsonService } from "src/modules/json-data/services/s2t-to-commit-json.service";
 import { S2tCommitStoreService } from "./services/s2t-commit-store.service";
 import { ProcessesService } from "./services/processes.service";
@@ -70,6 +71,7 @@ import { JsonValidationController } from "./controllers/json-validation.controll
 import { S2tConversionController } from "./controllers/s2t-conversion.controller";
 import { S2tCommitStoreController } from "./controllers/s2t-commit-store.controller";
 import { JsonExportController } from "./controllers/json-export.controller";
+import { S2tExportController } from "./controllers/s2t-export.controller";
 import { CacheMonitorController } from "./controllers/cache-monitor.controller";
 import { ProcessesController } from "./controllers/processes.controller";
 
@@ -129,6 +131,7 @@ export class JsonDataModule {
 			JsonCommitService,
 			JsonImportService,
 			JsonExportService,
+			S2tExportService,
 			CacheService,
 			S2tConversionService,
 			S2tToCommitJsonService,
@@ -187,6 +190,7 @@ export class JsonDataModule {
 			JsonImportController,
 			JsonValidationController,
 			JsonExportController,
+			S2tExportController,
 			CacheMonitorController,
 			S2tConversionController,
 			S2tCommitStoreController,
