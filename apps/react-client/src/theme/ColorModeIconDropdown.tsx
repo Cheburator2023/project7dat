@@ -8,7 +8,7 @@ import { useColorScheme } from "@mui/material/styles";
 import { useEffectOnce } from "@react-client/hooks/useEffectOnce";
 import React from "react";
 
-export function ColorModeIconDropdown() {
+export function ColorModeIconDropdown({ isLoading }: { isLoading: boolean }) {
 	const { mode, setMode } = useColorScheme();
 	const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
@@ -93,6 +93,7 @@ export function ColorModeIconDropdown() {
 			>
 				<IconButton
 					onClick={handleClick}
+					disabled={isLoading}
 					data-test-id="color-mode-icon-dropdown--IconButton-0"
 				>
 					{icon}

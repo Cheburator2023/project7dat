@@ -22,6 +22,7 @@ export const getLayoutedElements = (
 	options?: {
 		fixedNodeHeight?: number;
 		showAttributesInNodes?: boolean;
+		attrLimitCap?: number;
 		nodesep?: number;
 		ranksep?: number;
 		marginx?: number;
@@ -30,6 +31,7 @@ export const getLayoutedElements = (
 ) => {
 	const fixedNodeHeight = options?.fixedNodeHeight;
 	const showAttributesInNodes = options?.showAttributesInNodes ?? true;
+	const attrLimitCap = options?.attrLimitCap ?? MAX_VISIBLE_ATTRS;
 	const dagreGraph = new dagre.graphlib.Graph();
 	dagreGraph.setDefaultEdgeLabel(() => ({}));
 
@@ -48,6 +50,11 @@ export const getLayoutedElements = (
 	});
 
 	const getNodeHeight = (node: EntityNode) => {
+		// Use measured height if available (from actual DOM rendering)
+		if (node.measured?.height) {
+			return node.measured.height;
+		}
+
 		if (fixedNodeHeight !== undefined) return fixedNodeHeight;
 
 		// If attributes are hidden globally, use minimal height (just header)
@@ -64,7 +71,7 @@ export const getLayoutedElements = (
 			).layoutHasMoreRelatedAttrs;
 			return (
 				NODE_HEADER_HEIGHT +
-				Math.min(layoutAttrLimit, MAX_VISIBLE_ATTRS) * ATTR_ROW_HEIGHT +
+				Math.min(layoutAttrLimit, attrLimitCap) * ATTR_ROW_HEIGHT +
 				(layoutHasMoreRelatedAttrs === true ? 24 : 0)
 			);
 		}

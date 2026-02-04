@@ -448,10 +448,10 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 			minWidth: "inherit !important",
 		},
 		"& .flexlayout__splitter_vert": {
-			margin: "0 6px",
+			margin: "0 2px",
 		},
 		"& .flexlayout__splitter_horz": {
-			margin: "6px 0",
+			margin: "2px 0",
 		},
 		"& .flexlayout__tab_button_content": {
 			padding: "4px 9px",

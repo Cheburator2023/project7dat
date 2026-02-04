@@ -25,7 +25,7 @@ import {
 	HIGHLIGHT_COLORS,
 	ATTR_EDGE_COLORS,
 } from "../../dashboard/constants";
-import type { EntityNodeData } from "../../dashboard/types";
+import type { EntityConnection, EntityNodeData } from "../../dashboard/types";
 import { useParams } from "react-router-dom";
 import {
 	EntityDetailsDialog,
@@ -110,8 +110,8 @@ export interface NodeContextMenuEvent {
 }
 
 interface GraphPanelInnerProps {
-	data: DataLineageSchema;
-	graphId: string;
+	data: DataLineageSchema | null;
+	graphId: string | null;
 	selectedEntityId: string | null;
 	onSelectEntity: (id: string | null) => void;
 	onNodeDoubleClick: (entityId: string, graphId: string) => void;
@@ -141,7 +141,9 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		const navigate = useNavigate();
 		// Expanded nodes state for layout recalculation
 		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-		const [selectedNode, setSelectedNode] = useState<string>(selectedEntityId);
+		const [selectedNode, setSelectedNode] = useState<string>(
+			selectedEntityId || "",
+		);
 
 		const { entityId: urlEntityId } = useParams<{ entityId: string }>();
 
@@ -181,7 +183,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 
 		const relatedMappings = useMemo(() => {
 			if (!data?.mappings || !selectedNode) return [];
-			return data.mappings.filter(
+			return data?.mappings.filter(
 				(mapping) =>
 					mapping.entityId === selectedNode ||
 					mapping.deps?.some((dep) => dep.entityId === selectedNode),
@@ -197,7 +199,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		const { upstreamCounts, downstreamCounts } = useMemo(() => {
 			const upCounts = new Map<string, number>();
 			const downCounts = new Map<string, number>();
-			for (const entity of data.entities || []) {
+			for (const entity of data?.entities || []) {
 				const upNodes = getUpstreamNodes(entity.id, lineageGraph.upstream);
 				upNodes.delete(entity.id);
 				upCounts.set(entity.id, upNodes.size);
@@ -209,7 +211,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				downCounts.set(entity.id, downNodes.size);
 			}
 			return { upstreamCounts: upCounts, downstreamCounts: downCounts };
-		}, [data.entities, lineageGraph]);
+		}, [data?.entities, lineageGraph]);
 
 		// Calculate upstream/downstream for selected node
 		const { upstreamNodes, downstreamNodes } = useMemo(() => {
@@ -240,7 +242,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 
 		// Filter entities to show only related ones
 		const filteredEntities = useMemo(() => {
-			return data.entities.filter((e) => relatedEntityIds.has(e.id));
+			return data?.entities.filter((e) => relatedEntityIds.has(e.id)) || [];
 		}, [data, relatedEntityIds]);
 
 		// Build connections for dialogs
@@ -251,7 +253,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				entityMap.set(e.id, e);
 			}
 
-			data.mappings.forEach((mapping) => {
+			data?.mappings.forEach((mapping) => {
 				if (!mapping.deps) return;
 				mapping.deps.forEach((dep) => {
 					if (
@@ -279,7 +281,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				});
 			});
 			return connections;
-		}, [data.mappings, filteredEntities, relatedEntityIds, selectedEntityId]);
+		}, [data?.mappings, filteredEntities, relatedEntityIds, selectedEntityId]);
 
 		// Notify parent about upstream/downstream changes
 		useEffect(() => {
@@ -365,7 +367,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		// Maps "entityId::attrName" -> Set of connected "entityId::attrName"
 		const attrConnectionMap = useMemo(() => {
 			const connections = new Map<string, Set<string>>();
-			for (const mapping of data.mappings || []) {
+			for (const mapping of data?.mappings || []) {
 				if (!mapping.deps) continue;
 				for (const dep of mapping.deps) {
 					if (!dep.attrMaps) continue;
@@ -386,7 +388,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				}
 			}
 			return connections;
-		}, [data.mappings]);
+		}, [data?.mappings]);
 
 		// Compute hover-highlighted attributes for each entity
 		const hoverHighlightedByEntity = useMemo(() => {
@@ -497,7 +499,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			// Deduplicate entities by ID (keep first occurrence)
 			const seenEntityIds = new Set<string>();
 			const allUniqueEntities: DataLineageEntity[] = [];
-			for (const entity of data.entities || []) {
+			for (const entity of data?.entities || []) {
 				if (!entity.id) {
 					console.warn(
 						"[Graph] Entity with null/undefined ID skipped:",
@@ -560,7 +562,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			const entityTargetAttrs = new Map<string, Set<string>>();
 
 			// Process mappings to find all attribute connections
-			for (const mapping of data.mappings || []) {
+			for (const mapping of data?.mappings || []) {
 				if (!mapping.deps) continue;
 				for (const dep of mapping.deps) {
 					if (!dep.attrMaps || dep.attrMaps.length === 0) continue;
@@ -628,7 +630,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 					edges.push({
 						id: edgeId,
 						source: entity.id,
-						target: entity.namespace,
+						target: entity.namespace || "",
 						sourceHandle: "entity-source",
 						targetHandle: "entity-target",
 						type: "default",
@@ -699,7 +701,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				visibleAttrsPerEntity.set(entity.id, new Set(visibleAttrs));
 			}
 
-			for (const mapping of data.mappings || []) {
+			for (const mapping of data?.mappings || []) {
 				if (!mapping.deps) continue;
 				for (const dep of mapping.deps) {
 					// Skip if source or target entity doesn't exist in graph
@@ -924,8 +926,9 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				const entityNode = node as unknown as EntityNode;
 				setContextMenu({
 					entityId: node.id,
-					entityName: entityNode.data.entity.name || entityNode.data.entity.id,
-					entityType: entityNode.data.entity.type,
+					entityName:
+						entityNode.data?.entity.name || entityNode.data?.entity.id,
+					entityType: entityNode.data?.entity.type,
 					x: event.clientX,
 					y: event.clientY,
 				});
@@ -1073,13 +1076,15 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 					<MiniMap
 						nodeColor={(node) => {
 							const entityNode = node as unknown as EntityNode;
-							if (entityNode.data.highlightType === "selected")
+							if (entityNode.data?.highlightType === "selected")
 								return HIGHLIGHT_COLORS.selected;
-							if (entityNode.data.highlightType === "upstream")
+							if (entityNode.data?.highlightType === "upstream")
 								return HIGHLIGHT_COLORS.upstream;
-							if (entityNode.data.highlightType === "downstream")
+							if (entityNode.data?.highlightType === "downstream")
 								return HIGHLIGHT_COLORS.downstream;
-							return TYPE_COLORS[entityNode.data.entity.type]?.border || "#999";
+							return (
+								TYPE_COLORS[entityNode.data?.entity.type]?.border || "#999"
+							);
 						}}
 						style={{
 							background: "#f5f5f5",

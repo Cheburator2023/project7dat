@@ -82,7 +82,7 @@ const convertGraphToS2T = (graph: DataLineageGraph): S2TFormat => {
 	};
 };
 
-export const DashboardHeader = memo(() => {
+export const DashboardHeader = memo(({ isLoading }: { isLoading: boolean }) => {
 	// Data lineage store for commit functionality
 	const {
 		currentGraphId,
@@ -108,7 +108,8 @@ export const DashboardHeader = memo(() => {
 
 	// Query client and mutations
 	const queryClient = useQueryClient();
-	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph();
+	const { refetch: refetchCurrentGraph, isPending: isCurrentGraphPending } =
+		useCurrentDataLineageGraph();
 	const { refetch: refetchCommitList } = useCommitList({
 		graphId: undefined,
 	});
@@ -287,7 +288,7 @@ export const DashboardHeader = memo(() => {
 
 	return (
 		<>
-			<Header>
+			<Header isLoading={isLoading}>
 				<SelectedEntityChip />
 				<Flex gap={8} alignItems="center">
 					<GlobalSearchField />

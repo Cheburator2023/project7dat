@@ -23,12 +23,12 @@ import {
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 
 import { useDashboardStore } from "../../dashboard/stores";
-import { useCurrentSchema } from "../../dashboard//hooks/useCurrentSchema";
+import { useCurrentSchema } from "../../dashboard/hooks/useCurrentSchema";
 import { LoadingSpinner } from "../../dashboard/atoms";
 import {
-	GraphPanelInner2,
+	EntityGraphPanelInner,
 	type NodeContextMenuEvent,
-} from "./GraphPanelInner2";
+} from "./EntityGraphPanelInner";
 import type { EntityConnection } from "../../dashboard/types";
 import {
 	getUpstreamNodes,
@@ -37,7 +37,7 @@ import {
 } from "../../dashboard/utils";
 import { LinkIcon } from "lucide-react";
 
-export const ModelGraphPanel: React.FC<{
+export const EntityGraphPanel: React.FC<{
 	onSelectNode?: (data: any) => void;
 }> = memo(({ onSelectNode }) => {
 	const {
@@ -70,21 +70,24 @@ export const ModelGraphPanel: React.FC<{
 		y: number;
 	} | null>(null);
 
+	const entityById = useMemo(() => {
+		const map = new Map<string, DataLineageEntity>();
+		for (const e of currentSchema?.entities || []) {
+			map.set(e.id, e);
+		}
+		return map;
+	}, [currentSchema?.entities]);
+
 	// Build connections for dialogs
 	const entityConnections = useMemo(() => {
-		console.log(currentSchema);
 		if (!currentSchema) return [];
 		const connections: EntityConnection[] = [];
-		const entityMap = new Map<string, DataLineageEntity>();
-		for (const e of currentSchema.entities || []) {
-			entityMap.set(e.id, e);
-		}
 
 		for (const mapping of currentSchema.mappings || []) {
 			if (!mapping.deps) continue;
 			for (const dep of mapping.deps) {
-				const sourceEntity = entityMap.get(dep.entityId);
-				const targetEntity = entityMap.get(mapping.entityId);
+				const sourceEntity = entityById.get(dep.entityId);
+				const targetEntity = entityById.get(mapping.entityId);
 				if (!sourceEntity || !targetEntity) continue;
 
 				connections.push({
@@ -99,22 +102,19 @@ export const ModelGraphPanel: React.FC<{
 			}
 		}
 		return connections;
-	}, [currentSchema]);
+	}, [currentSchema, entityById]);
+
+	const connectionByEdgeKey = useMemo(() => {
+		const map = new Map<string, EntityConnection>();
+		for (const c of entityConnections) {
+			map.set(`${c.sourceId}->${c.targetId}`, c);
+		}
+		return map;
+	}, [entityConnections]);
 
 	const handleSelectEntity = useCallback(
 		(id: string | null) => selectEntity(id, effectiveGraphId),
 		[selectEntity, effectiveGraphId],
-	);
-
-	const handleNodeDoubleClick = useCallback(
-		(entityId: string, _graphId: string) => {
-			const entity = currentSchema?.entities?.find((e) => e.id === entityId);
-			if (entity) {
-				setDialogEntity(entity);
-				setIsEntityDialogOpen(true);
-			}
-		},
-		[currentSchema],
 	);
 
 	const handleOpenEntity = useCallback(
@@ -133,15 +133,13 @@ export const ModelGraphPanel: React.FC<{
 	// Handle edge click in graph to show mapping details
 	const handleEdgeClick = useCallback(
 		(sourceId: string, targetId: string) => {
-			const connection = entityConnections.find(
-				(c) => c.sourceId === sourceId && c.targetId === targetId,
-			);
+			const connection = connectionByEdgeKey.get(`${sourceId}->${targetId}`);
 			if (connection) {
 				setSelectedConnection(connection);
 				setIsMappingDialogOpen(true);
 			}
 		},
-		[entityConnections],
+		[connectionByEdgeKey],
 	);
 
 	// Handle node context menu (right-click)
@@ -155,11 +153,9 @@ export const ModelGraphPanel: React.FC<{
 
 	// Get context menu entity
 	const contextMenuEntity = useMemo(() => {
-		if (!contextMenu || !currentSchema) return null;
-		return (
-			currentSchema.entities?.find((e) => e.id === contextMenu.entityId) || null
-		);
-	}, [contextMenu, currentSchema]);
+		if (!contextMenu) return null;
+		return entityById.get(contextMenu.entityId) || null;
+	}, [contextMenu, entityById]);
 
 	// Build lineage graph for upstream/downstream navigation
 	const lineageGraph = useMemo(
@@ -183,20 +179,15 @@ export const ModelGraphPanel: React.FC<{
 		);
 		downstreamSet.delete(contextMenu.entityId);
 
-		const entityMap = new Map<string, DataLineageEntity>();
-		for (const e of currentSchema?.entities || []) {
-			entityMap.set(e.id, e);
-		}
-
 		const upstream = Array.from(upstreamSet)
-			.map((id) => entityMap.get(id))
+			.map((id) => entityById.get(id))
 			.filter((e): e is DataLineageEntity => !!e);
 		const downstream = Array.from(downstreamSet)
-			.map((id) => entityMap.get(id))
+			.map((id) => entityById.get(id))
 			.filter((e): e is DataLineageEntity => !!e);
 
 		return { contextUpstream: upstream, contextDownstream: downstream };
-	}, [contextMenu?.entityId, lineageGraph, currentSchema?.entities]);
+	}, [contextMenu?.entityId, lineageGraph, entityById]);
 
 	// Context menu actions
 	const handleViewDetails = useCallback(() => {
@@ -286,19 +277,30 @@ export const ModelGraphPanel: React.FC<{
 		return <LoadingSpinner />;
 	}
 
+	// if (!currentSchema || !effectiveGraphId) {
+	// 	return (
+	// 		<EmptyState
+	// 			icon={<GraphIcon sx={{ fontSize: 48 }} />}
+	// 			message="Нет данных для отображения графа"
+	// 		/>
+	// 	);
+	// }
+
 	return (
 		<Box sx={{ height: "100%", width: "100%" }}>
 			<ReactFlowProvider>
-				<GraphPanelInner2
+				<EntityGraphPanelInner
 					data={currentSchema}
 					graphId={effectiveGraphId}
 					selectedEntityId={selectedEntityId}
 					onSelectEntity={handleSelectEntity}
-					onNodeDoubleClick={handleNodeDoubleClick}
 					onUpstreamDownstreamChange={setUpstreamDownstream}
 					onEdgeClick={handleEdgeClick}
 					onNodeContextMenu={handleNodeContextMenu}
 					onSelectNode={onSelectNode}
+					onNodeDoubleClick={() => {
+						console.log("node double clicked");
+					}}
 				/>
 			</ReactFlowProvider>
 

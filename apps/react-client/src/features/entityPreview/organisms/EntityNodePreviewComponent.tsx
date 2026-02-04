@@ -1,285 +1,335 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, useCallback, useEffect } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { EntityNodeData } from "../../dashboard/types";
 import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../dashboard/constants";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
 
-const DEFAULT_VISIBLE_ATTRS = 0;
-
 const EMPTY_STRING_SET = new Set<string>();
+
+const NODE_CONTAINER_STYLE = {
+	background: "#fff",
+	borderRadius: 8,
+	width: 280,
+	overflow: "hidden" as const,
+	transition: "all 0.2s ease",
+};
+
+const HEADER_META_STYLE = {
+	display: "flex",
+	gap: 8,
+	marginTop: 6,
+	fontSize: 10,
+	alignItems: "center" as const,
+};
+
+const ENTITY_TYPE_STYLE = {
+	fontSize: 11,
+	opacity: 0.8,
+	textTransform: "uppercase" as const,
+	letterSpacing: "0.5px",
+	marginBottom: 2,
+};
+
+const ENTITY_NAME_STYLE = {
+	fontWeight: 600,
+	fontSize: 13,
+	color: "#333",
+	whiteSpace: "nowrap" as const,
+	overflow: "hidden" as const,
+	textOverflow: "ellipsis" as const,
+};
+
+const ENTITY_NAMESPACE_STYLE = {
+	fontSize: 10,
+	color: "#666",
+	whiteSpace: "nowrap" as const,
+	overflow: "hidden" as const,
+	textOverflow: "ellipsis" as const,
+};
+
+const HEADER_FLEX_STYLE = {
+	display: "flex",
+	justifyContent: "space-between" as const,
+	alignItems: "flex-start" as const,
+};
+
+const HEADER_CONTENT_STYLE = {
+	flex: 1,
+	minWidth: 0,
+};
+
+const ATTR_COUNT_STYLE = {
+	color: "#888",
+	marginLeft: "auto" as const,
+};
+
+const NAV_BUTTON_BASE_STYLE = {
+	padding: "2px 6px",
+	background: "#1976d2",
+	color: "#fff",
+	border: "none",
+	borderRadius: 4,
+	fontSize: 9,
+	fontWeight: 500,
+	cursor: "pointer",
+	display: "flex",
+	alignItems: "center" as const,
+	gap: 2,
+};
+
+const TOGGLE_STYLE = {
+	padding: "6px 10px",
+	fontSize: 10,
+	color: "#1976d2",
+	background: "#f8f9fa",
+	textAlign: "center" as const,
+	cursor: "pointer",
+	fontWeight: 500,
+	borderBottom: "1px solid #e0e0e0",
+};
+
+const ATTR_NAME_STYLE = {
+	whiteSpace: "nowrap" as const,
+	overflow: "hidden" as const,
+	textOverflow: "ellipsis" as const,
+	flex: 1,
+};
+
+const ATTR_TYPE_STYLE = {
+	color: "#999",
+	marginLeft: 8,
+	fontSize: 9,
+};
+
+const ENTITY_HANDLE_STYLE = {
+	width: 10,
+	height: 10,
+	border: "2px solid #fff",
+	top: 30,
+};
 
 export const EntityNodePreviewComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
 		const {
 			entity,
 			highlightType,
-			onAttrHover,
+			onNodeClick,
 			onAttrClick,
 			upstreamCount,
 			downstreamCount,
 			highlightedSourceAttrs = EMPTY_STRING_SET,
 			highlightedTargetAttrs = EMPTY_STRING_SET,
-			hoverHighlightedAttrs = EMPTY_STRING_SET,
 			selectedHighlightedAttrs = EMPTY_STRING_SET,
 			isSearchActive = false,
 			isSearchMatch = false,
-			showAllAttrs = false,
-			onToggleExpand,
-			isExpanded = false,
+			entityCount = 0,
 		} = data;
 		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 		const attrs = entity.attrSeq || [];
 
-		// Show only related attributes (those that have mappings), limited by MAX_VISIBLE_ATTRS
-		// Or show all attrs if showAllAttrs is true (for entity preview page)
-		// Also include selected highlighted attrs so they're always visible when navigating from entity page
-		const shouldComputeAttrs = showAllAttrs || isExpanded;
-		const { visibleAttrs } = useMemo(() => {
+		const [isExpanded, setIsExpanded] = useState(false);
+
+		const shouldBeExpandedDefault = entityCount < 100;
+
+		useEffect(() => {
+			setIsExpanded(shouldBeExpandedDefault);
+		}, [shouldBeExpandedDefault]);
+
+		const handleToggleExpand = useCallback(() => {
+			setIsExpanded((prev) => !prev);
+		}, []);
+
+		// Show all attributes when expanded, mark related ones visually
+		const shouldComputeAttrs = isExpanded;
+		const visibleAttrs = useMemo(() => {
 			if (!shouldComputeAttrs) {
-				return { visibleAttrs: [], moreCount: 0 };
+				return [];
 			}
-
-			const allRelatedAttrs = showAllAttrs
-				? attrs
-				: attrs.filter((attr) => {
-						if (selectedHighlightedAttrs.has(attr.name)) return true;
-						if (highlightedSourceAttrs.has(attr.name)) return true;
-						return highlightedTargetAttrs.has(attr.name);
-					});
-
-			const maxAttrs = isExpanded
-				? allRelatedAttrs.length
-				: DEFAULT_VISIBLE_ATTRS;
-			const nextVisibleAttrs = isExpanded
-				? allRelatedAttrs.slice(0, maxAttrs)
-				: [];
-			const nextMoreCount = allRelatedAttrs.length - nextVisibleAttrs.length;
-			return { visibleAttrs: nextVisibleAttrs, moreCount: nextMoreCount };
-		}, [
-			attrs,
-			highlightedSourceAttrs,
-			highlightedTargetAttrs,
-			isExpanded,
-			selectedHighlightedAttrs,
-			showAllAttrs,
-			shouldComputeAttrs,
-		]);
-
-		const _isDataMart = upstreamCount > 0 && downstreamCount === 0;
-		const _isSource = upstreamCount === 0 && downstreamCount > 0;
+			return attrs;
+		}, [attrs, shouldComputeAttrs]);
 
 		const isSearchMatchHighlight = highlightType === "searchMatch";
 		const borderColor =
 			highlightType !== "none"
 				? HIGHLIGHT_COLORS[highlightType as keyof typeof HIGHLIGHT_COLORS]
 				: colors.border;
-		// Search matches get a pulsing glow effect via different border width
 		const borderWidth =
 			highlightType !== "none" ? (isSearchMatchHighlight ? 3 : 3) : 2;
 
-		// Dim non-matching nodes when search is active
 		const shouldDim =
 			isSearchActive && !isSearchMatch && highlightType === "none";
 		const nodeOpacity = shouldDim ? 0.3 : 1;
 
 		const hasAttrs = attrs.length > 0;
-		const showAttrToggle = hasAttrs && !showAllAttrs;
+		const showAttrToggle = hasAttrs;
+
+		const handleNavClick = useCallback(
+			(e: React.MouseEvent) => {
+				e.stopPropagation();
+				onNodeClick?.(id);
+			},
+			[id, onNodeClick],
+		);
+
+		const handleAttrClickMemo = useCallback(
+			(e: React.MouseEvent, attrName: string) => {
+				e.stopPropagation();
+				onAttrClick(id, attrName);
+			},
+			[id, onAttrClick],
+		);
+
+		const handleToggleClick = useCallback(
+			(e: React.MouseEvent) => {
+				e.stopPropagation();
+				handleToggleExpand();
+			},
+			[handleToggleExpand],
+		);
+
+		const handleStopPropagation = useCallback((e: React.MouseEvent) => {
+			e.stopPropagation();
+		}, []);
+
+		const nodeContainerStyle = useMemo(
+			() => ({
+				...NODE_CONTAINER_STYLE,
+				border: `${borderWidth}px solid ${borderColor}`,
+				boxShadow:
+					highlightType !== "none"
+						? `0 4px 20px ${borderColor}40`
+						: "0 2px 8px rgba(0,0,0,0.1)",
+				opacity: nodeOpacity,
+			}),
+			[borderWidth, borderColor, highlightType, nodeOpacity],
+		);
+
+		const headerStyle = useMemo(
+			() => ({
+				background: colors.bg,
+				padding: "8px 12px",
+				borderBottom: `1px solid ${colors.border}`,
+			}),
+			[colors.bg, colors.border],
+		);
+
+		const entityTypeStyle = useMemo(
+			() => ({
+				...ENTITY_TYPE_STYLE,
+				color: colors.text,
+			}),
+			[colors.text],
+		);
+
+		const upstreamStyle = useMemo(
+			() => ({ color: HIGHLIGHT_COLORS.upstream, fontWeight: 500 }),
+			[],
+		);
+
+		const downstreamStyle = useMemo(
+			() => ({ color: HIGHLIGHT_COLORS.downstream, fontWeight: 500 }),
+			[],
+		);
+
+		const navButtonStyle = useMemo(
+			() => ({
+				...NAV_BUTTON_BASE_STYLE,
+				marginLeft: attrs.length > 0 ? 8 : "auto",
+			}),
+			[attrs.length],
+		);
+
+		const toggleTitle = isExpanded
+			? "Свернуть атрибуты"
+			: `Показать ${attrs.length} атрибутов`;
+
+		const toggleText = isExpanded
+			? "▲ Свернуть атрибуты"
+			: `▼ Атрибуты (${attrs.length})`;
+
+		const entityTargetHandleStyle = useMemo(
+			() => ({
+				...ENTITY_HANDLE_STYLE,
+				background: colors.border,
+			}),
+			[colors.border],
+		);
+
+		const entitySourceHandleStyle = useMemo(
+			() => ({
+				...ENTITY_HANDLE_STYLE,
+				background: colors.border,
+			}),
+			[colors.border],
+		);
 
 		return (
-			<div
-				style={{
-					background: "#fff",
-					border: `${borderWidth}px solid ${borderColor}`,
-					borderRadius: 8,
-					width: 280,
-					boxShadow:
-						highlightType !== "none"
-							? `0 4px 20px ${borderColor}40`
-							: "0 2px 8px rgba(0,0,0,0.1)",
-					overflow: "hidden",
-					cursor: "pointer",
-					opacity: nodeOpacity,
-					transition: "all 0.2s ease",
-				}}
-			>
+			<div style={nodeContainerStyle}>
 				{/* Header */}
-				<div
-					style={{
-						background: colors.bg,
-						padding: "8px 12px",
-						borderBottom: `1px solid ${colors.border}`,
-					}}
-				>
-					<div
-						style={{
-							display: "flex",
-							justifyContent: "space-between",
-							alignItems: "flex-start",
-						}}
-					>
-						<div style={{ flex: 1, minWidth: 0 }}>
-							<div
-								style={{
-									fontSize: 11,
-									color: colors.text,
-									opacity: 0.8,
-									textTransform: "uppercase",
-									letterSpacing: "0.5px",
-									marginBottom: 2,
-								}}
-							>
-								{entity.type}
-								{/*{entity.modified && (*/}
-								{/*	<span*/}
-								{/*		style={{*/}
-								{/*			marginLeft: 6,*/}
-								{/*			background: "#ff9800",*/}
-								{/*			color: "#fff",*/}
-								{/*			padding: "1px 4px",*/}
-								{/*			borderRadius: 3,*/}
-								{/*			fontSize: 9,*/}
-								{/*		}}*/}
-								{/*	>*/}
-								{/*		изм.*/}
-								{/*	</span>*/}
-								{/*)}*/}
-								{/*{isDataMart && (*/}
-								{/*	<span*/}
-								{/*		style={{*/}
-								{/*			marginLeft: 6,*/}
-								{/*			background: "#9c27b0",*/}
-								{/*			color: "#fff",*/}
-								{/*			padding: "1px 4px",*/}
-								{/*			borderRadius: 3,*/}
-								{/*			fontSize: 9,*/}
-								{/*		}}*/}
-								{/*		title="Витрина данных"*/}
-								{/*	>*/}
-								{/*		витрина*/}
-								{/*	</span>*/}
-								{/*)}*/}
-								{/*{isSource && (*/}
-								{/*	<span*/}
-								{/*		style={{*/}
-								{/*			marginLeft: 6,*/}
-								{/*			background: "#00897b",*/}
-								{/*			color: "#fff",*/}
-								{/*			padding: "1px 4px",*/}
-								{/*			borderRadius: 3,*/}
-								{/*			fontSize: 9,*/}
-								{/*		}}*/}
-								{/*		title="Источник данных"*/}
-								{/*	>*/}
-								{/*		источник*/}
-								{/*	</span>*/}
-								{/*)}*/}
-							</div>
-							<div
-								style={{
-									fontWeight: 600,
-									fontSize: 13,
-									color: "#333",
-									whiteSpace: "nowrap",
-									overflow: "hidden",
-									textOverflow: "ellipsis",
-								}}
-								title={entity.name || entity.id}
-							>
+				<div style={headerStyle}>
+					<div style={HEADER_FLEX_STYLE}>
+						<div style={HEADER_CONTENT_STYLE}>
+							<div style={entityTypeStyle}>{entity.type}</div>
+							<div style={ENTITY_NAME_STYLE} title={entity.name || entity.id}>
 								{entity.name || entity.id}
 							</div>
 							{entity.namespace && (
-								<div
-									style={{
-										fontSize: 10,
-										color: "#666",
-										whiteSpace: "nowrap",
-										overflow: "hidden",
-										textOverflow: "ellipsis",
-									}}
-									title={entity.namespace}
-								>
+								<div style={ENTITY_NAMESPACE_STYLE} title={entity.namespace}>
 									{entity.namespace}
 								</div>
 							)}
 						</div>
 					</div>
-					<div style={{ display: "flex", gap: 8, marginTop: 6, fontSize: 10 }}>
+					<div style={HEADER_META_STYLE}>
 						{upstreamCount > 0 && (
-							<span
-								style={{ color: HIGHLIGHT_COLORS.upstream, fontWeight: 500 }}
-							>
-								← {upstreamCount}
-							</span>
+							<span style={upstreamStyle}>← {upstreamCount}</span>
 						)}
 						{downstreamCount > 0 && (
-							<span
-								style={{ color: HIGHLIGHT_COLORS.downstream, fontWeight: 500 }}
-							>
-								→ {downstreamCount}
-							</span>
+							<span style={downstreamStyle}>→ {downstreamCount}</span>
 						)}
 						{attrs.length > 0 && (
-							<span style={{ color: "#888", marginLeft: "auto" }}>
-								{visibleAttrs.length}/{attrs.length} атр.
-							</span>
+							<span style={ATTR_COUNT_STYLE}>{attrs.length} атр.</span>
 						)}
+						<button
+							onClick={handleNavClick}
+							style={navButtonStyle}
+							title="Открыть страницу сущности"
+						>
+							↗
+						</button>
 					</div>
 				</div>
 
 				{showAttrToggle && (
 					<div
-						onPointerDown={(e) => {
-							e.stopPropagation();
-						}}
-						onMouseDown={(e) => {
-							e.stopPropagation();
-						}}
-						onClick={(e) => {
-							e.stopPropagation();
-							onToggleExpand?.(id);
-						}}
-						style={{
-							padding: "6px 10px",
-							fontSize: 10,
-							color: "#1976d2",
-							background: "#f8f9fa",
-							textAlign: "center",
-							cursor: "pointer",
-							fontWeight: 500,
-							borderBottom: "1px solid #e0e0e0",
-						}}
-						title={
-							isExpanded
-								? "Свернуть атрибуты"
-								: `Показать ${attrs.length} атрибутов`
-						}
+						className="nodrag nopan"
+						data-name="shownAttrToggle_collapse"
+						onPointerDown={handleStopPropagation}
+						onMouseDown={handleStopPropagation}
+						onClick={handleToggleClick}
+						style={TOGGLE_STYLE}
+						title={toggleTitle}
 					>
-						{isExpanded
-							? "▲ Свернуть атрибуты"
-							: `▼ Атрибуты (${attrs.length})`}
+						{toggleText}
 					</div>
 				)}
 
 				{/* Related attributes */}
 				{visibleAttrs.length > 0 && (
-					<div onMouseLeave={() => onAttrHover(id, null)}>
+					<div>
 						{visibleAttrs.map((attr, idx) => {
 							const isSourceHighlighted = highlightedSourceAttrs.has(attr.name);
 							const isTargetHighlighted = highlightedTargetAttrs.has(attr.name);
-							const isHoverHighlighted = hoverHighlightedAttrs.has(attr.name);
+
 							const isSelectedHighlighted = selectedHighlightedAttrs.has(
 								attr.name,
 							);
-							const isHighlighted = isHoverHighlighted || isSelectedHighlighted;
+							const isHighlighted = isSelectedHighlighted;
 							return (
 								<div
 									key={attr.name}
-									onMouseEnter={() => onAttrHover(id, attr.name)}
-									onClick={(e) => {
-										e.stopPropagation();
-										onAttrClick(id, attr.name);
-									}}
+									onClick={(e) => handleAttrClickMemo(e, attr.name)}
 									style={{
 										display: "flex",
 										justifyContent: "space-between",
@@ -291,11 +341,9 @@ export const EntityNodePreviewComponent = memo(
 												: "none",
 										background: isSelectedHighlighted
 											? `${HIGHLIGHT_COLORS.selected}70`
-											: isHoverHighlighted
-												? `${HIGHLIGHT_COLORS.selected}30`
-												: idx % 2 === 0
-													? "#fafafa"
-													: "#fff",
+											: idx % 2 === 0
+												? "#fafafa"
+												: "#fff",
 										position: "relative",
 										cursor: "pointer",
 										transition: "background 0.15s ease",
@@ -320,19 +368,14 @@ export const EntityNodePreviewComponent = memo(
 									/>
 									<span
 										style={{
+											...ATTR_NAME_STYLE,
 											color: isHighlighted ? "#333" : "#555",
-											whiteSpace: "nowrap",
-											overflow: "hidden",
-											textOverflow: "ellipsis",
-											flex: 1,
 											fontWeight: isHighlighted ? 600 : 400,
 										}}
 									>
 										{attr.name}
 									</span>
-									<span style={{ color: "#999", marginLeft: 8, fontSize: 9 }}>
-										{attr.type}
-									</span>
+									<span style={ATTR_TYPE_STYLE}>{attr.type}</span>
 									{/* Source handle for this attribute */}
 									<Handle
 										type="source"
@@ -361,25 +404,13 @@ export const EntityNodePreviewComponent = memo(
 					type="target"
 					position={Position.Left}
 					id="entity-target"
-					style={{
-						background: colors.border,
-						width: 10,
-						height: 10,
-						border: "2px solid #fff",
-						top: 30,
-					}}
+					style={entityTargetHandleStyle}
 				/>
 				<Handle
 					type="source"
 					position={Position.Right}
 					id="entity-source"
-					style={{
-						background: colors.border,
-						width: 10,
-						height: 10,
-						border: "2px solid #fff",
-						top: 30,
-					}}
+					style={entitySourceHandleStyle}
 				/>
 			</div>
 		);

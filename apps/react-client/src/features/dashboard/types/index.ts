@@ -118,7 +118,8 @@ export interface EntityNodeData {
 	searchMatchScore?: number;
 	showAllAttrs?: boolean;
 	isExpanded?: boolean;
-	onToggleExpand?: (id: string) => void;
+	handleExpandToggle?: (id: string) => void;
+	entityCount?: number;
 	[key: string]: unknown;
 }
 

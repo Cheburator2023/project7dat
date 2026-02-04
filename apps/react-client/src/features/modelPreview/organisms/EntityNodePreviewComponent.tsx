@@ -2,12 +2,13 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { EntityNodeData } from "../../dashboard/types";
 import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../dashboard/constants";
+import { EntityNodePreviewComponent } from "@react-client/features/entityPreview/organisms/EntityNodePreviewComponent";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
 
 const DEFAULT_VISIBLE_ATTRS = 10;
 
-export const EntityNodePreviewComponent = memo(
+export const ModelNodePreviewComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
 		const {
 			entity,
@@ -26,7 +27,7 @@ export const EntityNodePreviewComponent = memo(
 			isSearchActive = false,
 			isSearchMatch = false,
 			showAllAttrs = false,
-			onExpandToggle,
+			handleExpandToggle,
 			isExpanded = false,
 		} = data;
 		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
@@ -306,7 +307,7 @@ export const EntityNodePreviewComponent = memo(
 							<div
 								onClick={(e) => {
 									e.stopPropagation();
-									onExpandToggle?.(id, !isExpanded);
+									handleExpandToggle?.(id);
 								}}
 								style={{
 									padding: "4px 10px",
@@ -359,7 +360,5 @@ export const EntityNodePreviewComponent = memo(
 		);
 	},
 );
-
-EntityNodePreviewComponent.displayName = "EntityNodePreviewComponent";
 
 export const graphNodeTypes = { entityNode: EntityNodePreviewComponent };
