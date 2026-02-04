@@ -80,6 +80,17 @@ const NAV_BUTTON_BASE_STYLE = {
 	gap: 2,
 };
 
+const TOGGLE_STYLE = {
+	padding: "6px 10px",
+	fontSize: 10,
+	color: "#1976d2",
+	background: "#f8f9fa",
+	textAlign: "center" as const,
+	cursor: "pointer",
+	fontWeight: 500,
+	borderBottom: "1px solid #e0e0e0",
+};
+
 const ATTR_NAME_STYLE = {
 	whiteSpace: "nowrap" as const,
 	overflow: "hidden" as const,
@@ -105,14 +116,14 @@ const selectGlobalAttributeSearch = (state: {
 	globalAttributeSearchQuery: string;
 }) => state.globalAttributeSearchQuery;
 
-export const EntityNodePreviewComponent = memo(
+export const ModelNodePreviewComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
 		const {
 			entity,
 			highlightType,
 			onNodeClick,
-			onAttrClick,
 			onViewDetails,
+			onAttrClick,
 			upstreamCount,
 			downstreamCount,
 			highlightedSourceAttrs = EMPTY_STRING_SET,
@@ -161,8 +172,11 @@ export const EntityNodePreviewComponent = memo(
 			return new Set(results.map((r) => r.obj.name));
 		}, [activeSearchQuery, attrs]);
 
-		// Show attributes based on search or selected attribute highlighting
+		// Show attributes based on search. By default: hide all attributes until search is active.
+		// If an attribute is selected (clicked), also show selected-related attrs to ensure
+		// the connected node renders the mapped attribute and the edge can attach to attr handles.
 		const visibleAttrs = useMemo(() => {
+			// If search is active (3+ chars), show only search results with mappings
 			if (searchedAttrs) {
 				return attrs.filter(
 					(attr) =>
@@ -170,9 +184,11 @@ export const EntityNodePreviewComponent = memo(
 						selectedHighlightedAttrs.has(attr.name),
 				);
 			}
+
 			if (selectedHighlightedAttrs.size > 0) {
 				return attrs.filter((attr) => selectedHighlightedAttrs.has(attr.name));
 			}
+
 			return [];
 		}, [attrs, relatedAttrNames, searchedAttrs, selectedHighlightedAttrs]);
 
@@ -182,7 +198,7 @@ export const EntityNodePreviewComponent = memo(
 				? HIGHLIGHT_COLORS[highlightType as keyof typeof HIGHLIGHT_COLORS]
 				: colors.border;
 		const borderWidth =
-			highlightType !== "none" ? (isSearchMatchHighlight ? 10 : 10) : 2;
+			highlightType !== "none" ? (isSearchMatchHighlight ? 3 : 3) : 2;
 
 		const shouldDim =
 			isSearchActive && !isSearchMatch && highlightType === "none";
@@ -256,18 +272,18 @@ export const EntityNodePreviewComponent = memo(
 			[],
 		);
 
-		const detailsButtonStyle = useMemo(
+		const navButtonStyle = useMemo(
 			() => ({
 				...NAV_BUTTON_BASE_STYLE,
-				backgroundColor: "#d26019",
 				marginLeft: attrs.length > 0 ? 8 : "auto",
 			}),
 			[attrs.length],
 		);
 
-		const navButtonStyle = useMemo(
+		const detailsButtonStyle = useMemo(
 			() => ({
 				...NAV_BUTTON_BASE_STYLE,
+				backgroundColor: "#d26019",
 				marginLeft: attrs.length > 0 ? 8 : "auto",
 			}),
 			[attrs.length],
@@ -334,6 +350,20 @@ export const EntityNodePreviewComponent = memo(
 						</button>
 					</div>
 				</div>
+
+				{/* {showAttrToggle && (
+					<div
+						className="nodrag nopan"
+						data-name="shownAttrToggle_collapse"
+						onPointerDown={handleStopPropagation}
+						onMouseDown={handleStopPropagation}
+						onClick={handleToggleClick}
+						style={TOGGLE_STYLE}
+						title={toggleTitle}
+					>
+						{toggleText}
+					</div>
+				)} */}
 
 				{/* Search input for attributes */}
 				{!globalAttributeSearchQuery && (
@@ -466,6 +496,8 @@ export const EntityNodePreviewComponent = memo(
 	},
 );
 
-EntityNodePreviewComponent.displayName = "EntityNodePreviewComponent";
+ModelNodePreviewComponent.displayName = "ModelNodePreviewComponent";
 
-export const graphNodeTypes = { entityNode: EntityNodePreviewComponent };
+export const graphNodeTypes = {
+	entityNode: ModelNodePreviewComponent,
+};

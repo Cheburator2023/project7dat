@@ -1,4 +1,4 @@
-import fuzzysort from "fuzzysort";
+import * as fuzzysort from "fuzzysort";
 
 // ============================================================================
 // Fuzzy Search Types
@@ -13,6 +13,21 @@ export interface FuzzySearchResult<T> {
 export interface FuzzyHighlightMatch {
 	indices: readonly [number, number][];
 	value: string;
+}
+
+function normalizeSearchText(text: string): string {
+	return text.trim().toLowerCase();
+}
+
+function highlightSubstring(value: string, query: string): string {
+	const normalizedValue = value.toLowerCase();
+	const normalizedQuery = query.toLowerCase();
+	const idx = normalizedValue.indexOf(normalizedQuery);
+	if (idx < 0 || !normalizedQuery) return escapeHtml(value);
+	const before = escapeHtml(value.slice(0, idx));
+	const match = escapeHtml(value.slice(idx, idx + query.length));
+	const after = escapeHtml(value.slice(idx + query.length));
+	return `${before}<mark>${match}</mark>${after}`;
 }
 
 // ============================================================================
@@ -46,7 +61,7 @@ function escapeHtml(text: string): string {
  * Perform fuzzy search on entities with multiple fields
  */
 export function fuzzySearchEntities<
-	T extends { name: string; namespace: string; type: string },
+	T extends { id: string; name: string; namespace: string; type: string },
 >(
 	items: T[],
 	query: string,
@@ -72,6 +87,7 @@ export function fuzzySearchEntities<
 		name: fuzzysort.prepare(item.name),
 		namespace: fuzzysort.prepare(item.namespace),
 		type: fuzzysort.prepare(item.type),
+		originalId: fuzzysort.prepare(item.id),
 	}));
 
 	// Search across all fields
@@ -124,6 +140,93 @@ export function fuzzySearchEntities<
 			highlights,
 		};
 	});
+}
+
+/**
+ * Strict (non-fuzzy) search: matches only if the full query appears as a contiguous substring.
+ * Useful when you want to avoid "character-set" matches.
+ */
+export function strictSearchEntities<
+	T extends {
+		id: string;
+		name?: string | null;
+		namespace?: string | null;
+		type?: string | null;
+	},
+>(items: T[], query: string): FuzzySearchResult<T>[] {
+	const normalizedQuery = normalizeSearchText(query);
+	if (!normalizedQuery) {
+		return items.map((item) => ({
+			item,
+			score: 0,
+			highlights: new Map(),
+		}));
+	}
+
+	const matches: Array<{
+		item: T;
+		score: number;
+		highlights: Map<string, string>;
+	}> = [];
+
+	for (const item of items) {
+		const name = item.name ?? "";
+		const namespace = item.namespace ?? "";
+		const type = item.type ?? "";
+		const originalId = item.id;
+
+		const fields: Array<{ key: string; value: string; weight: number }> = [
+			{ key: "name", value: name || originalId, weight: 0 },
+			{ key: "namespace", value: namespace, weight: 1 },
+			{ key: "type", value: type, weight: 2 },
+			{ key: "originalId", value: originalId, weight: 3 },
+		];
+
+		let best: {
+			weight: number;
+			index: number;
+			key: string;
+			value: string;
+		} | null = null;
+		for (const field of fields) {
+			if (!field.value) continue;
+			const idx = field.value.toLowerCase().indexOf(normalizedQuery);
+			if (idx < 0) continue;
+			if (
+				best === null ||
+				field.weight < best.weight ||
+				(field.weight === best.weight && idx < best.index)
+			) {
+				best = {
+					weight: field.weight,
+					index: idx,
+					key: field.key,
+					value: field.value,
+				};
+			}
+		}
+
+		if (!best) continue;
+
+		const highlights = new Map<string, string>();
+		for (const field of fields) {
+			if (!field.value) continue;
+			if (field.value.toLowerCase().includes(normalizedQuery)) {
+				highlights.set(
+					field.key,
+					highlightSubstring(field.value, normalizedQuery),
+				);
+			}
+		}
+
+		// Higher score should mean "better"; use negative to keep compatibility with prior thresholds.
+		const score = -best.weight * 10_000 - best.index;
+		matches.push({ item, score, highlights });
+	}
+
+	// Best first: higher score (less negative) first
+	matches.sort((a, b) => b.score - a.score);
+	return matches;
 }
 
 /**

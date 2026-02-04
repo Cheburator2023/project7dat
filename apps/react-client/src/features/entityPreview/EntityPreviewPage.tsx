@@ -1,7 +1,14 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
-import { CircularProgress, styled, Box, Alert } from "@mui/material";
+import {
+	CircularProgress,
+	styled,
+	Box,
+	Alert,
+	TextField,
+	InputAdornment,
+} from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
@@ -12,12 +19,14 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
+import { useDashboardStore } from "@react-client/features/dashboard/stores";
 
 import {
 	Storage as StorageIcon,
 	HelpOutline as HelpOutlineIcon,
 	TableChart as TableChartIcon,
 	ViewModule as ViewModuleIcon,
+	Search as SearchIcon,
 } from "@mui/icons-material";
 import { EntityGraphPanel } from "@react-client/features/entityPreview/organisms/EntityGraphPanel";
 
@@ -107,6 +116,15 @@ interface EntityPreviewPageProps {
 	entityId?: string;
 }
 
+// Stable selectors for useDashboardStore
+const selectGlobalAttributeSearchQuery = (state: {
+	globalAttributeSearchQuery: string;
+}) => state.globalAttributeSearchQuery;
+
+const selectSetGlobalAttributeSearch = (state: {
+	setGlobalAttributeSearch: (query: string) => void;
+}) => state.setGlobalAttributeSearch;
+
 export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
@@ -133,6 +151,42 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 			return prev;
 		});
 	}, [setSearchParams]);
+
+	// Global attribute search
+	const globalAttributeSearchQuery = useDashboardStore(
+		selectGlobalAttributeSearchQuery,
+	);
+	const setGlobalAttributeSearch = useDashboardStore(
+		selectSetGlobalAttributeSearch,
+	);
+
+	const [attributeSearchInputValue, setAttributeSearchInputValue] = useState(
+		globalAttributeSearchQuery,
+	);
+
+	useEffect(() => {
+		setAttributeSearchInputValue(globalAttributeSearchQuery);
+	}, [globalAttributeSearchQuery]);
+
+	useEffect(() => {
+		const handle = window.setTimeout(() => {
+			if (attributeSearchInputValue !== globalAttributeSearchQuery) {
+				setGlobalAttributeSearch(attributeSearchInputValue);
+			}
+		}, 300);
+		return () => window.clearTimeout(handle);
+	}, [
+		attributeSearchInputValue,
+		globalAttributeSearchQuery,
+		setGlobalAttributeSearch,
+	]);
+
+	const handleAttributeSearchChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setAttributeSearchInputValue(event.target.value);
+		},
+		[],
+	);
 	const [model, _setModel] = useState(() => {
 		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
 		if (isPanelPersistEnabled("entity-preview")) {
@@ -288,8 +342,26 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	return (
 		<div>
 			<Header>
-				{highlightedAttr && (
-					<Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
+				<Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: 2 }}>
+					<TextField
+						size="small"
+						placeholder="Поиск по атрибутам (мин. 3 символа)..."
+						value={attributeSearchInputValue}
+						onChange={handleAttributeSearchChange}
+						InputProps={{
+							startAdornment: (
+								<InputAdornment position="start">
+									<SearchIcon fontSize="small" />
+								</InputAdornment>
+							),
+						}}
+						sx={{
+							minWidth: 350,
+							bgcolor: "background.paper",
+							borderRadius: 1,
+						}}
+					/>
+					{highlightedAttr && (
 						<Alert
 							severity="info"
 							sx={{ py: 0, px: 1 }}
@@ -297,8 +369,8 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						>
 							Выделен атрибут: <strong>{highlightedAttr}</strong>
 						</Alert>
-					</Box>
-				)}
+					)}
+				</Box>
 			</Header>
 
 			<Wrapper id="entity_preview_container">

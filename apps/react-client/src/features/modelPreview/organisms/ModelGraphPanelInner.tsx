@@ -18,13 +18,9 @@ import type {
 } from "@react-client/types/dataLineage";
 import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 import { useDashboardStore } from "../../dashboard/stores";
-import { graphNodeTypes } from "./EntityNodePreviewComponent";
+import { graphNodeTypes } from "./ModelNodePreviewComponent";
 import { getLayoutedElements, buildLineageGraph } from "../../dashboard/utils";
-import {
-	TYPE_COLORS,
-	HIGHLIGHT_COLORS,
-	ATTR_EDGE_COLORS,
-} from "../../dashboard/constants";
+import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../dashboard/constants";
 import type { EntityConnection, EntityNodeData } from "../../dashboard/types";
 import { useParams } from "react-router-dom";
 import {
@@ -40,7 +36,6 @@ import {
 } from "@mui/material";
 import {
 	CenterFocusStrong,
-	Code,
 	ContentCopy,
 	Info,
 	OpenInNew,
@@ -111,8 +106,8 @@ export interface NodeContextMenuEvent {
 
 interface GraphPanelInnerProps {
 	data: DataLineageSchema | null;
-	graphId: string | null;
-	selectedEntityId: string | null;
+	graphId: string;
+	selectedEntityId?: string | null;
 	onSelectEntity: (id: string | null) => void;
 	onNodeDoubleClick: (entityId: string, graphId: string) => void;
 	onUpstreamDownstreamChange: (
@@ -124,9 +119,7 @@ interface GraphPanelInnerProps {
 	onSelectNode?: (data: any) => void;
 }
 
-const DEFAULT_VISIBLE_ATTRS = 10;
-
-export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
+export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 	({
 		data,
 		graphId,
@@ -139,8 +132,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		onSelectNode,
 	}) => {
 		const navigate = useNavigate();
-		// Expanded nodes state for layout recalculation
-		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 		const [selectedNode, setSelectedNode] = useState<string>(
 			selectedEntityId || "",
 		);
@@ -153,11 +144,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				: undefined;
 			setSelectedNode(selectedEntityId || decodedUrlEntityId || "");
 		}, [selectedEntityId, urlEntityId]);
-		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
-		// Graph mode: "entities" = compact (entity-level edges), "attributes" = detailed (attribute-level edges)
-		const [graphMode, setGraphMode] = useState<
-			"all" | "entities" | "attributes"
-		>("all");
+		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
 		const { fitView, setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
@@ -324,6 +311,14 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			[setHoveredAttribute],
 		);
 
+		const handleClearSelectedAttribute = useCallback(() => {
+			setSelectedAttribute(null);
+		}, [setSelectedAttribute]);
+
+		const handlePaneClick = useCallback(() => {
+			setSelectedAttribute(null);
+		}, [setSelectedAttribute]);
+
 		const handleOpenEntity = useCallback(
 			(entityId: string) => {
 				const encodedId = encodeURIComponent(entityId);
@@ -337,12 +332,16 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			setIsMappingDialogOpen(true);
 		}, []);
 
-		const [attrEdges, setAttrEdges] = useState<Edge[]>([]);
-
-		const [selectedAttributeLocal, setSelectedAttributeLocal] = useState<{
-			entityId: string;
-			attrName: string;
-		} | null>(null);
+		const handleViewDetails = useCallback(
+			(entityId: string) => {
+				const entity = filteredEntities.find((e) => e.id === entityId);
+				if (entity) {
+					setDialogEntity(entity);
+					setIsEntityDialogOpen(true);
+				}
+			},
+			[filteredEntities],
+		);
 
 		const handleAttrClick = useCallback(
 			(entityId: string, attrName: string) => {
@@ -351,13 +350,9 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 					selectedAttribute?.entityId === entityId &&
 					selectedAttribute?.attrName === attrName
 				) {
-					setAttrEdges([]);
 					setSelectedAttribute(null);
-					setSelectedAttributeLocal(null);
 				} else {
-					setAttrEdges([]);
 					setSelectedAttribute({ entityId, attrName });
-					setSelectedAttributeLocal({ entityId, attrName });
 				}
 			},
 			[selectedAttribute, setSelectedAttribute],
@@ -420,18 +415,16 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		// Compute selected/clicked-highlighted attributes for each entity
 		const selectedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
-			if (!selectedAttributeLocal) return result;
+			if (!selectedAttribute) return result;
 
-			const selectedKey = `${selectedAttributeLocal.entityId}::${selectedAttributeLocal.attrName}`;
+			const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
 			const connectedAttrs = attrConnectionMap.get(selectedKey);
 
 			// Highlight the selected attribute itself
-			if (!result.has(selectedAttributeLocal.entityId)) {
-				result.set(selectedAttributeLocal.entityId, new Set());
+			if (!result.has(selectedAttribute.entityId)) {
+				result.set(selectedAttribute.entityId, new Set());
 			}
-			result
-				.get(selectedAttributeLocal.entityId)!
-				.add(selectedAttributeLocal.attrName);
+			result.get(selectedAttribute.entityId)!.add(selectedAttribute.attrName);
 
 			// Highlight connected attributes
 			if (connectedAttrs) {
@@ -441,58 +434,16 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 						result.set(entityId, new Set());
 					}
 					result.get(entityId)!.add(attrName);
-
-					setAttrEdges((prev) => [
-						...prev,
-						{
-							id: selectedKey + "->" + key,
-							source: selectedKey,
-							target: key,
-							type: "default",
-							animated: true,
-							style: {
-								stroke: HIGHLIGHT_COLORS.selected,
-								strokeWidth: 3,
-							},
-						},
-						{
-							id: key + "->" + selectedKey,
-							source: selectedKey,
-							target: key,
-							type: "default",
-							animated: true,
-							style: {
-								stroke: HIGHLIGHT_COLORS.selected,
-								strokeWidth: 3,
-							},
-						},
-					]);
 				}
 			}
 			return result;
-		}, [selectedAttributeLocal, attrConnectionMap]);
+		}, [selectedAttribute, attrConnectionMap]);
 
 		// Get selected entity
 		const selectedEntity = useMemo(() => {
 			if (!selectedNode) return null;
 			return filteredEntities.find((e) => e.id === selectedNode) || null;
 		}, [selectedNode, filteredEntities]);
-
-		// Expand/collapse handler for nodes
-		const handleExpandToggle = useCallback(
-			(nodeId: string, expanded: boolean) => {
-				setExpandedNodes((prev) => {
-					const next = new Set(prev);
-					if (expanded) {
-						next.add(nodeId);
-					} else {
-						next.delete(nodeId);
-					}
-					return next;
-				});
-			},
-			[],
-		);
 
 		// Create nodes and edges
 		const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
@@ -604,9 +555,11 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 						highlightType,
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,
+						onViewDetails: handleViewDetails,
 						onAttrHover: handleAttrHover,
 						onAttrClick: handleAttrClick,
 						graphId,
+						entityCount: filteredEntities?.length,
 						upstreamCount: upstreamCounts.get(entity.id) || 0,
 						downstreamCount: downstreamCounts.get(entity.id) || 0,
 						highlightedSourceAttrs:
@@ -619,57 +572,8 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 							selectedHighlightedByEntity.get(entity.id) || new Set<string>(),
 						isSearchActive,
 						isSearchMatch: !!isSearchMatch,
-						onExpandToggle: handleExpandToggle,
-						isExpanded: expandedNodes.has(entity.id),
 					},
 				};
-
-				if (entity.type === "input_vector") {
-					const edgeId = `${entity.id}->${entity.namespace}`;
-
-					edges.push({
-						id: edgeId,
-						source: entity.id,
-						target: entity.namespace || "",
-						sourceHandle: "entity-source",
-						targetHandle: "entity-target",
-						type: "default",
-						animated: true,
-						style: {
-							stroke: ATTR_EDGE_COLORS[0],
-							strokeWidth: 1,
-							opacity: 0.8,
-						},
-						markerEnd: {
-							type: MarkerType.ArrowClosed,
-							color: "#b1b1b7",
-						},
-					});
-
-					return [
-						{
-							id: entity.namespace,
-							type: "entityNode",
-							position: { x: 0, y: 0 },
-							data: {
-								onNodeClick: () => {},
-								onNodeDoubleClick: () => {},
-								onAttrHover: () => {},
-								onAttrClick: () => {},
-								onExpandToggle: () => {},
-								entity: {
-									type: "model",
-									id: entity.namespace,
-									namespace: entity.name,
-								},
-								graphId,
-								isExpanded: true,
-								highlightType: "downstream",
-							},
-						},
-						node,
-					];
-				}
 
 				return node;
 			});
@@ -679,26 +583,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			for (const entity of uniqueEntities) {
 				const attrNames = new Set((entity.attrSeq || []).map((a) => a.name));
 				entityAttrNames.set(entity.id, attrNames);
-			}
-
-			// Build a map of actually visible attributes per entity (respecting MAX_VISIBLE_ATTRS)
-			const visibleAttrsPerEntity = new Map<string, Set<string>>();
-			for (const entity of uniqueEntities) {
-				const sourceAttrs = entitySourceAttrs.get(entity.id) || new Set();
-				const targetAttrs = entityTargetAttrs.get(entity.id) || new Set();
-				const relatedAttrNames = new Set([...sourceAttrs, ...targetAttrs]);
-				const attrs = entity.attrSeq || [];
-				const allRelatedAttrs = attrs.filter((attr) =>
-					relatedAttrNames.has(attr.name),
-				);
-
-				const maxAttr = expandedNodes.has(entity.id)
-					? allRelatedAttrs.length
-					: DEFAULT_VISIBLE_ATTRS;
-				const visibleAttrs = allRelatedAttrs
-					.slice(0, maxAttr)
-					.map((a) => a.name);
-				visibleAttrsPerEntity.set(entity.id, new Set(visibleAttrs));
 			}
 
 			for (const mapping of data?.mappings || []) {
@@ -754,122 +638,85 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 								? HIGHLIGHT_COLORS.downstream
 								: "#b1b1b7";
 
-					// In "entities" mode: always use entity-level edges
-					// In "attributes" mode: use attribute-level edges when available
+					// Always render entity-level edges
+					const edgeId = `${dep.entityId}->${mapping.entityId}`;
+					if (edgeSet.has(edgeId)) continue;
+					edgeSet.add(edgeId);
 
-					const isAttrHighlightedMode = attrEdges.length > 0;
+					// Count attribute mappings for label
+					const attrCount = dep.attrMaps?.length || 0;
 
+					edges.push({
+						id: edgeId,
+						source: dep.entityId,
+						target: mapping.entityId,
+						sourceHandle: "entity-source",
+						targetHandle: "entity-target",
+						type: "default",
+						animated: isEntityHighlighted,
+						style: {
+							stroke: edgeHighlightColor,
+							strokeWidth: isEntityHighlighted ? 2 : 1,
+							opacity: 0.8,
+						},
+						markerEnd: {
+							type: MarkerType.ArrowClosed,
+							color: edgeHighlightColor,
+						},
+						// Show mapping count in entities mode
+						label: attrCount > 0 ? `${attrCount} маппингов` : undefined,
+						labelStyle: { fontSize: 9, fill: "#666" },
+						labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
+					});
+
+					// Render attribute-level edges only when an attribute is selected
 					if (
-						(graphMode === "attributes" || graphMode === "all") &&
+						selectedAttribute !== null &&
 						dep.attrMaps &&
 						dep.attrMaps.length > 0
 					) {
-						const sourceVisibleAttrs =
-							visibleAttrsPerEntity.get(dep.entityId) || new Set();
-						const targetVisibleAttrs =
-							visibleAttrsPerEntity.get(mapping.entityId) || new Set();
+						for (const attrMap of dep.attrMaps) {
+							const isSelectedSrc =
+								selectedAttribute.entityId === dep.entityId &&
+								selectedAttribute.attrName === attrMap.src;
+							const isSelectedDst =
+								selectedAttribute.entityId === mapping.entityId &&
+								selectedAttribute.attrName === attrMap.dst;
+							if (!isSelectedSrc && !isSelectedDst) continue;
 
-						dep.attrMaps.forEach((attrMap, attrIdx) => {
-							const edgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
-							if (edgeSet.has(edgeId)) return;
-							edgeSet.add(edgeId);
+							const attrEdgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
+							if (edgeSet.has(attrEdgeId)) continue;
+							edgeSet.add(attrEdgeId);
 
-							// Check if entity actually has the attribute AND it's visible
+							// Ensure entities actually have these attributes
 							const srcEntityHasAttr =
 								entityAttrNames.get(dep.entityId)?.has(attrMap.src) ?? false;
 							const dstEntityHasAttr =
 								entityAttrNames.get(mapping.entityId)?.has(attrMap.dst) ??
 								false;
-							const srcVisible =
-								srcEntityHasAttr && sourceVisibleAttrs.has(attrMap.src);
-							const dstVisible =
-								dstEntityHasAttr && targetVisibleAttrs.has(attrMap.dst);
-
-							// Use entity-level handles if attributes aren't visible
-							const sourceHandle = srcVisible
-								? `attr-source-${attrMap.src}`
-								: "entity-source";
-							const targetHandle = dstVisible
-								? `attr-target-${attrMap.dst}`
-								: "entity-target";
-
-							const edgeColor = isEntityHighlighted
-								? edgeHighlightColor
-								: ATTR_EDGE_COLORS[attrIdx % ATTR_EDGE_COLORS.length];
-
-							const isAttrHighlighted = attrEdges.some((a) => a.id === edgeId);
+							if (!srcEntityHasAttr || !dstEntityHasAttr) continue;
 
 							edges.push({
-								id: edgeId,
+								id: attrEdgeId,
 								source: dep.entityId,
 								target: mapping.entityId,
-								sourceHandle,
-								targetHandle,
+								sourceHandle: `attr-source-${attrMap.src}`,
+								targetHandle: `attr-target-${attrMap.dst}`,
 								type: "default",
-								animated: isAttrHighlighted,
+								animated: true,
 								style: {
-									stroke: isAttrHighlighted ? ATTR_EDGE_COLORS[5] : edgeColor,
-									strokeWidth: isAttrHighlighted
-										? 3
-										: isAttrHighlightedMode
-											? 0.8
-											: 1.5,
-									opacity: isAttrHighlighted
-										? 0.8
-										: isAttrHighlightedMode
-											? 0.2
-											: 0.8,
+									stroke: HIGHLIGHT_COLORS.selected,
+									strokeWidth: 3,
+									opacity: 0.9,
 								},
 								markerEnd: {
 									type: MarkerType.ArrowClosed,
-									color: isAttrHighlighted ? ATTR_EDGE_COLORS[5] : edgeColor,
+									color: HIGHLIGHT_COLORS.selected,
 									width: 12,
 									height: 12,
 								},
-								// Show label if either attribute is not visible
-								label:
-									!srcVisible || !dstVisible
-										? `${attrMap.src} → ${attrMap.dst}`
-										: undefined,
-								labelStyle: { fontSize: 8, fill: "#666" },
-								labelBgStyle: { fill: "#fff", fillOpacity: 0.8 },
 							});
-						});
-					}
-					if (graphMode === "entities" || graphMode === "all") {
-						// Entity-level edge (used in "entities" mode or when no attribute mappings)
-						const edgeId = `${dep.entityId}->${mapping.entityId}`;
-						if (edgeSet.has(edgeId)) continue;
-						edgeSet.add(edgeId);
-
-						// Count attribute mappings for label
-						const attrCount = dep.attrMaps?.length || 0;
-
-						edges.push({
-							id: edgeId,
-							source: dep.entityId,
-							target: mapping.entityId,
-							sourceHandle: "entity-source",
-							targetHandle: "entity-target",
-							type: "default",
-							// animated: isEntityHighlighted,
-							style: {
-								stroke: edgeHighlightColor,
-								strokeWidth: isEntityHighlighted ? 2 : 1,
-								opacity: isAttrHighlightedMode ? 0.2 : 0.8,
-							},
-							markerEnd: {
-								type: MarkerType.ArrowClosed,
-								color: edgeHighlightColor,
-							},
-							// Show mapping count in entities mode
-							label:
-								graphMode === "entities" && attrCount > 0
-									? `${attrCount} маппингов`
-									: undefined,
-							labelStyle: { fontSize: 9, fill: "#666" },
-							labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
-						});
+						}
 					}
 				}
 			}
@@ -877,10 +724,8 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			console.log({ nodes, edges });
 			return { nodes, edges };
 		}, [
-			attrEdges,
 			data,
 			graphId,
-			graphMode,
 			selectedNode,
 			upstreamNodes,
 			downstreamNodes,
@@ -891,12 +736,10 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			upstreamCounts,
 			downstreamCounts,
 			hoverHighlightedByEntity,
-			selectedHighlightedByEntity,
+			selectedAttribute,
 			searchMatchedEntities,
 			globalSearchQuery,
 			showFullGraphByDefault,
-			handleExpandToggle,
-			expandedNodes,
 		]);
 
 		// Apply layout
@@ -1063,8 +906,9 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 					onEdgesChange={onEdgesChange}
 					onEdgeClick={handleEdgeClick}
 					onNodeContextMenu={handleNodeContextMenu}
+					onPaneClick={handlePaneClick}
 					nodeTypes={graphNodeTypes}
-					nodesDraggable={false}
+					nodesDraggable
 					fitView
 					minZoom={0.1}
 					maxZoom={2}
@@ -1110,6 +954,23 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 								</div>
 							</div>
 							<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+								{selectedAttribute && (
+									<button
+										onClick={handleClearSelectedAttribute}
+										style={{
+											padding: "6px 12px",
+											border: "1px solid #ddd",
+											borderRadius: 6,
+											background: "#fff",
+											cursor: "pointer",
+											fontSize: 11,
+										}}
+										title={selectedAttribute.attrName}
+										type="button"
+									>
+										✕ Очистить атрибут
+									</button>
+								)}
 								<button
 									onClick={() =>
 										setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
@@ -1125,39 +986,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 									type="button"
 								>
 									{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
-								</button>
-								<button
-									onClick={() =>
-										setGraphMode(
-											graphMode === "entities"
-												? "attributes"
-												: graphMode === "all"
-													? "entities"
-													: "all",
-										)
-									}
-									style={{
-										padding: "6px 12px",
-										border: "1px solid #ddd",
-										borderRadius: 6,
-										background: graphMode === "attributes" ? "#e3f2fd" : "#fff",
-										cursor: "pointer",
-										fontSize: 11,
-									}}
-									title={
-										graphMode === "attributes"
-											? "Показаны связи атрибутов"
-											: graphMode === "all"
-												? "Показаны все связи"
-												: "Показаны связи объектов"
-									}
-									type="button"
-								>
-									{graphMode === "attributes"
-										? "Атрибуты"
-										: graphMode === "all"
-											? "Все связи"
-											: "Объекты"}
 								</button>
 							</div>
 						</div>
@@ -1359,12 +1187,12 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 						</ListItemIcon>
 						<ListItemText primary="Показать в Dashboard" />
 					</MenuItem>
-					<MenuItem onClick={handleContextMenuShowInEditor}>
+					{/* <MenuItem onClick={handleContextMenuShowInEditor}>
 						<ListItemIcon>
 							<Code fontSize="small" />
 						</ListItemIcon>
 						<ListItemText primary="Показать в редакторе" />
-					</MenuItem>
+					</MenuItem> */}
 					<MenuItem onClick={handleContextMenuCopyId}>
 						<ListItemIcon>
 							<ContentCopy fontSize="small" />
@@ -1377,4 +1205,4 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 	},
 );
 
-GraphPanelInner2.displayName = "GraphPanelInner2";
+ModelGraphPanelInner.displayName = "ModelGraphPanelInner";

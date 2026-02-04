@@ -26,9 +26,9 @@ import { useDashboardStore } from "../../dashboard/stores";
 import { useCurrentSchema } from "../../dashboard//hooks/useCurrentSchema";
 import { LoadingSpinner } from "../../dashboard/atoms";
 import {
-	GraphPanelInner2,
+	ModelGraphPanelInner,
 	type NodeContextMenuEvent,
-} from "./GraphPanelInner2";
+} from "./ModelGraphPanelInner";
 import type { EntityConnection } from "../../dashboard/types";
 import {
 	getUpstreamNodes,
@@ -289,9 +289,9 @@ export const ModelGraphPanel: React.FC<{
 	return (
 		<Box sx={{ height: "100%", width: "100%" }}>
 			<ReactFlowProvider>
-				<GraphPanelInner2
+				<ModelGraphPanelInner
 					data={currentSchema}
-					graphId={effectiveGraphId}
+					graphId={effectiveGraphId || ""}
 					selectedEntityId={selectedEntityId}
 					onSelectEntity={handleSelectEntity}
 					onNodeDoubleClick={handleNodeDoubleClick}

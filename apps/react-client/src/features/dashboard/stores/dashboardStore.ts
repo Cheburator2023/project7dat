@@ -31,6 +31,7 @@ interface SelectionState {
 
 	// Filter state
 	globalSearchQuery: string;
+	globalAttributeSearchQuery: string;
 	filters: FilterState;
 
 	// Actions
@@ -44,6 +45,7 @@ interface SelectionState {
 	highlightEntity: (entityId: string) => void;
 	clearHighlights: () => void;
 	setGlobalSearch: (query: string) => void;
+	setGlobalAttributeSearch: (query: string) => void;
 	setFilters: (filters: FilterState) => void;
 	updateFilter: <K extends keyof FilterState>(
 		key: K,
@@ -95,6 +97,7 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 	setSearchMatchedEntities: (matches) =>
 		set({ searchMatchedEntities: matches }),
 	globalSearchQuery: "",
+	globalAttributeSearchQuery: "",
 	upstreamEntities: new Set(),
 	downstreamEntities: new Set(),
 
@@ -134,6 +137,8 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 		}),
 
 	setGlobalSearch: (query) => set({ globalSearchQuery: query }),
+	setGlobalAttributeSearch: (query) =>
+		set({ globalAttributeSearchQuery: query }),
 
 	filters: initialFilters,
 	setFilters: (filters) => set({ filters }),

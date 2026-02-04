@@ -11,7 +11,6 @@ import { useNavigate } from "react-router";
 import { useEffect, useState } from "react";
 import { Flex } from "../../primitives/Flex";
 import { useGlobalSettingsStore } from "../../store/globalSettingsStore";
-import { useDataLineageStore } from "../../../stores/dataLineageStore";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { S2tImportDialog } from "@react-client/features/s2tImport/S2tImportDialog";
 import { MenuButton } from "../molecules/MenuButton";
@@ -27,11 +26,10 @@ export function Header({
 }: {
 	children?: React.ReactNode;
 	calcId?: string;
-	title?: string;
+	title?: string | React.ReactNode;
 	isLoading?: boolean;
 }) {
 	const { toggleSideMenu, isSideMenuVisible } = useGlobalSettingsStore();
-	const { currentGraphId } = useDataLineageStore();
 	const navigate = useNavigate();
 	const [isSnapshotDialogOpen, setIsSnapshotDialogOpen] = useState(false);
 	const [pendingS2t, setPendingS2t] = useState<{
@@ -172,9 +170,6 @@ export function Header({
 										- {calcId || `${id1} / ${id2}`}
 									</Typography>
 								))}
-							{currentGraphId && (
-								<Typography>Текущий json: {currentGraphId}</Typography>
-							)}
 						</Flex>
 						<Flex
 							flexDirection="row"
