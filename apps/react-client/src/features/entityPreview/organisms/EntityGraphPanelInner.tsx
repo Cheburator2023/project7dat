@@ -157,10 +157,6 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			setSelectedNode(selectedEntityId || decodedUrlEntityId || "");
 		}, [selectedEntityId, urlEntityId]);
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
-		// Graph mode: "entities" = compact (entity-level edges), "attributes" = detailed (attribute-level edges)
-		const [graphMode, setGraphMode] = useState<
-			"all" | "entities" | "attributes"
-		>("entities");
 		const { setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
@@ -340,10 +336,16 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			setIsMappingDialogOpen(true);
 		};
 
-		const [selectedAttributeLocal, setSelectedAttributeLocal] = useState<{
-			entityId: string;
-			attrName: string;
-		} | null>(null);
+		const handleViewDetails = useCallback(
+			(entityId: string) => {
+				const entity = filteredEntities?.find((e) => e.id === entityId);
+				if (entity) {
+					setDialogEntity(entity);
+					setIsEntityDialogOpen(true);
+				}
+			},
+			[filteredEntities],
+		);
 
 		const handleAttrClick = useCallback(
 			(entityId: string, attrName: string) => {
@@ -353,10 +355,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					selectedAttribute?.attrName === attrName
 				) {
 					setSelectedAttribute(null);
-					setSelectedAttributeLocal(null);
 				} else {
 					setSelectedAttribute({ entityId, attrName });
-					setSelectedAttributeLocal({ entityId, attrName });
 				}
 			},
 			[selectedAttribute, setSelectedAttribute],
@@ -417,8 +417,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [hoveredAttribute, attrConnectionMap]);
 
 		const selectedAttrEdges = useMemo(() => {
-			if (!selectedAttributeLocal) return [];
-			const selectedKey = `${selectedAttributeLocal.entityId}::${selectedAttributeLocal.attrName}`;
+			if (!selectedAttribute) return [];
+			const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
 			const connectedAttrs = attrConnectionMap.get(selectedKey);
 			if (!connectedAttrs || connectedAttrs.size === 0) return [];
 			const edges: Edge[] = [];
@@ -449,7 +449,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				);
 			}
 			return edges;
-		}, [selectedAttributeLocal, attrConnectionMap]);
+		}, [selectedAttribute, attrConnectionMap]);
 
 		const selectedAttrEdgeIdSet = useMemo(() => {
 			const set = new Set<string>();
@@ -460,17 +460,15 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		// Compute selected/clicked-highlighted attributes for each entity
 		const selectedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
-			if (!selectedAttributeLocal) return result;
+			if (!selectedAttribute) return result;
 
-			const selectedKey = `${selectedAttributeLocal.entityId}::${selectedAttributeLocal.attrName}`;
+			const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
 			const connectedAttrs = attrConnectionMap.get(selectedKey);
 
-			if (!result.has(selectedAttributeLocal.entityId)) {
-				result.set(selectedAttributeLocal.entityId, new Set());
+			if (!result.has(selectedAttribute.entityId)) {
+				result.set(selectedAttribute.entityId, new Set());
 			}
-			result
-				.get(selectedAttributeLocal.entityId)!
-				.add(selectedAttributeLocal.attrName);
+			result.get(selectedAttribute.entityId)!.add(selectedAttribute.attrName);
 
 			if (connectedAttrs) {
 				for (const key of connectedAttrs) {
@@ -482,7 +480,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 			return result;
-		}, [selectedAttributeLocal, attrConnectionMap]);
+		}, [selectedAttribute, attrConnectionMap]);
 
 		// Create nodes and edges
 		const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
@@ -597,6 +595,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 						onAttrHover: handleAttrHover,
 						onAttrClick: handleAttrClick,
 						graphId,
+						onViewDetails: handleViewDetails,
 						entityCount: filteredEntities?.length,
 						upstreamCount: upstreamCounts.get(entity.id) || 0,
 						downstreamCount: downstreamCounts.get(entity.id) || 0,
@@ -744,11 +743,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 					const isAttrHighlightedMode = selectedAttrEdges.length > 0;
 
-					if (
-						(graphMode === "attributes" || graphMode === "all") &&
-						dep.attrMaps &&
-						dep.attrMaps.length > 0
-					) {
+					if (selectedAttribute && dep.attrMaps && dep.attrMaps.length > 0) {
 						const sourceVisibleAttrs =
 							visibleAttrsPerEntity.get(dep.entityId) || new Set();
 						const targetVisibleAttrs =
@@ -821,8 +816,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 							});
 						});
 					}
-					if (graphMode === "entities" || graphMode === "all") {
-						// Entity-level edge (used in "entities" mode or when no attribute mappings)
+					{
+						// Entity-level edge
 						const edgeId = `${dep.entityId}->${mapping.entityId}`;
 						if (edgeSet.has(edgeId)) continue;
 						edgeSet.add(edgeId);
@@ -848,10 +843,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 								color: edgeHighlightColor,
 							},
 							// Show mapping count in entities mode
-							label:
-								graphMode === "entities" && attrCount > 0
-									? `${attrCount} маппингов`
-									: undefined,
+							label: attrCount > 0 ? `${attrCount} маппингов` : undefined,
 							labelStyle: { fontSize: 9, fill: "#666" },
 							labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
 						});
@@ -865,7 +857,6 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			selectedAttrEdgeIdSet,
 			data,
 			graphId,
-			graphMode,
 			selectedNode,
 			upstreamNodes,
 			downstreamNodes,
@@ -881,6 +872,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			globalSearchQuery,
 			showFullGraphByDefault,
 			showAllAttrs,
+			selectedAttribute,
 		]);
 
 		// Apply layout
@@ -1096,7 +1088,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					onEdgeClick={handleEdgeClick}
 					onNodeContextMenu={handleNodeContextMenu}
 					nodeTypes={graphNodeTypes}
-					nodesDraggable={false}
+					nodesDraggable
 					minZoom={0.1}
 					maxZoom={2}
 					defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
@@ -1157,39 +1149,6 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 									type="button"
 								>
 									{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
-								</button>
-								<button
-									onClick={() =>
-										setGraphMode(
-											graphMode === "entities"
-												? "attributes"
-												: graphMode === "all"
-													? "entities"
-													: "all",
-										)
-									}
-									style={{
-										padding: "6px 12px",
-										border: "1px solid #ddd",
-										borderRadius: 6,
-										background: graphMode === "attributes" ? "#e3f2fd" : "#fff",
-										cursor: "pointer",
-										fontSize: 11,
-									}}
-									title={
-										graphMode === "attributes"
-											? "Показаны связи атрибутов"
-											: graphMode === "all"
-												? "Показаны все связи"
-												: "Показаны связи объектов"
-									}
-									type="button"
-								>
-									{graphMode === "attributes"
-										? "Атрибуты"
-										: graphMode === "all"
-											? "Все связи"
-											: "Объекты"}
 								</button>
 							</div>
 						</div>

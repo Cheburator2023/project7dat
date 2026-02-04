@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
 import {
@@ -6,8 +6,9 @@ import {
 	styled,
 	Box,
 	Alert,
-	Typography,
 	Chip,
+	TextField,
+	InputAdornment,
 } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
@@ -19,7 +20,6 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
-import { Card } from "@react-client/common/muiCustom/Card";
 
 import {
 	Storage as StorageIcon,
@@ -27,7 +27,9 @@ import {
 	TableChart as TableChartIcon,
 	ViewModule as ViewModuleIcon,
 } from "@mui/icons-material";
-import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/GraphPanel2";
+import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/ModelGraphPanel";
+import { useDashboardStore } from "@react-client/features/dashboard";
+import { SearchIcon } from "lucide-react";
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
 	table: <TableChartIcon fontSize={"large"} />,
@@ -115,6 +117,15 @@ interface EntityPreviewPageProps {
 	entityId?: string;
 }
 
+// Stable selectors for useDashboardStore
+const selectGlobalAttributeSearchQuery = (state: {
+	globalAttributeSearchQuery: string;
+}) => state.globalAttributeSearchQuery;
+
+const selectSetGlobalAttributeSearch = (state: {
+	setGlobalAttributeSearch: (query: string) => void;
+}) => state.setGlobalAttributeSearch;
+
 export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
@@ -141,6 +152,43 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 			return prev;
 		});
 	}, [setSearchParams]);
+
+	// Global attribute search
+	const globalAttributeSearchQuery = useDashboardStore(
+		selectGlobalAttributeSearchQuery,
+	);
+	const setGlobalAttributeSearch = useDashboardStore(
+		selectSetGlobalAttributeSearch,
+	);
+
+	const [attributeSearchInputValue, setAttributeSearchInputValue] = useState(
+		globalAttributeSearchQuery,
+	);
+
+	useEffect(() => {
+		setAttributeSearchInputValue(globalAttributeSearchQuery);
+	}, [globalAttributeSearchQuery]);
+
+	useEffect(() => {
+		const handle = window.setTimeout(() => {
+			if (attributeSearchInputValue !== globalAttributeSearchQuery) {
+				setGlobalAttributeSearch(attributeSearchInputValue);
+			}
+		}, 300);
+		return () => window.clearTimeout(handle);
+	}, [
+		attributeSearchInputValue,
+		globalAttributeSearchQuery,
+		setGlobalAttributeSearch,
+	]);
+
+	const handleAttributeSearchChange = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			setAttributeSearchInputValue(event.target.value);
+		},
+		[],
+	);
+
 	const [model, _setModel] = useState(() => {
 		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
 		if (isPanelPersistEnabled("entity-preview")) {
@@ -233,12 +281,7 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						</EntityContainer>
 					);
 				case "entity-graph":
-					return (
-						<ModelGraphPanel
-							onSelectNode={onSelectNode}
-							entity={selectedEntity}
-						/>
-					);
+					return <ModelGraphPanel onSelectNode={onSelectNode} />;
 				default:
 					return <div>Unknown component: {component}</div>;
 			}
@@ -300,9 +343,39 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 
 	return (
 		<div>
-			<Header>
-				{highlightedAttr && (
-					<Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
+			<Header
+				title={
+					<Flex gap={10}>
+						{selectedEntity.id}
+
+						<Chip
+							label={selectedEntity.type}
+							size="small"
+							color={selectedEntity.type === "table" ? "primary" : "secondary"}
+						/>
+					</Flex>
+				}
+			>
+				<Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: 2 }}>
+					<TextField
+						size="small"
+						placeholder="Поиск по атрибутам (мин. 3 символа)..."
+						value={attributeSearchInputValue}
+						onChange={handleAttributeSearchChange}
+						InputProps={{
+							startAdornment: (
+								<InputAdornment position="start">
+									<SearchIcon fontSize="small" />
+								</InputAdornment>
+							),
+						}}
+						sx={{
+							minWidth: 350,
+							bgcolor: "background.paper",
+							borderRadius: 1,
+						}}
+					/>
+					{highlightedAttr && (
 						<Alert
 							severity="info"
 							sx={{ py: 0, px: 1 }}
@@ -310,73 +383,10 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						>
 							Выделен атрибут: <strong>{highlightedAttr}</strong>
 						</Alert>
-					</Box>
-				)}
+					)}
+				</Box>
 			</Header>
-			<>
-				<div
-					style={{
-						padding: "0 0px",
-					}}
-				>
-					<Card
-						data-test-id="header--Card-0"
-						zoom={0.7}
-						uuid="header_uuid"
-						style={{ overflow: "visible", padding: "4px" }}
-					>
-						<Box
-							display="flex"
-							justifyContent="space-between"
-							alignItems="flex-start"
-						>
-							<Box display="flex" alignItems="center" gap={2}>
-								<Box
-									sx={{
-										bgcolor: "rgba(255,255,255,0.2)",
-										borderRadius: 1.5,
-										p: 1,
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-									}}
-								>
-									{TYPE_ICONS[selectedEntity?.type] || (
-										<StorageIcon fontSize={"large"} />
-									)}
-								</Box>
-								<Box>
-									<Flex>
-										<Chip
-											label={selectedEntity.type}
-											size="small"
-											color={
-												selectedEntity.type === "table"
-													? "primary"
-													: "secondary"
-											}
-										/>
 
-										{/*<EntityBadges*/}
-										{/*	isDataMart={selectedEntity.isDataMart}*/}
-										{/*	isSource={selectedEntity.isSource}*/}
-										{/*	modified={selectedEntity.modified}*/}
-										{/*/>*/}
-									</Flex>
-									<Typography variant="h5" fontWeight={600}>
-										{selectedEntity.name || entity.id}
-									</Typography>
-									{selectedEntity.namespace && (
-										<Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
-											{selectedEntity.namespace}
-										</Typography>
-									)}
-								</Box>
-							</Box>
-						</Box>
-					</Card>
-				</div>
-			</>
 			<Wrapper id="entity_preview_container">
 				<FlexLayoutContainer>
 					<Layout

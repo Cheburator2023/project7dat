@@ -104,6 +104,7 @@ export interface EntityNodeData {
 		| "searchMatch";
 	onNodeClick: (id: string) => void;
 	onNodeDoubleClick: (id: string, graphId: string) => void;
+	onViewDetails?: (entityId: string) => void;
 	onAttrHover: (entityId: string, attrName: string | null) => void;
 	onAttrClick: (entityId: string, attrName: string) => void;
 	graphId: string;

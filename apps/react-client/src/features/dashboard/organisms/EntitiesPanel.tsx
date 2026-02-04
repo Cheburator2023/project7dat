@@ -25,9 +25,9 @@ import { useDashboardStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { TypeChip } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
-import { fuzzySearchEntities } from "../utils";
 import { EntityContextMenu, type EntityContextMenuState } from "../molecules";
 import type { EntityRow, EntityConnection } from "../types";
+import { strictSearchEntities } from "../utils";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -105,9 +105,9 @@ export const EntitiesPanel = memo(() => {
 		return rows;
 	}, [currentSchema, effectiveGraphId]);
 
-	// Fuzzy search entities
+	// Strict search entities (full substring match)
 	const fuzzyResults = useMemo(() => {
-		return fuzzySearchEntities(entities, globalSearchQuery);
+		return strictSearchEntities(entities, globalSearchQuery);
 	}, [entities, globalSearchQuery]);
 
 	// Create a map of entity id to highlights for rendering

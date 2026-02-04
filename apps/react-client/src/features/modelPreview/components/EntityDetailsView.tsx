@@ -114,7 +114,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 
 	return (
 		<Container>
-			<ContentContainer>
+			<ContentContainer gap={10}>
 				{/* Model Information */}
 				<CompactAccordion defaultExpanded>
 					<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>

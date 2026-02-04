@@ -10,6 +10,7 @@ export {
 
 export {
 	fuzzySearchEntities,
+	strictSearchEntities,
 	fuzzySearchObjects,
 	fuzzySearchLinks,
 	fuzzyMatch,
