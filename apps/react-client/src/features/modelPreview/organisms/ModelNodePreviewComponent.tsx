@@ -80,17 +80,6 @@ const NAV_BUTTON_BASE_STYLE = {
 	gap: 2,
 };
 
-const TOGGLE_STYLE = {
-	padding: "6px 10px",
-	fontSize: 10,
-	color: "#1976d2",
-	background: "#f8f9fa",
-	textAlign: "center" as const,
-	cursor: "pointer",
-	fontWeight: 500,
-	borderBottom: "1px solid #e0e0e0",
-};
-
 const ATTR_NAME_STYLE = {
 	whiteSpace: "nowrap" as const,
 	overflow: "hidden" as const,
@@ -122,6 +111,7 @@ export const ModelNodePreviewComponent = memo(
 			entity,
 			highlightType,
 			onNodeClick,
+			onOpenEntity,
 			onViewDetails,
 			onAttrClick,
 			upstreamCount,
@@ -207,9 +197,13 @@ export const ModelNodePreviewComponent = memo(
 		const handleNavClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
+				if (onOpenEntity) {
+					onOpenEntity(entity.id);
+					return;
+				}
 				onNodeClick?.(id);
 			},
-			[id, onNodeClick],
+			[entity.id, id, onNodeClick, onOpenEntity],
 		);
 
 		const handleViewDetailsClick = useCallback(
