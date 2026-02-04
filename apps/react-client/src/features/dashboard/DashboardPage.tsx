@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useLocation } from "react-router";
-import { Box, LinearProgress, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
@@ -121,61 +121,10 @@ export const DashboardPage = () => {
 	);
 
 	const { isPending } = useCurrentDataLineageGraph();
-	const [progress, setProgress] = useState(0);
-	const [isLoaderVisible, setIsLoaderVisible] = useState(false);
-
-	useEffect(() => {
-		if (isPending) {
-			setIsLoaderVisible(true);
-			setProgress(0);
-			const duration = 60000;
-			const interval = 50;
-			const increment = (interval / duration) * 50;
-
-			const timer = window.setInterval(() => {
-				setProgress((prev) => {
-					const next = prev + increment;
-					return next >= 99 ? 99 : next;
-				});
-			}, interval);
-
-			return () => window.clearInterval(timer);
-		}
-
-		if (!isLoaderVisible) {
-			return;
-		}
-
-		// finish phase: довести до 100% и только потом скрыть
-		let finishTimer: number | null = null;
-		let hideTimer: number | null = null;
-
-		finishTimer = window.setInterval(() => {
-			setProgress((prev) => {
-				const next = prev + 2;
-				if (next >= 100) {
-					if (finishTimer) window.clearInterval(finishTimer);
-					finishTimer = null;
-					// Дать браузеру отрисовать 100%
-					hideTimer = window.setTimeout(() => {
-						setIsLoaderVisible(false);
-						setProgress(0);
-					}, 100);
-					return 100;
-				}
-				return next;
-			});
-		}, 20);
-
-		return () => {
-			if (finishTimer) window.clearInterval(finishTimer);
-			if (hideTimer) window.clearTimeout(hideTimer);
-		};
-	}, [isPending, isLoaderVisible]);
 
 	return (
 		<Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-			<DashboardHeader />
+			<DashboardHeader isLoading={isPending} />
 
 			<FlexLayoutWrapper>
 				<Layout
@@ -184,58 +133,6 @@ export const DashboardPage = () => {
 					onAction={onAction}
 					realtimeResize
 				/>
-
-				{isLoaderVisible && (
-					<Box
-						id="main_data_loader"
-						sx={{
-							position: "absolute",
-							top: 0,
-							left: 0,
-							width: "100%",
-							height: "100%",
-							backdropFilter: "blur(2px)",
-							display: "flex",
-							flexDirection: "column",
-							alignItems: "center",
-							justifyContent: "center",
-							zIndex: 9999,
-						}}
-					>
-						<Box
-							sx={{
-								width: "400px",
-								backgroundColor: "background.paper",
-								borderRadius: "12px",
-								padding: "32px",
-								boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-							}}
-						>
-							<Typography
-								variant="h6"
-								sx={{ mb: 3, textAlign: "center", fontWeight: 600 }}
-							>
-								Загрузка данных...
-							</Typography>
-							<LinearProgress
-								variant="determinate"
-								value={progress}
-								sx={{
-									height: "8px",
-									borderRadius: "4px",
-									mb: 2,
-								}}
-							/>
-							<Typography
-								variant="body2"
-								color="text.secondary"
-								sx={{ textAlign: "center" }}
-							>
-								{Math.round(progress)}%
-							</Typography>
-						</Box>
-					</Box>
-				)}
 			</FlexLayoutWrapper>
 		</Box>
 	);
@@ -282,27 +179,26 @@ const FlexLayoutWrapper = styled("div")(({ theme }) => ({
 	"& .flexlayout__tabset": {
 		borderRadius: "8px",
 		border: "1px solid #a5aaba90",
-		margin: "4px",
 		backgroundColor: theme.vars?.palette?.background.paper,
 	},
 	"& .flexlayout__splitter": {
-		backgroundColor: theme.vars?.palette?.divider,
+		backgroundColor: "transparent",
 		borderRadius: "8px",
 		width: "4px !important",
 		minWidth: "4px !important",
 	},
 	"& .flexlayout__splitter.flexlayout__splitter_vert": {
-		backgroundColor: theme.vars?.palette?.divider,
+		backgroundColor: "transparent",
 		height: "4px !important",
 		minHeight: "4px !important",
 		width: "inherit !important",
 		minWidth: "inherit !important",
 	},
 	"& .flexlayout__splitter_vert": {
-		margin: "0 6px",
+		margin: "0 2px",
 	},
 	"& .flexlayout__splitter_horz": {
-		margin: "6px 0",
+		margin: "2px 0",
 	},
 	"& .flexlayout__tab_button_content": {
 		padding: "4px 9px",

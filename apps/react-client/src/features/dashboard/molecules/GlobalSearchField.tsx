@@ -2,6 +2,7 @@ import { memo, useRef, useCallback, useState, useEffect } from "react";
 import { Box, TextField, InputAdornment, IconButton } from "@mui/material";
 import { Search as SearchIcon, Close as CloseIcon } from "@mui/icons-material";
 import { useDashboardStore } from "../stores";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_SEARCH_LENGTH = 3;
@@ -10,6 +11,7 @@ export const GlobalSearchField = memo(() => {
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const { globalSearchQuery, setGlobalSearch } = useDashboardStore();
 	const [localValue, setLocalValue] = useState(globalSearchQuery);
+	const { isPending } = useCurrentDataLineageGraph();
 
 	// Sync local value with store when store changes externally
 	useEffect(() => {
@@ -40,6 +42,7 @@ export const GlobalSearchField = memo(() => {
 				value={localValue}
 				onChange={(e) => setLocalValue(e.target.value)}
 				size="small"
+				disabled={isPending}
 				sx={{ width: 350 }}
 				helperText={
 					localValue.length > 0 && localValue.length < MIN_SEARCH_LENGTH

@@ -479,6 +479,7 @@ export const EntitiesPanel = memo(() => {
 				rowHeight={28}
 				headerHeight={32}
 				loading={isLoading}
+				overlayNoRowsTemplate="Нет данных"
 			/>
 
 			<EntityContextMenu

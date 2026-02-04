@@ -407,12 +407,12 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 						</ListItemIcon>
 						<ListItemText primary="Показать в графе" />
 					</MenuItem>
-					<MenuItem onClick={handleShowInEditor}>
+					{/* <MenuItem onClick={handleShowInEditor}>
 						<ListItemIcon>
 							<Code fontSize="small" />
 						</ListItemIcon>
 						<ListItemText primary="Показать в редакторе" />
-					</MenuItem>
+					</MenuItem> */}
 					<MenuItem onClick={handleCopyId}>
 						<ListItemIcon>
 							<ContentCopy fontSize="small" />

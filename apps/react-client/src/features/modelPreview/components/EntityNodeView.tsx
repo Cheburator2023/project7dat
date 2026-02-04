@@ -1493,10 +1493,13 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 						setDialogEntity(null);
 					}}
 					entity={dialogEntity}
-					connections={entityConnections.filter(
-						(c) =>
-							c.sourceId === dialogEntity.id || c.targetId === dialogEntity.id,
-					)}
+					connections={
+						entityConnections.filter(
+							(c) =>
+								c.sourceId === dialogEntity.id ||
+								c.targetId === dialogEntity.id,
+						) as any
+					}
 					onOpenEntity={handleOpenEntity}
 					onOpenConnection={handleOpenConnection}
 				/>
@@ -1592,12 +1595,12 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 					</ListItemIcon>
 					<ListItemText primary="Показать в Dashboard" />
 				</MenuItem>
-				<MenuItem onClick={handleContextMenuShowInEditor}>
+				{/* <MenuItem onClick={handleContextMenuShowInEditor}>
 					<ListItemIcon>
 						<Code fontSize="small" />
 					</ListItemIcon>
 					<ListItemText primary="Показать в редакторе" />
-				</MenuItem>
+				</MenuItem> */}
 				<MenuItem onClick={handleContextMenuCopyId}>
 					<ListItemIcon>
 						<ContentCopy fontSize="small" />

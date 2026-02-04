@@ -600,3 +600,8 @@ mark {
 	background-color: #ff9800;
 	color: #000;
 }
+
+div.flexlayout__tab_button.flexlayout__tab_button--selected
+	.flexlayout__tab_button_content {
+	background-color: #72bdff69;
+}

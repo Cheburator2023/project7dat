@@ -8,7 +8,6 @@ import {
 	MenuItem,
 } from "@mui/material";
 import {
-	Code,
 	ContentCopy,
 	AccountTree as GraphIcon,
 	Info,
@@ -292,12 +291,7 @@ export const GraphPanel = memo(() => {
 	}
 
 	if (!currentSchema || !effectiveGraphId) {
-		return (
-			<EmptyState
-				icon={<GraphIcon sx={{ fontSize: 48 }} />}
-				message="Нет данных для отображения графа"
-			/>
-		);
+		return <EmptyState message="Нет данных для отображения графа" />;
 	}
 
 	return (
@@ -373,12 +367,12 @@ export const GraphPanel = memo(() => {
 						</MenuItem>
 					)}
 				<Divider />
-				<MenuItem onClick={handleShowInEditor}>
+				{/* <MenuItem onClick={handleShowInEditor}>
 					<ListItemIcon>
 						<Code fontSize="small" />
 					</ListItemIcon>
 					<ListItemText primary="Показать в редакторе" />
-				</MenuItem>
+				</MenuItem> */}
 				<MenuItem onClick={handleCopyId}>
 					<ListItemIcon>
 						<ContentCopy fontSize="small" />

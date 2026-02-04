@@ -1,4 +1,11 @@
-import React, { memo, useState, useCallback, useMemo, useEffect } from "react";
+import React, {
+	memo,
+	useState,
+	useCallback,
+	useMemo,
+	useEffect,
+	useRef,
+} from "react";
 import {
 	ReactFlow,
 	type Node,
@@ -40,7 +47,6 @@ import {
 } from "@mui/material";
 import {
 	CenterFocusStrong,
-	Code,
 	ContentCopy,
 	Info,
 	OpenInNew,
@@ -124,11 +130,9 @@ interface GraphPanelInnerProps {
 	onSelectNode?: (data: any) => void;
 }
 
-const DEFAULT_VISIBLE_ATTRS = 0;
-
 const EMPTY_STRING_SET = new Set<string>();
 
-export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
+export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 	({
 		data,
 		graphId,
@@ -140,8 +144,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		onSelectNode,
 	}) => {
 		const navigate = useNavigate();
-		// Expanded nodes state for layout recalculation
-		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 		const [selectedNode, setSelectedNode] = useState<string>(
 			selectedEntityId || "",
 		);
@@ -154,12 +156,12 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				: undefined;
 			setSelectedNode(selectedEntityId || decodedUrlEntityId || "");
 		}, [selectedEntityId, urlEntityId]);
-		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
+		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
 		// Graph mode: "entities" = compact (entity-level edges), "attributes" = detailed (attribute-level edges)
 		const [graphMode, setGraphMode] = useState<
 			"all" | "entities" | "attributes"
 		>("entities");
-		const { fitView, setCenter, getNode } = useReactFlow();
+		const { setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
@@ -241,6 +243,9 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			return data?.entities ?? [];
 		}, [data, relatedEntityIds, selectedNode]);
 
+		const showAllAttrs =
+			filteredEntities.length > 0 && filteredEntities.length < 100;
+
 		// Build connections for dialogs
 		const entityConnections = useMemo(() => {
 			const connections: EntityConnection[] = [];
@@ -290,8 +295,10 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				if (onSelectNode) {
 					onSelectNode(id);
 				}
+				const encodedId = encodeURIComponent(id);
+				navigate(`/entity/${encodedId}`);
 			},
-			[onSelectEntity, onSelectNode],
+			[onSelectEntity, onSelectNode, navigate],
 		);
 
 		const handleNodeDblClick = useCallback(
@@ -477,22 +484,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			return result;
 		}, [selectedAttributeLocal, attrConnectionMap]);
 
-		// Get selected entity
-		const selectedEntity = useMemo(() => {
-			if (!selectedNode) return null;
-			return filteredEntities.find((e) => e.id === selectedNode) || null;
-		}, [selectedNode, filteredEntities]);
-
-		// Expand/collapse handler for nodes
-		const handleExpandToggle = useCallback((nodeId: string) => {
-			setExpandedNodes((prev) => {
-				const next = new Set(prev);
-				if (next.has(nodeId)) next.delete(nodeId);
-				else next.add(nodeId);
-				return next;
-			});
-		}, []);
-
 		// Create nodes and edges
 		const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
 			// Deduplicate entities by ID (keep first occurrence)
@@ -606,6 +597,7 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 						onAttrHover: handleAttrHover,
 						onAttrClick: handleAttrClick,
 						graphId,
+						entityCount: filteredEntities?.length,
 						upstreamCount: upstreamCounts.get(entity.id) || 0,
 						downstreamCount: downstreamCounts.get(entity.id) || 0,
 						highlightedSourceAttrs:
@@ -616,11 +608,9 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 							hoverHighlightedByEntity.get(entity.id) || EMPTY_STRING_SET,
 						selectedHighlightedAttrs:
 							selectedHighlightedByEntity.get(entity.id) || EMPTY_STRING_SET,
-						onToggleExpand: handleExpandToggle,
+						layoutAttrLimit: 0,
 						isSearchActive,
 						isSearchMatch: !!isSearchMatch,
-						onExpandToggle: handleExpandToggle,
-						isExpanded: expandedNodes.has(entity.id),
 					},
 				};
 
@@ -656,7 +646,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 								onNodeDoubleClick: () => {},
 								onAttrHover: () => {},
 								onAttrClick: () => {},
-								onToggleExpand: () => {},
 								entity: {
 									type: "model",
 									id: entity.namespace,
@@ -682,22 +671,19 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 				entityAttrNames.set(entity.id, attrNames);
 			}
 
-			// Build a map of actually visible attributes per entity (respecting MAX_VISIBLE_ATTRS)
+			// Build a map of actually visible attributes per entity for edge routing (attr handles)
 			const visibleAttrsPerEntity = new Map<string, Set<string>>();
 			for (const entity of uniqueEntities) {
-				const sourceAttrs = entitySourceAttrs.get(entity.id) || new Set();
-				const targetAttrs = entityTargetAttrs.get(entity.id) || new Set();
-				const relatedAttrNames = new Set([...sourceAttrs, ...targetAttrs]);
 				const attrs = entity.attrSeq || [];
-				const allRelatedAttrs = attrs.filter((attr) =>
-					relatedAttrNames.has(attr.name),
-				);
+				if (showAllAttrs) {
+					visibleAttrsPerEntity.set(
+						entity.id,
+						new Set(attrs.map((a) => a.name)),
+					);
+					continue;
+				}
 
-				const maxAttr = DEFAULT_VISIBLE_ATTRS;
-				const visibleAttrs = allRelatedAttrs
-					.slice(0, maxAttr)
-					.map((a) => a.name);
-				visibleAttrsPerEntity.set(entity.id, new Set(visibleAttrs));
+				visibleAttrsPerEntity.set(entity.id, new Set());
 			}
 
 			for (const mapping of data?.mappings || []) {
@@ -894,26 +880,71 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			searchMatchedEntities,
 			globalSearchQuery,
 			showFullGraphByDefault,
-			handleExpandToggle,
-			expandedNodes,
+			showAllAttrs,
 		]);
 
 		// Apply layout
 		const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(
 			() =>
 				getLayoutedElements(initialNodes, initialEdges, layoutDirection, {
-					nodesep: 30,
-					ranksep: 60,
-					marginx: 20,
-					marginy: 20,
+					nodesep: layoutDirection === "TB" ? 100 : 80,
+					ranksep: layoutDirection === "TB" ? 200 : 150,
+					marginx: 40,
+					marginy: 40,
+					attrLimitCap: showAllAttrs ? Number.MAX_SAFE_INTEGER : undefined,
 				}),
-			[initialNodes, initialEdges, layoutDirection],
+			[initialNodes, initialEdges, layoutDirection, showAllAttrs],
 		);
 
 		const [nodes, setNodes, onNodesChange] = useNodesState(
 			layoutedNodes as Node[],
 		);
 		const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
+
+		// Track previous node dimensions to detect changes
+		const prevDimensionsRef = useRef<Record<string, number>>({});
+
+		// Recalculate layout when node dimensions change (e.g., when attributes expand/collapse)
+		useEffect(() => {
+			const currentDimensions: Record<string, number> = {};
+
+			let hasChanges = false;
+
+			for (const node of nodes) {
+				if (node.measured?.height) {
+					const roundedHeight = Math.round(node.measured.height);
+					currentDimensions[node.id] = roundedHeight;
+
+					if (prevDimensionsRef.current[node.id] !== roundedHeight) {
+						hasChanges = true;
+					}
+				}
+			}
+
+			// Only recalculate if dimensions actually changed
+			if (!hasChanges || Object.keys(currentDimensions).length === 0) {
+				prevDimensionsRef.current = currentDimensions;
+				return;
+			}
+
+			prevDimensionsRef.current = currentDimensions;
+
+			// Recalculate layout with measured dimensions
+			const { nodes: relayoutedNodes } = getLayoutedElements(
+				nodes as any,
+				edges,
+				layoutDirection,
+				{
+					nodesep: layoutDirection === "TB" ? 100 : 80,
+					ranksep: layoutDirection === "TB" ? 200 : 150,
+					marginx: 40,
+					marginy: 40,
+					attrLimitCap: showAllAttrs ? Number.MAX_SAFE_INTEGER : undefined,
+				},
+			);
+
+			setNodes(relayoutedNodes as Node[]);
+		}, [nodes, edges, layoutDirection, showAllAttrs, setNodes]);
 
 		// Context menu state
 		const [contextMenu, setContextMenu] = useState<{
@@ -963,15 +994,17 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		const handleContextMenuGoToEntity = useCallback(() => {
 			if (contextMenu) {
 				const encodedId = encodeURIComponent(contextMenu.entityId);
-				navigate(`/entity/${encodedId}`);
+				const url = new URL(`/entity/${encodedId}`, window.location.href);
+				window.location.assign(url.toString());
 			}
 			setContextMenu(null);
-		}, [contextMenu, navigate]);
+		}, [contextMenu]);
 
 		const handleContextMenuOpenInNewTab = useCallback(() => {
 			if (contextMenu) {
 				const encodedId = encodeURIComponent(contextMenu.entityId);
-				window.open(`/entity/${encodedId}`, "_blank");
+				const url = new URL(`/entity/${encodedId}`, window.location.href);
+				window.open(url.toString(), "_blank", "noopener,noreferrer");
 			}
 			setContextMenu(null);
 		}, [contextMenu]);
@@ -1037,14 +1070,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 			setEdges(layoutedEdges);
 		}, [layoutedNodes, layoutedEdges, setNodes, setEdges]);
 
-		useEffect(() => {
-			const timer = setTimeout(
-				() => fitView({ padding: 0.1, duration: 300 }),
-				100,
-			);
-			return () => clearTimeout(timer);
-		}, [layoutDirection, fitView, data]);
-
 		// Handle zoom to node request from context menu
 		useEffect(() => {
 			if (zoomToNodeId) {
@@ -1072,7 +1097,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 					onNodeContextMenu={handleNodeContextMenu}
 					nodeTypes={graphNodeTypes}
 					nodesDraggable={false}
-					fitView
 					minZoom={0.1}
 					maxZoom={2}
 					defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
@@ -1171,92 +1195,6 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 						</div>
 					</Panel>
 				</ReactFlow>
-				{/* Selected Entity Info */}
-				{selectedEntity && selectedEntity.id !== urlEntityId && (
-					<div
-						style={{
-							position: "absolute",
-							top: 12,
-							right: 12,
-							background: "#fff",
-							padding: 12,
-							borderRadius: 8,
-							boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-							maxWidth: 280,
-							zIndex: 1000,
-						}}
-					>
-						<div
-							style={{
-								display: "flex",
-								justifyContent: "space-between",
-								alignItems: "flex-start",
-								marginBottom: 8,
-							}}
-						>
-							<div>
-								<div
-									style={{
-										fontSize: 10,
-										color: "#666",
-										textTransform: "uppercase",
-									}}
-								>
-									{selectedEntity.type}
-								</div>
-								<div
-									style={{
-										fontWeight: 600,
-										fontSize: 13,
-										wordBreak: "break-word",
-									}}
-								>
-									{selectedEntity.name || selectedEntity.id}
-								</div>
-							</div>
-							<button
-								onClick={() => setSelectedNode(urlEntityId ?? "")}
-								style={{
-									background: "none",
-									border: "none",
-									fontSize: 16,
-									cursor: "pointer",
-									color: "#666",
-									padding: 0,
-								}}
-							>
-								×
-							</button>
-						</div>
-
-						{selectedEntity.namespace && (
-							<div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>
-								{selectedEntity.namespace}
-							</div>
-						)}
-
-						<div style={{ fontSize: 11, marginBottom: 8 }}>
-							<strong>Атрибутов:</strong> {selectedEntity.attrSeq?.length || 0}
-						</div>
-
-						<button
-							onClick={() => handleOpenEntity(selectedEntity.id)}
-							style={{
-								width: "100%",
-								padding: "8px 12px",
-								background: "#1976d2",
-								color: "#fff",
-								border: "none",
-								borderRadius: 6,
-								fontSize: 11,
-								fontWeight: 500,
-								cursor: "pointer",
-							}}
-						>
-							↗ Открыть карточку
-						</button>
-					</div>
-				)}
 
 				{/* Entity Details Dialog */}
 				{dialogEntity && (
@@ -1367,12 +1305,12 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 						</ListItemIcon>
 						<ListItemText primary="Показать в Dashboard" />
 					</MenuItem>
-					<MenuItem onClick={handleContextMenuShowInEditor}>
+					{/* <MenuItem onClick={handleContextMenuShowInEditor}>
 						<ListItemIcon>
 							<Code fontSize="small" />
 						</ListItemIcon>
 						<ListItemText primary="Показать в редакторе" />
-					</MenuItem>
+					</MenuItem> */}
 					<MenuItem onClick={handleContextMenuCopyId}>
 						<ListItemIcon>
 							<ContentCopy fontSize="small" />
@@ -1384,5 +1322,3 @@ export const GraphPanelInner2 = memo<GraphPanelInnerProps>(
 		);
 	},
 );
-
-GraphPanelInner2.displayName = "GraphPanelInner2";

@@ -27,7 +27,7 @@ import {
 	TableChart as TableChartIcon,
 	ViewModule as ViewModuleIcon,
 } from "@mui/icons-material";
-import { GraphPanel2 } from "@react-client/features/entityPreview/organisms/GraphPanel2";
+import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/GraphPanel2";
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
 	table: <TableChartIcon fontSize={"large"} />,
@@ -234,7 +234,10 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 					);
 				case "entity-graph":
 					return (
-						<GraphPanel2 onSelectNode={onSelectNode} entity={selectedEntity} />
+						<ModelGraphPanel
+							onSelectNode={onSelectNode}
+							entity={selectedEntity}
+						/>
 					);
 				default:
 					return <div>Unknown component: {component}</div>;
@@ -473,10 +476,10 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 			minWidth: "inherit !important",
 		},
 		"& .flexlayout__splitter_vert": {
-			margin: "0 6px",
+			margin: "0 2px",
 		},
 		"& .flexlayout__splitter_horz": {
-			margin: "6px 0",
+			margin: "2px 0",
 		},
 		"& .flexlayout__tab_button_content": {
 			padding: "4px 9px",

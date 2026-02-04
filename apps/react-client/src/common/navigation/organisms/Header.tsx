@@ -23,10 +23,12 @@ export function Header({
 	children,
 	title,
 	calcId,
+	isLoading,
 }: {
 	children?: React.ReactNode;
 	calcId?: string;
 	title?: string;
+	isLoading?: boolean;
 }) {
 	const { toggleSideMenu, isSideMenuVisible } = useGlobalSettingsStore();
 	const { currentGraphId } = useDataLineageStore();
@@ -218,8 +220,11 @@ export function Header({
 								</IconButton>
 							)} */}
 
-							<NotificationButton />
-							<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
+							<NotificationButton isLoading={!!isLoading} />
+							<ColorModeIconDropdown
+								isLoading={!!isLoading}
+								data-test-id="header--ColorModeIconDropdown-0"
+							/>
 							<IconButton
 								onClick={() => navigate("/settings")}
 								title="Настройки"
