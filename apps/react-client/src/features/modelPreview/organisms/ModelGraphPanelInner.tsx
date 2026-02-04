@@ -1,4 +1,11 @@
-import React, { memo, useState, useCallback, useMemo, useEffect } from "react";
+import React, {
+	memo,
+	useState,
+	useCallback,
+	useMemo,
+	useEffect,
+	useRef,
+} from "react";
 import {
 	ReactFlow,
 	type Node,
@@ -16,6 +23,7 @@ import type {
 	DataLineageSchema,
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 import { useDashboardStore } from "../../dashboard/stores";
 import { graphNodeTypes } from "./ModelNodePreviewComponent";
@@ -61,6 +69,34 @@ const getUpstreamNodes = (
 	return visited;
 };
 
+const getUpstreamNodesLimited = (
+	nodeId: string,
+	upstreamGraph: Map<string, Set<string>>,
+	maxDepth: number,
+): Set<string> => {
+	const visited = new Set<string>();
+	if (!nodeId) return visited;
+	visited.add(nodeId);
+	let frontier: string[] = [nodeId];
+
+	for (let depth = 0; depth < maxDepth; depth += 1) {
+		const next: string[] = [];
+		for (const current of frontier) {
+			const parents = upstreamGraph.get(current);
+			if (!parents) continue;
+			for (const parent of parents) {
+				if (visited.has(parent)) continue;
+				visited.add(parent);
+				next.push(parent);
+			}
+		}
+		if (next.length === 0) break;
+		frontier = next;
+	}
+
+	return visited;
+};
+
 const getDownstreamNodes = (
 	nodeId: string,
 	downstreamGraph: Map<string, Set<string>>,
@@ -77,6 +113,63 @@ const getDownstreamNodes = (
 	}
 
 	return visited;
+};
+
+const getDownstreamNodesLimited = (
+	nodeId: string,
+	downstreamGraph: Map<string, Set<string>>,
+	maxDepth: number,
+): Set<string> => {
+	const visited = new Set<string>();
+	if (!nodeId) return visited;
+	visited.add(nodeId);
+	let frontier: string[] = [nodeId];
+
+	for (let depth = 0; depth < maxDepth; depth += 1) {
+		const next: string[] = [];
+		for (const current of frontier) {
+			const children = downstreamGraph.get(current);
+			if (!children) continue;
+			for (const child of children) {
+				if (visited.has(child)) continue;
+				visited.add(child);
+				next.push(child);
+			}
+		}
+		if (next.length === 0) break;
+		frontier = next;
+	}
+
+	return visited;
+};
+
+const getMaxDepthFromNode = (
+	nodeId: string,
+	adjacency: Map<string, Set<string>>,
+): number => {
+	if (!nodeId) return 0;
+	const visited = new Set<string>();
+	visited.add(nodeId);
+	let frontier: string[] = [nodeId];
+	let depth = 0;
+
+	while (frontier.length > 0) {
+		const next: string[] = [];
+		for (const current of frontier) {
+			const neighbors = adjacency.get(current);
+			if (!neighbors) continue;
+			for (const neighbor of neighbors) {
+				if (visited.has(neighbor)) continue;
+				visited.add(neighbor);
+				next.push(neighbor);
+			}
+		}
+		if (next.length === 0) break;
+		frontier = next;
+		depth += 1;
+	}
+
+	return depth;
 };
 
 // Helper function to get edge description based on entity types
@@ -138,14 +231,19 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const { entityId: urlEntityId } = useParams<{ entityId: string }>();
 
+		const rootEntityId = useMemo(() => {
+			return urlEntityId ? decodeURIComponent(urlEntityId) : "";
+		}, [urlEntityId]);
+
 		useEffect(() => {
-			const decodedUrlEntityId = urlEntityId
-				? decodeURIComponent(urlEntityId)
-				: undefined;
-			setSelectedNode(selectedEntityId || decodedUrlEntityId || "");
-		}, [selectedEntityId, urlEntityId]);
+			setSelectedNode(selectedEntityId || rootEntityId || "");
+		}, [selectedEntityId, rootEntityId]);
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
+		const [depthLimit, setDepthLimit] = useState(1);
+		const [isDepthPanelOpen, setIsDepthPanelOpen] = useState(true);
 		const { fitView, setCenter, getNode } = useReactFlow();
+		const hasFocusedRootInitiallyRef = useRef(false);
+		const prevDepthLimitRef = useRef(depthLimit);
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
@@ -168,19 +266,32 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const { showFullGraphByDefault } = useGraphSettingsStore();
 
-		const relatedMappings = useMemo(() => {
-			if (!data?.mappings || !selectedNode) return [];
-			return data?.mappings.filter(
-				(mapping) =>
-					mapping.entityId === selectedNode ||
-					mapping.deps?.some((dep) => dep.entityId === selectedNode),
-			);
-		}, [data?.mappings, selectedNode, urlEntityId]);
-
 		const lineageGraph = useMemo(
-			() => buildLineageGraph(relatedMappings || []),
-			[relatedMappings],
+			() => buildLineageGraph(data?.mappings || []),
+			[data?.mappings],
 		);
+
+		const maxTraversalDepth = useMemo(() => {
+			if (!selectedNode) return 1;
+			const upstreamMax = getMaxDepthFromNode(
+				selectedNode,
+				lineageGraph.upstream,
+			);
+			const downstreamMax = getMaxDepthFromNode(
+				selectedNode,
+				lineageGraph.downstream,
+			);
+			return Math.max(1, upstreamMax, downstreamMax);
+		}, [selectedNode, lineageGraph]);
+
+		useEffect(() => {
+			if (depthLimit > maxTraversalDepth) {
+				setDepthLimit(maxTraversalDepth);
+			}
+			if (depthLimit < 1) {
+				setDepthLimit(1);
+			}
+		}, [depthLimit, maxTraversalDepth]);
 
 		// Calculate upstream/downstream counts for each entity
 		const { upstreamCounts, downstreamCounts } = useMemo(() => {
@@ -207,25 +318,36 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					upstreamNodes: new Set<string>(),
 					downstreamNodes: new Set<string>(),
 				};
-			const upstream = getUpstreamNodes(selectedNode, lineageGraph.upstream);
-			const downstream = getDownstreamNodes(
+			const upstream = getUpstreamNodesLimited(
+				selectedNode,
+				lineageGraph.upstream,
+				depthLimit,
+			);
+			const downstream = getDownstreamNodesLimited(
 				selectedNode,
 				lineageGraph.downstream,
+				depthLimit,
 			);
 			upstream.delete(selectedNode);
 			downstream.delete(selectedNode);
 			return { upstreamNodes: upstream, downstreamNodes: downstream };
-		}, [selectedNode, lineageGraph]);
+		}, [selectedNode, lineageGraph, depthLimit]);
 
 		// Find related entities (upstream + downstream from main entity)
 		const relatedEntityIds = useMemo(() => {
-			const upstream = getUpstreamNodes(selectedNode, lineageGraph.upstream);
-			const downstream = getDownstreamNodes(
+			if (!selectedNode) return new Set<string>();
+			const upstream = getUpstreamNodesLimited(
+				selectedNode,
+				lineageGraph.upstream,
+				depthLimit,
+			);
+			const downstream = getDownstreamNodesLimited(
 				selectedNode,
 				lineageGraph.downstream,
+				depthLimit,
 			);
 			return new Set([...upstream, ...downstream]);
-		}, [selectedNode, lineageGraph]);
+		}, [selectedNode, lineageGraph, depthLimit]);
 
 		// Filter entities to show only related ones
 		const filteredEntities = useMemo(() => {
@@ -555,6 +677,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 						highlightType,
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,
+						onOpenEntity: handleOpenEntity,
 						onViewDetails: handleViewDetails,
 						onAttrHover: handleAttrHover,
 						onAttrClick: handleAttrClick,
@@ -848,6 +971,15 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			setContextMenu(null);
 		}, [contextMenu, setZoomToNode, navigate]);
 
+		const focusRootEntityNode = useCallback(() => {
+			if (!rootEntityId) return;
+			const node = getNode(rootEntityId);
+			if (!node) return;
+			const x = node.position.x + (node.measured?.width ?? 280) / 2;
+			const y = node.position.y + (node.measured?.height ?? 100) / 2;
+			setCenter(x, y, { duration: 500 });
+		}, [getNode, rootEntityId, setCenter]);
+
 		// Open entity page with selected attribute highlight
 		const handleGoToEntityWithSelectedAttr = useCallback(() => {
 			if (contextMenu && selectedAttribute) {
@@ -874,6 +1006,33 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			setNodes(layoutedNodes as Node[]);
 			setEdges(layoutedEdges);
 		}, [layoutedNodes, layoutedEdges, setNodes, setEdges]);
+
+		useEffect(() => {
+			if (hasFocusedRootInitiallyRef.current) return;
+			if (!rootEntityId) return;
+			const exists = nodes.some((n) => n.id === rootEntityId);
+			if (!exists) return;
+			const handle = window.setTimeout(() => {
+				focusRootEntityNode();
+				hasFocusedRootInitiallyRef.current = true;
+			}, 150);
+			return () => window.clearTimeout(handle);
+		}, [focusRootEntityNode, nodes, rootEntityId]);
+
+		useEffect(() => {
+			if (!rootEntityId) return;
+			if (prevDepthLimitRef.current === depthLimit) return;
+			const exists = nodes.some((n) => n.id === rootEntityId);
+			if (!exists) {
+				prevDepthLimitRef.current = depthLimit;
+				return;
+			}
+			const handle = window.setTimeout(() => {
+				focusRootEntityNode();
+			}, 150);
+			prevDepthLimitRef.current = depthLimit;
+			return () => window.clearTimeout(handle);
+		}, [depthLimit, focusRootEntityNode, nodes, rootEntityId]);
 
 		useEffect(() => {
 			const timer = setTimeout(
@@ -916,7 +1075,49 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					proOptions={{ hideAttribution: true }}
 				>
 					<Background color="#e0e0e0" gap={20} />
-					<Controls />
+					<Controls>
+						<div data-name="scroll_to_main_node">
+							<button
+								onClick={focusRootEntityNode}
+								disabled={!rootEntityId}
+								style={{
+									width: 26,
+									height: 26,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									background: "#fff",
+									border: "none",
+									cursor: rootEntityId ? "pointer" : "not-allowed",
+									padding: 0,
+								}}
+								title="К основной ноде"
+								type="button"
+							>
+								<CenterFocusStrong style={{ fontSize: 16, color: "#666" }} />
+							</button>
+						</div>
+						<div data-name="open_depth_panel">
+							<button
+								onClick={() => setIsDepthPanelOpen(!isDepthPanelOpen)}
+								style={{
+									width: 26,
+									height: 26,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									background: "#fff",
+									border: "none",
+									cursor: rootEntityId ? "pointer" : "not-allowed",
+									padding: 0,
+								}}
+								title="Глубина"
+								type="button"
+							>
+								<AccountTreeIcon style={{ fontSize: 16, color: "#666" }} />
+							</button>
+						</div>
+					</Controls>
 					<MiniMap
 						nodeColor={(node) => {
 							const entityNode = node as unknown as EntityNode;
@@ -990,6 +1191,47 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 							</div>
 						</div>
 					</Panel>
+					{selectedNode && maxTraversalDepth > 1 && (
+						<Panel position="bottom-center">
+							{isDepthPanelOpen ? (
+								<div
+									style={{
+										background: "#fff",
+										padding: "8px 10px",
+										borderRadius: 10,
+										boxShadow: "0 2px 10px rgba(0,0,0,0.10)",
+
+										minWidth: 240,
+									}}
+								>
+									<div
+										style={{
+											display: "flex",
+											justifyContent: "center",
+											fontSize: 10,
+											color: "#666",
+											marginBottom: 4,
+										}}
+									>
+										<span>
+											Глубина: {depthLimit} / {maxTraversalDepth}
+										</span>
+									</div>
+									<input
+										type="range"
+										min={1}
+										max={maxTraversalDepth}
+										step={1}
+										value={depthLimit}
+										onChange={(e) => {
+											setDepthLimit(Number(e.target.value));
+										}}
+										style={{ width: "100%" }}
+									/>
+								</div>
+							) : null}
+						</Panel>
+					)}
 				</ReactFlow>
 				{/* Selected Entity Info */}
 				{selectedEntity && selectedEntity.id !== urlEntityId && (
