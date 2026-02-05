@@ -56,5 +56,6 @@ declare global {
 		urlConfig?: T_CONFIG_MAP;
 		token?: string;
 		keycloak?: TKeycloakLike;
+		user?: T_KEYCLOAK_USER;
 	}
 }
