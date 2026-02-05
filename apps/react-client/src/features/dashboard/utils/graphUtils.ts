@@ -16,7 +16,7 @@ import {
 type EntityNode = Node<EntityNodeData, "entityNode">;
 
 export const getLayoutedElements = (
-	nodes: EntityNode[],
+	nodes: EntityNode[] | Node[],
 	edges: Edge[],
 	direction: "LR" | "TB" = "LR",
 	options?: {
@@ -49,7 +49,7 @@ export const getLayoutedElements = (
 		marginy,
 	});
 
-	const getNodeHeight = (node: EntityNode) => {
+	const getNodeHeight = (node: Node) => {
 		// Use measured height if available (from actual DOM rendering)
 		if (node.measured?.height) {
 			return node.measured.height;
@@ -76,9 +76,10 @@ export const getLayoutedElements = (
 			);
 		}
 		// Calculate visible attrs count from related attributes (source + target + selected), limited by MAX_VISIBLE_ATTRS
-		const sourceAttrs = node.data.highlightedSourceAttrs || new Set();
-		const targetAttrs = node.data.highlightedTargetAttrs || new Set();
-		const selectedAttrs = node.data.selectedHighlightedAttrs || new Set();
+		const data = node.data as Partial<EntityNodeData>;
+		const sourceAttrs = data.highlightedSourceAttrs || new Set();
+		const targetAttrs = data.highlightedTargetAttrs || new Set();
+		const selectedAttrs = data.selectedHighlightedAttrs || new Set();
 		const relatedAttrsCount = new Set([
 			...sourceAttrs,
 			...targetAttrs,

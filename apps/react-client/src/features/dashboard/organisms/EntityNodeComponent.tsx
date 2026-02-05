@@ -561,4 +561,63 @@ export const EntityNodeComponent = memo(
 
 EntityNodeComponent.displayName = "EntityNodeComponent";
 
-export const graphNodeTypes = { entityNode: EntityNodeComponent };
+interface GhostNodeData extends Record<string, unknown> {
+	direction: "upstream" | "downstream";
+	boundaryNodeId: string;
+	onClickGhost: () => void;
+}
+
+type GhostNode = Node<GhostNodeData, "ghostNode">;
+
+export const GhostNodeComponent = memo(({ data }: NodeProps<GhostNode>) => {
+	const isUpstream = data.direction === "upstream";
+	return (
+		<div
+			onClick={data.onClickGhost}
+			onKeyDown={(e) => {
+				if (e.key === "Enter") data.onClickGhost();
+			}}
+			role="button"
+			tabIndex={0}
+			style={{
+				padding: "8px 16px",
+				borderRadius: 8,
+				border: `2px dashed ${isUpstream ? "#6366f1" : "#f59e0b"}`,
+				background: isUpstream ? "#eef2ff" : "#fffbeb",
+				cursor: "pointer",
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				gap: 6,
+				fontSize: 11,
+				color: isUpstream ? "#4f46e5" : "#aa5c03",
+				fontWeight: 500,
+				minWidth: 250,
+				opacity: 0.9,
+				transition: "opacity 0.15s",
+			}}
+		>
+			<Handle
+				type="target"
+				position={Position.Left}
+				id="ghost-target"
+				style={{ opacity: 0, width: 1, height: 1 }}
+			/>
+			<span>{isUpstream ? "⬆" : "⬇"}</span>
+			<span>Ещё</span>
+			<Handle
+				type="source"
+				position={Position.Right}
+				id="ghost-source"
+				style={{ opacity: 0, width: 1, height: 1 }}
+			/>
+		</div>
+	);
+});
+
+GhostNodeComponent.displayName = "GhostNodeComponent";
+
+export const graphNodeTypes = {
+	entityNode: EntityNodeComponent,
+	ghostNode: GhostNodeComponent,
+};
