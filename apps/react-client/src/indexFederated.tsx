@@ -62,7 +62,11 @@ const MfeRoot = (props: Props) => {
 		<AuthProvider token={props.token}>
 			{globalStyles}
 
-			{props?.urlConfig ? <App {...props} bridged /> : <CircularProgress />}
+			{props?.urlConfig && props?.keycloak ? (
+				<App {...props} bridged />
+			) : (
+				<CircularProgress />
+			)}
 		</AuthProvider>
 	);
 };
