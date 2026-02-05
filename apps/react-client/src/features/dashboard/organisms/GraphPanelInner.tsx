@@ -48,8 +48,9 @@ const getUpstreamNodesLimited = (
 	nodeId: string,
 	upstreamGraph: Map<string, Set<string>>,
 	maxDepth: number,
-): Set<string> => {
+): { visited: Set<string>; boundary: Set<string> } => {
 	const visited = new Set<string>();
+	const boundary = new Set<string>();
 	const queue: Array<{ id: string; depth: number }> = [
 		{ id: nodeId, depth: 0 },
 	];
@@ -61,7 +62,18 @@ const getUpstreamNodesLimited = (
 		if (visited.has(id)) continue;
 		visited.add(id);
 
-		if (depth >= maxDepth) continue;
+		if (depth >= maxDepth) {
+			const neighbors = upstreamGraph.get(id);
+			if (neighbors) {
+				for (const nextId of neighbors) {
+					if (!visited.has(nextId)) {
+						boundary.add(id);
+						break;
+					}
+				}
+			}
+			continue;
+		}
 		const neighbors = upstreamGraph.get(id);
 		if (!neighbors) continue;
 		for (const nextId of neighbors) {
@@ -69,15 +81,16 @@ const getUpstreamNodesLimited = (
 		}
 	}
 
-	return visited;
+	return { visited, boundary };
 };
 
 const getDownstreamNodesLimited = (
 	nodeId: string,
 	downstreamGraph: Map<string, Set<string>>,
 	maxDepth: number,
-): Set<string> => {
+): { visited: Set<string>; boundary: Set<string> } => {
 	const visited = new Set<string>();
+	const boundary = new Set<string>();
 	const queue: Array<{ id: string; depth: number }> = [
 		{ id: nodeId, depth: 0 },
 	];
@@ -89,7 +102,18 @@ const getDownstreamNodesLimited = (
 		if (visited.has(id)) continue;
 		visited.add(id);
 
-		if (depth >= maxDepth) continue;
+		if (depth >= maxDepth) {
+			const neighbors = downstreamGraph.get(id);
+			if (neighbors) {
+				for (const nextId of neighbors) {
+					if (!visited.has(nextId)) {
+						boundary.add(id);
+						break;
+					}
+				}
+			}
+			continue;
+		}
 		const neighbors = downstreamGraph.get(id);
 		if (!neighbors) continue;
 		for (const nextId of neighbors) {
@@ -97,7 +121,7 @@ const getDownstreamNodesLimited = (
 		}
 	}
 
-	return visited;
+	return { visited, boundary };
 };
 
 const getMaxDepthFromNode = (
@@ -239,25 +263,37 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [data.entities, lineageGraph]);
 
 		// Calculate upstream/downstream for selected node
-		const { upstreamNodes, downstreamNodes } = useMemo(() => {
+		const {
+			upstreamNodes,
+			downstreamNodes,
+			upstreamBoundary,
+			downstreamBoundary,
+		} = useMemo(() => {
 			if (!selectedEntityId)
 				return {
 					upstreamNodes: new Set<string>(),
 					downstreamNodes: new Set<string>(),
+					upstreamBoundary: new Set<string>(),
+					downstreamBoundary: new Set<string>(),
 				};
-			const upstream = getUpstreamNodesLimited(
+			const upResult = getUpstreamNodesLimited(
 				selectedEntityId,
 				lineageGraph.upstream,
 				depthLimit,
 			);
-			const downstream = getDownstreamNodesLimited(
+			const downResult = getDownstreamNodesLimited(
 				selectedEntityId,
 				lineageGraph.downstream,
 				depthLimit,
 			);
-			upstream.delete(selectedEntityId);
-			downstream.delete(selectedEntityId);
-			return { upstreamNodes: upstream, downstreamNodes: downstream };
+			upResult.visited.delete(selectedEntityId);
+			downResult.visited.delete(selectedEntityId);
+			return {
+				upstreamNodes: upResult.visited,
+				downstreamNodes: downResult.visited,
+				upstreamBoundary: upResult.boundary,
+				downstreamBoundary: downResult.boundary,
+			};
 		}, [selectedEntityId, lineageGraph, depthLimit]);
 
 		// Notify parent about upstream/downstream changes
@@ -327,6 +363,10 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		const handleClearSelectedAttribute = useCallback(() => {
 			setSelectedAttribute(null);
 		}, [setSelectedAttribute]);
+
+		const handleGhostClick = useCallback(() => {
+			setDepthLimit((prev) => Math.min(prev + 1, maxTraversalDepth));
+		}, [maxTraversalDepth]);
 
 		const handleToggleExpand = useCallback((id: string) => {
 			setExpandedNodes((prev) => {
@@ -514,6 +554,13 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		const topologySearchMatches = showFullGraphByDefault
 			? EMPTY_SEARCH_MATCHES
 			: searchMatchedEntities;
+		const topologyUpstreamBoundary = showFullGraphByDefault
+			? EMPTY_STRING_SET
+			: upstreamBoundary;
+		const topologyDownstreamBoundary = showFullGraphByDefault
+			? EMPTY_STRING_SET
+			: downstreamBoundary;
+		const topologyHandleGhostClick = handleGhostClick;
 
 		// Create nodes and edges (topology only)
 		const { nodes: topologyNodes, edges: topologyEdges } = useMemo(() => {
@@ -723,7 +770,68 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 
-			return { nodes, edges };
+			// Add ghost nodes for boundary entities that have more data beyond depthLimit
+			const ghostNodes: Node[] = [];
+			for (const boundaryId of topologyUpstreamBoundary) {
+				const ghostId = `ghost-upstream-${boundaryId}`;
+				ghostNodes.push({
+					id: ghostId,
+					type: "ghostNode",
+					position: { x: 0, y: 0 },
+					data: {
+						direction: "upstream",
+						boundaryNodeId: boundaryId,
+						onClickGhost: topologyHandleGhostClick,
+					},
+				});
+				edges.push({
+					id: `${ghostId}->${boundaryId}`,
+					source: ghostId,
+					target: boundaryId,
+					sourceHandle: "ghost-source",
+					targetHandle: "entity-target",
+					type: "smoothstep",
+					animated: false,
+					style: {
+						stroke: "#6366f1",
+						strokeWidth: 1,
+						strokeDasharray: "6,4",
+						opacity: 0.5,
+					},
+					markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
+				});
+			}
+			for (const boundaryId of topologyDownstreamBoundary) {
+				const ghostId = `ghost-downstream-${boundaryId}`;
+				ghostNodes.push({
+					id: ghostId,
+					type: "ghostNode",
+					position: { x: 0, y: 0 },
+					data: {
+						direction: "downstream",
+						boundaryNodeId: boundaryId,
+						onClickGhost: topologyHandleGhostClick,
+					},
+				});
+				edges.push({
+					id: `${boundaryId}->${ghostId}`,
+					source: boundaryId,
+					target: ghostId,
+					sourceHandle: "entity-source",
+					targetHandle: "ghost-target",
+					type: "smoothstep",
+					animated: false,
+					style: {
+						stroke: "#f59e0b",
+						strokeWidth: 1,
+						strokeDasharray: "6,4",
+						opacity: 0.5,
+					},
+					markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b" },
+				});
+			}
+
+			return { nodes: [...nodes, ...ghostNodes], edges };
 		}, [
 			data.entities,
 			data.mappings,
@@ -735,6 +843,9 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			topologySearchMatches,
 			upstreamCounts,
 			downstreamCounts,
+			topologyUpstreamBoundary,
+			topologyDownstreamBoundary,
+			topologyHandleGhostClick,
 		]);
 
 		// Apply layout (only based on topology)
@@ -866,7 +977,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 								target: mapping.entityId,
 								sourceHandle: `attr-source-${attrMap.src}`,
 								targetHandle: `attr-target-${attrMap.dst}`,
-								type: "bezier",
+								type: "default",
 								animated: true,
 								style: {
 									stroke: edgeColor,
@@ -1128,7 +1239,10 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 							return HIGHLIGHT_COLORS.upstream;
 						if (entityNode.data.highlightType === "downstream")
 							return HIGHLIGHT_COLORS.downstream;
-						return TYPE_COLORS[entityNode.data.entity.type]?.border || "#999";
+						return (
+							TYPE_COLORS[entityNode.data.entity?.type || "table"]?.border ||
+							"#999"
+						);
 					}}
 					style={{
 						background: "#f5f5f5",
