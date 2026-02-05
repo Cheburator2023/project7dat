@@ -26,6 +26,7 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
 import { routes } from "@react-client/routing/routes";
+import { EntityRow } from "@react-client/features/dashboard";
 
 // Extended interface based on DataLineageEntity for UI display purposes
 export interface Model extends DataLineageEntity {

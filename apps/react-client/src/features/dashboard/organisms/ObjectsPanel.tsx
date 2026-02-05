@@ -187,11 +187,19 @@ export const ObjectsPanel = memo(() => {
 		return fuzzyLinkResults.map((r) => r.item);
 	}, [fuzzyLinkResults]);
 
-	// Navigate to object page
+	// Navigate to object page based on type
 	const handleNavigateToObject = useCallback(
 		(data: ObjectRow) => {
-			const objectId = encodeURIComponent(data.id);
-			navigate(`/objects/${objectId}`);
+			const encodedEntityId = encodeURIComponent(data.parentEntity);
+			if (data.objectType === "Признак") {
+				// Attribute → open entity page with attribute highlight
+				navigate(
+					`/entity/${encodedEntityId}?highlightAttr=${encodeURIComponent(data.name)}`,
+				);
+			} else {
+				// Entity (Источник/Витрина) → open entity page
+				navigate(`/entity/${encodedEntityId}`);
+			}
 		},
 		[navigate],
 	);
@@ -421,6 +429,7 @@ export const ObjectsPanel = memo(() => {
 					sourceName: sourceEntity.name,
 					targetName: targetEntity.name,
 					attrMaps: dep.attrMaps || [],
+					description: "",
 				});
 			}
 		}
@@ -450,6 +459,7 @@ export const ObjectsPanel = memo(() => {
 				sourceName: selectedLink.sourceName,
 				targetName: selectedLink.targetName,
 				attrMaps: selectedLink.attrMaps,
+				description: "",
 			}
 		: null;
 

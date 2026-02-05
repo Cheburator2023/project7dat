@@ -23,7 +23,6 @@ import type {
 	DataLineageSchema,
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
-import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 import { useDashboardStore } from "../../dashboard/stores";
 import { graphNodeTypes } from "./ModelNodePreviewComponent";
@@ -43,6 +42,7 @@ import {
 	MenuItem,
 } from "@mui/material";
 import {
+	AccountTree,
 	CenterFocusStrong,
 	ContentCopy,
 	Info,
@@ -1114,7 +1114,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 								title="Глубина"
 								type="button"
 							>
-								<AccountTreeIcon style={{ fontSize: 16, color: "#666" }} />
+								<AccountTree style={{ fontSize: 16, color: "#666" }} />
 							</button>
 						</div>
 					</Controls>
@@ -1147,9 +1147,6 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 							}}
 						>
 							<div style={{ marginBottom: 8 }}>
-								<div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-									Граф зависимостей
-								</div>
 								<div style={{ fontSize: 11, color: "#666" }}>
 									{filteredEntities.length} связанных сущностей
 								</div>

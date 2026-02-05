@@ -7,7 +7,7 @@ import {
 	CircularProgress,
 	Chip,
 } from "@mui/material";
-import { styled, useColorScheme } from "@mui/material/styles";
+import { useColorScheme } from "@mui/material/styles";
 import { Search as SearchIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
@@ -18,13 +18,13 @@ import {
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
-import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { TypeChip } from "@react-client/features/dashboard/atoms";
 import { format, parseISO } from "date-fns/esm";
+import { EntityRow } from "@react-client/features/dashboard";
 
 interface ObjectItem {
 	id: string;
@@ -32,6 +32,7 @@ interface ObjectItem {
 	object: string;
 	objectType: string;
 	description: string;
+	entity_change?: string;
 	modelId: string;
 	database: string;
 	process: string;
@@ -61,7 +62,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 			graphId,
 			object: entity.name ?? entity.id,
 			objectType: entity.type,
-			description: entity.description,
+			description: entity?.description ?? "",
 			entity_change: entity.entity_change ?? "",
 			modelId: entity.id,
 			database,
@@ -70,25 +71,6 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 			entityType: entity.type,
 			attributeCount: entity.attrSeq?.length ?? 0,
 		});
-
-		// Уровень признаков (атрибуты сущности)
-		// if (entity.attrSeq) {
-		// 	for (const attr of entity.attrSeq) {
-		// 		rows.push({
-		// 			id: `${entity.id}::${attr.name}`,
-		// 			graphId,
-		// 			object: attr.name,
-		// 			objectType: "Признак",
-		// 			description: attr.comment ?? "",
-		// 			modelId: entity.id,
-		// 			database,
-		// 			process,
-		// 			processDescription,
-		// 			dataType: attr.type, // Include attribute data type
-		// 			entityType: entity.type,
-		// 		});
-		// 	}
-		// }
 
 		return rows;
 	});
@@ -123,13 +105,13 @@ export const ObjectsPage: React.FC = () => {
 		const searchLower = searchText.toLowerCase();
 		return data.filter(
 			(item) =>
-				item.object.toLowerCase().includes(searchLower) ||
-				item.objectType.toLowerCase().includes(searchLower) ||
-				item.description.toLowerCase().includes(searchLower) ||
-				item.modelId.toLowerCase().includes(searchLower) ||
-				item.database.toLowerCase().includes(searchLower) ||
-				item.process.toLowerCase().includes(searchLower) ||
-				item.processDescription.toLowerCase().includes(searchLower),
+				item.object?.toLowerCase().includes(searchLower) ||
+				item.objectType?.toLowerCase().includes(searchLower) ||
+				item.description?.toLowerCase().includes(searchLower) ||
+				item.modelId?.toLowerCase().includes(searchLower) ||
+				item.database?.toLowerCase().includes(searchLower) ||
+				item.process?.toLowerCase().includes(searchLower) ||
+				item.processDescription?.toLowerCase().includes(searchLower),
 		);
 	}, [baseData, searchText]);
 
@@ -241,22 +223,6 @@ export const ObjectsPage: React.FC = () => {
 		downloadFile(JSON.stringify(payload, null, 2), "dl_objects_export.json");
 	};
 
-	const _handleExportS2T = () => {
-		const s2tPayload = {
-			generatedAt: new Date().toISOString(),
-			format: "S2T-JSON",
-			objects: filteredData.map((item) => ({
-				objectName: item.object,
-				objectType: item.objectType,
-				modelId: item.modelId,
-				database: item.database,
-				process: item.process,
-				description: item.description,
-			})),
-		};
-		downloadFile(JSON.stringify(s2tPayload, null, 2), "dl_s2t_export.json");
-	};
-
 	if (isPending) {
 		return (
 			<Box
@@ -272,18 +238,8 @@ export const ObjectsPage: React.FC = () => {
 		);
 	}
 
-	// if (error) {
-	// 	return (
-	// 		<Box sx={{ p: 3 }}>
-	// 			<Alert severity="error">
-	// 				Ошибка загрузки объектов: {error.message}
-	// 			</Alert>
-	// 		</Box>
-	// 	);
-	// }
-
 	return (
-		<Box>
+		<div>
 			<Header>
 				<Flex alignItems="center" gap={10} width="100%">
 					<TextField
@@ -308,9 +264,7 @@ export const ObjectsPage: React.FC = () => {
 				</Flex>
 			</Header>
 
-			<Spacer space={6} />
-
-			<GridWrapper height="calc(100vh - 120px)">
+			<Box sx={{ flex: 1, minHeight: 0 }}>
 				<AgGridReact<ObjectItem>
 					rowData={filteredData}
 					columnDefs={columnDefs}
@@ -359,15 +313,7 @@ export const ObjectsPage: React.FC = () => {
 						}
 					}}
 				/>
-			</GridWrapper>
-		</Box>
+			</Box>
+		</div>
 	);
 };
-
-const GridWrapper = styled(Flex)`
-	zoom: 1;
-
-	& > div {
-		width: 100%;
-	}
-`;

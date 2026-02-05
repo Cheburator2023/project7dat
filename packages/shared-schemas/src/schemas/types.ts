@@ -16,10 +16,12 @@ export interface DataLineageSchema {
 export interface DataLineageEntity {
   id: string;
   modified: boolean;
-  type: 'table' | 'view' | 'rdd' | 'unresolved';
+  type: 'table' | 'view' | 'rdd' | 'unresolved' | 'input_vector';
   namespace?: string;
   name: string | null;
   entity_change?: string;
+  description?: string;
+  
   attrSeq?: Array<{
     name: string;
     type: string;

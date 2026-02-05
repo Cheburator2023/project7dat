@@ -121,6 +121,17 @@ export const GraphPanel = memo(() => {
 		[currentSchema],
 	);
 
+	const handleViewDetailsFromNode = useCallback(
+		(entityId: string) => {
+			const entity = currentSchema?.entities?.find((e) => e.id === entityId);
+			if (entity) {
+				setDialogEntity(entity);
+				setIsEntityDialogOpen(true);
+			}
+		},
+		[currentSchema],
+	);
+
 	const handleOpenEntity = useCallback(
 		(entityId: string) => {
 			const encodedId = encodeURIComponent(entityId);
@@ -303,6 +314,8 @@ export const GraphPanel = memo(() => {
 					selectedEntityId={selectedEntityId}
 					onSelectEntity={handleSelectEntity}
 					onNodeDoubleClick={handleNodeDoubleClick}
+					onOpenEntity={handleOpenEntity}
+					onViewDetails={handleViewDetailsFromNode}
 					onUpstreamDownstreamChange={setUpstreamDownstream}
 					onEdgeClick={handleEdgeClick}
 					onNodeContextMenu={handleNodeContextMenu}
