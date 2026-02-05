@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/useIterableCallbackReturn: forEach with early returns */
-import { memo, useCallback, useMemo, useEffect, useState } from "react";
+import { memo, useCallback, useMemo, useEffect, useState, useRef } from "react";
 import { Box } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,8 @@ import type {
 	RowClickedEvent,
 	RowDoubleClickedEvent,
 	CellContextMenuEvent,
+	GridReadyEvent,
+	GridApi,
 } from "ag-grid-community";
 import {
 	agGridCustomMUITheme,
@@ -443,6 +445,27 @@ export const EntitiesPanel = memo(() => {
 		return connections;
 	}, [currentSchema]);
 
+	const gridApiRef = useRef<GridApi<EntityRow> | null>(null);
+	const hasScrolledToSelected = useRef(false);
+
+	const handleGridReady = useCallback(
+		(event: GridReadyEvent<EntityRow>) => {
+			gridApiRef.current = event.api;
+			if (selectedEntityId && !hasScrolledToSelected.current) {
+				hasScrolledToSelected.current = true;
+				const rowIndex = filteredEntities.findIndex(
+					(e) => e.id === selectedEntityId,
+				);
+				if (rowIndex >= 0) {
+					setTimeout(() => {
+						event.api.ensureIndexVisible(rowIndex, "middle");
+					}, 0);
+				}
+			}
+		},
+		[selectedEntityId, filteredEntities],
+	);
+
 	const getRowStyle = useCallback(
 		(params: { data?: EntityRow }) => {
 			const entityId = params.data?.id;
@@ -468,6 +491,7 @@ export const EntitiesPanel = memo(() => {
 				rowData={filteredEntities}
 				columnDefs={columnDefs}
 				theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+				onGridReady={handleGridReady}
 				onRowClicked={handleRowClicked}
 				onRowDoubleClicked={handleRowDoubleClicked}
 				onCellContextMenu={handleCellContextMenu}
