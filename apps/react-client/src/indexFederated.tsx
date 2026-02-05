@@ -22,22 +22,25 @@ export type Props = {
 };
 
 const MfeRoot = (props: Props) => {
-	console.log("MfeRoot >> props DL:", props);
+	console.log("MfeRoot >> bridged DL:", props.bridged);
 
 	useDeepEffect(() => {
 		if (props?.urlConfig && props?.token) {
 			window.urlConfig = props.urlConfig;
-			window.token = props.token;
 			window.keycloak = props.keycloak;
+			window.user = props.user;
 		}
 	}, [props]);
 
 	const { user } = props;
-	const { setUsername, setGroups, setRoles, setPermissions } = useUserStore();
+
+	const { setUsername, setGroups, setRoles, setPermissions, setUser } =
+		useUserStore();
 
 	useEffect(() => {
 		if (user?.preferred_username) {
 			setUsername(user?.preferred_username);
+			setUser(user);
 		}
 
 		if (user?.groups) {
