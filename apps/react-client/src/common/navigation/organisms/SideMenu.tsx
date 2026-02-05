@@ -32,7 +32,7 @@ export function SideMenu({
 	onLogout?: () => void;
 }) {
 	const { mode, systemMode, setMode } = useColorScheme();
-	const { userInfo, isAuthenticated } = useAuthStore();
+	const { userInfo } = useAuthStore();
 
 	return (
 		<StyledDrawer
@@ -54,48 +54,47 @@ export function SideMenu({
 			>
 				<MenuContent data-test-id="side-menu--MenuContent-0" />
 			</Box>
-			{isAuthenticated && userInfo && (
-				<Stack
-					direction="row"
-					sx={{
-						p: 2,
-						gap: 1,
-						alignItems: "center",
-						borderTop: "1px solid",
-						borderColor: "divider",
-					}}
-					data-test-id="side-menu--Stack-0"
+
+			<Stack
+				direction="row"
+				sx={{
+					p: 2,
+					gap: 1,
+					alignItems: "center",
+					borderTop: "1px solid",
+					borderColor: "divider",
+				}}
+				data-test-id="side-menu--Stack-0"
+			>
+				<Avatar
+					sizes="small"
+					sx={{ width: 36, height: 36 }}
+					data-test-id="side-menu--Avatar-0"
+					title={`${userInfo?.firstName} ${userInfo?.lastName}`}
 				>
-					<Avatar
-						sizes="small"
-						sx={{ width: 36, height: 36 }}
-						data-test-id="side-menu--Avatar-0"
-						title={`${userInfo.firstName} ${userInfo.lastName}`}
+					{`${userInfo?.firstName.charAt(0)}${userInfo?.lastName.charAt(0)}`}
+				</Avatar>
+				<Box sx={{ mr: "auto" }} data-test-id="side-menu--Box-1">
+					<Typography
+						variant="body2"
+						sx={{ fontWeight: 500, lineHeight: "16px" }}
+						data-test-id="side-menu--Typography-0"
 					>
-						{`${userInfo.firstName.charAt(0)}${userInfo.lastName.charAt(0)}`}
-					</Avatar>
-					<Box sx={{ mr: "auto" }} data-test-id="side-menu--Box-1">
-						<Typography
-							variant="body2"
-							sx={{ fontWeight: 500, lineHeight: "16px" }}
-							data-test-id="side-menu--Typography-0"
-						>
-							{`${userInfo.firstName} ${userInfo.lastName}`}
-						</Typography>
-						<Typography
-							variant="caption"
-							sx={{ color: "text.secondary" }}
-							data-test-id="side-menu--Typography-1"
-						>
-							{userInfo.email}
-						</Typography>
-					</Box>
-					<OptionsMenu
-						onLogout={onLogout}
-						data-test-id="side-menu--OptionsMenu-0"
-					/>
-				</Stack>
-			)}
+						{`${userInfo?.firstName} ${userInfo?.lastName}`}
+					</Typography>
+					<Typography
+						variant="caption"
+						sx={{ color: "text.secondary" }}
+						data-test-id="side-menu--Typography-1"
+					>
+						{userInfo?.email}
+					</Typography>
+				</Box>
+				<OptionsMenu
+					onLogout={onLogout}
+					data-test-id="side-menu--OptionsMenu-0"
+				/>
+			</Stack>
 		</StyledDrawer>
 	);
 }

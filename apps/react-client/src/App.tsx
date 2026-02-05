@@ -94,7 +94,7 @@ export function App({ token, bridged, user, onLogout, keycloak }: AppProps) {
 						<Toaster position="bottom-right" richColors closeButton />
 						<Suspense fallback={<CircularProgress />}>
 							<LocalizationProvider dateAdapter={AdapterDateFns}>
-								<MainLayout>
+								<MainLayout onLogout={_onLogoutHandler}>
 									<Routing />
 								</MainLayout>
 								<NotificationDrawer />
