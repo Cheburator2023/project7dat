@@ -27,8 +27,14 @@ import {
 	ATTR_EDGE_COLORS,
 } from "../constants";
 import type { EntityNodeData } from "../types";
-import { useColorScheme } from "@mui/material";
-import { AccountTree, CenterFocusStrong } from "@mui/icons-material";
+import { useColorScheme, Slider } from "@mui/material";
+import {
+	AccountTree,
+	CenterFocusStrong,
+	SwapHoriz,
+	SwapVert,
+	ClearAll,
+} from "@mui/icons-material";
 
 const showFullGraphByDefault = false;
 
@@ -158,7 +164,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		onNodeContextMenu,
 	}) => {
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
-		const [isTopLeftPanelVisible, setIsTopLeftPanelVisible] = useState(false);
 		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 		const [depthLimit, setDepthLimit] = useState(1);
 		const [isDepthPanelOpen, setIsDepthPanelOpen] = useState(true);
@@ -398,27 +403,32 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [hoveredAttribute, attrConnectionMap]);
 
 		// Compute selected/clicked-highlighted attributes for each entity
+		// BFS traversal to find all transitively connected attributes in the flow
 		const selectedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
 			if (!selectedAttribute) return result;
 
 			const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
-			const connectedAttrs = attrConnectionMap.get(selectedKey);
+			const visited = new Set<string>();
+			const queue = [selectedKey];
+			visited.add(selectedKey);
 
-			// Highlight the selected attribute itself
-			if (!result.has(selectedAttribute.entityId)) {
-				result.set(selectedAttribute.entityId, new Set());
-			}
-			result.get(selectedAttribute.entityId)!.add(selectedAttribute.attrName);
+			while (queue.length > 0) {
+				const current = queue.shift()!;
+				const [entityId, attrName] = current.split("::");
+				if (!result.has(entityId)) {
+					result.set(entityId, new Set());
+				}
+				result.get(entityId)!.add(attrName);
 
-			// Highlight connected attributes
-			if (connectedAttrs) {
-				for (const key of connectedAttrs) {
-					const [entityId, attrName] = key.split("::");
-					if (!result.has(entityId)) {
-						result.set(entityId, new Set());
+				const neighbors = attrConnectionMap.get(current);
+				if (neighbors) {
+					for (const neighbor of neighbors) {
+						if (!visited.has(neighbor)) {
+							visited.add(neighbor);
+							queue.push(neighbor);
+						}
 					}
-					result.get(entityId)!.add(attrName);
 				}
 			}
 			return result;
@@ -991,7 +1001,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			if (!node) return;
 			const x = node.position.x + (node.measured?.width ?? 280) / 2;
 			const y = node.position.y + (node.measured?.height ?? 100) / 2;
-			setCenter(x, y, { duration: 400 });
+			setCenter(x, y, { duration: 200 });
 		}, [getNode, nodes, selectedEntityId, setCenter]);
 
 		return (
@@ -1006,7 +1016,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				nodesDraggable
 				nodesConnectable={false}
 				fitView
-				minZoom={0.05}
+				minZoom={0.1}
 				maxZoom={2}
 				defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
 				proOptions={{ hideAttribution: true }}
@@ -1058,6 +1068,56 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 							<AccountTree style={{ fontSize: 16, color: "#666" }} />
 						</button>
 					</div>
+					<div data-name="toggle_layout_direction">
+						<button
+							onClick={() =>
+								setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
+							}
+							style={{
+								width: 26,
+								height: 26,
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								background: "#fff",
+								border: "none",
+								cursor: "pointer",
+								padding: 0,
+							}}
+							title={
+								layoutDirection === "LR" ? "Вертикальный" : "Горизонтальный"
+							}
+							type="button"
+						>
+							{layoutDirection === "LR" ? (
+								<SwapVert style={{ fontSize: 16, color: "#666" }} />
+							) : (
+								<SwapHoriz style={{ fontSize: 16, color: "#666" }} />
+							)}
+						</button>
+					</div>
+					{selectedAttribute && (
+						<div data-name="clear_selected_attribute">
+							<button
+								onClick={handleClearSelectedAttribute}
+								style={{
+									width: 26,
+									height: 26,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									background: "#fff",
+									border: "none",
+									cursor: "pointer",
+									padding: 0,
+								}}
+								title={`Очистить атрибут: ${selectedAttribute.attrName}`}
+								type="button"
+							>
+								<ClearAll style={{ fontSize: 16, color: "#666" }} />
+							</button>
+						</div>
+					)}
 				</Controls>
 				<MiniMap
 					nodeColor={(node) => {
@@ -1076,100 +1136,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						borderRadius: 8,
 					}}
 				/>
-				<Panel position="top-left">
-					{isTopLeftPanelVisible ? (
-						<div
-							id="graph-panel-inner-top-left"
-							style={{
-								background: "#fff",
-								padding: 12,
-								borderRadius: 8,
-								boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-							}}
-						>
-							<div
-								style={{
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "space-between",
-									gap: 8,
-									marginBottom: 8,
-								}}
-							>
-								<div style={{ fontSize: 12, fontWeight: 600 }}>
-									{data.entities?.length || 0} сущностей
-								</div>
-								<button
-									onClick={() => setIsTopLeftPanelVisible(false)}
-									style={{
-										padding: "4px 8px",
-										border: "1px solid #ddd",
-										borderRadius: 6,
-										background: "#fff",
-										cursor: "pointer",
-										fontSize: 11,
-									}}
-									type="button"
-									title="Скрыть панель"
-								>
-									×
-								</button>
-							</div>
-							<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-								{selectedAttribute && (
-									<button
-										onClick={handleClearSelectedAttribute}
-										style={{
-											padding: "6px 12px",
-											border: "1px solid #ddd",
-											borderRadius: 6,
-											background: "#fff",
-											cursor: "pointer",
-											fontSize: 11,
-										}}
-										title={selectedAttribute.attrName}
-										type="button"
-									>
-										✕ Очистить атрибут
-									</button>
-								)}
-								<button
-									onClick={() =>
-										setLayoutDirection(layoutDirection === "LR" ? "TB" : "TB")
-									}
-									style={{
-										padding: "6px 12px",
-										border: "1px solid #ddd",
-										borderRadius: 6,
-										background: "#fff",
-										cursor: "pointer",
-										fontSize: 11,
-									}}
-									type="button"
-								>
-									{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
-								</button>
-							</div>
-						</div>
-					) : (
-						<button
-							onClick={() => setIsTopLeftPanelVisible(true)}
-							style={{
-								padding: "6px 10px",
-								border: "1px solid #ddd",
-								borderRadius: 8,
-								background: "#fff",
-								boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-								cursor: "pointer",
-								fontSize: 11,
-							}}
-							type="button"
-							title="Показать панель"
-						>
-							≡
-						</button>
-					)}
-				</Panel>
 				{selectedEntityId && maxTraversalDepth > 1 && (
 					<Panel position="bottom-center">
 						{isDepthPanelOpen ? (
@@ -1192,19 +1158,19 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 									}}
 								>
 									<span>
-										Глубина: {depthLimit} / {maxTraversalDepth}
+										Глубина: {depthLimit} / максимальная {maxTraversalDepth}
 									</span>
 								</div>
-								<input
-									type="range"
+								<Slider
+									id="depth-limit-slider"
 									min={1}
 									max={maxTraversalDepth}
-									step={1}
 									value={depthLimit}
-									onChange={(e) => {
-										setDepthLimit(Number(e.target.value));
+									onChange={(_e, value) => {
+										setDepthLimit(value as number);
 									}}
-									style={{ width: "100%" }}
+									size="small"
+									valueLabelDisplay="auto"
 								/>
 							</div>
 						) : null}
