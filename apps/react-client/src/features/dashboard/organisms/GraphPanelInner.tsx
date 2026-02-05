@@ -16,16 +16,10 @@ import type {
 	DataLineageSchema,
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
-import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 import { useShallow } from "zustand/react/shallow";
 import { useDashboardStore } from "../stores";
 import { graphNodeTypes } from "./EntityNodeComponent";
-import {
-	getLayoutedElements,
-	buildLineageGraph,
-	getUpstreamNodes,
-	getDownstreamNodes,
-} from "../utils";
+import { getLayoutedElements, buildLineageGraph } from "../utils";
 import {
 	TYPE_COLORS,
 	HIGHLIGHT_COLORS,
@@ -34,14 +28,99 @@ import {
 } from "../constants";
 import type { EntityNodeData } from "../types";
 import { useColorScheme } from "@mui/material";
+import { AccountTree, CenterFocusStrong } from "@mui/icons-material";
 
 const showFullGraphByDefault = false;
 
 const EMPTY_STRING_SET = new Set<string>();
-const EMPTY_ATTR_CONNECTION_MAP = new Map<string, Set<string>>();
+
 const EMPTY_SEARCH_MATCHES = new Map<string, number>();
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
+
+const getUpstreamNodesLimited = (
+	nodeId: string,
+	upstreamGraph: Map<string, Set<string>>,
+	maxDepth: number,
+): Set<string> => {
+	const visited = new Set<string>();
+	const queue: Array<{ id: string; depth: number }> = [
+		{ id: nodeId, depth: 0 },
+	];
+
+	while (queue.length > 0) {
+		const item = queue.shift();
+		if (!item) continue;
+		const { id, depth } = item;
+		if (visited.has(id)) continue;
+		visited.add(id);
+
+		if (depth >= maxDepth) continue;
+		const neighbors = upstreamGraph.get(id);
+		if (!neighbors) continue;
+		for (const nextId of neighbors) {
+			queue.push({ id: nextId, depth: depth + 1 });
+		}
+	}
+
+	return visited;
+};
+
+const getDownstreamNodesLimited = (
+	nodeId: string,
+	downstreamGraph: Map<string, Set<string>>,
+	maxDepth: number,
+): Set<string> => {
+	const visited = new Set<string>();
+	const queue: Array<{ id: string; depth: number }> = [
+		{ id: nodeId, depth: 0 },
+	];
+
+	while (queue.length > 0) {
+		const item = queue.shift();
+		if (!item) continue;
+		const { id, depth } = item;
+		if (visited.has(id)) continue;
+		visited.add(id);
+
+		if (depth >= maxDepth) continue;
+		const neighbors = downstreamGraph.get(id);
+		if (!neighbors) continue;
+		for (const nextId of neighbors) {
+			queue.push({ id: nextId, depth: depth + 1 });
+		}
+	}
+
+	return visited;
+};
+
+const getMaxDepthFromNode = (
+	nodeId: string,
+	adjacency: Map<string, Set<string>>,
+): number => {
+	const visited = new Set<string>();
+	const queue: Array<{ id: string; depth: number }> = [
+		{ id: nodeId, depth: 0 },
+	];
+	let maxDepth = 0;
+
+	while (queue.length > 0) {
+		const item = queue.shift();
+		if (!item) continue;
+		const { id, depth } = item;
+		if (visited.has(id)) continue;
+		visited.add(id);
+		maxDepth = Math.max(maxDepth, depth);
+
+		const neighbors = adjacency.get(id);
+		if (!neighbors) continue;
+		for (const nextId of neighbors) {
+			queue.push({ id: nextId, depth: depth + 1 });
+		}
+	}
+
+	return maxDepth;
+};
 
 export interface NodeContextMenuEvent {
 	entityId: string;
@@ -55,6 +134,8 @@ interface GraphPanelInnerProps {
 	selectedEntityId: string | null;
 	onSelectEntity: (id: string | null) => void;
 	onNodeDoubleClick: (entityId: string, graphId: string) => void;
+	onOpenEntity?: (entityId: string) => void;
+	onViewDetails?: (entityId: string) => void;
 	onUpstreamDownstreamChange: (
 		upstream: Set<string>,
 		downstream: Set<string>,
@@ -70,22 +151,25 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		selectedEntityId,
 		onSelectEntity,
 		onNodeDoubleClick,
+		onOpenEntity,
+		onViewDetails,
 		onUpstreamDownstreamChange,
 		onEdgeClick,
 		onNodeContextMenu,
 	}) => {
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
 		const [isTopLeftPanelVisible, setIsTopLeftPanelVisible] = useState(false);
-		const [graphMode, setGraphMode] = useState<"entities" | "attributes">(
-			"entities",
-		);
 		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+		const [depthLimit, setDepthLimit] = useState(1);
+		const [isDepthPanelOpen, setIsDepthPanelOpen] = useState(true);
 		const { fitView, setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
 			selectedAttribute,
 			setSelectedAttribute,
+			globalAttributeSearchQuery,
+			localNodeAttributeSearchQueries,
 			searchMatchedEntities,
 			globalSearchQuery,
 			zoomToNodeId,
@@ -96,6 +180,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				setHoveredAttribute: state.setHoveredAttribute,
 				selectedAttribute: state.selectedAttribute,
 				setSelectedAttribute: state.setSelectedAttribute,
+				globalAttributeSearchQuery: state.globalAttributeSearchQuery,
+				localNodeAttributeSearchQueries: state.localNodeAttributeSearchQueries,
 				searchMatchedEntities: state.searchMatchedEntities,
 				globalSearchQuery: state.globalSearchQuery,
 				zoomToNodeId: state.zoomToNodeId,
@@ -103,17 +189,32 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			})),
 		);
 
-		const { showAttributesInNodes } = useGraphSettingsStore(
-			useShallow((state) => ({
-				showFullGraphByDefault: state.showFullGraphByDefault,
-				showAttributesInNodes: state.showAttributesInNodes,
-			})),
-		);
-
 		const lineageGraph = useMemo(
 			() => buildLineageGraph(data.mappings || []),
 			[data.mappings],
 		);
+
+		const maxTraversalDepth = useMemo(() => {
+			if (!selectedEntityId) return 1;
+			const upstreamMax = getMaxDepthFromNode(
+				selectedEntityId,
+				lineageGraph.upstream,
+			);
+			const downstreamMax = getMaxDepthFromNode(
+				selectedEntityId,
+				lineageGraph.downstream,
+			);
+			return Math.max(1, upstreamMax, downstreamMax);
+		}, [lineageGraph, selectedEntityId]);
+
+		useEffect(() => {
+			if (depthLimit > maxTraversalDepth) {
+				setDepthLimit(maxTraversalDepth);
+			}
+			if (depthLimit < 1) {
+				setDepthLimit(1);
+			}
+		}, [depthLimit, maxTraversalDepth]);
 
 		// Calculate upstream/downstream counts for each entity
 		const { upstreamCounts, downstreamCounts } = useMemo(() => {
@@ -139,18 +240,20 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 					upstreamNodes: new Set<string>(),
 					downstreamNodes: new Set<string>(),
 				};
-			const upstream = getUpstreamNodes(
+			const upstream = getUpstreamNodesLimited(
 				selectedEntityId,
 				lineageGraph.upstream,
+				depthLimit,
 			);
-			const downstream = getDownstreamNodes(
+			const downstream = getDownstreamNodesLimited(
 				selectedEntityId,
 				lineageGraph.downstream,
+				depthLimit,
 			);
 			upstream.delete(selectedEntityId);
 			downstream.delete(selectedEntityId);
 			return { upstreamNodes: upstream, downstreamNodes: downstream };
-		}, [selectedEntityId, lineageGraph]);
+		}, [selectedEntityId, lineageGraph, depthLimit]);
 
 		// Notify parent about upstream/downstream changes
 		useEffect(() => {
@@ -216,6 +319,10 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			[setSelectedAttribute],
 		);
 
+		const handleClearSelectedAttribute = useCallback(() => {
+			setSelectedAttribute(null);
+		}, [setSelectedAttribute]);
+
 		const handleToggleExpand = useCallback((id: string) => {
 			setExpandedNodes((prev) => {
 				const next = new Set(prev);
@@ -230,11 +337,15 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 
 		// Build attribute connection map for hover highlighting
 		// Maps "entityId::attrName" -> Set of connected "entityId::attrName"
-		const attrConnectionMap = useMemo(() => {
-			const shouldCompute =
-				graphMode === "attributes" || !!hoveredAttribute || !!selectedAttribute;
-			if (!shouldCompute) return EMPTY_ATTR_CONNECTION_MAP;
+		const isAnyAttributeSearchActive = useMemo(() => {
+			if (globalAttributeSearchQuery.trim().length >= 2) return true;
+			for (const q of Object.values(localNodeAttributeSearchQueries)) {
+				if (q.trim().length >= 2) return true;
+			}
+			return false;
+		}, [globalAttributeSearchQuery, localNodeAttributeSearchQueries]);
 
+		const attrConnectionMap = useMemo(() => {
 			const connections = new Map<string, Set<string>>();
 			for (const mapping of data.mappings || []) {
 				if (!mapping.deps) continue;
@@ -257,7 +368,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 			return connections;
-		}, [data.mappings, graphMode, hoveredAttribute, selectedAttribute]);
+		}, [data.mappings]);
 
 		// Compute hover-highlighted attributes for each entity
 		const hoverHighlightedByEntity = useMemo(() => {
@@ -312,6 +423,71 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 			return result;
 		}, [selectedAttribute, attrConnectionMap]);
+
+		const searchedHighlightedByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			if (!isAnyAttributeSearchActive) return result;
+
+			const add = (entityId: string, attrName: string) => {
+				if (!result.has(entityId)) result.set(entityId, new Set());
+				result.get(entityId)!.add(attrName);
+			};
+
+			const globalQuery = globalAttributeSearchQuery.trim().toLowerCase();
+			const entityLocalQueries = localNodeAttributeSearchQueries;
+
+			for (const entity of data.entities || []) {
+				const localQ = (entityLocalQueries[entity.id] ?? "")
+					.trim()
+					.toLowerCase();
+				const q = globalQuery.length >= 2 ? globalQuery : localQ;
+				if (!q || q.length < 2) continue;
+				for (const attr of entity.attrSeq || []) {
+					const name = attr.name?.toLowerCase() ?? "";
+					const type = attr.type?.toLowerCase() ?? "";
+					if (name.includes(q) || type.includes(q)) {
+						add(entity.id, attr.name);
+					}
+				}
+			}
+
+			// Also add connected attrs to ensure the other side renders handles for edges
+			for (const [entityId, attrs] of result) {
+				for (const attrName of attrs) {
+					const key = `${entityId}::${attrName}`;
+					const connected = attrConnectionMap.get(key);
+					if (!connected) continue;
+					for (const connectedKey of connected) {
+						const [cEntityId, cAttrName] = connectedKey.split("::");
+						if (cEntityId && cAttrName) add(cEntityId, cAttrName);
+					}
+				}
+			}
+
+			return result;
+		}, [
+			attrConnectionMap,
+			data.entities,
+			globalAttributeSearchQuery,
+			isAnyAttributeSearchActive,
+			localNodeAttributeSearchQueries,
+		]);
+
+		const selectedOrSearchedAttrsByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			for (const [entityId, attrs] of searchedHighlightedByEntity) {
+				result.set(entityId, new Set(attrs));
+			}
+			for (const [entityId, attrs] of selectedHighlightedByEntity) {
+				const existing = result.get(entityId);
+				if (!existing) {
+					result.set(entityId, new Set(attrs));
+					continue;
+				}
+				for (const a of attrs) existing.add(a);
+			}
+			return result;
+		}, [searchedHighlightedByEntity, selectedHighlightedByEntity]);
 
 		const topologySelectedEntityId = showFullGraphByDefault
 			? null
@@ -423,6 +599,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						highlightType: "none",
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,
+						onOpenEntity,
+						onViewDetails,
 						onAttrHover: handleAttrHover,
 						onAttrClick: handleAttrClick,
 						graphId,
@@ -440,7 +618,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						selectedHighlightedAttrs: EMPTY_STRING_SET,
 						isSearchActive: false,
 						isSearchMatch: false,
-						isExpanded: showAttributesInNodes,
 						onToggleExpand: handleToggleExpand,
 					},
 				};
@@ -454,7 +631,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 
 			// Build a map of actually visible attributes per entity (respecting MAX_VISIBLE_ATTRS)
-			const visibleAttrsPerEntity = new Map<string, Set<string>>();
 			const relatedAttrsCountPerEntity = new Map<string, number>();
 			for (const entity of uniqueEntities) {
 				const sourceAttrs = entitySourceAttrs.get(entity.id) || new Set();
@@ -468,7 +644,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				const visibleAttrs = allRelatedAttrs
 					.slice(0, MAX_VISIBLE_ATTRS)
 					.map((a) => a.name);
-				visibleAttrsPerEntity.set(entity.id, new Set(visibleAttrs));
+				void visibleAttrs;
 			}
 
 			for (const node of nodes) {
@@ -505,115 +681,35 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						continue;
 					}
 
-					// In "entities" mode: always use entity-level edges
-					// In "attributes" mode: use attribute-level edges when available
-					if (
-						graphMode === "attributes" &&
-						dep.attrMaps &&
-						dep.attrMaps.length > 0
-					) {
-						const sourceVisibleAttrs =
-							visibleAttrsPerEntity.get(dep.entityId) || new Set();
-						const targetVisibleAttrs =
-							visibleAttrsPerEntity.get(mapping.entityId) || new Set();
-
-						dep.attrMaps.forEach((attrMap, attrIdx) => {
-							const edgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
-							if (edgeSet.has(edgeId)) return;
-							edgeSet.add(edgeId);
-
-							// Check if entity actually has the attribute AND it's visible
-							const srcEntityHasAttr =
-								entityAttrNames.get(dep.entityId)?.has(attrMap.src) ?? false;
-							const dstEntityHasAttr =
-								entityAttrNames.get(mapping.entityId)?.has(attrMap.dst) ??
-								false;
-							const srcVisible =
-								srcEntityHasAttr && sourceVisibleAttrs.has(attrMap.src);
-							const dstVisible =
-								dstEntityHasAttr && targetVisibleAttrs.has(attrMap.dst);
-
-							// Use entity-level handles if attributes aren't visible
-							const sourceHandle = srcVisible
-								? `attr-source-${attrMap.src}`
-								: "entity-source";
-							const targetHandle = dstVisible
-								? `attr-target-${attrMap.dst}`
-								: "entity-target";
-
-							const edgeColor =
-								ATTR_EDGE_COLORS[attrIdx % ATTR_EDGE_COLORS.length];
-
-							edges.push({
-								id: edgeId,
-								source: dep.entityId,
-								target: mapping.entityId,
-								sourceHandle,
-								targetHandle,
-								type: "smoothstep",
-								animated: false,
-								style: {
-									stroke: edgeColor,
-									strokeWidth: 1.5,
-									opacity: 0.8,
-								},
-								data: {
-									baseStroke: edgeColor,
-									baseStrokeWidth: 1.5,
-								},
-								markerEnd: {
-									type: MarkerType.ArrowClosed,
-									color: edgeColor,
-									width: 12,
-									height: 12,
-								},
-								// Show label if either attribute is not visible
-								label:
-									!srcVisible || !dstVisible
-										? `${attrMap.src} → ${attrMap.dst}`
-										: undefined,
-								labelStyle: { fontSize: 8, fill: "#666" },
-								labelBgStyle: { fill: "#fff", fillOpacity: 0.8 },
-							});
-						});
-					} else {
-						// Entity-level edge (used in "entities" mode or when no attribute mappings)
-						const edgeId = `${dep.entityId}->${mapping.entityId}`;
-						if (edgeSet.has(edgeId)) continue;
-						edgeSet.add(edgeId);
-
-						// Count attribute mappings for label
-						const attrCount = dep.attrMaps?.length || 0;
-
-						edges.push({
-							id: edgeId,
-							source: dep.entityId,
-							target: mapping.entityId,
-							sourceHandle: "entity-source",
-							targetHandle: "entity-target",
-							type: "smoothstep",
-							animated: false,
-							style: {
-								stroke: "#b1b1b7",
-								strokeWidth: 1,
-							},
-							data: {
-								baseStroke: "#b1b1b7",
-								baseStrokeWidth: 1,
-							},
-							markerEnd: {
-								type: MarkerType.ArrowClosed,
-								color: "#b1b1b7",
-							},
-							// Show mapping count in entities mode
-							label:
-								graphMode === "entities" && attrCount > 0
-									? `${attrCount} маппингов`
-									: undefined,
-							labelStyle: { fontSize: 9, fill: "#666" },
-							labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
-						});
-					}
+					// Entity-level edge only (attribute edges added in decoration effect)
+					const edgeId = `${dep.entityId}->${mapping.entityId}`;
+					if (edgeSet.has(edgeId)) continue;
+					edgeSet.add(edgeId);
+					const attrCount = dep.attrMaps?.length || 0;
+					edges.push({
+						id: edgeId,
+						source: dep.entityId,
+						target: mapping.entityId,
+						sourceHandle: "entity-source",
+						targetHandle: "entity-target",
+						type: "smoothstep",
+						animated: false,
+						style: {
+							stroke: "#b1b1b7",
+							strokeWidth: 1,
+						},
+						data: {
+							baseStroke: "#b1b1b7",
+							baseStrokeWidth: 1,
+						},
+						markerEnd: {
+							type: MarkerType.ArrowClosed,
+							color: "#b1b1b7",
+						},
+						label: attrCount > 0 ? `${attrCount} маппингов` : undefined,
+						labelStyle: { fontSize: 9, fill: "#666" },
+						labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
+					});
 				}
 			}
 
@@ -622,7 +718,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			data.entities,
 			data.mappings,
 			graphId,
-			graphMode,
 			topologySelectedEntityId,
 			topologyUpstreamNodes,
 			topologyDownstreamNodes,
@@ -630,17 +725,14 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			topologySearchMatches,
 			upstreamCounts,
 			downstreamCounts,
-			showAttributesInNodes,
 		]);
 
 		// Apply layout (only based on topology)
 		const { nodes: layoutedTopologyNodes, edges: layoutedTopologyEdges } =
 			useMemo(
 				() =>
-					getLayoutedElements(topologyNodes, topologyEdges, layoutDirection, {
-						showAttributesInNodes,
-					}),
-				[topologyNodes, topologyEdges, layoutDirection, showAttributesInNodes],
+					getLayoutedElements(topologyNodes, topologyEdges, layoutDirection),
+				[topologyNodes, topologyEdges, layoutDirection],
 			);
 
 		const [nodes, setNodes, onNodesChange] = useNodesState(
@@ -712,63 +804,155 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		]);
 
 		useEffect(() => {
-			setEdges((prev) =>
-				prev.map((edge) => {
-					const baseStroke =
-						(edge.data as { baseStroke?: string } | undefined)?.baseStroke ??
-						"#b1b1b7";
-					const baseStrokeWidth =
-						(edge.data as { baseStrokeWidth?: number } | undefined)
-							?.baseStrokeWidth ?? 1;
+			// Start from layouted entity-level edges and decorate + append attr edges
+			const shouldShowAttrEdges = selectedAttribute !== null;
 
-					let edgeHighlightType: "none" | "upstream" | "downstream" = "none";
-					if (selectedEntityId) {
-						if (edge.source === selectedEntityId) {
-							edgeHighlightType = "downstream";
-						} else if (edge.target === selectedEntityId) {
-							edgeHighlightType = "upstream";
-						} else if (
-							upstreamNodes.has(edge.source) &&
-							upstreamNodes.has(edge.target)
-						) {
-							edgeHighlightType = "upstream";
-						} else if (
-							downstreamNodes.has(edge.source) &&
-							downstreamNodes.has(edge.target)
-						) {
-							edgeHighlightType = "downstream";
-						}
+			// Build attribute-level edges dynamically
+			const attrEdges: Edge[] = [];
+			if (shouldShowAttrEdges) {
+				const edgeSet = new Set<string>();
+				// Collect existing entity IDs from current nodes
+				const visibleEntityIds = new Set(nodes.map((n) => n.id));
+
+				for (const mapping of data.mappings || []) {
+					if (!mapping.deps) continue;
+					for (const dep of mapping.deps) {
+						if (
+							!dep.attrMaps ||
+							dep.attrMaps.length === 0 ||
+							!dep.entityId ||
+							!mapping.entityId
+						)
+							continue;
+						if (
+							!visibleEntityIds.has(dep.entityId) ||
+							!visibleEntityIds.has(mapping.entityId)
+						)
+							continue;
+
+						const sourceActiveAttrs =
+							selectedOrSearchedAttrsByEntity.get(dep.entityId) ||
+							EMPTY_STRING_SET;
+						const targetActiveAttrs =
+							selectedOrSearchedAttrsByEntity.get(mapping.entityId) ||
+							EMPTY_STRING_SET;
+
+						dep.attrMaps.forEach((attrMap, attrIdx) => {
+							const shouldRender =
+								sourceActiveAttrs.has(attrMap.src) ||
+								targetActiveAttrs.has(attrMap.dst);
+							if (!shouldRender) return;
+
+							const edgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
+							if (edgeSet.has(edgeId)) return;
+							edgeSet.add(edgeId);
+
+							const edgeColor =
+								ATTR_EDGE_COLORS[attrIdx % ATTR_EDGE_COLORS.length];
+
+							attrEdges.push({
+								id: edgeId,
+								source: dep.entityId,
+								target: mapping.entityId,
+								sourceHandle: `attr-source-${attrMap.src}`,
+								targetHandle: `attr-target-${attrMap.dst}`,
+								type: "bezier",
+								animated: true,
+								style: {
+									stroke: edgeColor,
+									strokeWidth: 2,
+									strokeDasharray: "5,5",
+									opacity: 0.85,
+								},
+								data: {
+									baseStroke: edgeColor,
+									baseStrokeWidth: 2,
+									isAttrEdge: true,
+								},
+								markerEnd: {
+									type: MarkerType.ArrowClosed,
+									color: edgeColor,
+									width: 12,
+									height: 12,
+								},
+								label: `${attrMap.src} → ${attrMap.dst}`,
+								labelStyle: { fontSize: 8, fill: "#666" },
+								labelBgStyle: { fill: "#fff", fillOpacity: 0.8 },
+							});
+						});
 					}
+				}
+			}
 
-					const isHighlighted = edgeHighlightType !== "none";
-					const stroke = isHighlighted
-						? edgeHighlightType === "upstream"
-							? HIGHLIGHT_COLORS.upstream
-							: HIGHLIGHT_COLORS.downstream
-						: baseStroke;
-					const strokeWidth = isHighlighted
-						? baseStrokeWidth + 1
-						: baseStrokeWidth;
+			// Decorate entity-level edges from layout + append attr edges
+			const decoratedEntityEdges = layoutedTopologyEdges.map((edge) => {
+				const baseStroke =
+					(edge.data as { baseStroke?: string } | undefined)?.baseStroke ??
+					"#b1b1b7";
+				const baseStrokeWidth =
+					(edge.data as { baseStrokeWidth?: number } | undefined)
+						?.baseStrokeWidth ?? 1;
 
-					return {
-						...edge,
-						animated: isHighlighted,
-						style: {
-							...(edge.style || {}),
-							stroke,
-							strokeWidth,
-						},
-						markerEnd:
-							edge.markerEnd && typeof edge.markerEnd === "object"
-								? {
-										...edge.markerEnd,
-										color: stroke,
-									}
-								: edge.markerEnd,
-					};
-				}),
-			);
-		}, [selectedEntityId, upstreamNodes, downstreamNodes, setEdges]);
+				let edgeHighlightType: "none" | "upstream" | "downstream" = "none";
+				if (selectedEntityId) {
+					if (edge.source === selectedEntityId) {
+						edgeHighlightType = "downstream";
+					} else if (edge.target === selectedEntityId) {
+						edgeHighlightType = "upstream";
+					} else if (
+						upstreamNodes.has(edge.source) &&
+						upstreamNodes.has(edge.target)
+					) {
+						edgeHighlightType = "upstream";
+					} else if (
+						downstreamNodes.has(edge.source) &&
+						downstreamNodes.has(edge.target)
+					) {
+						edgeHighlightType = "downstream";
+					}
+				}
+
+				const isHighlighted = edgeHighlightType !== "none";
+				const stroke = isHighlighted
+					? edgeHighlightType === "upstream"
+						? HIGHLIGHT_COLORS.upstream
+						: HIGHLIGHT_COLORS.downstream
+					: baseStroke;
+				const strokeWidth = isHighlighted
+					? baseStrokeWidth + 1
+					: baseStrokeWidth;
+
+				return {
+					...edge,
+					animated: isHighlighted,
+					style: {
+						...(edge.style || {}),
+						stroke,
+						strokeWidth,
+					},
+					markerEnd:
+						edge.markerEnd && typeof edge.markerEnd === "object"
+							? {
+									...edge.markerEnd,
+									color: stroke,
+								}
+							: edge.markerEnd,
+				};
+			});
+
+			setEdges([...decoratedEntityEdges, ...attrEdges]);
+		}, [
+			selectedEntityId,
+			upstreamNodes,
+			downstreamNodes,
+			setEdges,
+			layoutedTopologyEdges,
+			isAnyAttributeSearchActive,
+			selectedAttribute,
+			selectedOrSearchedAttrsByEntity,
+			data.mappings,
+			nodes,
+		]);
 
 		useEffect(() => {
 			const timer = setTimeout(
@@ -800,6 +984,16 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const { mode } = useColorScheme();
 
+		const focusMainNode = useCallback(() => {
+			const nodeId = selectedEntityId ?? nodes[0]?.id;
+			if (!nodeId) return;
+			const node = getNode(nodeId);
+			if (!node) return;
+			const x = node.position.x + (node.measured?.width ?? 280) / 2;
+			const y = node.position.y + (node.measured?.height ?? 100) / 2;
+			setCenter(x, y, { duration: 400 });
+		}, [getNode, nodes, selectedEntityId, setCenter]);
+
 		return (
 			<ReactFlow
 				nodes={nodes}
@@ -809,7 +1003,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				onEdgeClick={handleEdgeClick}
 				onNodeContextMenu={handleNodeContextMenu}
 				nodeTypes={graphNodeTypes}
-				nodesDraggable={false}
+				nodesDraggable
 				nodesConnectable={false}
 				fitView
 				minZoom={0.05}
@@ -819,26 +1013,69 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				colorMode={mode}
 			>
 				<Background color="#e0e0e0" gap={20} />
-				<Controls />
-				{nodes.length <= 500 && (
-					<MiniMap
-						nodeColor={(node) => {
-							const entityNode = node as unknown as EntityNode;
-							if (entityNode.data.highlightType === "selected")
-								return HIGHLIGHT_COLORS.selected;
-							if (entityNode.data.highlightType === "upstream")
-								return HIGHLIGHT_COLORS.upstream;
-							if (entityNode.data.highlightType === "downstream")
-								return HIGHLIGHT_COLORS.downstream;
-							return TYPE_COLORS[entityNode.data.entity.type]?.border || "#999";
-						}}
-						style={{
-							background: "#f5f5f5",
-							border: "1px solid #ddd",
-							borderRadius: 8,
-						}}
-					/>
-				)}
+				<Controls>
+					<div data-name="scroll_to_main_node">
+						<button
+							onClick={focusMainNode}
+							style={{
+								width: 26,
+								height: 26,
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								background: "#fff",
+								border: "none",
+								cursor: "pointer",
+								padding: 0,
+							}}
+							title="Сфокусироваться на главном узле"
+							type="button"
+						>
+							<CenterFocusStrong style={{ fontSize: 16, color: "#666" }} />
+						</button>
+					</div>
+					<div data-name="open_depth_panel">
+						<button
+							onClick={() => setIsDepthPanelOpen(!isDepthPanelOpen)}
+							style={{
+								width: 26,
+								height: 26,
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								background: "#fff",
+								border: "none",
+								cursor:
+									selectedEntityId && maxTraversalDepth > 1
+										? "pointer"
+										: "not-allowed",
+								padding: 0,
+							}}
+							title="Глубина"
+							type="button"
+							disabled={!selectedEntityId || maxTraversalDepth <= 1}
+						>
+							<AccountTree style={{ fontSize: 16, color: "#666" }} />
+						</button>
+					</div>
+				</Controls>
+				<MiniMap
+					nodeColor={(node) => {
+						const entityNode = node as unknown as EntityNode;
+						if (entityNode.data.highlightType === "selected")
+							return HIGHLIGHT_COLORS.selected;
+						if (entityNode.data.highlightType === "upstream")
+							return HIGHLIGHT_COLORS.upstream;
+						if (entityNode.data.highlightType === "downstream")
+							return HIGHLIGHT_COLORS.downstream;
+						return TYPE_COLORS[entityNode.data.entity.type]?.border || "#999";
+					}}
+					style={{
+						background: "#f5f5f5",
+						border: "1px solid #ddd",
+						borderRadius: 8,
+					}}
+				/>
 				<Panel position="top-left">
 					{isTopLeftPanelVisible ? (
 						<div
@@ -879,9 +1116,26 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 								</button>
 							</div>
 							<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+								{selectedAttribute && (
+									<button
+										onClick={handleClearSelectedAttribute}
+										style={{
+											padding: "6px 12px",
+											border: "1px solid #ddd",
+											borderRadius: 6,
+											background: "#fff",
+											cursor: "pointer",
+											fontSize: 11,
+										}}
+										title={selectedAttribute.attrName}
+										type="button"
+									>
+										✕ Очистить атрибут
+									</button>
+								)}
 								<button
 									onClick={() =>
-										setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
+										setLayoutDirection(layoutDirection === "LR" ? "TB" : "TB")
 									}
 									style={{
 										padding: "6px 12px",
@@ -894,29 +1148,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 									type="button"
 								>
 									{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
-								</button>
-								<button
-									onClick={() =>
-										setGraphMode(
-											graphMode === "entities" ? "attributes" : "entities",
-										)
-									}
-									style={{
-										padding: "6px 12px",
-										border: "1px solid #ddd",
-										borderRadius: 6,
-										background: graphMode === "attributes" ? "#e3f2fd" : "#fff",
-										cursor: "pointer",
-										fontSize: 11,
-									}}
-									title={
-										graphMode === "attributes"
-											? "Показаны связи атрибутов"
-											: "Показаны связи объектов"
-									}
-									type="button"
-								>
-									{graphMode === "attributes" ? "Атрибуты" : "Объекты"}
 								</button>
 							</div>
 						</div>
@@ -939,6 +1170,46 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						</button>
 					)}
 				</Panel>
+				{selectedEntityId && maxTraversalDepth > 1 && (
+					<Panel position="bottom-center">
+						{isDepthPanelOpen ? (
+							<div
+								style={{
+									background: "#fff",
+									padding: "8px 10px",
+									borderRadius: 10,
+									boxShadow: "0 2px 10px rgba(0,0,0,0.10)",
+									minWidth: 240,
+								}}
+							>
+								<div
+									style={{
+										display: "flex",
+										justifyContent: "center",
+										fontSize: 10,
+										color: "#666",
+										marginBottom: 4,
+									}}
+								>
+									<span>
+										Глубина: {depthLimit} / {maxTraversalDepth}
+									</span>
+								</div>
+								<input
+									type="range"
+									min={1}
+									max={maxTraversalDepth}
+									step={1}
+									value={depthLimit}
+									onChange={(e) => {
+										setDepthLimit(Number(e.target.value));
+									}}
+									style={{ width: "100%" }}
+								/>
+							</div>
+						) : null}
+					</Panel>
+				)}
 			</ReactFlow>
 		);
 	},

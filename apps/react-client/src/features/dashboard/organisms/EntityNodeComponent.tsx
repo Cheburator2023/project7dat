@@ -1,9 +1,16 @@
-import { memo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { EntityNodeData } from "../types";
 import { TYPE_COLORS, HIGHLIGHT_COLORS, MAX_VISIBLE_ATTRS } from "../constants";
+import { useDashboardStore } from "../stores";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
+
+const EMPTY_STRING_SET = new Set<string>();
+
+const selectGlobalAttributeSearch = (state: {
+	globalAttributeSearchQuery: string;
+}) => state.globalAttributeSearchQuery;
 
 export const EntityNodeComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
@@ -12,36 +19,124 @@ export const EntityNodeComponent = memo(
 			highlightType,
 			onNodeClick,
 			onNodeDoubleClick,
+			onOpenEntity,
+			onViewDetails,
 			onAttrClick,
+			onAttrHover,
 			graphId,
 			upstreamCount,
 			downstreamCount,
-			highlightedSourceAttrs = new Set<string>(),
-			highlightedTargetAttrs = new Set<string>(),
-			selectedHighlightedAttrs = new Set<string>(),
+			highlightedSourceAttrs = EMPTY_STRING_SET,
+			highlightedTargetAttrs = EMPTY_STRING_SET,
+			selectedHighlightedAttrs = EMPTY_STRING_SET,
 			isSearchActive = false,
 			isSearchMatch = false,
 			showAllAttrs = false,
 			isExpanded = false,
-			onToggleExpand,
 		} = data;
 		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 		const attrs = entity.attrSeq || [];
 
-		// Show only related attributes (those that have mappings), limited by MAX_VISIBLE_ATTRS
-		// Or show all attrs if showAllAttrs is true (for entity preview page)
-		// Also include selected highlighted attrs so they're always visible when navigating from entity page
-		const relatedAttrNames = new Set([
-			...highlightedSourceAttrs,
-			...highlightedTargetAttrs,
-			...selectedHighlightedAttrs,
+		const [localSearchQuery, setLocalSearchQuery] = useState("");
+		const globalAttributeSearchQuery = useDashboardStore(
+			selectGlobalAttributeSearch,
+		);
+		const setLocalNodeAttributeSearch = useDashboardStore(
+			(state) => state.setLocalNodeAttributeSearch,
+		);
+		const activeSearchQuery = globalAttributeSearchQuery || localSearchQuery;
+
+		const handleStopPropagation = useCallback((e: React.MouseEvent) => {
+			e.stopPropagation();
+		}, []);
+
+		const handleNavClick = useCallback(
+			(e: React.MouseEvent) => {
+				e.stopPropagation();
+				if (onOpenEntity) {
+					onOpenEntity(entity.id);
+					return;
+				}
+				onNodeClick?.(id);
+			},
+			[entity.id, id, onNodeClick, onOpenEntity],
+		);
+
+		const handleViewDetailsClick = useCallback(
+			(e: React.MouseEvent) => {
+				e.stopPropagation();
+				onViewDetails?.(id);
+			},
+			[id, onViewDetails],
+		);
+
+		const relatedAttrNames = useMemo(() => {
+			return new Set([
+				...highlightedSourceAttrs,
+				...highlightedTargetAttrs,
+				...selectedHighlightedAttrs,
+			]);
+		}, [
+			highlightedSourceAttrs,
+			highlightedTargetAttrs,
+			selectedHighlightedAttrs,
 		]);
-		const allRelatedAttrs = showAllAttrs
-			? attrs
-			: attrs.filter((attr) => relatedAttrNames.has(attr.name));
-		const maxAttrs = showAllAttrs ? 20 : MAX_VISIBLE_ATTRS;
-		const visibleAttrs = allRelatedAttrs.slice(0, maxAttrs);
-		const moreCount = allRelatedAttrs.length - visibleAttrs.length;
+
+		const searchedAttrs = useMemo(() => {
+			const q = activeSearchQuery.trim().toLowerCase();
+			if (!q || q.length < 2) return null;
+			const matched = new Set<string>();
+			for (const attr of attrs) {
+				const name = attr.name?.toLowerCase() ?? "";
+				const type = attr.type?.toLowerCase() ?? "";
+				if (name.includes(q) || type.includes(q)) {
+					matched.add(attr.name);
+				}
+			}
+			return matched;
+		}, [activeSearchQuery, attrs]);
+
+		const isExpandedEffective =
+			isExpanded || selectedHighlightedAttrs.size > 0 || searchedAttrs !== null;
+
+		const { visibleAttrs, moreCount } = useMemo(() => {
+			if (!isExpandedEffective) {
+				return { visibleAttrs: [], moreCount: 0 };
+			}
+
+			if (searchedAttrs) {
+				const filtered = attrs.filter(
+					(attr) =>
+						(searchedAttrs.has(attr.name) && relatedAttrNames.has(attr.name)) ||
+						selectedHighlightedAttrs.has(attr.name),
+				);
+				return { visibleAttrs: filtered, moreCount: 0 };
+			}
+
+			if (selectedHighlightedAttrs.size > 0) {
+				const filtered = attrs.filter((attr) =>
+					selectedHighlightedAttrs.has(attr.name),
+				);
+				return { visibleAttrs: filtered, moreCount: 0 };
+			}
+
+			const allRelatedAttrs = showAllAttrs
+				? attrs
+				: attrs.filter((attr) => relatedAttrNames.has(attr.name));
+			const maxAttrs = showAllAttrs ? 20 : MAX_VISIBLE_ATTRS;
+			const limited = allRelatedAttrs.slice(0, maxAttrs);
+			return {
+				visibleAttrs: limited,
+				moreCount: Math.max(0, allRelatedAttrs.length - limited.length),
+			};
+		}, [
+			attrs,
+			isExpandedEffective,
+			relatedAttrNames,
+			searchedAttrs,
+			selectedHighlightedAttrs,
+			showAllAttrs,
+		]);
 
 		const isDataMart = upstreamCount > 0 && downstreamCount === 0;
 		const isSource = upstreamCount === 0 && downstreamCount > 0;
@@ -53,7 +148,7 @@ export const EntityNodeComponent = memo(
 				: colors.border;
 		// Search matches get a pulsing glow effect via different border width
 		const borderWidth =
-			highlightType !== "none" ? (isSearchMatchHighlight ? 6 : 13) : 3;
+			highlightType !== "none" ? (isSearchMatchHighlight ? 10 : 5) : 3;
 
 		// Dim non-matching nodes when search is active
 		const shouldDim =
@@ -66,7 +161,7 @@ export const EntityNodeComponent = memo(
 					background: "#fff",
 					border: `${borderWidth}px solid ${borderColor}`,
 					borderRadius: 8,
-					width: 280,
+					width: 300,
 					boxShadow:
 						highlightType !== "none"
 							? `0 4px 20px ${borderColor}40`
@@ -76,7 +171,6 @@ export const EntityNodeComponent = memo(
 					opacity: nodeOpacity,
 					transition: "all 0.2s ease",
 				}}
-				onClick={() => onNodeClick(id)}
 				onDoubleClick={() => onNodeDoubleClick(id, graphId)}
 			>
 				{/* Header */}
@@ -119,7 +213,7 @@ export const EntityNodeComponent = memo(
 										}}
 										title="Система"
 									>
-										{entity.system_code}
+										Система: {entity.system_code}
 									</span>
 								)}
 								{entity.modified && (
@@ -133,7 +227,7 @@ export const EntityNodeComponent = memo(
 											fontSize: 9,
 										}}
 									>
-										изм.
+										modified
 									</span>
 								)}
 								{isDataMart && (
@@ -196,7 +290,15 @@ export const EntityNodeComponent = memo(
 							)}
 						</div>
 					</div>
-					<div style={{ display: "flex", gap: 8, marginTop: 6, fontSize: 10 }}>
+					<div
+						style={{
+							display: "flex",
+							gap: 8,
+							marginTop: 6,
+							fontSize: 10,
+							alignItems: "center",
+						}}
+					>
 						{upstreamCount > 0 && (
 							<span
 								style={{ color: HIGHLIGHT_COLORS.upstream, fontWeight: 500 }}
@@ -214,32 +316,87 @@ export const EntityNodeComponent = memo(
 						<span style={{ color: "#888", marginLeft: "auto" }}>
 							{attrs.length} атр.
 						</span>
-						{attrs.length > 0 && onToggleExpand && (
+						{onViewDetails && (
 							<button
-								type="button"
-								onClick={(e) => {
-									e.stopPropagation();
-									onToggleExpand(id);
-								}}
+								onClick={handleViewDetailsClick}
 								style={{
-									background: "none",
+									padding: "2px 6px",
+									background: "#d26019",
+									color: "#fff",
 									border: "none",
+									borderRadius: 4,
+									fontSize: 9,
+									fontWeight: 500,
 									cursor: "pointer",
-									padding: "2px 4px",
-									marginLeft: 4,
-									color: "#1976d2",
-									fontSize: 12,
+									display: "flex",
+									alignItems: "center",
+									gap: 2,
 								}}
-								title={isExpanded ? "Скрыть атрибуты" : "Показать атрибуты"}
+								title="Открыть детали"
+								type="button"
 							>
-								{isExpanded ? "▼" : "▶"}
+								ⓘ
+							</button>
+						)}
+						{onOpenEntity && (
+							<button
+								onClick={handleNavClick}
+								style={{
+									padding: "2px 6px",
+									background: "#1976d2",
+									color: "#fff",
+									border: "none",
+									borderRadius: 4,
+									fontSize: 9,
+									fontWeight: 500,
+									cursor: "pointer",
+									display: "flex",
+									alignItems: "center",
+									gap: 2,
+								}}
+								title="Открыть страницу сущности"
+								type="button"
+							>
+								↗
 							</button>
 						)}
 					</div>
 				</div>
 
+				{!globalAttributeSearchQuery && (
+					<div
+						className="nodrag nopan"
+						style={{
+							padding: "8px 12px",
+							borderBottom: "1px solid #e0e0e0",
+						}}
+						onPointerDown={handleStopPropagation}
+						onMouseDown={handleStopPropagation}
+					>
+						<input
+							type="text"
+							placeholder="Поиск атрибутов (мин. 2 символа)..."
+							value={localSearchQuery}
+							onChange={(e) => {
+								const next = e.target.value;
+								setLocalSearchQuery(next);
+								setLocalNodeAttributeSearch(entity.id, next);
+							}}
+							onClick={handleStopPropagation}
+							style={{
+								width: "100%",
+								padding: "4px 8px",
+								fontSize: 10,
+								border: "1px solid #ddd",
+								borderRadius: 4,
+								outline: "none",
+							}}
+						/>
+					</div>
+				)}
+
 				{/* Related attributes */}
-				{isExpanded && visibleAttrs.length > 0 && (
+				{visibleAttrs.length > 0 && (
 					<div>
 						{visibleAttrs.map((attr, idx) => {
 							const isSourceHighlighted = highlightedSourceAttrs.has(attr.name);
@@ -247,6 +404,8 @@ export const EntityNodeComponent = memo(
 							const isSelectedHighlighted = selectedHighlightedAttrs.has(
 								attr.name,
 							);
+							const leftArrow = isTargetHighlighted || isSelectedHighlighted;
+							const rightArrow = isSourceHighlighted || isSelectedHighlighted;
 							return (
 								<div
 									key={attr.name}
@@ -254,6 +413,8 @@ export const EntityNodeComponent = memo(
 										e.stopPropagation();
 										onAttrClick(id, attr.name);
 									}}
+									onMouseEnter={() => onAttrHover?.(id, attr.name)}
+									onMouseLeave={() => onAttrHover?.(id, null)}
 									style={{
 										display: "flex",
 										justifyContent: "space-between",
@@ -292,6 +453,18 @@ export const EntityNodeComponent = memo(
 									/>
 									<span
 										style={{
+											width: 12,
+											color: leftArrow
+												? HIGHLIGHT_COLORS.selected
+												: "transparent",
+											fontWeight: 700,
+											flexShrink: 0,
+										}}
+									>
+										←
+									</span>
+									<span
+										style={{
 											color: isSelectedHighlighted ? "#333" : "#555",
 											whiteSpace: "nowrap",
 											overflow: "hidden",
@@ -304,6 +477,19 @@ export const EntityNodeComponent = memo(
 									</span>
 									<span style={{ color: "#999", marginLeft: 8, fontSize: 9 }}>
 										{attr.type}
+									</span>
+									<span
+										style={{
+											width: 12,
+											color: rightArrow
+												? HIGHLIGHT_COLORS.selected
+												: "transparent",
+											fontWeight: 700,
+											flexShrink: 0,
+											textAlign: "right",
+										}}
+									>
+										→
 									</span>
 									{/* Source handle for this attribute */}
 									<Handle
@@ -325,19 +511,21 @@ export const EntityNodeComponent = memo(
 								</div>
 							);
 						})}
-						{moreCount > 0 && (
-							<div
-								style={{
-									padding: "4px 12px",
-									fontSize: 10,
-									color: "#1976d2",
-									background: "#f8f9fa",
-									textAlign: "center",
-								}}
-							>
-								+{moreCount} ещё...
-							</div>
-						)}
+						{moreCount > 0 &&
+							searchedAttrs === null &&
+							selectedHighlightedAttrs.size === 0 && (
+								<div
+									style={{
+										padding: "4px 12px",
+										fontSize: 10,
+										color: "#1976d2",
+										background: "#f8f9fa",
+										textAlign: "center",
+									}}
+								>
+									+{moreCount} ещё...
+								</div>
+							)}
 					</div>
 				)}
 

@@ -11,6 +11,8 @@ const root = ReactDOM.createRoot(
 	document.getElementById("root") as HTMLElement,
 );
 
+console.log("Non MFE ROOT >> RenderApp:");
+
 const RenderApp = () => {
 	const [urlConfig, setUrlConfig] = useState<any>();
 

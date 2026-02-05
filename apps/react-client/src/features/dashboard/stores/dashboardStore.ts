@@ -32,6 +32,7 @@ interface SelectionState {
 	// Filter state
 	globalSearchQuery: string;
 	globalAttributeSearchQuery: string;
+	localNodeAttributeSearchQueries: Record<string, string>;
 	filters: FilterState;
 
 	// Actions
@@ -46,6 +47,7 @@ interface SelectionState {
 	clearHighlights: () => void;
 	setGlobalSearch: (query: string) => void;
 	setGlobalAttributeSearch: (query: string) => void;
+	setLocalNodeAttributeSearch: (entityId: string, query: string) => void;
 	setFilters: (filters: FilterState) => void;
 	updateFilter: <K extends keyof FilterState>(
 		key: K,
@@ -98,6 +100,7 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 		set({ searchMatchedEntities: matches }),
 	globalSearchQuery: "",
 	globalAttributeSearchQuery: "",
+	localNodeAttributeSearchQueries: {},
 	upstreamEntities: new Set(),
 	downstreamEntities: new Set(),
 
@@ -139,6 +142,17 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 	setGlobalSearch: (query) => set({ globalSearchQuery: query }),
 	setGlobalAttributeSearch: (query) =>
 		set({ globalAttributeSearchQuery: query }),
+	setLocalNodeAttributeSearch: (entityId, query) =>
+		set((state) => {
+			const trimmed = query.trim();
+			const next = { ...state.localNodeAttributeSearchQueries };
+			if (!trimmed) {
+				delete next[entityId];
+			} else {
+				next[entityId] = query;
+			}
+			return { localNodeAttributeSearchQueries: next };
+		}),
 
 	filters: initialFilters,
 	setFilters: (filters) => set({ filters }),

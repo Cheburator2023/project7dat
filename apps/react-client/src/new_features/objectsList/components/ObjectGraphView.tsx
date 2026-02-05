@@ -1,4 +1,11 @@
-import React, { useCallback, useMemo, memo } from "react";
+import React, {
+	useCallback,
+	useMemo,
+	memo,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { useNavigate } from "react-router";
 import {
 	ReactFlow,
@@ -14,10 +21,29 @@ import {
 	MarkerType,
 	useNodesState,
 	useEdgesState,
+	Panel,
+	useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "@dagrejs/dagre";
-import { styled, Box, Typography, Chip, useColorScheme } from "@mui/material";
+import {
+	styled,
+	Box,
+	Typography,
+	Chip,
+	useColorScheme,
+	Menu,
+	MenuItem,
+	ListItemIcon,
+	ListItemText,
+	Divider,
+} from "@mui/material";
+import {
+	CenterFocusStrong,
+	ContentCopy,
+	OpenInNew,
+	Info,
+} from "@mui/icons-material";
 import type { ObjectItem, AttributeConnection } from "../types";
 
 // ============================================================================
@@ -223,6 +249,12 @@ interface ObjectGraphFlowProps {
 	attributeConnections: AttributeConnection[];
 }
 
+interface ObjectContextMenuState {
+	x: number;
+	y: number;
+	objectId: string;
+}
+
 const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 	currentObject,
 	relatedObjects,
@@ -230,12 +262,81 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 	attributeConnections,
 }) => {
 	const navigate = useNavigate();
+	const [layoutDirection, setLayoutDirection] = useState<"TB" | "LR">("LR");
+	const { setCenter, getNode } = useReactFlow();
+	const hasFocusedInitiallyRef = useRef(false);
+	const [contextMenu, setContextMenu] = useState<ObjectContextMenuState | null>(
+		null,
+	);
 
 	const handleNodeClick = useCallback(
 		(objectId: string) => {
 			navigate(`/objects/${encodeURIComponent(objectId)}`);
 		},
 		[navigate],
+	);
+
+	const handleCloseContextMenu = useCallback(() => {
+		setContextMenu(null);
+	}, []);
+
+	const contextMenuObject = useMemo(() => {
+		if (!contextMenu) return null;
+		return allObjects.find((obj) => obj.id === contextMenu.objectId) ?? null;
+	}, [allObjects, contextMenu]);
+
+	const handleGoToObject = useCallback(() => {
+		if (!contextMenuObject) return;
+		navigate(`/objects/${encodeURIComponent(contextMenuObject.id)}`);
+		handleCloseContextMenu();
+	}, [contextMenuObject, handleCloseContextMenu, navigate]);
+
+	const handleOpenObjectInNewTab = useCallback(() => {
+		if (!contextMenuObject) return;
+		window.open(
+			`/objects/${encodeURIComponent(contextMenuObject.id)}`,
+			"_blank",
+		);
+		handleCloseContextMenu();
+	}, [contextMenuObject, handleCloseContextMenu]);
+
+	const handleCopyId = useCallback(() => {
+		if (!contextMenuObject) return;
+		navigator.clipboard.writeText(contextMenuObject.id);
+		handleCloseContextMenu();
+	}, [contextMenuObject, handleCloseContextMenu]);
+
+	const handleGoToEntity = useCallback(() => {
+		if (!contextMenuObject) return;
+		const entityId =
+			contextMenuObject.objectType === "Признак"
+				? contextMenuObject.graphId
+					? `${contextMenuObject.graphId}::${contextMenuObject.modelId}`
+					: null
+				: contextMenuObject.id;
+		if (!entityId) return;
+		navigate(`/entity/${encodeURIComponent(entityId)}`);
+		handleCloseContextMenu();
+	}, [contextMenuObject, handleCloseContextMenu, navigate]);
+
+	const handleGoToModel = useCallback(() => {
+		if (!contextMenuObject) return;
+		navigate(
+			`/services/models/${encodeURIComponent(contextMenuObject.modelId)}`,
+		);
+		handleCloseContextMenu();
+	}, [contextMenuObject, handleCloseContextMenu, navigate]);
+
+	const handleNodeContextMenu = useCallback(
+		(event: React.MouseEvent, node: Node) => {
+			event.preventDefault();
+			setContextMenu({
+				x: event.clientX,
+				y: event.clientY,
+				objectId: node.id,
+			});
+		},
+		[],
 	);
 
 	const { initialNodes, initialEdges } = useMemo(() => {
@@ -373,7 +474,7 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 		const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
 			nodes,
 			edges,
-			"LR",
+			layoutDirection,
 		);
 
 		return { initialNodes: layoutedNodes, initialEdges: layoutedEdges };
@@ -383,11 +484,40 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 		allObjects,
 		attributeConnections,
 		handleNodeClick,
+		layoutDirection,
 	]);
 
 	const [nodes, , onNodesChange] = useNodesState(initialNodes);
 	const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 	const { mode } = useColorScheme();
+
+	const focusMainNode = useCallback(() => {
+		const node = getNode(currentObject.id);
+		if (!node) return;
+		const x = node.position.x + (node.measured?.width ?? NODE_WIDTH) / 2;
+		const y = node.position.y + (node.measured?.height ?? NODE_HEIGHT) / 2;
+		setCenter(x, y, { duration: 400 });
+	}, [currentObject.id, getNode, setCenter]);
+
+	useEffect(() => {
+		if (hasFocusedInitiallyRef.current) return;
+		const exists = nodes.some((n) => n.id === currentObject.id);
+		if (!exists) return;
+		const handle = window.setTimeout(() => {
+			focusMainNode();
+			hasFocusedInitiallyRef.current = true;
+		}, 120);
+		return () => window.clearTimeout(handle);
+	}, [currentObject.id, focusMainNode, nodes]);
+
+	useEffect(() => {
+		const exists = nodes.some((n) => n.id === currentObject.id);
+		if (!exists) return;
+		const handle = window.setTimeout(() => {
+			focusMainNode();
+		}, 120);
+		return () => window.clearTimeout(handle);
+	}, [currentObject.id, focusMainNode, layoutDirection, nodes]);
 
 	return (
 		<ReactFlow
@@ -395,6 +525,7 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 			edges={edges}
 			onNodesChange={onNodesChange}
 			onEdgesChange={onEdgesChange}
+			onNodeContextMenu={handleNodeContextMenu}
 			nodeTypes={nodeTypes}
 			fitView
 			fitViewOptions={{ padding: 0.2 }}
@@ -408,7 +539,28 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 			colorMode={mode}
 		>
 			<Background color="#e0e0e0" gap={16} />
-			<Controls />
+			<Controls>
+				<div data-name="scroll_to_main_node">
+					<button
+						onClick={focusMainNode}
+						style={{
+							width: 26,
+							height: 26,
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							background: "#fff",
+							border: "none",
+							cursor: "pointer",
+							padding: 0,
+						}}
+						title="К основной ноде"
+						type="button"
+					>
+						<CenterFocusStrong style={{ fontSize: 16, color: "#666" }} />
+					</button>
+				</div>
+			</Controls>
 			<MiniMap
 				nodeColor={(node) => {
 					const data = node.data as ObjectNodeData;
@@ -417,6 +569,84 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 				maskColor="rgba(0, 0, 0, 0.1)"
 				style={{ background: "#f5f5f5" }}
 			/>
+			<Panel position="top-left">
+				<div
+					style={{
+						background: "#fff",
+						padding: 12,
+						borderRadius: 8,
+						boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+					}}
+				>
+					<div style={{ marginBottom: 8 }}>
+						<div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+							Граф объектов
+						</div>
+						<div style={{ fontSize: 11, color: "#666" }}>
+							{nodes.length} узлов, {edges.length} связей
+						</div>
+					</div>
+					<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+						<button
+							onClick={() =>
+								setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
+							}
+							style={{
+								padding: "6px 12px",
+								border: "1px solid #ddd",
+								borderRadius: 6,
+								background: "#fff",
+								cursor: "pointer",
+								fontSize: 11,
+							}}
+							type="button"
+						>
+							{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
+						</button>
+					</div>
+				</div>
+			</Panel>
+			<Menu
+				open={contextMenu !== null}
+				onClose={handleCloseContextMenu}
+				anchorReference="anchorPosition"
+				anchorPosition={
+					contextMenu ? { top: contextMenu.y, left: contextMenu.x } : undefined
+				}
+			>
+				<MenuItem onClick={handleGoToObject}>
+					<ListItemIcon>
+						<Info fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>Открыть карточку объекта</ListItemText>
+				</MenuItem>
+				<MenuItem onClick={handleOpenObjectInNewTab}>
+					<ListItemIcon>
+						<OpenInNew fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>Открыть в новой вкладке</ListItemText>
+				</MenuItem>
+				<MenuItem onClick={handleCopyId}>
+					<ListItemIcon>
+						<ContentCopy fontSize="small" />
+					</ListItemIcon>
+					<ListItemText>Скопировать ID</ListItemText>
+				</MenuItem>
+				<Divider />
+				<MenuItem
+					onClick={handleGoToEntity}
+					disabled={
+						!contextMenuObject ||
+						(contextMenuObject.objectType === "Признак" &&
+							!contextMenuObject.graphId)
+					}
+				>
+					<ListItemText>Перейти к сущности</ListItemText>
+				</MenuItem>
+				<MenuItem onClick={handleGoToModel} disabled={!contextMenuObject}>
+					<ListItemText>Перейти к модели</ListItemText>
+				</MenuItem>
+			</Menu>
 		</ReactFlow>
 	);
 };

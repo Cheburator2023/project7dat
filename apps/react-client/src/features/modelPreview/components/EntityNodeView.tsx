@@ -1299,9 +1299,6 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 						}}
 					>
 						<div style={{ marginBottom: 8 }}>
-							<div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-								Граф зависимостей
-							</div>
 							<div style={{ fontSize: 11, color: "#666" }}>
 								{filteredEntities.length} связанных сущностей
 							</div>
