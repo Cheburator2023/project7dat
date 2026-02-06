@@ -1,8 +1,9 @@
-import { memo, useState, useCallback, useMemo, useEffect } from "react";
+import { memo, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
 	ReactFlow,
 	type Node,
 	type Edge,
+	type NodeChange,
 	Background,
 	Controls,
 	MiniMap,
@@ -864,11 +865,98 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			layoutedTopologyEdges,
 		);
 
-		// When topology/layout changes, reset nodes/edges positions
+		// Animate node positions when topology/layout changes
+		const animFrameRef = useRef<number>(0);
+		const prevPositionsRef = useRef<Map<string, { x: number; y: number }>>(
+			new Map(),
+		);
+
 		useEffect(() => {
-			setNodes(layoutedTopologyNodes as Node[]);
+			cancelAnimationFrame(animFrameRef.current);
+
+			const targetNodes = layoutedTopologyNodes as Node[];
+			const targetPositions = new Map<string, { x: number; y: number }>();
+			for (const n of targetNodes) {
+				targetPositions.set(n.id, { x: n.position.x, y: n.position.y });
+			}
+
+			// Determine start positions: use previous known position or fallback
+			const prev = prevPositionsRef.current;
+			const fallback =
+				selectedEntityId && prev.has(selectedEntityId)
+					? prev.get(selectedEntityId)!
+					: prev.size > 0
+						? (() => {
+								let sx = 0;
+								let sy = 0;
+								let cnt = 0;
+								for (const p of prev.values()) {
+									sx += p.x;
+									sy += p.y;
+									cnt++;
+								}
+								return { x: sx / cnt, y: sy / cnt };
+							})()
+						: { x: 0, y: 0 };
+
+			const startPositions = new Map<string, { x: number; y: number }>();
+			for (const n of targetNodes) {
+				startPositions.set(n.id, prev.get(n.id) ?? fallback);
+			}
+
+			// Check if this is the very first render (no previous positions)
+			const isFirstRender = prev.size === 0;
+
 			setEdges(layoutedTopologyEdges);
-		}, [layoutedTopologyNodes, layoutedTopologyEdges, setNodes, setEdges]);
+
+			if (isFirstRender) {
+				// No animation on first render — just set positions directly
+				setNodes(targetNodes);
+				prevPositionsRef.current = targetPositions;
+				return;
+			}
+
+			const DURATION = 300;
+			const startTime = performance.now();
+
+			const animate = (now: number) => {
+				const elapsed = now - startTime;
+				const rawT = Math.min(elapsed / DURATION, 1);
+				// ease-out cubic
+				const t = 1 - (1 - rawT) ** 3;
+
+				setNodes(
+					targetNodes.map((n) => {
+						const start = startPositions.get(n.id)!;
+						const target = targetPositions.get(n.id)!;
+						return {
+							...n,
+							position: {
+								x: start.x + (target.x - start.x) * t,
+								y: start.y + (target.y - start.y) * t,
+							},
+						};
+					}),
+				);
+
+				if (rawT < 1) {
+					animFrameRef.current = requestAnimationFrame(animate);
+				} else {
+					// Animation complete — store final positions
+					prevPositionsRef.current = targetPositions;
+				}
+			};
+
+			animFrameRef.current = requestAnimationFrame(animate);
+
+			return () => cancelAnimationFrame(animFrameRef.current);
+		}, [
+			layoutedTopologyNodes,
+			layoutedTopologyEdges,
+			setNodes,
+			setEdges,
+			selectedEntityId,
+		]);
 
 		// Apply highlight/search/hover decorations WITHOUT re-running layout
 		useEffect(() => {
@@ -1103,7 +1191,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		useEffect(() => {
 			const timer = setTimeout(
 				() => fitView({ padding: 0.1, duration: 300 }),
-				100,
+				350,
 			);
 			return () => clearTimeout(timer);
 		}, [
@@ -1140,11 +1228,30 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			setCenter(x, y, { duration: 200 });
 		}, [getNode, nodes, selectedEntityId, setCenter]);
 
+		const handleNodesChange = useCallback(
+			(changes: NodeChange[]) => {
+				onNodesChange(changes);
+				for (const change of changes) {
+					if (
+						change.type === "position" &&
+						change.position &&
+						!change.dragging
+					) {
+						prevPositionsRef.current.set(change.id, {
+							x: change.position.x,
+							y: change.position.y,
+						});
+					}
+				}
+			},
+			[onNodesChange],
+		);
+
 		return (
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
-				onNodesChange={onNodesChange}
+				onNodesChange={handleNodesChange}
 				onEdgesChange={onEdgesChange}
 				onEdgeClick={handleEdgeClick}
 				onNodeContextMenu={handleNodeContextMenu}
