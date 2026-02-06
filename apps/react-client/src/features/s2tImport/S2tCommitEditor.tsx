@@ -6,6 +6,7 @@ import {
 	Autocomplete,
 	Box,
 	Button,
+	Chip,
 	CircularProgress,
 	Divider,
 	IconButton,
@@ -18,8 +19,9 @@ import {
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import { useAuthStore } from "@react-client/common/store/authStore";
-import { useProcesses } from "@react-client/api/hooks";
+import { useProcessesWithDescriptions } from "@react-client/api/hooks";
 import { Card } from "@react-client/common/muiCustom/Card";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 
 const API_BASE_URL =
 	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
@@ -75,12 +77,14 @@ export const S2tCommitEditor = ({
 	const username = authStore.userInfo?.username ?? "system";
 	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
 
-	const [convertedMeta, setConvertedMeta] = useState<{
+	const [_convertedMeta, setConvertedMeta] = useState<{
 		fileName?: string;
 		generatedAt: string;
 		worksheetsCount: number;
 	} | null>(null);
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
+	console.log("🐸 Pepe said >> S2tCommitEditor >> selectedFile:", selectedFile);
+
 	const [dragOver, setDragOver] = useState(false);
 
 	const [commitName, setCommitName] = useState("");
@@ -95,9 +99,9 @@ export const S2tCommitEditor = ({
 	const [isSaving, setIsSaving] = useState(false);
 	const [isApplying, setIsApplying] = useState(false);
 	const [error, setError] = useState<string>("");
-	const [infoMessage, setInfoMessage] = useState<string>("");
-	const [validationErrors, setValidationErrors] = useState<string[]>([]);
-	const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+	const [_infoMessage, setInfoMessage] = useState<string>("");
+	const [_validationErrors, setValidationErrors] = useState<string[]>([]);
+	const [_validationWarnings, setValidationWarnings] = useState<string[]>([]);
 	const [savedCommit, setSavedCommit] = useState<{
 		id: string;
 		state: "processing" | "done" | "failed";
@@ -114,25 +118,26 @@ export const S2tCommitEditor = ({
 
 	const showProcessFields = useMemo(() => {
 		const fileName = selectedFile?.name?.toLowerCase() ?? "";
-		return (
-			fileName.length > 0 &&
-			!fileName.includes("json_") &&
-			!fileName.includes("model_")
-		);
+		return fileName.length > 0 && !fileName.includes("json_");
 	}, [selectedFile?.name]);
 	const shouldShowProcessFields = showProcessFields || !!prefillCommitId;
 
-	const processesQuery = useProcesses({
+	const processesQuery = useProcessesWithDescriptions({
 		enabled: active && shouldShowProcessFields,
 	});
 	const isProcessOptionsLoading = processesQuery.isLoading;
+	const processItems = processesQuery.data ?? [];
 	const processOptions = useMemo(() => {
-		const items = processesQuery.data ?? [];
-		return items
-			.filter((v) => typeof v === "string")
-			.map((v) => v.trim())
-			.filter((v) => v.length > 0);
-	}, [processesQuery.data]);
+		return processItems.map((v) => v.name.trim()).filter((v) => v.length > 0);
+	}, [processItems]);
+
+	const selectedProcessDescription = useMemo(() => {
+		if (!processName.trim()) return null;
+		const found = processItems.find(
+			(p) => p.name.trim() === processName.trim(),
+		);
+		return found?.description ?? null;
+	}, [processItems, processName]);
 
 	const resetState = useCallback(() => {
 		setSelectedFile(null);
@@ -277,6 +282,23 @@ export const S2tCommitEditor = ({
 		if (selectedFile) return "table";
 		return prefilledCommitType ?? "table";
 	}, [prefilledCommitType, selectedFile]);
+
+	const commitTypeChip = useMemo(() => {
+		const labelMap: Record<typeof commitType, string> = {
+			table: "S2T витрина",
+			json: "S2T JSON файл",
+			model: "S2T модель",
+		};
+		const colorMap: Record<
+			typeof commitType,
+			"default" | "primary" | "success" | "warning"
+		> = {
+			table: "primary",
+			json: "success",
+			model: "warning",
+		};
+		return { label: labelMap[commitType], color: colorMap[commitType] };
+	}, [commitType]);
 
 	const handleSaveCommit = useCallback(
 		async (mode?: "overwrite" | "edition") => {
@@ -514,60 +536,41 @@ export const S2tCommitEditor = ({
 			</Box>
 
 			<Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-				<Box>
-					<Typography
-						variant="subtitle2"
-						sx={{
-							display: "inline-block",
-							px: 1.5,
-							py: 0.5,
-							borderRadius: 999,
-							backgroundColor: "primary.main",
-							color: "primary.contrastText",
-							mb: 1,
-						}}
-					>
-						Метаданные
-					</Typography>
-
-					<Box
-						sx={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 2 }}
-					>
-						<Typography sx={{ pt: 1 }}>
-							Наименование
-							<Typography component="span" color="error">
-								*
-							</Typography>
+				<Box sx={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 2 }}>
+					<Typography sx={{ pt: 1 }}>
+						Наименование
+						<Typography component="span" color="error">
+							*
 						</Typography>
-						<TextField
-							name="s2tCommitName"
-							autoComplete="s2tCommitName"
-							value={commitName}
-							onChange={(e) => {
-								setCommitName(e.target.value);
-								setFieldErrors((prev) => ({
-									...prev,
-									commitName: undefined,
-								}));
-							}}
-							placeholder="название коммита"
-							fullWidth
-							disabled={isSaving || isApplying}
-							error={Boolean(fieldErrors.commitName)}
-							helperText={fieldErrors.commitName}
-						/>
-						<Typography sx={{ pt: 1 }}>Описание</Typography>
-						<TextField
-							name="s2tCommitDescription"
-							autoComplete="s2tCommitDescription"
-							value={commitDescription}
-							onChange={(e) => setCommitDescription(e.target.value)}
-							multiline
-							rows={3}
-							fullWidth
-							disabled={isSaving || isApplying}
-						/>
-					</Box>
+					</Typography>
+					<TextField
+						name="s2tCommitName"
+						autoComplete="s2tCommitName"
+						value={commitName}
+						onChange={(e) => {
+							setCommitName(e.target.value);
+							setFieldErrors((prev) => ({
+								...prev,
+								commitName: undefined,
+							}));
+						}}
+						placeholder="название коммита"
+						fullWidth
+						disabled={isSaving || isApplying}
+						error={Boolean(fieldErrors.commitName)}
+						helperText={fieldErrors.commitName}
+					/>
+					<Typography sx={{ pt: 1 }}>Описание</Typography>
+					<TextField
+						name="s2tCommitDescription"
+						autoComplete="s2tCommitDescription"
+						value={commitDescription}
+						onChange={(e) => setCommitDescription(e.target.value)}
+						multiline
+						rows={3}
+						fullWidth
+						disabled={isSaving || isApplying}
+					/>
 				</Box>
 
 				{shouldShowProcessFields && (
@@ -604,17 +607,24 @@ export const S2tCommitEditor = ({
 								</Typography>
 								<Autocomplete
 									freeSolo
+									disablePortal
 									loading={isProcessOptionsLoading}
 									options={processOptions}
 									value={processName}
 									onChange={(_, value) => {
-										setProcessName(
-											typeof value === "string" ? value : value || "",
-										);
+										const name =
+											typeof value === "string" ? value : value || "";
+										setProcessName(name);
 										setFieldErrors((prev) => ({
 											...prev,
 											processName: undefined,
 										}));
+										const found = processItems.find(
+											(p) => p.name.trim() === name.trim(),
+										);
+										if (found?.description) {
+											setProcessDescription(found.description);
+										}
 									}}
 									onInputChange={(_, value) => {
 										setProcessName(value);
@@ -622,6 +632,18 @@ export const S2tCommitEditor = ({
 											...prev,
 											processName: undefined,
 										}));
+									}}
+									slotProps={{
+										popper: {
+											sx: {
+												position: "relative",
+												width: "100% !important",
+												transform: "none !important",
+											},
+										},
+										paper: {
+											sx: { maxHeight: 200 },
+										},
 									}}
 									renderInput={(params) => (
 										<TextField
@@ -647,6 +669,15 @@ export const S2tCommitEditor = ({
 										/>
 									)}
 								/>
+								{selectedProcessDescription && (
+									<Typography
+										variant="body2"
+										color="text.secondary"
+										sx={{ gridColumn: "2", mt: -1 }}
+									>
+										{selectedProcessDescription}
+									</Typography>
+								)}
 								<Typography sx={{ pt: 1 }}>Описание</Typography>
 								<TextField
 									name="s2tProcessDescription"
@@ -676,15 +707,27 @@ export const S2tCommitEditor = ({
 						onDragLeave={handleDragLeave}
 						onClick={() => document.getElementById("s2t-file-input")?.click()}
 					>
-						<CloudUploadIcon
-							sx={{ fontSize: 48, color: "text.secondary", mb: 2 }}
-						/>
+						<CloudUploadIcon sx={{ fontSize: 32, color: "text.secondary" }} />
 						<Typography variant="h6" gutterBottom>
 							Перетащите файл сюда или нажмите для выбора
 						</Typography>
 						<Typography variant="body2" color="text.secondary">
 							Поддерживаются XLSX файлы
 						</Typography>
+						{selectedFile && (
+							<div>
+								<Typography variant="body2" color="text.secondary">
+									Выбран файл: {selectedFile.name}
+								</Typography>
+								<Spacer space={4} />
+								<Chip
+									label={"Тип: " + commitTypeChip.label}
+									color={commitTypeChip.color}
+									size="small"
+									variant="filled"
+								/>
+							</div>
+						)}
 					</UploadBox>
 					<input
 						id="s2t-file-input"
@@ -695,11 +738,9 @@ export const S2tCommitEditor = ({
 					/>
 				</Box>
 
-				{selectedFile && (
-					<Alert severity="info">Выбран файл: {selectedFile.name}</Alert>
-				)}
+				<Spacer space={1} />
 
-				{convertedMeta && (
+				{/* {convertedMeta && (
 					<Alert severity="success">
 						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
 							<Typography variant="subtitle2">Конвертация выполнена</Typography>
@@ -714,9 +755,9 @@ export const S2tCommitEditor = ({
 							</Typography>
 						</Box>
 					</Alert>
-				)}
+				)} */}
 
-				{validationErrors.length > 0 && (
+				{/* {validationErrors.length > 0 && (
 					<Alert severity="error">
 						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
 							<Typography variant="subtitle2">Ошибки валидации</Typography>
@@ -727,9 +768,9 @@ export const S2tCommitEditor = ({
 							))}
 						</Box>
 					</Alert>
-				)}
+				)} */}
 
-				{validationWarnings.length > 0 && (
+				{/* {validationWarnings.length > 0 && (
 					<Alert severity="warning">
 						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
 							<Typography variant="subtitle2">Предупреждения</Typography>
@@ -740,8 +781,8 @@ export const S2tCommitEditor = ({
 							))}
 						</Box>
 					</Alert>
-				)}
-
+				)} */}
+				{/* 
 				{infoMessage && <Alert severity="info">{infoMessage}</Alert>}
 
 				{savedCommit?.id && (
@@ -773,7 +814,7 @@ export const S2tCommitEditor = ({
 							)}
 						</Box>
 					</Alert>
-				)}
+				)} */}
 
 				{error && <Alert severity="error">{error}</Alert>}
 			</Box>

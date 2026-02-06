@@ -35,7 +35,7 @@ export function SideMenu({
 	const { user } = useUserStore();
 
 	return (
-		<StyledDrawer
+		<Drawer
 			variant="persistent"
 			open={open}
 			mode={mode}
@@ -97,9 +97,6 @@ export function SideMenu({
 					/>
 				</Stack>
 			) : null}
-		</StyledDrawer>
+		</Drawer>
 	);
 }
-
-const StyledDrawer = styled(Drawer)`
-`;

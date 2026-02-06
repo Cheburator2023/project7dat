@@ -50,11 +50,11 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		);
 		this.maxEntities = this.configService.get<number>(
 			"MAX_ENTITIES_PER_IMPORT",
-			1000,
+			100000,
 		);
 		this.maxAttributes = this.configService.get<number>(
 			"MAX_ATTRIBUTES_PER_ENTITY",
-			200,
+			200000,
 		);
 	}
 

@@ -25,17 +25,8 @@ export const JsonViewerCell = ({
 		return <span>-</span>;
 	}
 
-	const jsonString = JSON.stringify(value);
-	const preview =
-		jsonString.length > maxPreviewLength
-			? jsonString.substring(0, maxPreviewLength) + "..."
-			: jsonString;
-
 	return (
 		<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-			<span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
-				{preview}
-			</span>
 			<IconButton
 				size="small"
 				onClick={() => setOpen(true)}

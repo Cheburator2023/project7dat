@@ -11,6 +11,18 @@
 				"appName": {
 					"type": "string",
 					"description": "applicationName spark приложения"
+				},
+				"commit_type": {
+					"type": "string",
+					"description": "тип применённого коммита (table, json, model)"
+				},
+				"process": {
+					"type": "string",
+					"description": "наименование процесса"
+				},
+				"description": {
+					"type": "string",
+					"description": "описание процесса"
 				}
 			},
 			"required": ["appId", "appName"],
@@ -31,7 +43,7 @@
 					},
 					"type": {
 						"type": "string",
-						"enum": ["table", "view", "rdd", "unresolved"],
+						"enum": ["table", "view", "json", "input_vector", "rdd", "unresolved"],
 						"description": "тип сущности в HADOOP"
 					},
 					"namespace": {
@@ -41,6 +53,18 @@
 					"name": {
 						"type": "string",
 						"description": "наименование витрины в HADOOP"
+					},
+					"entity_change": {
+						"type": "string",
+						"description": "тип изменения сущности"
+					},
+					"description": {
+						"type": "string",
+						"description": "описание сущности"
+					},
+					"system_code": {
+						"type": "string",
+						"description": "код системы"
 					},
 					"attrSeq": {
 						"type": "array",
@@ -81,6 +105,18 @@
 						"type": "string",
 						"description": "наименование сущности таргет в HADOOP"
 					},
+					"system_code": {
+						"type": "string",
+						"description": "код системы витрины"
+					},
+					"process": {
+						"type": "string",
+						"description": "наименование процесса"
+					},
+					"processId": {
+						"type": ["integer", "null"],
+						"description": "идентификатор процесса"
+					},
 					"deps": {
 						"type": "array",
 						"items": {
@@ -89,6 +125,10 @@
 								"entityId": {
 									"type": "string",
 									"description": "наименование витрины источник в HADOOP"
+								},
+								"system_code": {
+									"type": "string",
+									"description": "код системы источника"
 								},
 								"attrMaps": {
 									"type": "array",
@@ -154,6 +194,18 @@
 						"type": "string",
 						"description": "наименование сущности таргет в HADOOP"
 					},
+					"system_code": {
+						"type": "string",
+						"description": "код системы витрины"
+					},
+					"process": {
+						"type": "string",
+						"description": "наименование процесса"
+					},
+					"processId": {
+						"type": ["integer", "null"],
+						"description": "идентификатор процесса"
+					},
 					"deps": {
 						"type": "array",
 						"items": {
@@ -162,6 +214,10 @@
 								"entityId": {
 									"type": "string",
 									"description": "наименование витрины источник в HADOOP"
+								},
+								"system_code": {
+									"type": "string",
+									"description": "код системы источника"
 								},
 								"attrMaps": {
 									"type": "array",

@@ -21,4 +21,24 @@ export class ProcessesService {
 
 		return { data: rows.map((r) => r.name) };
 	}
+
+	async listProcessesWithDescription(): Promise<{
+		data: Array<{ name: string; description: string | null }>;
+	}> {
+		const rows = await this.processRepository
+			.createQueryBuilder("process")
+			.select("DISTINCT ON (process.name) process.name", "name")
+			.addSelect("process.description", "description")
+			.where("process.name IS NOT NULL")
+			.andWhere("process.name <> ''")
+			.orderBy("process.name", "ASC")
+			.getRawMany<{ name: string; description: string | null }>();
+
+		return {
+			data: rows.map((r) => ({
+				name: r.name,
+				description: r.description ?? null,
+			})),
+		};
+	}
 }

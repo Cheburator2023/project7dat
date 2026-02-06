@@ -9,7 +9,7 @@ export const S2tCommitCreatePage: FC = () => {
 
 	return (
 		<Box>
-			<Header />
+			<Header title="Создание коммита / загрузка s2t" />
 
 			<S2tCommitEditor
 				active={true}

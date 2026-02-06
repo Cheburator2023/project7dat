@@ -25,4 +25,16 @@ export class ProcessesController {
 	async listProcessNames() {
 		return await this.processesService.listProcessNames();
 	}
+
+	@Get("with-descriptions")
+	@RealmRole(Permission.DL_VIEW_JSON_DATA)
+	@ApiOperation({
+		summary: "Получить список процессов с описаниями",
+		description:
+			"Возвращает уникальный список наименований процессов с описаниями",
+	})
+	@ApiResponse({ status: 200 })
+	async listProcessesWithDescription() {
+		return await this.processesService.listProcessesWithDescription();
+	}
 }

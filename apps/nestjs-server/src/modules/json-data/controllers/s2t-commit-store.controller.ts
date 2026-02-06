@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import {
+	Body,
+	Controller,
+	Delete,
+	Get,
+	Param,
+	Post,
+	Query,
+} from "@nestjs/common";
 import {
 	ApiBearerAuth,
 	ApiOperation,
@@ -57,5 +65,15 @@ export class S2tCommitStoreController {
 			user: body.user,
 			sourceType: body.sourceType,
 		});
+	}
+
+	@Delete(":id")
+	@RealmRole(Permission.DL_UPDATE_COMMITS)
+	@ApiOperation({ summary: "Удалить S2T коммит (только неприменённые)" })
+	@ApiParam({ name: "id", type: String })
+	@ApiResponse({ status: 200 })
+	async remove(@Param("id") id: string) {
+		await this.service.deleteCommit(id);
+		return { deleted: true };
 	}
 }
