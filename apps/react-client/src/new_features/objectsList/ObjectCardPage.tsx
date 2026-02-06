@@ -1,7 +1,21 @@
-import React, { useMemo, useState, useCallback } from "react";
+import {
+	useMemo,
+	useState,
+	useCallback,
+	useEffect,
+	useRef,
+	type FC,
+} from "react";
 import { useParams } from "react-router";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
-import { CircularProgress, styled } from "@mui/material";
+import {
+	Chip,
+	CircularProgress,
+	InputAdornment,
+	TextField,
+	styled,
+} from "@mui/material";
+import { Search as SearchIcon } from "@mui/icons-material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
@@ -16,6 +30,7 @@ import {
 import type { ObjectItem, AttributeConnection } from "./types";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
+import { fuzzySearchObjects } from "@react-client/features/dashboard/utils/fuzzySearch";
 
 const flexLayoutJson = {
 	global: {
@@ -63,8 +78,8 @@ const flexLayoutJson = {
 const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 	const { id: graphId, name: jsonName, description, data } = item;
 
-	const appId = data.desc?.appId ?? "";
-	const appName = data.desc?.appName ?? "";
+	const appId = data?.desc?.appId ?? "";
+	const appName = data?.desc?.appName ?? "";
 
 	return data?.entities?.flatMap((entity) => {
 		const database = entity.namespace ?? appId;
@@ -78,7 +93,7 @@ const mapJsonDataItemToObjects = (item: JsonDataItem): ObjectItem[] => {
 			graphId,
 			object: entity.name ?? entity.id,
 			objectType: entity.type as any,
-			description: entity.description,
+			description: entity.description ?? "",
 			modelId: entity.id,
 			database,
 			process,
@@ -151,7 +166,7 @@ const extractAttributeConnections = (
 	return connections;
 };
 
-export const ObjectCardPage: React.FC = () => {
+export const ObjectCardPage: FC = () => {
 	const { objectId } = useParams<{ objectId: string }>();
 	const { currentGraph } = useDataLineageStore(
 		useShallow((state) => ({
@@ -160,6 +175,32 @@ export const ObjectCardPage: React.FC = () => {
 	);
 	const { isPending } = useCurrentDataLineageGraph();
 	// const { data: jsonDataList, isLoading, error } = useJsonDataList();
+
+	const [searchQuery, setSearchQuery] = useState("");
+	const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	useEffect(() => {
+		return () => {
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+		};
+	}, []);
+
+	const handleSearchChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			const next = e.target.value;
+			setSearchQuery(next);
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+			debounceRef.current = setTimeout(() => {
+				setDebouncedSearchQuery(next);
+			}, 300);
+		},
+		[],
+	);
+
+	const activeSearchQuery = useMemo(() => {
+		const q = debouncedSearchQuery.trim();
+		return q.length >= 3 ? q : "";
+	}, [debouncedSearchQuery]);
 
 	const isPersistEnabled = usePanelSettingsStore((state) =>
 		state.isPanelPersistEnabled("object-card"),
@@ -184,14 +225,16 @@ export const ObjectCardPage: React.FC = () => {
 		if (!currentGraph) {
 			return [];
 		}
-		return [{ data: currentGraph }].flatMap(mapJsonDataItemToObjects);
+		return [{ data: currentGraph } as unknown as JsonDataItem].flatMap(
+			mapJsonDataItemToObjects,
+		);
 	}, [currentGraph]);
 
 	const currentObject = useMemo(() => {
 		if (!objectId) return null;
 		const decodedId = decodeURIComponent(objectId);
-		console.log(allObjects.find((obj) => obj.id === decodedId) ?? null);
-		return allObjects.find((obj) => obj.id === decodedId) ?? null;
+		console.log(allObjects?.find((obj) => obj.id === decodedId) ?? null);
+		return allObjects?.find((obj) => obj.id === decodedId) ?? null;
 	}, [allObjects, objectId]);
 
 	const relatedObjects = useMemo(() => {
@@ -199,7 +242,7 @@ export const ObjectCardPage: React.FC = () => {
 
 		// Если это признак, найти родительскую модель/витрину
 		if (currentObject.objectType === "Признак") {
-			return allObjects.filter(
+			return allObjects?.filter(
 				(obj) =>
 					obj?.modelId === currentObject?.modelId &&
 					obj?.graphId === currentObject?.graphId &&
@@ -208,7 +251,7 @@ export const ObjectCardPage: React.FC = () => {
 		}
 
 		// Если это модель/витрина, найти все признаки
-		return allObjects.filter(
+		return allObjects?.filter(
 			(obj) =>
 				obj?.modelId === currentObject?.modelId &&
 				obj?.graphId === currentObject?.graphId &&
@@ -216,10 +259,38 @@ export const ObjectCardPage: React.FC = () => {
 		);
 	}, [currentObject, allObjects]);
 
+	const filteredRelatedObjects = useMemo(() => {
+		const query = activeSearchQuery;
+		if (!query) return relatedObjects;
+
+		const results = fuzzySearchObjects(
+			relatedObjects.map((obj) => ({
+				obj,
+				name: obj.object,
+				description: [
+					obj.description,
+					obj.objectType,
+					obj.database,
+					obj.process,
+					obj.processDescription,
+					obj.modelId,
+				]
+					.filter(Boolean)
+					.join(" "),
+			})),
+			query,
+			{ threshold: -5000, limit: 2000 },
+		);
+
+		return results.map((r) => r.item.obj);
+	}, [activeSearchQuery, relatedObjects]);
+
 	// Extract all attribute connections from mappings
 	const allAttributeConnections = useMemo(() => {
 		if (!currentGraph) return [];
-		return extractAttributeConnections([currentGraph]);
+		return extractAttributeConnections([
+			{ data: currentGraph } as unknown as JsonDataItem,
+		]);
 	}, [currentGraph]);
 
 	// Filter connections relevant to current object
@@ -252,6 +323,7 @@ export const ObjectCardPage: React.FC = () => {
 								relatedObjects={relatedObjects}
 								allObjects={allObjects}
 								attributeConnections={relevantConnections}
+								searchQuery={activeSearchQuery}
 							/>
 						</ObjectContainer>
 					);
@@ -266,7 +338,8 @@ export const ObjectCardPage: React.FC = () => {
 						<ObjectContainer>
 							<ObjectRelatedView
 								object={currentObject}
-								relatedObjects={relatedObjects}
+								relatedObjects={filteredRelatedObjects}
+								searchQuery={activeSearchQuery}
 							/>
 						</ObjectContainer>
 					);
@@ -280,7 +353,14 @@ export const ObjectCardPage: React.FC = () => {
 					return <div>Unknown component: {component}</div>;
 			}
 		},
-		[currentObject, relatedObjects, allObjects, relevantConnections],
+		[
+			currentObject,
+			activeSearchQuery,
+			allObjects,
+			relatedObjects,
+			relevantConnections,
+			filteredRelatedObjects,
+		],
 	);
 
 	const onAction = useCallback(
@@ -348,7 +428,29 @@ export const ObjectCardPage: React.FC = () => {
 
 	return (
 		<div>
-			<Header />
+			<Header>
+				<Flex alignItems="center" gap={10} width="100%">
+					<TextField
+						fullWidth
+						variant="outlined"
+						placeholder="Поиск по объектам..."
+						value={searchQuery}
+						onChange={handleSearchChange}
+						InputProps={{
+							startAdornment: (
+								<InputAdornment position="start">
+									<SearchIcon />
+								</InputAdornment>
+							),
+						}}
+					/>
+					<Chip
+						label={`${filteredRelatedObjects.length} объектов`}
+						color="primary"
+						variant="outlined"
+					/>
+				</Flex>
+			</Header>
 			<Wrapper id="object_card_container">
 				<FlexLayoutContainer>
 					<Layout
