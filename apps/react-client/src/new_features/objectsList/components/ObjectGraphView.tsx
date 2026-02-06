@@ -1,10 +1,12 @@
-import React, {
-	useCallback,
-	useMemo,
+import {
 	memo,
+	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
+	type FC,
+	type MouseEvent,
 } from "react";
 import { useNavigate } from "react-router";
 import {
@@ -45,6 +47,10 @@ import {
 	Info,
 } from "@mui/icons-material";
 import type { ObjectItem, AttributeConnection } from "../types";
+import {
+	getHighlightedText,
+	fuzzyMatch,
+} from "@react-client/features/dashboard/utils/fuzzySearch";
 
 // ============================================================================
 // Types
@@ -55,6 +61,8 @@ interface ObjectNodeData {
 	isSelected: boolean;
 	highlightType: "none" | "selected" | "related";
 	onNodeClick: (id: string) => void;
+	searchQuery: string;
+	isSearchMatch: boolean;
 	[key: string]: unknown;
 }
 
@@ -126,8 +134,12 @@ const getLayoutedElements = (
 // Custom Node Component
 // ============================================================================
 
+const HIGHLIGHT_MARK_CSS =
+	".object-node-highlight mark { background-color: #ffe082; color: inherit; padding: 0 1px; border-radius: 2px; }";
+
 const ObjectNodeComponent = memo(({ data, id }: NodeProps<ObjectNode>) => {
-	const { object, highlightType, onNodeClick } = data;
+	const { object, highlightType, onNodeClick, searchQuery, isSearchMatch } =
+		data;
 	const colors = TYPE_COLORS[object.objectType] || TYPE_COLORS.Источник;
 
 	const borderColor =
@@ -137,8 +149,11 @@ const ObjectNodeComponent = memo(({ data, id }: NodeProps<ObjectNode>) => {
 
 	const borderWidth = highlightType !== "none" ? 3 : 2;
 
+	const isDimmed = !!searchQuery && !isSearchMatch;
+
 	return (
 		<div
+			className="object-node-highlight"
 			style={{
 				background: "#fff",
 				border: `${borderWidth}px solid ${borderColor}`,
@@ -152,6 +167,8 @@ const ObjectNodeComponent = memo(({ data, id }: NodeProps<ObjectNode>) => {
 				overflow: "hidden",
 				cursor: "pointer",
 				transition: "all 0.2s ease",
+				opacity: isDimmed ? 0.25 : 1,
+				filter: isDimmed ? "grayscale(0.8)" : "none",
 			}}
 			onClick={() => onNodeClick(id)}
 		>
@@ -189,7 +206,15 @@ const ObjectNodeComponent = memo(({ data, id }: NodeProps<ObjectNode>) => {
 						}}
 						title={object.object}
 					>
-						{object.object}
+						{data.searchQuery ? (
+							<span
+								dangerouslySetInnerHTML={{
+									__html: getHighlightedText(object.object, data.searchQuery),
+								}}
+							/>
+						) : (
+							object.object
+						)}
 					</span>
 					<span
 						style={{
@@ -219,7 +244,15 @@ const ObjectNodeComponent = memo(({ data, id }: NodeProps<ObjectNode>) => {
 					}}
 					title={object.database}
 				>
-					{object.database}
+					{data.searchQuery ? (
+						<span
+							dangerouslySetInnerHTML={{
+								__html: getHighlightedText(object.database, data.searchQuery),
+							}}
+						/>
+					) : (
+						object.database
+					)}
 				</div>
 			</div>
 
@@ -247,6 +280,7 @@ interface ObjectGraphFlowProps {
 	relatedObjects: ObjectItem[];
 	allObjects: ObjectItem[];
 	attributeConnections: AttributeConnection[];
+	searchQuery: string;
 }
 
 interface ObjectContextMenuState {
@@ -255,11 +289,12 @@ interface ObjectContextMenuState {
 	objectId: string;
 }
 
-const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
+const ObjectGraphFlow: FC<ObjectGraphFlowProps> = ({
 	currentObject,
 	relatedObjects,
 	allObjects,
 	attributeConnections,
+	searchQuery,
 }) => {
 	const navigate = useNavigate();
 	const [layoutDirection, setLayoutDirection] = useState<"TB" | "LR">("LR");
@@ -327,17 +362,14 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 		handleCloseContextMenu();
 	}, [contextMenuObject, handleCloseContextMenu, navigate]);
 
-	const handleNodeContextMenu = useCallback(
-		(event: React.MouseEvent, node: Node) => {
-			event.preventDefault();
-			setContextMenu({
-				x: event.clientX,
-				y: event.clientY,
-				objectId: node.id,
-			});
-		},
-		[],
-	);
+	const handleNodeContextMenu = useCallback((event: MouseEvent, node: Node) => {
+		event.preventDefault();
+		setContextMenu({
+			x: event.clientX,
+			y: event.clientY,
+			objectId: node.id,
+		});
+	}, []);
 
 	const { initialNodes, initialEdges } = useMemo(() => {
 		const nodes: ObjectNode[] = [];
@@ -345,6 +377,19 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 		const addedNodeIds = new Set<string>();
 
 		// Helper to add a node if not already added
+		const isObjMatch = (obj: ObjectItem): boolean => {
+			if (!searchQuery) return false;
+			const fields = [
+				obj.object,
+				obj.database,
+				obj.description,
+				obj.objectType,
+				obj.process,
+				obj.modelId,
+			];
+			return fields.some((f) => f && fuzzyMatch(f, searchQuery) !== null);
+		};
+
 		const addNode = (
 			obj: ObjectItem,
 			highlightType: "selected" | "related" | "none",
@@ -360,6 +405,8 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 					isSelected: highlightType === "selected",
 					highlightType,
 					onNodeClick: handleNodeClick,
+					searchQuery,
+					isSearchMatch: !searchQuery || isObjMatch(obj),
 				},
 			});
 		};
@@ -485,10 +532,16 @@ const ObjectGraphFlow: React.FC<ObjectGraphFlowProps> = ({
 		attributeConnections,
 		handleNodeClick,
 		layoutDirection,
+		searchQuery,
 	]);
 
-	const [nodes, , onNodesChange] = useNodesState(initialNodes);
-	const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+	useEffect(() => {
+		setNodes(initialNodes);
+		setEdges(initialEdges);
+	}, [initialNodes, initialEdges, setNodes, setEdges]);
 	const { mode } = useColorScheme();
 
 	const focusMainNode = useCallback(() => {
@@ -660,13 +713,15 @@ interface ObjectGraphViewProps {
 	relatedObjects: ObjectItem[];
 	allObjects: ObjectItem[];
 	attributeConnections: AttributeConnection[];
+	searchQuery?: string;
 }
 
-export const ObjectGraphView: React.FC<ObjectGraphViewProps> = ({
+export const ObjectGraphView: FC<ObjectGraphViewProps> = ({
 	object,
 	relatedObjects,
 	allObjects,
 	attributeConnections,
+	searchQuery,
 }) => {
 	if (!object) {
 		return (
@@ -706,12 +761,16 @@ export const ObjectGraphView: React.FC<ObjectGraphViewProps> = ({
 
 	return (
 		<Container>
+			<style>{HIGHLIGHT_MARK_CSS}</style>
 			<ReactFlowProvider>
 				<ObjectGraphFlow
 					currentObject={object}
 					relatedObjects={relatedObjects}
 					allObjects={allObjects}
 					attributeConnections={attributeConnections}
+					searchQuery={
+						(searchQuery?.trim().length ?? 0) >= 3 ? (searchQuery ?? "") : ""
+					}
 				/>
 			</ReactFlowProvider>
 		</Container>

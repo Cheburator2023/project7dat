@@ -18,17 +18,21 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useNavigate } from "react-router";
 import type { ObjectItem } from "../types";
+import { getHighlightedText } from "@react-client/features/dashboard/utils/fuzzySearch";
 
 interface ObjectRelatedViewProps {
 	object: ObjectItem | null;
 	relatedObjects: ObjectItem[];
+	searchQuery?: string;
 }
 
 export const ObjectRelatedView: React.FC<ObjectRelatedViewProps> = ({
 	object,
 	relatedObjects,
+	searchQuery,
 }) => {
 	const navigate = useNavigate();
+	const isHighlightActive = (searchQuery?.trim().length ?? 0) >= 3;
 
 	const getTypeColor = (type: string) => {
 		switch (type) {
@@ -91,7 +95,18 @@ export const ObjectRelatedView: React.FC<ObjectRelatedViewProps> = ({
 												<TableCell
 													sx={{ fontFamily: "monospace", fontSize: 12 }}
 												>
-													{obj.object}
+													{isHighlightActive ? (
+														<span
+															dangerouslySetInnerHTML={{
+																__html: getHighlightedText(
+																	obj.object,
+																	searchQuery ?? "",
+																),
+															}}
+														/>
+													) : (
+														obj.object
+													)}
 												</TableCell>
 												<TableCell>
 													<Chip
@@ -100,7 +115,24 @@ export const ObjectRelatedView: React.FC<ObjectRelatedViewProps> = ({
 														color={getTypeColor(obj.objectType) as any}
 													/>
 												</TableCell>
-												<TableCell>{obj.description || "—"}</TableCell>
+												<TableCell>
+													{obj.description ? (
+														isHighlightActive ? (
+															<span
+																dangerouslySetInnerHTML={{
+																	__html: getHighlightedText(
+																		obj.description,
+																		searchQuery ?? "",
+																	),
+																}}
+															/>
+														) : (
+															obj.description
+														)
+													) : (
+														"—"
+													)}
+												</TableCell>
 											</ClickableTableRow>
 										))}
 									</TableBody>
@@ -125,7 +157,20 @@ export const ObjectRelatedView: React.FC<ObjectRelatedViewProps> = ({
 								{relatedObjects.map((obj) => (
 									<Chip
 										key={obj.id}
-										label={obj.object}
+										label={
+											isHighlightActive ? (
+												<span
+													dangerouslySetInnerHTML={{
+														__html: getHighlightedText(
+															obj.object,
+															searchQuery ?? "",
+														),
+													}}
+												/>
+											) : (
+												obj.object
+											)
+										}
 										size="small"
 										variant="outlined"
 										onClick={() =>
