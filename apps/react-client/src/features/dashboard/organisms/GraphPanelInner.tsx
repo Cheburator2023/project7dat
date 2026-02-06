@@ -25,6 +25,7 @@ import {
 	HIGHLIGHT_COLORS,
 	MAX_VISIBLE_ATTRS,
 	ATTR_EDGE_COLORS,
+	NODE_WIDTH,
 } from "../constants";
 import type { EntityNodeData } from "../types";
 import { useColorScheme, Slider } from "@mui/material";
@@ -885,19 +886,41 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 					else if (downstreamNodes.has(node.id)) highlightType = "downstream";
 					else if (isSearchMatch) highlightType = "searchMatch";
 
+					const nextHoverAttrs =
+						hoverHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
+					const nextSelectedAttrs =
+						selectedHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
+					const nextIsExpanded = expandedNodes.has(node.id);
+
+					const d = node.data as EntityNodeData;
+					// Skip creating a new object if nothing changed for this node
+					if (
+						d.highlightType === highlightType &&
+						d.hoverHighlightedAttrs === nextHoverAttrs &&
+						d.selectedHighlightedAttrs === nextSelectedAttrs &&
+						d.isSearchActive === isSearchActive &&
+						d.isSearchMatch === !!isSearchMatch &&
+						d.isExpanded === nextIsExpanded &&
+						d.onNodeClick === handleNodeClick &&
+						d.onNodeDoubleClick === handleNodeDblClick &&
+						d.onAttrHover === handleAttrHover &&
+						d.onAttrClick === handleAttrClick &&
+						d.onToggleExpand === handleToggleExpand
+					) {
+						return node;
+					}
+
 					return {
 						...node,
 						data: {
 							...node.data,
 							highlightType,
-							hoverHighlightedAttrs:
-								hoverHighlightedByEntity.get(node.id) || EMPTY_STRING_SET,
-							selectedHighlightedAttrs:
-								selectedHighlightedByEntity.get(node.id) || EMPTY_STRING_SET,
+							hoverHighlightedAttrs: nextHoverAttrs,
+							selectedHighlightedAttrs: nextSelectedAttrs,
 							isSearchActive,
 							isSearchMatch: !!isSearchMatch,
 							searchMatchScore: searchScore,
-							isExpanded: expandedNodes.has(node.id),
+							isExpanded: nextIsExpanded,
 							onNodeClick: handleNodeClick,
 							onNodeDoubleClick: handleNodeDblClick,
 							onAttrHover: handleAttrHover,
@@ -933,7 +956,9 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			if (shouldShowAttrEdges) {
 				const edgeSet = new Set<string>();
 				// Collect existing entity IDs from current nodes
-				const visibleEntityIds = new Set(nodes.map((n) => n.id));
+				const visibleEntityIds = new Set(
+					layoutedTopologyNodes.map((n) => n.id),
+				);
 
 				for (const mapping of data.mappings || []) {
 					if (!mapping.deps) continue;
@@ -978,7 +1003,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 								sourceHandle: `attr-source-${attrMap.src}`,
 								targetHandle: `attr-target-${attrMap.dst}`,
 								type: "default",
-								animated: true,
+								animated: false,
 								style: {
 									stroke: edgeColor,
 									strokeWidth: 2,
@@ -1072,7 +1097,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			selectedAttribute,
 			selectedOrSearchedAttrsByEntity,
 			data.mappings,
-			nodes,
+			layoutedTopologyNodes,
 		]);
 
 		useEffect(() => {
@@ -1094,7 +1119,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			if (zoomToNodeId) {
 				const node = getNode(zoomToNodeId);
 				if (node) {
-					const x = node.position.x + (node.measured?.width ?? 280) / 2;
+					const x = node.position.x + (node.measured?.width ?? NODE_WIDTH) / 2;
 					const y = node.position.y + (node.measured?.height ?? 100) / 2;
 					setCenter(x, y, { zoom: 1.2, duration: 500 });
 				}
@@ -1110,7 +1135,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			if (!nodeId) return;
 			const node = getNode(nodeId);
 			if (!node) return;
-			const x = node.position.x + (node.measured?.width ?? 280) / 2;
+			const x = node.position.x + (node.measured?.width ?? NODE_WIDTH) / 2;
 			const y = node.position.y + (node.measured?.height ?? 100) / 2;
 			setCenter(x, y, { duration: 200 });
 		}, [getNode, nodes, selectedEntityId, setCenter]);

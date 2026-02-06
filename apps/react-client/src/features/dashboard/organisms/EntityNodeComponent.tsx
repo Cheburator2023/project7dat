@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { EntityNodeData } from "../types";
 import { TYPE_COLORS, HIGHLIGHT_COLORS, MAX_VISIBLE_ATTRS } from "../constants";
@@ -45,6 +45,14 @@ export const EntityNodeComponent = memo(
 			(state) => state.setLocalNodeAttributeSearch,
 		);
 		const activeSearchQuery = globalAttributeSearchQuery || localSearchQuery;
+
+		// Debounce store update for local search
+		const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+		useEffect(() => {
+			return () => {
+				if (debounceRef.current) clearTimeout(debounceRef.current);
+			};
+		}, []);
 
 		const handleStopPropagation = useCallback((e: React.MouseEvent) => {
 			e.stopPropagation();
@@ -161,7 +169,7 @@ export const EntityNodeComponent = memo(
 					background: "#fff",
 					border: `${borderWidth}px solid ${borderColor}`,
 					borderRadius: 8,
-					width: 300,
+					width: 320,
 					boxShadow:
 						highlightType !== "none"
 							? `0 4px 20px ${borderColor}40`
@@ -227,7 +235,7 @@ export const EntityNodeComponent = memo(
 											fontSize: 9,
 										}}
 									>
-										modified
+										цель
 									</span>
 								)}
 								{isDataMart && (
@@ -380,7 +388,10 @@ export const EntityNodeComponent = memo(
 							onChange={(e) => {
 								const next = e.target.value;
 								setLocalSearchQuery(next);
-								setLocalNodeAttributeSearch(entity.id, next);
+								if (debounceRef.current) clearTimeout(debounceRef.current);
+								debounceRef.current = setTimeout(() => {
+									setLocalNodeAttributeSearch(entity.id, next);
+								}, 300);
 							}}
 							onClick={handleStopPropagation}
 							style={{
