@@ -11,7 +11,12 @@ export {
 	useJsonDataList,
 	JSON_DATA_LIST_QUERY_KEY,
 } from "./useJsonDataList";
-export { useProcesses, PROCESS_LIST_QUERY_KEY } from "./useProcesses";
+export {
+	useProcesses,
+	PROCESS_LIST_QUERY_KEY,
+	useProcessesWithDescriptions,
+	PROCESS_WITH_DESC_QUERY_KEY,
+} from "./useProcesses";
 export {
 	useS2tCommitList,
 	S2T_COMMIT_LIST_QUERY_KEY,

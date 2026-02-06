@@ -4,6 +4,7 @@ interface DataLineageSchema {
 	desc: {
 		appId: string;
 		appName: string;
+		commit_type?: string;
 		process?: string;
 		description?: string;
 	};
@@ -13,6 +14,7 @@ interface DataLineageSchema {
 		type: "table" | "view" | "json" | "input_vector" | "rdd" | "unresolved";
 		namespace?: string;
 		name: string | null;
+		entity_change?: string;
 		description?: string;
 		system_code?: string;
 		attrSeq?: Array<{
@@ -25,6 +27,8 @@ interface DataLineageSchema {
 		id: number;
 		entityId: string;
 		system_code?: string;
+		process?: string;
+		processId?: number | null;
 		deps?: Array<{
 			entityId: string;
 			system_code?: string;
@@ -37,6 +41,7 @@ interface DataLineageSchema {
 				linkTypes?: Array<"window" | "join" | "where" | "groupby">;
 			}>;
 		}>;
+		unmatched?: Array<any>;
 	}>;
 	failedMappings: Array<any>;
 }
@@ -61,6 +66,23 @@ interface S2TWorkbook {
 @Injectable()
 export class S2tToCommitJsonService {
 	private readonly logger = new Logger(S2tToCommitJsonService.name);
+
+	private extractCellText(val: any): string {
+		if (val === null || val === undefined) return "";
+		if (typeof val !== "object") return String(val);
+		if (val.result !== undefined) return this.extractCellText(val.result);
+		if (Array.isArray(val.richText)) {
+			return val.richText
+				.map((part: any) =>
+					typeof part === "object" ? (part.text ?? "") : String(part),
+				)
+				.join("");
+		}
+		if (val.$type !== undefined && val.value !== undefined)
+			return String(val.value);
+		if (typeof val.text === "string") return val.text;
+		return String(val);
+	}
 
 	convertWorkbookToCommitJson(params: {
 		workbook: S2TWorkbook;
@@ -94,13 +116,15 @@ export class S2tToCommitJsonService {
 			);
 		}
 
+		const needsProcess = mode === "datamart" || mode === "model";
+
 		const commitJson: DataLineageSchema = {
 			desc: {
 				appId: params.processName || params.commitName,
 				appName: params.processName || params.commitName,
-				process: mode === "datamart" ? params.processName : undefined,
-				description:
-					mode === "datamart" ? params.processDescription : undefined,
+				commit_type: mode === "datamart" ? "table" : mode,
+				process: needsProcess ? params.processName : undefined,
+				description: needsProcess ? params.processDescription : undefined,
 			},
 			entities: targetEntity
 				? [...sourceEntities, targetEntity]
@@ -174,11 +198,7 @@ export class S2tToCommitJsonService {
 
 				const getCell = (col: number): string => {
 					const cell = cells.find((c) => c.col === col);
-					const val = cell?.value;
-					if (val === null || val === undefined) return "";
-					if (typeof val === "object" && val.result !== undefined)
-						return String(val.result || "");
-					return String(val || "");
+					return this.extractCellText(cell?.value);
 				};
 
 				const targetSystemCode_cell = getCell(19).trim();
@@ -210,6 +230,7 @@ export class S2tToCommitJsonService {
 						type: "json",
 						namespace: undefined,
 						name: targetTable,
+						entity_change: "",
 						description: targetDescription_cell,
 						system_code: systemCode,
 						attrSeq: [],
@@ -255,11 +276,7 @@ export class S2tToCommitJsonService {
 
 			const getCell = (col: number): string => {
 				const cell = cells.find((c) => c.col === col);
-				const val = cell?.value;
-				if (val === null || val === undefined) return "";
-				if (typeof val === "object" && val.result !== undefined)
-					return String(val.result || "");
-				return String(val || "");
+				return this.extractCellText(cell?.value);
 			};
 
 			const sourceSystemCode = getCell(2).trim();
@@ -335,6 +352,7 @@ export class S2tToCommitJsonService {
 						type: resolvedSourceType,
 						namespace: sourceSchema,
 						name: sourceTable,
+						entity_change: "",
 						description: sourceDescription,
 						system_code: normalizedSourceSystemCode || undefined,
 						attrSeq: [],
@@ -395,6 +413,7 @@ export class S2tToCommitJsonService {
 				type: resolvedTargetType,
 				namespace: targetNamespace || undefined,
 				name: targetName,
+				entity_change: "",
 				description: targetDescription,
 				system_code: normalizedTargetSystemCode || undefined,
 				attrSeq: targetAttrs,
@@ -417,7 +436,10 @@ export class S2tToCommitJsonService {
 					id: 1,
 					entityId: targetEntityId,
 					system_code: normalizedTargetSystemCode || undefined,
+					process: "",
+					processId: null,
 					deps,
+					unmatched: [],
 				};
 			}
 		}

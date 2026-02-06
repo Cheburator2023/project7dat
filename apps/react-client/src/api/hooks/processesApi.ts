@@ -9,9 +9,19 @@ export const processesApi = axios.create({
 	},
 });
 
+export interface ProcessItem {
+	name: string;
+	description: string | null;
+}
+
 export const processesService = {
 	getAll: async (): Promise<string[]> => {
 		const response = await processesApi.get("");
+		const data = response.data?.data;
+		return Array.isArray(data) ? data : [];
+	},
+	getAllWithDescriptions: async (): Promise<ProcessItem[]> => {
+		const response = await processesApi.get("/with-descriptions");
 		const data = response.data?.data;
 		return Array.isArray(data) ? data : [];
 	},

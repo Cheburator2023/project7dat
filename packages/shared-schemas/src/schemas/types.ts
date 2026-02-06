@@ -6,6 +6,9 @@ export interface DataLineageSchema {
   desc: {
     appId: string;
     appName: string;
+    commit_type?: string;
+    process?: string;
+    description?: string;
   };
   entities: DataLineageEntity[];
   mappings: DataLineageMapping[];
@@ -16,11 +19,12 @@ export interface DataLineageSchema {
 export interface DataLineageEntity {
   id: string;
   modified: boolean;
-  type: 'table' | 'view' | 'rdd' | 'unresolved' | 'input_vector';
+  type: 'table' | 'view' | 'json' | 'input_vector' | 'rdd' | 'unresolved';
   namespace?: string;
   name: string | null;
   entity_change?: string;
   description?: string;
+  system_code?: string;
   
   attrSeq?: Array<{
     name: string;
@@ -40,8 +44,12 @@ export interface DataLineageAttribute {
 export interface DataLineageMapping {
   id: number;
   entityId: string;
+  system_code?: string;
+  process?: string;
+  processId?: number | null;
   deps?: Array<{
     entityId: string;
+    system_code?: string;
     attrMaps?: Array<{
       src: string;
       dst: string;
@@ -83,13 +91,16 @@ export interface DataLineageAttributeDependency {
 export interface DataLineageAppDescription {
   appId: string;
   appName: string;
+  commit_type?: string;
+  process?: string;
+  description?: string;
 }
 
 // Link types enum
 export type DataLineageLinkType = 'window' | 'join' | 'where' | 'groupby';
 
 // Entity types enum
-export type DataLineageEntityType = 'table' | 'view';
+export type DataLineageEntityType = 'table' | 'view' | 'json' | 'input_vector' | 'rdd' | 'unresolved';
 
 // Export the JSON schema as well
 export const dataLineageJsonSchema: JSONSchema7 = dataLineageSchema as JSONSchema7;
@@ -113,7 +124,7 @@ export const isDataLineageEntity = (data: any): data is DataLineageEntity => {
     data !== null &&
     typeof data.id === 'string' &&
     typeof data.modified === 'boolean' &&
-    (data.type === 'table' || data.type === 'view') &&
-    typeof data.name === 'string'
+    typeof data.type === 'string' &&
+    (data.name === null || typeof data.name === 'string')
   );
 };

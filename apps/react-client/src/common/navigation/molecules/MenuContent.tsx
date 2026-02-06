@@ -1,7 +1,7 @@
 import CallMissedOutgoingIcon from "@mui/icons-material/CallMissedOutgoing";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import { Button, Divider } from "@mui/material";
+import { Box, Button, Divider } from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
@@ -89,8 +89,7 @@ export function MenuContent() {
 					</ListItemButton>
 				</ListItem>
 
-				<ListItem
-					disablePadding
+				<Box
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
@@ -123,44 +122,57 @@ export function MenuContent() {
 					{/*		/>*/}
 					{/*	</ListItemButton>*/}
 					{/*</ListItem>*/}
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handler(routes.models.rootPath.replace("/", ""))}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.models.rootPath === location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
+					<List disablePadding data-test-id="menu-content--List-0-services">
+						<ListItem
+							disablePadding
+							sx={{
+								display: "block",
+								mb: 0.2,
+								paddingBottom: 0,
+								paddingTop: 0,
+							}}
+							onClick={() => handler(routes.models.rootPath.replace("/", ""))}
+							data-test-id="menu-content--ListItem-backend"
 						>
-							<ListItemText
-								primary={routes.models.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handler(routes.objects.rootPath.replace("/", ""))}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.objects.rootPath === location.pathname.replace("/", "")
-							}
-							data-test-id="menu-content--ListItemButton-backend"
+							<ListItemButton
+								selected={
+									routes.models.rootPath === location.pathname.replace("/", "")
+								}
+								data-test-id="menu-content--ListItemButton-backend"
+							>
+								<ListItemText
+									primary={routes.models.name}
+									data-test-id="menu-content--ListItemText-backend"
+								/>
+							</ListItemButton>
+						</ListItem>
+						<ListItem
+							disablePadding
+							sx={{
+								display: "block",
+								mb: 0.2,
+								paddingBottom: 0,
+								paddingTop: 0,
+							}}
+							onClick={() => handler(routes.objects.rootPath.replace("/", ""))}
+							data-test-id="menu-content--ListItem-backend"
 						>
-							<ListItemText
-								primary={routes.objects.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
-				</ListItem>
+							<ListItemButton
+								selected={
+									routes.objects.rootPath === location.pathname.replace("/", "")
+								}
+								data-test-id="menu-content--ListItemButton-backend"
+							>
+								<ListItemText
+									primary={routes.objects.name}
+									data-test-id="menu-content--ListItemText-backend"
+								/>
+							</ListItemButton>
+						</ListItem>
+					</List>
+				</Box>
 
-				<ListItem
-					disablePadding
+				<Box
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
@@ -174,51 +186,64 @@ export function MenuContent() {
 						/>
 					</ListItemButton>
 
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() =>
-							handler(routes.jsonDataReport.rootPath.replace("/", ""))
-						}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.jsonDataReport.rootPath ===
-								location.pathname.replace("/", "")
+					<List disablePadding data-test-id="menu-content--List-0-reports">
+						<ListItem
+							disablePadding
+							sx={{
+								display: "block",
+								mb: 0.2,
+								paddingBottom: 0,
+								paddingTop: 0,
+							}}
+							onClick={() =>
+								handler(routes.jsonDataReport.rootPath.replace("/", ""))
 							}
-							data-test-id="menu-content--ListItemButton-backend"
+							data-test-id="menu-content--ListItem-backend"
 						>
-							<ListItemText
-								primary={routes.jsonDataReport.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
+							<ListItemButton
+								selected={
+									routes.jsonDataReport.rootPath ===
+									location.pathname.replace("/", "")
+								}
+								data-test-id="menu-content--ListItemButton-backend"
+							>
+								<ListItemText
+									primary={routes.jsonDataReport.name}
+									data-test-id="menu-content--ListItemText-backend"
+								/>
+							</ListItemButton>
+						</ListItem>
 
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() =>
-							handler(routes.s2tDataReport.rootPath.replace("/", ""))
-						}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.s2tDataReport.rootPath ===
-								location.pathname.replace("/", "")
+						<ListItem
+							disablePadding
+							sx={{
+								display: "block",
+								mb: 0.2,
+								paddingBottom: 0,
+								paddingTop: 0,
+							}}
+							onClick={() =>
+								handler(routes.s2tDataReport.rootPath.replace("/", ""))
 							}
-							data-test-id="menu-content--ListItemButton-backend"
+							data-test-id="menu-content--ListItem-backend"
 						>
-							<ListItemText
-								primary={routes.s2tDataReport.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
-				</ListItem>
+							<ListItemButton
+								selected={
+									routes.s2tDataReport.rootPath ===
+									location.pathname.replace("/", "")
+								}
+								data-test-id="menu-content--ListItemButton-backend"
+							>
+								<ListItemText
+									primary={routes.s2tDataReport.name}
+									data-test-id="menu-content--ListItemText-backend"
+								/>
+							</ListItemButton>
+						</ListItem>
+					</List>
+				</Box>
 
-				<ListItem
-					disablePadding
+				<Box
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
@@ -270,25 +295,35 @@ export function MenuContent() {
 					{/*		/>*/}
 					{/*	</ListItemButton>*/}
 					{/*</ListItem>*/}
-					<ListItem
-						sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}
-						onClick={() => handler(routes.allCommits.rootPath.replace("/", ""))}
-						data-test-id="menu-content--ListItem-backend"
-					>
-						<ListItemButton
-							selected={
-								routes.allCommits.rootPath ===
-								location.pathname.replace("/", "")
+					<List disablePadding data-test-id="menu-content--List-0-import">
+						<ListItem
+							disablePadding
+							sx={{
+								display: "block",
+								mb: 0.2,
+								paddingBottom: 0,
+								paddingTop: 0,
+							}}
+							onClick={() =>
+								handler(routes.allCommits.rootPath.replace("/", ""))
 							}
-							data-test-id="menu-content--ListItemButton-backend"
+							data-test-id="menu-content--ListItem-backend"
 						>
-							<ListItemText
-								primary={routes.allCommits.name}
-								data-test-id="menu-content--ListItemText-backend"
-							/>
-						</ListItemButton>
-					</ListItem>
-				</ListItem>
+							<ListItemButton
+								selected={
+									routes.allCommits.rootPath ===
+									location.pathname.replace("/", "")
+								}
+								data-test-id="menu-content--ListItemButton-backend"
+							>
+								<ListItemText
+									primary={routes.allCommits.name}
+									data-test-id="menu-content--ListItemText-backend"
+								/>
+							</ListItemButton>
+						</ListItem>
+					</List>
+				</Box>
 				{/* <Divider sx={{ my: 1 }} data-test-id="menu-content--Divider-mocked" /> */}
 
 				{/*{backendItems.map((item, index) => (*/}

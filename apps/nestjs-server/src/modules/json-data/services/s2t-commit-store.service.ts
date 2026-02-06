@@ -125,6 +125,16 @@ export class S2tCommitStoreService {
 		}
 	}
 
+	async deleteCommit(id: string): Promise<void> {
+		const commit = await this.findById(id);
+
+		if (commit.state === "done") {
+			throw new BadRequestException("Нельзя удалить уже применённый коммит");
+		}
+
+		await this.repo.remove(commit);
+	}
+
 	private async setState(id: string, state: S2tCommitState): Promise<void> {
 		await this.repo.update(id, { state, updated_at: new Date() });
 	}

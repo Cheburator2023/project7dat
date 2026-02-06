@@ -1,0 +1,80 @@
+{
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "desc": {
+      "type": "object",
+      "properties": {
+        "change_date": { "type": "string" },
+        "appId": { "type": "string" },
+        "appName": { "type": "string" }
+      }
+    },
+    "failedMappings": {
+      "type": "array",
+      "items": { "type": "null" }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "modified": { "type": "boolean" },
+          "type": { "type": "string" },
+          "namespace": { "type": "string" },
+          "name": { "type": "string" },
+          "entity_change": { "type": "string" },
+          "description": { "type": "string" },
+          "system_code": { "type": "string" },
+          "container_change": { "type": "string" },
+          "attrSeq": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "type": { "type": "string" },
+                "attr_change": { "type": "string" },
+                "comment": { "type": "string" }
+              }
+            }
+          },
+          "container_description": { "type": "string" }
+        }
+      }
+    },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "entityId": { "type": "string" },
+          "process": { "type": "string" },
+          "process_change": { "type": "string" },
+          "description": { "type": "string" },
+          "relation_change": { "type": "string" },
+          "deps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "entityId": { "type": "string" },
+                "attrMaps": {
+                  "type": "array",
+                  "items": {
+                     "type": "object" 
+                  }
+                },
+                "atrDeps": {
+                  "type": "array",
+                  "items": { "type": "null" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

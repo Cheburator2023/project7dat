@@ -27,6 +27,21 @@ export const s2tCommitStoreApi = axios.create({
 	},
 });
 
+export interface UpdateS2tCommitPayload {
+	id: string;
+	commit_name: string;
+	commit_description?: string;
+	type: S2tCommitType;
+	user?: string;
+	payload: Record<string, unknown>;
+	parent_id?: string;
+}
+
+export interface ApplyS2tCommitPayload {
+	user?: string;
+	sourceType?: "SURM" | "DAPP";
+}
+
 export const s2tCommitStoreService = {
 	list: async (params?: {
 		state?: string;
@@ -34,5 +49,23 @@ export const s2tCommitStoreService = {
 	}): Promise<S2tCommitItem[]> => {
 		const response = await s2tCommitStoreApi.get("", { params });
 		return Array.isArray(response.data) ? response.data : [];
+	},
+	getById: async (id: string): Promise<S2tCommitItem> => {
+		const response = await s2tCommitStoreApi.get(`/${id}`);
+		return response.data;
+	},
+	update: async (data: UpdateS2tCommitPayload): Promise<S2tCommitItem> => {
+		const response = await s2tCommitStoreApi.post("", data);
+		return response.data;
+	},
+	apply: async (
+		id: string,
+		data: ApplyS2tCommitPayload,
+	): Promise<S2tCommitItem> => {
+		const response = await s2tCommitStoreApi.post(`/${id}/apply`, data);
+		return response.data;
+	},
+	delete: async (id: string): Promise<void> => {
+		await s2tCommitStoreApi.delete(`/${id}`);
 	},
 };

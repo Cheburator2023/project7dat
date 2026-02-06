@@ -10,7 +10,6 @@ import {
 export enum JsonSourceType {
 	SURM = "SURM",
 	DAPP = "DAPP",
-	DL = "DL",
 }
 
 export class JsonImportRequestDto {
