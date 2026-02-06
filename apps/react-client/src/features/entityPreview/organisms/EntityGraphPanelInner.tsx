@@ -32,7 +32,7 @@ import {
 	ATTR_EDGE_COLORS,
 } from "../../dashboard/constants";
 import type { EntityConnection, EntityNodeData } from "../../dashboard/types";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
 	EntityDetailsDialog,
 	MappingDetailsDialog,
@@ -52,7 +52,6 @@ import {
 	OpenInNew,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 
 const getUpstreamNodes = (
 	nodeId: string,
@@ -149,12 +148,16 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		);
 
 		const { entityId: urlEntityId } = useParams<{ entityId: string }>();
+		const [searchParams] = useSearchParams();
 
 		useEffect(() => {
 			const decodedUrlEntityId = urlEntityId
 				? decodeURIComponent(urlEntityId)
 				: undefined;
-			setSelectedNode(selectedEntityId || decodedUrlEntityId || "");
+			const decodedSelectedEntityId = selectedEntityId
+				? decodeURIComponent(selectedEntityId)
+				: undefined;
+			setSelectedNode(decodedSelectedEntityId || decodedUrlEntityId || "");
 		}, [selectedEntityId, urlEntityId]);
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
 		const { setCenter, getNode } = useReactFlow();
@@ -168,6 +171,32 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			zoomToNodeId,
 			setZoomToNode,
 		} = useDashboardStore();
+
+		useEffect(() => {
+			const attrFromUrl = searchParams.get("highlightAttr");
+			if (!attrFromUrl) return;
+			const attrName = decodeURIComponent(attrFromUrl).trim();
+			if (!attrName) return;
+			const decodedUrlEntityId = urlEntityId
+				? decodeURIComponent(urlEntityId)
+				: undefined;
+			const decodedSelectedEntityId = selectedEntityId
+				? decodeURIComponent(selectedEntityId)
+				: undefined;
+			const entityId = decodedSelectedEntityId || decodedUrlEntityId;
+			if (!entityId) return;
+			// Ensure the graph is focused on the same entity as the highlighted attribute
+			setSelectedNode(entityId);
+			onSelectEntity(entityId);
+			setSelectedAttribute({ entityId, attrName });
+		}, [
+			onSelectEntity,
+			searchParams,
+			selectedEntityId,
+			setSelectedAttribute,
+			setSelectedNode,
+			urlEntityId,
+		]);
 
 		// Dialog state
 		const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);
@@ -852,8 +881,6 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			[],
 		);
 
-		const { setRevealPosition } = useDataLineageStore();
-
 		const handleCloseContextMenu = useCallback(() => {
 			setContextMenu(null);
 		}, []);
@@ -888,13 +915,6 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 			setContextMenu(null);
 		}, [contextMenu]);
-
-		const handleContextMenuShowInEditor = useCallback(() => {
-			if (contextMenu) {
-				setRevealPosition({ nodeId: contextMenu.entityId, from: "graph" });
-			}
-			setContextMenu(null);
-		}, [contextMenu, setRevealPosition]);
 
 		const handleContextMenuCopyId = useCallback(() => {
 			if (contextMenu) {

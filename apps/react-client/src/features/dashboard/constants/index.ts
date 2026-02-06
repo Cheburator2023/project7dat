@@ -4,7 +4,7 @@ import type { IJsonModel } from "flexlayout-react";
 // Graph Constants
 // ============================================================================
 
-export const NODE_WIDTH = 280;
+export const NODE_WIDTH = 320;
 export const NODE_HEADER_HEIGHT = 60;
 export const ATTR_ROW_HEIGHT = 22;
 export const MAX_VISIBLE_ATTRS = 50;
