@@ -9,6 +9,7 @@ import { AttributeMapSourceEntity } from '../entities/attribute-map-source.entit
 import { EntityAttributeMapEntity } from '../entities/entity-attribute-map.entity';
 import { EntityMapSourceEntity } from '../entities/entity-map-source.entity';
 import { EntityEntity } from '../entities/entity.entity';
+import { AttributeEntity } from '../entities/attribute.entity';
 
 @Injectable()
 export class ProcessHandlingService {
@@ -301,5 +302,96 @@ export class ProcessHandlingService {
         });
 
         return process ? process.process_id : 0;
+    }
+
+    async populateEntityMapSource(processId: number, queryRunner: QueryRunner): Promise<void> {
+        this.logger.log(`Заполнение entity_map_source для процесса: ${processId}`);
+
+        try {
+            // Получаем все entity_map для процесса
+            const entityMaps = await queryRunner.manager.find(EntityMapEntity, {
+                where: { process_id: processId }
+            });
+
+            for (const entityMap of entityMaps) {
+                // Ищем источники через attribute_map_source
+                const attributeMaps = await queryRunner.manager.find(AttributeMapEntity, {
+                    where: { entity_map_id: entityMap.entity_map_id }
+                });
+
+                for (const attributeMap of attributeMaps) {
+                    const attributeMapSources = await queryRunner.manager.find(AttributeMapSourceEntity, {
+                        where: { attribute_map_id: attributeMap.attribute_map_id }
+                    });
+
+                    for (const attributeMapSource of attributeMapSources) {
+                        // Получаем атрибут источника
+                        const sourceAttribute = await queryRunner.manager.findOne(AttributeEntity, {
+                            where: { attribute_id: attributeMapSource.source_attribute_id }
+                        });
+
+                        if (sourceAttribute) {
+                            // Создаем запись в entity_map_source
+                            const existingSource = await queryRunner.manager.findOne(
+                                EntityMapSourceEntity,
+                                {
+                                    where: {
+                                        entity_map_id: entityMap.entity_map_id,
+                                        source_entity_id: sourceAttribute.entity_id,
+                                    },
+                                },
+                            );
+
+                            if (!existingSource) {
+                                const entityMapSource = new EntityMapSourceEntity();
+                                entityMapSource.entity_map_id = entityMap.entity_map_id;
+                                entityMapSource.source_entity_id = sourceAttribute.entity_id;
+                                entityMapSource.change_id = entityMap.change_id;
+
+                                await queryRunner.manager.save(EntityMapSourceEntity, entityMapSource);
+                            }
+                        }
+                    }
+                }
+
+                // Ищем источники через entity_attribute_map
+                const entityAttributeMaps = await queryRunner.manager.find(EntityAttributeMapEntity, {
+                    where: { entity_map_id: entityMap.entity_map_id }
+                });
+
+                for (const entityAttributeMap of entityAttributeMaps) {
+                    const sourceAttribute = await queryRunner.manager.findOne(AttributeEntity, {
+                        where: { attribute_id: entityAttributeMap.source_attribute_id }
+                    });
+
+                    if (sourceAttribute) {
+                        // Создаем запись в entity_map_source
+                        const existingSource = await queryRunner.manager.findOne(
+                            EntityMapSourceEntity,
+                            {
+                                where: {
+                                    entity_map_id: entityMap.entity_map_id,
+                                    source_entity_id: sourceAttribute.entity_id,
+                                },
+                            },
+                        );
+
+                        if (!existingSource) {
+                            const entityMapSource = new EntityMapSourceEntity();
+                            entityMapSource.entity_map_id = entityMap.entity_map_id;
+                            entityMapSource.source_entity_id = sourceAttribute.entity_id;
+                            entityMapSource.change_id = entityMap.change_id;
+
+                            await queryRunner.manager.save(EntityMapSourceEntity, entityMapSource);
+                        }
+                    }
+                }
+            }
+
+            this.logger.log(`Заполнение entity_map_source завершено для процесса: ${processId}`);
+        } catch (error) {
+            this.logger.error(`Ошибка заполнения entity_map_source: ${error.message}`, error.stack);
+            throw error;
+        }
     }
 }

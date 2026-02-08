@@ -16,22 +16,22 @@ import { ProcessGroupEntity } from "./process-group.entity";
 @Index("idx_process_type", ["process_type"])
 @Index("idx_process_group_id", ["group_id"])
 export class ProcessEntity {
-	@PrimaryGeneratedColumn()
-	process_id: number;
+    @PrimaryGeneratedColumn()
+    process_id: number;
 
-	@Column()
-	change_id: number;
+    @Column()
+    change_id: number;
 
-	@Column()
-	process_type: number;
+    @Column()
+    process_type: number;
 
-	@Column({ type: "varchar", nullable: true })
-	name: string;
+    @Column({ type: "varchar", nullable: true })
+    name: string;
 
     @Column({ nullable: true })
     group_id: number | null;
 
-    @Column({ type: "text", nullable: true })
+    @Column({ type: "varchar", nullable: true })
     description: string;
 
     @ManyToOne(() => ChangeEntity)

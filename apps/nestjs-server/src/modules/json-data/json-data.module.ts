@@ -67,6 +67,8 @@ import { CacheMonitorController } from "./controllers/cache-monitor.controller";
 
 // Modules
 import { ChangelogModule } from "../changelog/changelog.module";
+import {JsonExportNewController} from "./controllers/json-export-new.controller";
+import { JsonExportNewService } from "./services/json-export-new.service";
 
 @Global()
 @Module({})
@@ -121,6 +123,7 @@ export class JsonDataModule {
             JsonCommitService,
             JsonImportService,
             JsonExportService,
+            JsonExportNewService,
             CacheService,
 
             // Conflict and Migration services
@@ -175,6 +178,7 @@ export class JsonDataModule {
             JsonImportController,
             JsonValidationController,
             JsonExportController,
+            JsonExportNewController,
             CacheMonitorController,
         ];
 
@@ -199,6 +203,7 @@ export class JsonDataModule {
             JsonSchemaVersionValidationService,
             JsonValidationOrchestratorService,
             JsonExportService,
+            JsonExportNewService,
             CacheService,
 
             // Abstract classes
