@@ -1343,7 +1343,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			if (!node) return;
 			const x = node.position.x + (node.measured?.width ?? 280) / 2;
 			const y = node.position.y + (node.measured?.height ?? 100) / 2;
-			setCenter(x, y, { duration: 500 });
+			setCenter(x, y, { duration: 500, zoom: 1 });
 		}, [getNode, rootEntityId, setCenter]);
 
 		const handleDepthLegendClick = useCallback(
@@ -1462,7 +1462,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					nodeTypes={graphNodeTypes}
 					nodesDraggable
 					fitView
-					minZoom={0.1}
+					minZoom={1}
 					maxZoom={6}
 					defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
 					proOptions={{ hideAttribution: true }}

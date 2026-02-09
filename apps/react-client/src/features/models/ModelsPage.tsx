@@ -189,14 +189,6 @@ export const ModelsPage = () => {
 		);
 	}
 
-	// if (error) {
-	// 	return (
-	// 		<Box sx={{ p: 3 }}>
-	// 			<Alert severity="error">Ошибка загрузки моделей: {error.message}</Alert>
-	// 		</Box>
-	// 	);
-	// }
-
 	const columnDefs: ColDef<Model>[] = [
 		{
 			headerName: "Название",
