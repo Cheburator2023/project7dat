@@ -16,6 +16,7 @@ interface EnhancedEntityData {
     entity_type_name: string;
     namespace?: string;
     system_code: string;
+    system_name?: string;
     entity_change_date: Date;
     container_description?: string;
     container_change_date?: Date;
@@ -30,9 +31,11 @@ interface EnhancedEntityData {
 }
 
 interface EnhancedMappingData {
+    entity_map_id: number;
     target_entity_id: number;
     target_entity_full_name: string;
     target_system_code: string;
+    mapping_description?: string;
     relation_change_date: Date;
     process_id?: number;
     process_name?: string;
@@ -106,17 +109,16 @@ export class JsonExportNewService {
             // Получаем все сущности с деталями
             const entitiesWithDetails = await this.getEnhancedEntitiesWithDetails();
 
-            // Получаем все маппинги с исправленной структурой (включая process_description и atrDeps)
-            const mappingsWithDetails = await this.getEnhancedMappingsWithProcessDescription();
+            // Получаем все маппинги с исправленной структурой
+            const mappingsWithDetails = await this.getEnhancedMappingsWithCorrectStructure();
 
             // Преобразуем данные в новую структуру JSON согласно ТЗ
             const entities = this.transformEnhancedEntities(entitiesWithDetails, mappingsWithDetails);
-            const mappings = this.transformEnhancedMappingsWithProcessDescription(mappingsWithDetails);
+            const mappings = this.transformEnhancedMappingsWithCorrectStructure(mappingsWithDetails);
 
             const result: JsonExportNewResponseDto = {
                 desc: {
                     change_date: latestChange?.change_date.toISOString() || new Date().toISOString(),
-                    default_system_code: "1642"
                 },
                 entities,
                 mappings,
@@ -151,23 +153,7 @@ export class JsonExportNewService {
     /**
      * Получение улучшенных сущностей с деталями
      */
-    private async getEnhancedEntitiesWithDetails(changeId?: number): Promise<EnhancedEntityData[]> {
-        let dateFilter = "";
-        const params: any[] = [];
-
-        if (changeId) {
-            dateFilter = `
-                AND e.change_id IN (
-                    SELECT MAX(e2.change_id) 
-                    FROM entity e2 
-                    WHERE e2.full_name = e.full_name 
-                    AND e2.change_id <= $1
-                    GROUP BY e2.full_name
-                )
-            `;
-            params.push(changeId);
-        }
-
+    private async getEnhancedEntitiesWithDetails(): Promise<EnhancedEntityData[]> {
         const query = `
             SELECT
                 e.entity_id,
@@ -186,6 +172,8 @@ export class JsonExportNewService {
                              ELSE '1642'
                              END
                 ) as system_code,
+                s.name as system_name,
+                s.system_id,
                 c_entity.change_date as entity_change_date,
                 ec.description as container_description,
                 c_container.change_date as container_change_date
@@ -195,15 +183,14 @@ export class JsonExportNewService {
                      LEFT JOIN systems s ON ec.system_id = s.system_id
                      LEFT JOIN changes c_entity ON e.change_id = c_entity.change_id
                      LEFT JOIN changes c_container ON ec.change_id = c_container.change_id
-            WHERE 1=1 ${dateFilter}
             ORDER BY e.full_name
         `;
 
-        const entities = await this.dataSource.query(query, params);
+        const entities = await this.dataSource.query(query);
 
         // Загружаем атрибуты для каждой сущности
         for (const entity of entities) {
-            entity.attributes = await this.getEnhancedAttributesForEntity(entity.entity_id, changeId);
+            entity.attributes = await this.getEnhancedAttributesForEntity(entity.entity_id);
         }
 
         return entities;
@@ -212,15 +199,7 @@ export class JsonExportNewService {
     /**
      * Получение улучшенных атрибутов для сущности
      */
-    private async getEnhancedAttributesForEntity(entityId: number, changeId?: number): Promise<any[]> {
-        let dateFilter = "";
-        const params: any[] = [entityId];
-
-        if (changeId) {
-            dateFilter = " AND a.change_id <= $2";
-            params.push(changeId);
-        }
-
+    private async getEnhancedAttributesForEntity(entityId: number): Promise<any[]> {
         const query = `
             SELECT
                 a.attribute_id,
@@ -232,36 +211,23 @@ export class JsonExportNewService {
             FROM attribute a
                      LEFT JOIN attribute_type at ON a.type_id = at.type_id
                 LEFT JOIN changes c ON a.change_id = c.change_id
-            WHERE a.entity_id = $1 ${dateFilter}
+            WHERE a.entity_id = $1
             ORDER BY a.name
         `;
 
-        return await this.dataSource.query(query, params);
+        return await this.dataSource.query(query, [entityId]);
     }
 
     /**
-     * Получение маппингов с полной информацией, включая process_description и atrDeps
+     * Получение маппингов с исправленной структурой согласно ТЗ
      */
-    private async getEnhancedMappingsWithProcessDescription(changeId?: number): Promise<EnhancedMappingData[]> {
-        let dateFilter = "";
-        const params: any[] = [];
-
-        if (changeId) {
-            dateFilter = `
-                AND em.change_id <= $1
-                AND (p.change_id IS NULL OR p.change_id <= $2)
-                AND (am.change_id IS NULL OR am.change_id <= $3)
-                AND (eam.change_id IS NULL OR eam.change_id <= $4)
-                AND (ems.change_id IS NULL OR ems.change_id <= $5)
-            `;
-            params.push(changeId, changeId, changeId, changeId, changeId);
-        }
-
+    private async getEnhancedMappingsWithCorrectStructure(): Promise<EnhancedMappingData[]> {
         // Основной запрос для получения entity_map с процессом и описанием
         const entityMapsQuery = `
             SELECT DISTINCT
                 em.entity_map_id,
                 em.entity_id as target_entity_id,
+                em.description as mapping_description,
                 em.process_id,
                 em.change_id as mapping_change_id,
                 p.name as process_name,
@@ -277,13 +243,10 @@ export class JsonExportNewService {
                 SELECT e.entity_id FROM entity e WHERE e.full_name = fm.entity_name LIMIT 1
                 ) AND fm.change_id = em.change_id
             WHERE em.change_id IS NOT NULL
-                ${dateFilter}
-            ORDER BY em.entity_id
+            ORDER BY em.entity_map_id
         `;
 
-        const entityMaps = await this.dataSource.query(entityMapsQuery, params);
-
-        // Для каждого entity_map собираем информацию о целевой сущности и источниках
+        const entityMaps = await this.dataSource.query(entityMapsQuery);
         const results: EnhancedMappingData[] = [];
 
         for (const entityMap of entityMaps) {
@@ -295,14 +258,16 @@ export class JsonExportNewService {
                 continue;
             }
 
-            // Получаем источники с полной информацией
-            const sources = await this.getSourcesWithAttributeDetails(entityMap.entity_map_id, changeId);
+            // Получаем источники через attribute_map_source и entity_attribute_map
+            const sources = await this.getSourcesForEntityMap(entityMap.entity_map_id);
 
             // Создаем базовую запись для целевой сущности
             const baseMapping: EnhancedMappingData = {
+                entity_map_id: entityMap.entity_map_id,
                 target_entity_id: entityMap.target_entity_id,
                 target_entity_full_name: targetEntity.full_name,
                 target_system_code: targetEntity.system_code || "1642",
+                mapping_description: entityMap.mapping_description,
                 relation_change_date: entityMap.relation_change_date,
                 process_id: entityMap.process_id,
                 process_name: entityMap.process_name,
@@ -336,16 +301,16 @@ export class JsonExportNewService {
     }
 
     /**
-     * Получение источников с детальной информацией об атрибутах
+     * Получение источников для entity_map через attribute_map_source и entity_attribute_map
      */
-    private async getSourcesWithAttributeDetails(entityMapId: number, changeId?: number): Promise<any[]> {
+    private async getSourcesForEntityMap(entityMapId: number): Promise<any[]> {
         const sources = new Map<number, any>();
 
         // 1. Получаем информацию об атрибутных маппингах
-        const attrMaps = await this.getAttributeMappingsWithIds(entityMapId, changeId);
+        const attrMaps = await this.getAttributeMappingsForEntityMap(entityMapId);
 
         // 2. Получаем информацию о функциональных зависимостях
-        const attrDeps = await this.getAttributeDependenciesWithIds(entityMapId, changeId);
+        const attrDeps = await this.getAttributeDependenciesForEntityMap(entityMapId);
 
         // Обрабатываем атрибутные маппинги
         for (const attrMap of attrMaps) {
@@ -416,17 +381,9 @@ export class JsonExportNewService {
     }
 
     /**
-     * Получение атрибутных маппингов с ID атрибутов
+     * Получение атрибутных маппингов для entity_map
      */
-    private async getAttributeMappingsWithIds(entityMapId: number, changeId?: number): Promise<any[]> {
-        let dateFilter = "";
-        const params: any[] = [entityMapId];
-
-        if (changeId) {
-            dateFilter = " AND am.change_id <= $2 AND ams.change_id <= $3";
-            params.push(changeId, changeId);
-        }
-
+    private async getAttributeMappingsForEntityMap(entityMapId: number): Promise<any[]> {
         const query = `
             SELECT
                 am.attribute_map_id,
@@ -460,25 +417,17 @@ export class JsonExportNewService {
                      LEFT JOIN systems s ON ec.system_id = s.system_id
                      LEFT JOIN changes c_am ON am.change_id = c_am.change_id
                      LEFT JOIN changes c_ams ON ams.change_id = c_ams.change_id
-            WHERE am.entity_map_id = $1 ${dateFilter}
+            WHERE am.entity_map_id = $1
             ORDER BY e_source.full_name, a_source.name
         `;
 
-        return await this.dataSource.query(query, params);
+        return await this.dataSource.query(query, [entityMapId]);
     }
 
     /**
-     * Получение функциональных зависимостей с ID атрибутов
+     * Получение функциональных зависимостей для entity_map
      */
-    private async getAttributeDependenciesWithIds(entityMapId: number, changeId?: number): Promise<any[]> {
-        let dateFilter = "";
-        const params: any[] = [entityMapId];
-
-        if (changeId) {
-            dateFilter = " AND eam.change_id <= $2";
-            params.push(changeId);
-        }
-
+    private async getAttributeDependenciesForEntityMap(entityMapId: number): Promise<any[]> {
         const query = `
             SELECT
                 eam.source_attribute_id,
@@ -503,13 +452,13 @@ export class JsonExportNewService {
                      LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
                      LEFT JOIN systems s ON ec.system_id = s.system_id
                      LEFT JOIN changes c_dep ON eam.change_id = c_dep.change_id
-            WHERE eam.entity_map_id = $1 ${dateFilter}
+            WHERE eam.entity_map_id = $1
             GROUP BY eam.source_attribute_id, a.name, a.entity_id, e.full_name,
                 s.code, ec.value, et.name
             ORDER BY e.full_name, a.name
         `;
 
-        return await this.dataSource.query(query, params);
+        return await this.dataSource.query(query, [entityMapId]);
     }
 
     /**
@@ -566,6 +515,7 @@ export class JsonExportNewService {
                 namespace: entity.namespace || 'default',
                 name: entity.name,
                 system_code: entity.system_code || "1642",
+                system_name: entity.system_name,
                 entity_change: entity.entity_change_date.toISOString(),
                 description: entity.description || undefined,
                 container_description: entity.container_description || undefined,
@@ -581,45 +531,43 @@ export class JsonExportNewService {
     }
 
     /**
-     * Преобразование маппингов с полной информацией
+     * Преобразование маппингов с исправленной структурой согласно ТЗ
      */
-    private transformEnhancedMappingsWithProcessDescription(
+    private transformEnhancedMappingsWithCorrectStructure(
         mappingsWithDetails: EnhancedMappingData[]
     ): JsonExportNewResponseDto['mappings'] {
-        // Группируем по целевой сущности
-        const groupedByTarget = new Map<string, EnhancedMappingData[]>();
+        // Группируем по entity_map_id (целевой сущности и процессу)
+        const groupedByEntityMap = new Map<number, EnhancedMappingData[]>();
 
         mappingsWithDetails.forEach(mapping => {
-            if (!mapping.target_entity_full_name) {
-                this.logger.warn(`Пропускаем маппинг без target_entity_full_name`);
-                return;
+            if (!groupedByEntityMap.has(mapping.entity_map_id)) {
+                groupedByEntityMap.set(mapping.entity_map_id, []);
             }
-
-            if (!groupedByTarget.has(mapping.target_entity_full_name)) {
-                groupedByTarget.set(mapping.target_entity_full_name, []);
-            }
-            groupedByTarget.get(mapping.target_entity_full_name)!.push(mapping);
+            groupedByEntityMap.get(mapping.entity_map_id)!.push(mapping);
         });
 
         // Преобразуем в новую структуру согласно ТЗ
         const mappings: JsonExportNewResponseDto['mappings'] = [];
 
-        for (const [targetEntity, records] of groupedByTarget.entries()) {
+        for (const [entityMapId, records] of groupedByEntityMap.entries()) {
+            const firstRecord = records[0];
+            if (!firstRecord) continue;
+
             // Группируем зависимости по источнику
-            const depsMap = new Map<string, JsonExportNewResponseDto['mappings'][0]['deps'][0]>();
+            const depsMap = new Map<number, JsonExportNewResponseDto['mappings'][0]['deps'][0]>();
 
             records.forEach(record => {
                 // Если есть источник, добавляем его в зависимости
-                if (record.source_entity_full_name) {
-                    const key = `${record.source_entity_full_name}_${record.source_system_code}`;
-
-                    if (!depsMap.has(key)) {
-                        depsMap.set(key, {
+                if (record.source_entity_id && record.source_entity_full_name) {
+                    if (!depsMap.has(record.source_entity_id)) {
+                        depsMap.set(record.source_entity_id, {
                             entityId: record.source_entity_full_name,
                             system_code: record.source_system_code || "1642",
-                            process: record.process_name || undefined,
-                            process_description: record.process_description || undefined,
-                            process_change: record.process_change_date?.toISOString() || undefined,
+                            source_id: record.source_entity_id,
+                            process_id: firstRecord.process_id,
+                            process: firstRecord.process_name,
+                            process_description: firstRecord.process_description,
+                            process_change: firstRecord.process_change_date?.toISOString(),
                             attrMaps: record.attr_maps.map(attrMap => ({
                                 src: attrMap.src,
                                 dst: attrMap.dst,
@@ -636,7 +584,7 @@ export class JsonExportNewService {
                         });
                     } else {
                         // Если зависимость уже существует, добавляем уникальные атрибуты
-                        const existingDep = depsMap.get(key)!;
+                        const existingDep = depsMap.get(record.source_entity_id)!;
 
                         // Добавляем уникальные attrMaps
                         record.attr_maps?.forEach((attrMap: any) => {
@@ -679,17 +627,18 @@ export class JsonExportNewService {
                 }
             });
 
-            // Берем первую запись для получения информации о маппинге
-            const firstRecord = records[0];
-            if (firstRecord) {
-                mappings.push({
-                    entityId: targetEntity,
-                    system_code: firstRecord.target_system_code || "1642",
-                    relation_change: firstRecord.relation_change_date.toISOString(),
-                    deps: Array.from(depsMap.values()),
-                    unmatched: firstRecord.failed_unmatched
-                });
-            }
+            // Создаем маппинг с процессом на верхнем уровне
+            const mapping: JsonExportNewResponseDto['mappings'][0] = {
+                entityId: firstRecord.target_entity_full_name,
+                description: firstRecord.mapping_description,
+                entity_map_id: firstRecord.entity_map_id,
+                target_id: firstRecord.target_entity_id,
+                system_code: firstRecord.target_system_code || "1642",
+                relation_change: firstRecord.relation_change_date.toISOString(),
+                deps: Array.from(depsMap.values()),
+            };
+
+            mappings.push(mapping);
         }
 
         return mappings;

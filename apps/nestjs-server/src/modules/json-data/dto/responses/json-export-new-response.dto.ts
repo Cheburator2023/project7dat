@@ -100,6 +100,11 @@ export class JsonExportNewEntityDto {
     })
     @IsArray()
     attrSeq: JsonExportNewAttributeDto[];
+
+    @ApiProperty({ description: "Наименование системы сущности в РБД DL", required: false })
+    @IsOptional()
+    @IsString()
+    system_name?: string;
 }
 
 // DTO для маппинга атрибутов
@@ -167,6 +172,11 @@ export class JsonExportNewDependencyDto {
     @IsString()
     entityId: string;
 
+    @ApiProperty({ description: "Уникальный идентификатор сущности источник в РБД DL", required: false })
+    @IsOptional()
+    @IsNumber()
+    source_id?: number;
+
     @ApiProperty({
         description: "Код системы источника",
         example: "1642",
@@ -175,6 +185,11 @@ export class JsonExportNewDependencyDto {
     @IsOptional()
     @IsString()
     system_code?: string;
+
+    @ApiProperty({ description: "Уникальный идентификатор процесса DAG в РБД", required: false })
+    @IsOptional()
+    @IsNumber()
+    process_id?: number;
 
     @ApiProperty({
         description: "Наименование процесса DAG",
@@ -241,13 +256,21 @@ export class JsonExportNewMappingDto {
     @IsArray()
     deps: JsonExportNewDependencyDto[];
 
-    @ApiProperty({
-        description: "Сущности, которые не получилось сопоставить",
-        required: false
-    })
+    @ApiProperty({ description: "Описание связи (маппинга) источник - цель", required: false })
     @IsOptional()
     @IsString()
-    unmatched?: string;
+    description?: string;
+
+    @ApiProperty({ description: "Уникальный идентификатор связи", required: false })
+    @IsOptional()
+    @IsNumber()
+    entity_map_id?: number;
+
+    @ApiProperty({ description: "Уникальный идентификатор сущности 'цель'", required: false })
+    @IsOptional()
+    @IsNumber()
+    target_id?: number;
+
 }
 
 // Основной DTO для ответа
