@@ -75,7 +75,7 @@ export const EntityDetailsDialog = ({
 	const {
 		setZoomToNode,
 		selectEntity,
-		setSelectedAttribute,
+		selectEntityWithAttribute,
 		setHighlightedMapping,
 	} = useDashboardStore();
 	const [viewMode, setViewMode] = useState<ViewMode>("attributes");
@@ -84,20 +84,12 @@ export const EntityDetailsDialog = ({
 	// Navigate to dashboard with attribute highlight
 	const handleOpenAttrInDashboard = useCallback(
 		(attrName: string) => {
-			selectEntity(entity.id);
+			selectEntityWithAttribute(entity.id, attrName);
 			setZoomToNode(entity.id);
-			setSelectedAttribute({ entityId: entity.id, attrName });
 			onClose();
 			navigate("/");
 		},
-		[
-			entity.id,
-			navigate,
-			selectEntity,
-			setZoomToNode,
-			setSelectedAttribute,
-			onClose,
-		],
+		[entity.id, navigate, selectEntityWithAttribute, setZoomToNode, onClose],
 	);
 
 	// Navigate to dashboard with mapping highlight

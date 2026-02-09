@@ -1,8 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import type { EntityNodeData } from "../types";
 import { TYPE_COLORS, HIGHLIGHT_COLORS, MAX_VISIBLE_ATTRS } from "../constants";
 import { useDashboardStore } from "../stores";
+import type { EntityNodeData } from "../types";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
 
@@ -207,7 +207,21 @@ export const EntityNodeComponent = memo(
 									marginBottom: 2,
 								}}
 							>
-								{entity.type}
+								{entity.type && (
+									<span
+										style={{
+											background: "#ed1515",
+											color: "#fff",
+											padding: "1px 4px",
+											borderRadius: 3,
+											fontSize: 9,
+											textTransform: "none",
+										}}
+										title="Система"
+									>
+										Тип: {entity.type}
+									</span>
+								)}
 								{entity.system_code && (
 									<span
 										style={{
@@ -224,20 +238,7 @@ export const EntityNodeComponent = memo(
 										Система: {entity.system_code}
 									</span>
 								)}
-								{entity.modified && (
-									<span
-										style={{
-											marginLeft: 6,
-											background: "#ff9800",
-											color: "#fff",
-											padding: "1px 4px",
-											borderRadius: 3,
-											fontSize: 9,
-										}}
-									>
-										цель
-									</span>
-								)}
+
 								{isDataMart && (
 									<span
 										style={{
@@ -462,6 +463,20 @@ export const EntityNodeComponent = memo(
 											transition: "all 0.15s ease",
 										}}
 									/>
+									<input
+										type="checkbox"
+										checked={isSelectedHighlighted}
+										readOnly
+										style={{
+											width: 12,
+											height: 12,
+											margin: 0,
+											marginRight: 4,
+											flexShrink: 0,
+											cursor: "pointer",
+											accentColor: HIGHLIGHT_COLORS.selected,
+										}}
+									/>
 									<span
 										style={{
 											width: 12,
@@ -572,6 +587,43 @@ export const EntityNodeComponent = memo(
 
 EntityNodeComponent.displayName = "EntityNodeComponent";
 
+interface DepthGroupNodeData {
+	label?: string;
+	[key: string]: unknown;
+}
+
+type DepthGroupNodeType = Node<DepthGroupNodeData, "depthGroup">;
+
+const DepthGroupNode = memo<NodeProps<DepthGroupNodeType>>(({ data }) => {
+	return (
+		<div
+			style={{
+				width: "100%",
+				height: "100%",
+				display: "flex",
+				flexDirection: "column",
+				alignItems: "flex-start",
+				justifyContent: "flex-start",
+				pointerEvents: "none",
+			}}
+		>
+			<div
+				style={{
+					fontSize: 12,
+					fontWeight: 600,
+					padding: "6px 10px",
+					color: "#333",
+					pointerEvents: "none",
+				}}
+			>
+				{data.label ?? ""}
+			</div>
+		</div>
+	);
+});
+
+DepthGroupNode.displayName = "DepthGroupNode";
+
 interface GhostNodeData extends Record<string, unknown> {
 	direction: "upstream" | "downstream";
 	boundaryNodeId: string;
@@ -631,4 +683,5 @@ GhostNodeComponent.displayName = "GhostNodeComponent";
 export const graphNodeTypes = {
 	entityNode: EntityNodeComponent,
 	ghostNode: GhostNodeComponent,
+	depthGroup: DepthGroupNode,
 };

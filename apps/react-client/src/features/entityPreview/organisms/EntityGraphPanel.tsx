@@ -7,12 +7,7 @@ import {
 	Menu,
 	MenuItem,
 } from "@mui/material";
-import {
-	ContentCopy,
-	AccountTree as GraphIcon,
-	Info,
-	OpenInNew,
-} from "@mui/icons-material";
+import { ContentCopy, Info } from "@mui/icons-material";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useNavigate } from "react-router-dom";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
@@ -44,7 +39,7 @@ export const EntityGraphPanel: React.FC<{
 		selectedEntityId,
 		selectEntity,
 		setUpstreamDownstream,
-		selectedAttribute,
+		selectedAttributes,
 	} = useDashboardStore();
 
 	// Use currentSchema hook to get data synced with editor
@@ -334,40 +329,43 @@ export const EntityGraphPanel: React.FC<{
 				</MenuItem>
 				<MenuItem onClick={handleGoToEntity}>
 					<ListItemIcon>
-						<OpenInNew fontSize="small" />
+						<Info fontSize="small" />
 					</ListItemIcon>
 					<ListItemText primary="Открыть страницу" />
 				</MenuItem>
 				<MenuItem onClick={handleOpenInNewTab}>
 					<ListItemIcon>
-						<OpenInNew fontSize="small" />
+						<Info fontSize="small" />
 					</ListItemIcon>
 					<ListItemText primary="Открыть в новой вкладке" />
 				</MenuItem>
 				{contextMenuEntity?.attrSeq &&
 					contextMenuEntity.attrSeq.length > 0 &&
-					selectedAttribute?.entityId === contextMenuEntity.id && (
+					selectedAttributes.some(
+						(a) => a.entityId === contextMenuEntity.id,
+					) && (
 						<MenuItem
-							onClick={() =>
-								handleGoToEntityWithHighlight(selectedAttribute.attrName)
-							}
+							onClick={() => {
+								const attr = selectedAttributes.find(
+									(a) => a.entityId === contextMenuEntity.id,
+								);
+								if (attr) handleGoToEntityWithHighlight(attr.attrName);
+							}}
 						>
 							<ListItemIcon>
-								<GraphIcon fontSize="small" />
+								<Info fontSize="small" />
 							</ListItemIcon>
 							<ListItemText
 								primary="Открыть с выделением атрибута"
-								secondary={selectedAttribute.attrName}
+								secondary={
+									selectedAttributes.find(
+										(a) => a.entityId === contextMenuEntity.id,
+									)?.attrName
+								}
 							/>
 						</MenuItem>
 					)}
 				<Divider />
-				{/* <MenuItem onClick={handleShowInEditor}>
-						<ListItemIcon>
-							<Code fontSize="small" />
-						</ListItemIcon>
-						<ListItemText primary="Показать в редакторе" />
-					</MenuItem> */}
 				<MenuItem onClick={handleCopyId}>
 					<ListItemIcon>
 						<ContentCopy fontSize="small" />

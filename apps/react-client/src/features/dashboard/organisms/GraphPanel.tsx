@@ -40,13 +40,13 @@ export const GraphPanel = memo(() => {
 		selectedEntityId,
 		selectEntity,
 		setUpstreamDownstream,
-		selectedAttribute,
+		selectedAttributes,
 	} = useDashboardStore(
 		useShallow((state) => ({
 			selectedEntityId: state.selectedEntityId,
 			selectEntity: state.selectEntity,
 			setUpstreamDownstream: state.setUpstreamDownstream,
-			selectedAttribute: state.selectedAttribute,
+			selectedAttributes: state.selectedAttributes,
 		})),
 	);
 
@@ -364,18 +364,27 @@ export const GraphPanel = memo(() => {
 				</MenuItem>
 				{contextMenuEntity?.attrSeq &&
 					contextMenuEntity.attrSeq.length > 0 &&
-					selectedAttribute?.entityId === contextMenuEntity.id && (
+					selectedAttributes.some(
+						(a) => a.entityId === contextMenuEntity.id,
+					) && (
 						<MenuItem
-							onClick={() =>
-								handleGoToEntityWithHighlight(selectedAttribute.attrName)
-							}
+							onClick={() => {
+								const attr = selectedAttributes.find(
+									(a) => a.entityId === contextMenuEntity.id,
+								);
+								if (attr) handleGoToEntityWithHighlight(attr.attrName);
+							}}
 						>
 							<ListItemIcon>
 								<GraphIcon fontSize="small" />
 							</ListItemIcon>
 							<ListItemText
 								primary="Открыть с выделением атрибута"
-								secondary={selectedAttribute.attrName}
+								secondary={
+									selectedAttributes.find(
+										(a) => a.entityId === contextMenuEntity.id,
+									)?.attrName
+								}
 							/>
 						</MenuItem>
 					)}

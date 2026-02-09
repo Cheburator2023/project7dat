@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useCallback } from "react";
+import React, { memo, useMemo, useState, useCallback } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import * as fuzzysort from "fuzzysort";
 import type { EntityNodeData } from "../../dashboard/types";
@@ -326,22 +326,26 @@ export const ModelNodePreviewComponent = memo(
 						{attrs.length > 0 && (
 							<span style={ATTR_COUNT_STYLE}>{attrs.length} атр.</span>
 						)}
-						<button
-							onClick={handleViewDetailsClick}
-							style={detailsButtonStyle}
-							title="Открыть детали"
-							type="button"
-						>
-							ⓘ
-						</button>
-						<button
-							onClick={handleNavClick}
-							style={navButtonStyle}
-							title="Открыть страницу сущности"
-							type="button"
-						>
-							↗
-						</button>
+						{(data.entity.type as any) !== "Model" && (
+							<>
+								<button
+									onClick={handleViewDetailsClick}
+									style={detailsButtonStyle}
+									title="Открыть детали"
+									type="button"
+								>
+									ⓘ
+								</button>
+								<button
+									onClick={handleNavClick}
+									style={navButtonStyle}
+									title="Открыть страницу сущности"
+									type="button"
+								>
+									↗
+								</button>
+							</>
+						)}
 					</div>
 				</div>
 
@@ -360,33 +364,34 @@ export const ModelNodePreviewComponent = memo(
 				)} */}
 
 				{/* Search input for attributes */}
-				{!globalAttributeSearchQuery && (
-					<div
-						className="nodrag nopan"
-						style={{
-							padding: "8px 12px",
-							borderBottom: "1px solid #e0e0e0",
-						}}
-						onPointerDown={handleStopPropagation}
-						onMouseDown={handleStopPropagation}
-					>
-						<input
-							type="text"
-							placeholder="Поиск атрибутов (мин. 2 символа)..."
-							value={localSearchQuery}
-							onChange={(e) => setLocalSearchQuery(e.target.value)}
-							onClick={handleStopPropagation}
+				{!globalAttributeSearchQuery &&
+					(data.entity.type as any) !== "Model" && (
+						<div
+							className="nodrag nopan"
 							style={{
-								width: "100%",
-								padding: "4px 8px",
-								fontSize: 10,
-								border: "1px solid #ddd",
-								borderRadius: 4,
-								outline: "none",
+								padding: "8px 12px",
+								borderBottom: "1px solid #e0e0e0",
 							}}
-						/>
-					</div>
-				)}
+							onPointerDown={handleStopPropagation}
+							onMouseDown={handleStopPropagation}
+						>
+							<input
+								type="text"
+								placeholder="Поиск атрибутов (мин. 2 символа)..."
+								value={localSearchQuery}
+								onChange={(e) => setLocalSearchQuery(e.target.value)}
+								onClick={handleStopPropagation}
+								style={{
+									width: "100%",
+									padding: "4px 8px",
+									fontSize: 10,
+									border: "1px solid #ddd",
+									borderRadius: 4,
+									outline: "none",
+								}}
+							/>
+						</div>
+					)}
 
 				{/* Related attributes */}
 				{visibleAttrs.length > 0 && (
@@ -492,6 +497,47 @@ export const ModelNodePreviewComponent = memo(
 
 ModelNodePreviewComponent.displayName = "ModelNodePreviewComponent";
 
+interface DepthGroupNodeData {
+	label?: string;
+	[key: string]: unknown;
+}
+
+type DepthGroupNodeType = Node<DepthGroupNodeData, "depthGroup">;
+
+const DepthGroupNode = memo<NodeProps<DepthGroupNodeType>>(({ data }) => {
+	return (
+		<div
+			style={{
+				width: "100%",
+				height: "100%",
+				position: "relative",
+			}}
+		>
+			{data.label && (
+				<div
+					style={{
+						position: "absolute",
+						top: 8,
+						left: 12,
+						fontSize: 11,
+						fontWeight: 600,
+						color: "#666",
+						pointerEvents: "none",
+						userSelect: "none",
+						letterSpacing: 0.3,
+						textTransform: "uppercase",
+					}}
+				>
+					{data.label}
+				</div>
+			)}
+		</div>
+	);
+});
+
+DepthGroupNode.displayName = "DepthGroupNode";
+
 export const graphNodeTypes = {
 	entityNode: ModelNodePreviewComponent,
+	depthGroup: DepthGroupNode,
 };

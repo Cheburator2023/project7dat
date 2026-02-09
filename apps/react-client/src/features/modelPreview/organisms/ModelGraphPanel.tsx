@@ -39,12 +39,13 @@ import { LinkIcon } from "lucide-react";
 
 export const ModelGraphPanel: React.FC<{
 	onSelectNode?: (data: any) => void;
-}> = memo(({ onSelectNode }) => {
+	entity: DataLineageEntity | null;
+}> = memo(({ onSelectNode, entity }) => {
 	const {
 		selectedEntityId,
 		selectEntity,
 		setUpstreamDownstream,
-		selectedAttribute,
+		selectedAttributes,
 	} = useDashboardStore();
 
 	// Use currentSchema hook to get data synced with editor
@@ -299,6 +300,7 @@ export const ModelGraphPanel: React.FC<{
 					onEdgeClick={handleEdgeClick}
 					onNodeContextMenu={handleNodeContextMenu}
 					onSelectNode={onSelectNode}
+					entity={entity}
 				/>
 			</ReactFlowProvider>
 
@@ -344,18 +346,27 @@ export const ModelGraphPanel: React.FC<{
 				</MenuItem>
 				{contextMenuEntity?.attrSeq &&
 					contextMenuEntity.attrSeq.length > 0 &&
-					selectedAttribute?.entityId === contextMenuEntity.id && (
+					selectedAttributes.some(
+						(a) => a.entityId === contextMenuEntity.id,
+					) && (
 						<MenuItem
-							onClick={() =>
-								handleGoToEntityWithHighlight(selectedAttribute.attrName)
-							}
+							onClick={() => {
+								const attr = selectedAttributes.find(
+									(a) => a.entityId === contextMenuEntity.id,
+								);
+								if (attr) handleGoToEntityWithHighlight(attr.attrName);
+							}}
 						>
 							<ListItemIcon>
 								<GraphIcon fontSize="small" />
 							</ListItemIcon>
 							<ListItemText
 								primary="Открыть с выделением атрибута"
-								secondary={selectedAttribute.attrName}
+								secondary={
+									selectedAttributes.find(
+										(a) => a.entityId === contextMenuEntity.id,
+									)?.attrName
+								}
 							/>
 						</MenuItem>
 					)}

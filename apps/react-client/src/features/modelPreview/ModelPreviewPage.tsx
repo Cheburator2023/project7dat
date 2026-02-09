@@ -281,7 +281,12 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						</EntityContainer>
 					);
 				case "entity-graph":
-					return <ModelGraphPanel onSelectNode={onSelectNode} />;
+					return (
+						<ModelGraphPanel
+							onSelectNode={onSelectNode}
+							entity={selectedEntity}
+						/>
+					);
 				default:
 					return <div>Unknown component: {component}</div>;
 			}

@@ -44,7 +44,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 		setZoomToNode,
 		selectEntity,
 		setHighlightedMapping,
-		setSelectedAttribute,
+		selectEntityWithAttribute,
 	} = useDashboardStore();
 
 	const relatedMappings = useMemo(() => {
@@ -71,14 +71,15 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 	// Navigate to dashboard with entity and attribute highlight
 	const handleOpenInDashboard = useCallback(
 		(entityId: string, attrName?: string) => {
-			selectEntity(entityId);
-			setZoomToNode(entityId);
 			if (attrName) {
-				setSelectedAttribute({ entityId, attrName });
+				selectEntityWithAttribute(entityId, attrName);
+			} else {
+				selectEntity(entityId);
 			}
+			setZoomToNode(entityId);
 			navigate("/");
 		},
-		[navigate, selectEntity, setZoomToNode, setSelectedAttribute],
+		[navigate, selectEntity, selectEntityWithAttribute, setZoomToNode],
 	);
 
 	// Navigate with mapping highlight

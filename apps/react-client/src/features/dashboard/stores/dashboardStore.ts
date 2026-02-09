@@ -16,9 +16,10 @@ interface SelectionState {
 	hoveredAttribute: HighlightedAttribute | null;
 	setHoveredAttribute: (attr: HighlightedAttribute | null) => void;
 
-	// Clicked/selected attribute for persistent cross-node highlighting
-	selectedAttribute: HighlightedAttribute | null;
-	setSelectedAttribute: (attr: HighlightedAttribute | null) => void;
+	// Clicked/selected attributes for persistent cross-node highlighting (multi-select)
+	selectedAttributes: HighlightedAttribute[];
+	toggleSelectedAttribute: (attr: HighlightedAttribute) => void;
+	clearSelectedAttributes: () => void;
 
 	// Highlight sets for different panels
 	highlightedEntities: Set<string>;
@@ -90,8 +91,25 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 	selectedAttributeName: null,
 	hoveredAttribute: null,
 	setHoveredAttribute: (attr) => set({ hoveredAttribute: attr }),
-	selectedAttribute: null,
-	setSelectedAttribute: (attr) => set({ selectedAttribute: attr }),
+	selectedAttributes: [],
+	toggleSelectedAttribute: (attr) =>
+		set((state) => {
+			const exists = state.selectedAttributes.some(
+				(a) => a.entityId === attr.entityId && a.attrName === attr.attrName,
+			);
+			if (exists) {
+				return {
+					selectedAttributes: state.selectedAttributes.filter(
+						(a) =>
+							!(a.entityId === attr.entityId && a.attrName === attr.attrName),
+					),
+				};
+			}
+			return {
+				selectedAttributes: [...state.selectedAttributes, attr],
+			};
+		}),
+	clearSelectedAttributes: () => set({ selectedAttributes: [] }),
 	highlightedEntities: new Set(),
 	highlightedRows: new Set(),
 	highlightedCodeLines: new Set(),
@@ -117,7 +135,7 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 			selectedEntityId: entityId,
 			selectedGraphId: graphId ?? state.selectedGraphId,
 			selectedAttributeName: attrName,
-			selectedAttribute: { entityId, attrName },
+			selectedAttributes: [{ entityId, attrName }],
 			highlightedEntities: entityId ? new Set([entityId]) : new Set(),
 		})),
 

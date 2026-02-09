@@ -27,6 +27,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
 import { routes } from "@react-client/routing/routes";
 import { EntityRow } from "@react-client/features/dashboard";
+import { DataLineageGraph } from "@react-client/types/dataLineage";
 
 // Extended interface based on DataLineageEntity for UI display purposes
 export interface Model extends DataLineageEntity {
@@ -45,24 +46,42 @@ export interface Model extends DataLineageEntity {
 	businessType?: "analytical" | "operational" | "dimensional";
 }
 
-const mapJsonDataItemToModels = (item: JsonDataItem): any[] => {
-	const data = item.data;
-	const entities = data?.entities ?? [];
+// const mapJsonDataItemToModels = (item: JsonDataItem): any[] => {
+// 	const data = item.data;
+// 	const entities = data?.entities ?? [];
+// 	const filterEntities = entities.filter(
+// 		(entity) => entity.type === "input_vector",
+// 	);
+
+// 	return filterEntities.map((entity) => ({
+// 		...entity,
+// 		graphId: item.id,
+// 		description:
+// 			// entity может не иметь description в shared-схеме, поэтому подстраховываемся
+// 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// 			((entity as any).container_description as string | undefined) ||
+// 			((entity as any).description as string | undefined) ||
+// 			item.description ||
+// 			data.desc.appName,
+// 		updatedDate: item.container_change || item.entity_change,
+// 	}));
+// };
+
+const mapGraphToModels = (graph: DataLineageGraph): Model[] => {
+	const entities = graph?.entities ?? [];
 	const filterEntities = entities.filter(
 		(entity) => entity.type === "input_vector",
 	);
 
 	return filterEntities.map((entity) => ({
 		...entity,
-		graphId: item.id,
+		graphId: graph.desc.appId,
 		description:
-			// entity может не иметь description в shared-схеме, поэтому подстраховываемся
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			((entity as any).container_description as string | undefined) ||
-			((entity as any).description as string | undefined) ||
-			item.description ||
-			data.desc.appName,
-		updatedDate: item.container_change || item.entity_change,
+			entity.description ||
+			graph.desc.appName,
+		updatedDate: entity.entity_change,
 	}));
 };
 
@@ -141,7 +160,7 @@ export const ModelsPage = () => {
 			return [];
 		}
 
-		return [{ data: currentGraph }].flatMap(mapJsonDataItemToModels);
+		return mapGraphToModels(currentGraph);
 	}, [currentGraph]);
 
 	const filteredModels = useMemo(() => {
