@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
 import { JsonExportNewResponseDto } from "../dto/responses/json-export-new-response.dto";
@@ -41,11 +41,21 @@ interface EnhancedMappingData {
     source_entity_id?: number;
     source_entity_full_name?: string;
     source_system_code?: string;
-    attr_maps: any[];
-    atr_deps: any[];
+    attr_maps: Array<{
+        src: string;
+        dst: string;
+        src_id?: number;
+        dst_id?: number;
+        relation_change: string;
+    }>;
+    atr_deps: Array<{
+        attr: string;
+        linkTypes: string[];
+        src_id?: number;
+        relation_change: string;
+    }>;
     failed_unmatched?: string;
 }
-
 
 @Injectable()
 export class JsonExportNewService {
@@ -73,18 +83,35 @@ export class JsonExportNewService {
         const startTime = Date.now();
 
         try {
+            // Пробуем получить данные из кэша
+            this.logger.debug('Попытка получения данных из кэша нового формата');
+            const cachedData = await this.cacheService.getCachedExportAll();
+
+            if (cachedData) {
+                const duration = Date.now() - startTime;
+                this.logger.log('Экспорт завершен (данные из кэша)', {
+                    source: 'cache',
+                    duration,
+                    entitiesCount: cachedData.entities?.length || 0,
+                    mappingsCount: cachedData.mappings?.length || 0,
+                });
+                return cachedData;
+            }
+
+            this.logger.debug('Кэш-промах, выполнение полного экспорта с новой структурой');
+
             // Получаем последнюю дату изменений
             const latestChange = await this.getLatestChange();
 
             // Получаем все сущности с деталями
             const entitiesWithDetails = await this.getEnhancedEntitiesWithDetails();
 
-            // Получаем все маппинги с исправленной структурой
-            const mappingsWithDetails = await this.getEnhancedMappingsFixed();
+            // Получаем все маппинги с исправленной структурой (включая process_description и atrDeps)
+            const mappingsWithDetails = await this.getEnhancedMappingsWithProcessDescription();
 
             // Преобразуем данные в новую структуру JSON согласно ТЗ
             const entities = this.transformEnhancedEntities(entitiesWithDetails, mappingsWithDetails);
-            const mappings = this.transformEnhancedMappingsFixed(mappingsWithDetails);
+            const mappings = this.transformEnhancedMappingsWithProcessDescription(mappingsWithDetails);
 
             const result: JsonExportNewResponseDto = {
                 desc: {
@@ -95,12 +122,17 @@ export class JsonExportNewService {
                 mappings,
             };
 
+            // Сохраняем в кэш
+            this.logger.debug('Сохранение данных экспорта в кэш (новая структура)');
+            await this.cacheService.setCachedExportAll(result);
+
             const duration = Date.now() - startTime;
-            this.logger.log('Исправленный экспорт завершен', {
+            this.logger.log('Экспорт с новой структурой завершен и закэширован', {
                 source: 'database',
                 duration,
                 entitiesCount: entities.length,
                 mappingsCount: mappings.length,
+                cacheSaved: true,
             });
 
             return result;
@@ -117,7 +149,7 @@ export class JsonExportNewService {
     }
 
     /**
-     * Получение улучшенных сущностей с деталями (без изменений)
+     * Получение улучшенных сущностей с деталями
      */
     private async getEnhancedEntitiesWithDetails(changeId?: number): Promise<EnhancedEntityData[]> {
         let dateFilter = "";
@@ -208,9 +240,9 @@ export class JsonExportNewService {
     }
 
     /**
-     * Исправленный метод получения маппингов - использует альтернативные таблицы
+     * Получение маппингов с полной информацией, включая process_description и atrDeps
      */
-    private async getEnhancedMappingsFixed(changeId?: number): Promise<EnhancedMappingData[]> {
+    private async getEnhancedMappingsWithProcessDescription(changeId?: number): Promise<EnhancedMappingData[]> {
         let dateFilter = "";
         const params: any[] = [];
 
@@ -220,11 +252,12 @@ export class JsonExportNewService {
                 AND (p.change_id IS NULL OR p.change_id <= $2)
                 AND (am.change_id IS NULL OR am.change_id <= $3)
                 AND (eam.change_id IS NULL OR eam.change_id <= $4)
+                AND (ems.change_id IS NULL OR ems.change_id <= $5)
             `;
-            params.push(changeId, changeId, changeId, changeId);
+            params.push(changeId, changeId, changeId, changeId, changeId);
         }
 
-        // Основной запрос для получения entity_map с процессом
+        // Основной запрос для получения entity_map с процессом и описанием
         const entityMapsQuery = `
             SELECT DISTINCT
                 em.entity_map_id,
@@ -234,11 +267,15 @@ export class JsonExportNewService {
                 p.name as process_name,
                 p.description as process_description,
                 c_rel.change_date as relation_change_date,
-                c_proc.change_date as process_change_date
+                c_proc.change_date as process_change_date,
+                fm.unmatched_entities as failed_unmatched
             FROM entity_map em
                      LEFT JOIN process p ON em.process_id = p.process_id
                      LEFT JOIN changes c_rel ON em.change_id = c_rel.change_id
                      LEFT JOIN changes c_proc ON p.change_id = c_proc.change_id
+                     LEFT JOIN failed_mappings fm ON em.entity_id = (
+                SELECT e.entity_id FROM entity e WHERE e.full_name = fm.entity_name LIMIT 1
+                ) AND fm.change_id = em.change_id
             WHERE em.change_id IS NOT NULL
                 ${dateFilter}
             ORDER BY em.entity_id
@@ -258,8 +295,8 @@ export class JsonExportNewService {
                 continue;
             }
 
-            // Получаем источники из attribute_map_source и entity_attribute_map
-            const sources = await this.getSourcesForEntityMap(entityMap.entity_map_id, changeId);
+            // Получаем источники с полной информацией
+            const sources = await this.getSourcesWithAttributeDetails(entityMap.entity_map_id, changeId);
 
             // Создаем базовую запись для целевой сущности
             const baseMapping: EnhancedMappingData = {
@@ -272,7 +309,8 @@ export class JsonExportNewService {
                 process_description: entityMap.process_description,
                 process_change_date: entityMap.process_change_date,
                 attr_maps: [],
-                atr_deps: []
+                atr_deps: [],
+                failed_unmatched: entityMap.failed_unmatched
             };
 
             // Если есть источники, создаем отдельные записи для каждого источника
@@ -295,6 +333,183 @@ export class JsonExportNewService {
         }
 
         return results;
+    }
+
+    /**
+     * Получение источников с детальной информацией об атрибутах
+     */
+    private async getSourcesWithAttributeDetails(entityMapId: number, changeId?: number): Promise<any[]> {
+        const sources = new Map<number, any>();
+
+        // 1. Получаем информацию об атрибутных маппингах
+        const attrMaps = await this.getAttributeMappingsWithIds(entityMapId, changeId);
+
+        // 2. Получаем информацию о функциональных зависимостях
+        const attrDeps = await this.getAttributeDependenciesWithIds(entityMapId, changeId);
+
+        // Обрабатываем атрибутные маппинги
+        for (const attrMap of attrMaps) {
+            if (attrMap.source_entity_id && !sources.has(attrMap.source_entity_id)) {
+                sources.set(attrMap.source_entity_id, {
+                    source_entity_id: attrMap.source_entity_id,
+                    source_entity_full_name: attrMap.source_entity_full_name,
+                    source_system_code: attrMap.source_system_code || "1642",
+                    attr_maps: [],
+                    atr_deps: []
+                });
+            }
+
+            if (attrMap.source_entity_id) {
+                const existing = sources.get(attrMap.source_entity_id);
+                if (existing) {
+                    existing.attr_maps.push({
+                        src: attrMap.source_attribute_name,
+                        dst: attrMap.target_attribute_name,
+                        src_id: attrMap.source_attribute_id,
+                        dst_id: attrMap.target_attribute_id,
+                        relation_change: attrMap.relation_change_date.toISOString()
+                    });
+                }
+            }
+        }
+
+        // Обрабатываем функциональные зависимости
+        for (const attrDep of attrDeps) {
+            if (attrDep.source_entity_id && !sources.has(attrDep.source_entity_id)) {
+                sources.set(attrDep.source_entity_id, {
+                    source_entity_id: attrDep.source_entity_id,
+                    source_entity_full_name: attrDep.source_entity_full_name,
+                    source_system_code: attrDep.source_system_code || "1642",
+                    attr_maps: [],
+                    atr_deps: []
+                });
+            }
+
+            if (attrDep.source_entity_id) {
+                const existing = sources.get(attrDep.source_entity_id);
+                if (existing) {
+                    // Находим существующую зависимость или создаем новую
+                    const existingDep = existing.atr_deps.find((d: any) =>
+                        d.attr === attrDep.source_attribute_name && d.src_id === attrDep.source_attribute_id
+                    );
+
+                    if (existingDep) {
+                        // Добавляем уникальные типы связей
+                        attrDep.link_types?.forEach((linkType: string) => {
+                            if (!existingDep.linkTypes.includes(linkType)) {
+                                existingDep.linkTypes.push(linkType);
+                            }
+                        });
+                    } else {
+                        existing.atr_deps.push({
+                            attr: attrDep.source_attribute_name,
+                            linkTypes: attrDep.link_types || [],
+                            src_id: attrDep.source_attribute_id,
+                            relation_change: attrDep.relation_change_date?.toISOString() || new Date().toISOString()
+                        });
+                    }
+                }
+            }
+        }
+
+        return Array.from(sources.values());
+    }
+
+    /**
+     * Получение атрибутных маппингов с ID атрибутов
+     */
+    private async getAttributeMappingsWithIds(entityMapId: number, changeId?: number): Promise<any[]> {
+        let dateFilter = "";
+        const params: any[] = [entityMapId];
+
+        if (changeId) {
+            dateFilter = " AND am.change_id <= $2 AND ams.change_id <= $3";
+            params.push(changeId, changeId);
+        }
+
+        const query = `
+            SELECT
+                am.attribute_map_id,
+                am.entity_map_id,
+                am.attribute_id as target_attribute_id,
+                a_target.name as target_attribute_name,
+                ams.source_attribute_id,
+                a_source.name as source_attribute_name,
+                a_source.entity_id as source_entity_id,
+                e_source.full_name as source_entity_full_name,
+                COALESCE(s.code,
+                         CASE
+                             WHEN ec.value LIKE '%1642%' OR e_source.full_name LIKE '%1642%' THEN '1642'
+                             WHEN ec.value LIKE '%1655%' OR e_source.full_name LIKE '%1655%' THEN '1655'
+                             WHEN et.name IN ('TABLE_HIVE', 'VIEW_HIVE') THEN '1642'
+                             WHEN et.name IN ('JSON', 'INPUT_VECTOR') THEN '1655'
+                             ELSE '1642'
+                             END
+                ) as source_system_code,
+                GREATEST(
+                        COALESCE(c_am.change_date, '1970-01-01'),
+                        COALESCE(c_ams.change_date, '1970-01-01')
+                ) as relation_change_date
+            FROM attribute_map am
+                     INNER JOIN attribute_map_source ams ON am.attribute_map_id = ams.attribute_map_id
+                     INNER JOIN attribute a_target ON am.attribute_id = a_target.attribute_id
+                     INNER JOIN attribute a_source ON ams.source_attribute_id = a_source.attribute_id
+                     INNER JOIN entity e_source ON a_source.entity_id = e_source.entity_id
+                     LEFT JOIN entity_type et ON e_source.entity_type_id = et.entity_type_id
+                     LEFT JOIN entity_container ec ON e_source.entity_container_id = ec.entity_container_id
+                     LEFT JOIN systems s ON ec.system_id = s.system_id
+                     LEFT JOIN changes c_am ON am.change_id = c_am.change_id
+                     LEFT JOIN changes c_ams ON ams.change_id = c_ams.change_id
+            WHERE am.entity_map_id = $1 ${dateFilter}
+            ORDER BY e_source.full_name, a_source.name
+        `;
+
+        return await this.dataSource.query(query, params);
+    }
+
+    /**
+     * Получение функциональных зависимостей с ID атрибутов
+     */
+    private async getAttributeDependenciesWithIds(entityMapId: number, changeId?: number): Promise<any[]> {
+        let dateFilter = "";
+        const params: any[] = [entityMapId];
+
+        if (changeId) {
+            dateFilter = " AND eam.change_id <= $2";
+            params.push(changeId);
+        }
+
+        const query = `
+            SELECT
+                eam.source_attribute_id,
+                a.name as source_attribute_name,
+                a.entity_id as source_entity_id,
+                e.full_name as source_entity_full_name,
+                COALESCE(s.code,
+                         CASE
+                             WHEN ec.value LIKE '%1642%' OR e.full_name LIKE '%1642%' THEN '1642'
+                             WHEN ec.value LIKE '%1655%' OR e.full_name LIKE '%1655%' THEN '1655'
+                             WHEN et.name IN ('TABLE_HIVE', 'VIEW_HIVE') THEN '1642'
+                             WHEN et.name IN ('JSON', 'INPUT_VECTOR') THEN '1655'
+                             ELSE '1642'
+                             END
+                ) as source_system_code,
+                ARRAY_AGG(DISTINCT eam.deptype_id) as link_types,
+                MAX(c_dep.change_date) as relation_change_date
+            FROM entity_attribute_map eam
+                     INNER JOIN attribute a ON eam.source_attribute_id = a.attribute_id
+                     INNER JOIN entity e ON a.entity_id = e.entity_id
+                     LEFT JOIN entity_type et ON e.entity_type_id = et.entity_type_id
+                     LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
+                     LEFT JOIN systems s ON ec.system_id = s.system_id
+                     LEFT JOIN changes c_dep ON eam.change_id = c_dep.change_id
+            WHERE eam.entity_map_id = $1 ${dateFilter}
+            GROUP BY eam.source_attribute_id, a.name, a.entity_id, e.full_name,
+                s.code, ec.value, et.name
+            ORDER BY e.full_name, a.name
+        `;
+
+        return await this.dataSource.query(query, params);
     }
 
     /**
@@ -324,192 +539,6 @@ export class JsonExportNewService {
 
         const result = await this.dataSource.query(query, [entityId]);
         return result.length > 0 ? result[0] : null;
-    }
-
-    /**
-     * Получение источников для entity_map из альтернативных таблиц
-     */
-    private async getSourcesForEntityMap(entityMapId: number, changeId?: number): Promise<any[]> {
-        const sources = new Map<number, any>();
-
-        // 1. Ищем источники через attribute_map_source
-        const attrMapSources = await this.getSourcesFromAttributeMaps(entityMapId, changeId);
-
-        for (const source of attrMapSources) {
-            if (source.source_entity_id && !sources.has(source.source_entity_id)) {
-                sources.set(source.source_entity_id, {
-                    source_entity_id: source.source_entity_id,
-                    source_entity_full_name: source.source_entity_full_name,
-                    source_system_code: source.source_system_code || "1642",
-                    attr_maps: [],
-                    atr_deps: []
-                });
-            }
-
-            if (source.source_entity_id && source.attr_maps) {
-                const existing = sources.get(source.source_entity_id);
-                if (existing) {
-                    existing.attr_maps.push(...source.attr_maps);
-                }
-            }
-        }
-
-        // 2. Ищем источники через entity_attribute_map
-        const attrDepSources = await this.getSourcesFromAttributeDeps(entityMapId, changeId);
-
-        for (const source of attrDepSources) {
-            if (source.source_entity_id && !sources.has(source.source_entity_id)) {
-                sources.set(source.source_entity_id, {
-                    source_entity_id: source.source_entity_id,
-                    source_entity_full_name: source.source_entity_full_name,
-                    source_system_code: source.source_system_code || "1642",
-                    attr_maps: [],
-                    atr_deps: []
-                });
-            }
-
-            if (source.source_entity_id && source.atr_deps) {
-                const existing = sources.get(source.source_entity_id);
-                if (existing) {
-                    // Объединяем зависимости
-                    for (const dep of source.atr_deps) {
-                        const existingDep = existing.atr_deps.find((d: any) => d.attr === dep.attr);
-                        if (existingDep) {
-                            existingDep.linkTypes = [...new Set([...existingDep.linkTypes, ...dep.linkTypes])];
-                        } else {
-                            existing.atr_deps.push(dep);
-                        }
-                    }
-                }
-            }
-        }
-
-        return Array.from(sources.values());
-    }
-
-    /**
-     * Получение источников из attribute_map_source
-     */
-    private async getSourcesFromAttributeMaps(entityMapId: number, changeId?: number): Promise<any[]> {
-        let dateFilter = "";
-        const params: any[] = [entityMapId];
-
-        if (changeId) {
-            dateFilter = " AND am.change_id <= $2 AND ams.change_id <= $3";
-            params.push(changeId, changeId);
-        }
-
-        const query = `
-            SELECT DISTINCT
-                a_source.entity_id as source_entity_id,
-                e_source.full_name as source_entity_full_name,
-                COALESCE(s.code,
-                         CASE
-                             WHEN ec.value LIKE '%1642%' OR e_source.full_name LIKE '%1642%' THEN '1642'
-                             WHEN ec.value LIKE '%1655%' OR e_source.full_name LIKE '%1655%' THEN '1655'
-                             WHEN et.name IN ('TABLE_HIVE', 'VIEW_HIVE') THEN '1642'
-                             WHEN et.name IN ('JSON', 'INPUT_VECTOR') THEN '1655'
-                             ELSE '1642'
-                             END
-                ) as source_system_code,
-                a_source.name as source_attr_name,
-                a_target.name as target_attr_name,
-                GREATEST(
-                        COALESCE(c_am.change_date, '1970-01-01'),
-                        COALESCE(c_ams.change_date, '1970-01-01')
-                ) as relation_change_date
-            FROM attribute_map am
-                     INNER JOIN attribute_map_source ams ON am.attribute_map_id = ams.attribute_map_id
-                     INNER JOIN attribute a_target ON am.attribute_id = a_target.attribute_id
-                     INNER JOIN attribute a_source ON ams.source_attribute_id = a_source.attribute_id
-                     INNER JOIN entity e_source ON a_source.entity_id = e_source.entity_id
-                     LEFT JOIN entity_type et ON e_source.entity_type_id = et.entity_type_id
-                     LEFT JOIN entity_container ec ON e_source.entity_container_id = ec.entity_container_id
-                     LEFT JOIN systems s ON ec.system_id = s.system_id
-                     LEFT JOIN changes c_am ON am.change_id = c_am.change_id
-                     LEFT JOIN changes c_ams ON ams.change_id = c_ams.change_id
-            WHERE am.entity_map_id = $1 ${dateFilter}
-            ORDER BY e_source.full_name, a_source.name
-        `;
-
-        const results = await this.dataSource.query(query, params);
-
-        // Группируем по сущности-источнику
-        const grouped = new Map<number, any>();
-
-        for (const row of results) {
-            if (!grouped.has(row.source_entity_id)) {
-                grouped.set(row.source_entity_id, {
-                    source_entity_id: row.source_entity_id,
-                    source_entity_full_name: row.source_entity_full_name,
-                    source_system_code: row.source_system_code,
-                    attr_maps: []
-                });
-            }
-
-            const group = grouped.get(row.source_entity_id);
-            group.attr_maps.push({
-                src: row.source_attr_name,
-                dst: row.target_attr_name,
-                relation_change: row.relation_change_date.toISOString()
-            });
-        }
-
-        return Array.from(grouped.values());
-    }
-
-    /**
-     * Получение источников из entity_attribute_map
-     */
-    private async getSourcesFromAttributeDeps(entityMapId: number, changeId?: number): Promise<any[]> {
-        let dateFilter = "";
-        const params: any[] = [entityMapId];
-
-        if (changeId) {
-            dateFilter = " AND eam.change_id <= $2";
-            params.push(changeId);
-        }
-
-        const query = `
-            SELECT DISTINCT
-                a.entity_id as source_entity_id,
-                e.full_name as source_entity_full_name,
-                COALESCE(s.code,
-                         CASE
-                             WHEN ec.value LIKE '%1642%' OR e.full_name LIKE '%1642%' THEN '1642'
-                             WHEN ec.value LIKE '%1655%' OR e.full_name LIKE '%1655%' THEN '1655'
-                             WHEN et.name IN ('TABLE_HIVE', 'VIEW_HIVE') THEN '1642'
-                             WHEN et.name IN ('JSON', 'INPUT_VECTOR') THEN '1655'
-                             ELSE '1642'
-                             END
-                ) as source_system_code,
-                a.name as attribute_name,
-                ARRAY_AGG(DISTINCT eam.deptype_id) as link_types,
-                MAX(c_dep.change_date) as relation_change_date
-            FROM entity_attribute_map eam
-                     INNER JOIN attribute a ON eam.source_attribute_id = a.attribute_id
-                     INNER JOIN entity e ON a.entity_id = e.entity_id
-                     LEFT JOIN entity_type et ON e.entity_type_id = et.entity_type_id
-                     LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
-                     LEFT JOIN systems s ON ec.system_id = s.system_id
-                     LEFT JOIN changes c_dep ON eam.change_id = c_dep.change_id
-            WHERE eam.entity_map_id = $1 ${dateFilter}
-            GROUP BY a.entity_id, e.full_name, s.code, ec.value, et.name, a.name
-            ORDER BY e.full_name, a.name
-        `;
-
-        const results = await this.dataSource.query(query, params);
-
-        return results.map(row => ({
-            source_entity_id: row.source_entity_id,
-            source_entity_full_name: row.source_entity_full_name,
-            source_system_code: row.source_system_code,
-            atr_deps: [{
-                attr: row.attribute_name,
-                linkTypes: row.link_types || [],
-                relation_change: row.relation_change_date?.toISOString() || new Date().toISOString()
-            }]
-        }));
     }
 
     /**
@@ -552,9 +581,9 @@ export class JsonExportNewService {
     }
 
     /**
-     * Исправленное преобразование маппингов - соответствует ТЗ
+     * Преобразование маппингов с полной информацией
      */
-    private transformEnhancedMappingsFixed(
+    private transformEnhancedMappingsWithProcessDescription(
         mappingsWithDetails: EnhancedMappingData[]
     ): JsonExportNewResponseDto['mappings'] {
         // Группируем по целевой сущности
@@ -591,8 +620,19 @@ export class JsonExportNewService {
                             process: record.process_name || undefined,
                             process_description: record.process_description || undefined,
                             process_change: record.process_change_date?.toISOString() || undefined,
-                            attrMaps: record.attr_maps || [],
-                            atrDeps: record.atr_deps || []
+                            attrMaps: record.attr_maps.map(attrMap => ({
+                                src: attrMap.src,
+                                dst: attrMap.dst,
+                                src_id: attrMap.src_id,
+                                dst_id: attrMap.dst_id,
+                                relation_change: attrMap.relation_change
+                            })),
+                            atrDeps: record.atr_deps.map(atrDep => ({
+                                attr: atrDep.attr,
+                                linkTypes: atrDep.linkTypes,
+                                src_id: atrDep.src_id,
+                                relation_change: atrDep.relation_change
+                            }))
                         });
                     } else {
                         // Если зависимость уже существует, добавляем уникальные атрибуты
@@ -604,24 +644,35 @@ export class JsonExportNewService {
                                 (existing: any) => existing.src === attrMap.src && existing.dst === attrMap.dst
                             );
                             if (!exists) {
-                                existingDep.attrMaps.push(attrMap);
+                                existingDep.attrMaps.push({
+                                    src: attrMap.src,
+                                    dst: attrMap.dst,
+                                    src_id: attrMap.src_id,
+                                    dst_id: attrMap.dst_id,
+                                    relation_change: attrMap.relation_change
+                                });
                             }
                         });
 
                         // Добавляем уникальные atrDeps
-                        record.atr_deps?.forEach((attrDep: any) => {
+                        record.atr_deps?.forEach((atrDep: any) => {
                             const existingAttrDep = existingDep.atrDeps.find(
-                                (existing: any) => existing.attr === attrDep.attr
+                                (existing: any) => existing.attr === atrDep.attr && existing.src_id === atrDep.src_id
                             );
                             if (existingAttrDep) {
                                 // Добавляем уникальные linkTypes
-                                attrDep.linkTypes?.forEach((linkType: string) => {
+                                atrDep.linkTypes?.forEach((linkType: string) => {
                                     if (!existingAttrDep.linkTypes.includes(linkType)) {
                                         existingAttrDep.linkTypes.push(linkType);
                                     }
                                 });
                             } else {
-                                existingDep.atrDeps.push(attrDep);
+                                existingDep.atrDeps.push({
+                                    attr: atrDep.attr,
+                                    linkTypes: atrDep.linkTypes,
+                                    src_id: atrDep.src_id,
+                                    relation_change: atrDep.relation_change
+                                });
                             }
                         });
                     }
@@ -635,7 +686,8 @@ export class JsonExportNewService {
                     entityId: targetEntity,
                     system_code: firstRecord.target_system_code || "1642",
                     relation_change: firstRecord.relation_change_date.toISOString(),
-                    deps: Array.from(depsMap.values())
+                    deps: Array.from(depsMap.values()),
+                    unmatched: firstRecord.failed_unmatched
                 });
             }
         }

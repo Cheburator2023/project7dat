@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsOptional, IsArray, IsISO8601 } from "class-validator";
+import { IsString, IsOptional, IsArray, IsISO8601, IsNumber } from "class-validator";
 
 // DTO для описания секции
 export class JsonExportNewDescDto {
@@ -112,6 +112,22 @@ export class JsonExportNewAttrMapDto {
     @IsString()
     dst: string;
 
+    @ApiProperty({
+        description: "ID источника (source_attribute_id)",
+        required: false
+    })
+    @IsOptional()
+    @IsNumber()
+    src_id?: number;
+
+    @ApiProperty({
+        description: "ID таргета (attribute_id)",
+        required: false
+    })
+    @IsOptional()
+    @IsNumber()
+    dst_id?: number;
+
     @ApiProperty({ description: "Дата добавления/изменения связи" })
     @IsISO8601()
     relation_change: string;
@@ -131,6 +147,14 @@ export class JsonExportNewAtrDepDto {
     @IsArray()
     @IsString({ each: true })
     linkTypes: string[];
+
+    @ApiProperty({
+        description: "ID атрибута источника (source_attribute_id)",
+        required: false
+    })
+    @IsOptional()
+    @IsNumber()
+    src_id?: number;
 
     @ApiProperty({ description: "Дата добавления/изменения связи" })
     @IsISO8601()

@@ -21,7 +21,7 @@ export class JsonExportNewController {
     @RealmRole(Permission.DL_VIEW_JSON_DATA)
     @ApiOperation({
         summary: "Экспорт данных РБД в JSON DL (новая структура)",
-        description: "Экспортирует все данные из РБД Data Lineage в новый формат JSON DL согласно ТЗ. Process перенесен из mappings в deps, system_code корректно заполняется.",
+        description: "Экспортирует все данные из РБД Data Lineage в новый формат JSON DL согласно ТЗ. Включает process_description и заполненные atrDeps.",
     })
     @ApiResponse({
         status: 200,
@@ -44,7 +44,7 @@ export class JsonExportNewController {
         type: JsonExportNewResponseDto,
     })
     async getTestSample(): Promise<JsonExportNewResponseDto> {
-        // Возвращаем тестовые данные для проверки структуры
+        // Возвращаем тестовые данные для проверки структуры с process_description и atrDeps
         return {
             desc: {
                 change_date: new Date().toISOString(),
@@ -111,17 +111,21 @@ export class JsonExportNewController {
                             entityId: "ЦФТ2.MAIN_TABLE",
                             system_code: "1642",
                             process: "РУЧНАЯ ЗАГРУЗКА ФАЙЛОВ ВИТРИН",
-                            process_description: "Процесс ручной загрузки данных",
+                            process_description: "Процесс ручной загрузки данных из ЦФТ2 в BDM",
                             process_change: new Date().toISOString(),
                             attrMaps: [
                                 {
                                     src: "ID",
                                     dst: "ACCOUNT_ID",
+                                    src_id: 123,
+                                    dst_id: 456,
                                     relation_change: new Date().toISOString()
                                 },
                                 {
                                     src: "NAME",
                                     dst: "ACCOUNT_NAME",
+                                    src_id: 124,
+                                    dst_id: 457,
                                     relation_change: new Date().toISOString()
                                 }
                             ],
@@ -129,6 +133,13 @@ export class JsonExportNewController {
                                 {
                                     attr: "ID",
                                     linkTypes: ["WHERE", "JOIN"],
+                                    src_id: 123,
+                                    relation_change: new Date().toISOString()
+                                },
+                                {
+                                    attr: "NAME",
+                                    linkTypes: ["SELECT"],
+                                    src_id: 124,
                                     relation_change: new Date().toISOString()
                                 }
                             ]
