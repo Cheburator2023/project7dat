@@ -88,7 +88,7 @@ export const ObjectsPage = () => {
 			<DashboardHeader isLoading={isPending} />
 
 			<FlexLayoutWrapper>
-				<EntitiesPanel allowedEntityTypes={["json"]} />
+				<EntitiesPanel />
 			</FlexLayoutWrapper>
 		</Box>
 	);

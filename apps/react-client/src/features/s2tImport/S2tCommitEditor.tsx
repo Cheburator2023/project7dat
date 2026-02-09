@@ -3,7 +3,6 @@ import type { ChangeEvent, DragEvent } from "react";
 import { default as axios } from "axios";
 import {
 	Alert,
-	Autocomplete,
 	Box,
 	Button,
 	Chip,
@@ -19,7 +18,7 @@ import {
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import { useAuthStore } from "@react-client/common/store/authStore";
-import { useProcessesWithDescriptions } from "@react-client/api/hooks";
+import { useProcesses } from "@react-client/api/hooks";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 
@@ -83,7 +82,6 @@ export const S2tCommitEditor = ({
 		worksheetsCount: number;
 	} | null>(null);
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
-	console.log("🐸 Pepe said >> S2tCommitEditor >> selectedFile:", selectedFile);
 
 	const [dragOver, setDragOver] = useState(false);
 
@@ -122,22 +120,22 @@ export const S2tCommitEditor = ({
 	}, [selectedFile?.name]);
 	const shouldShowProcessFields = showProcessFields || !!prefillCommitId;
 
-	const processesQuery = useProcessesWithDescriptions({
+	const processesQuery = useProcesses({
 		enabled: active && shouldShowProcessFields,
 	});
 	const isProcessOptionsLoading = processesQuery.isLoading;
-	const processItems = processesQuery.data ?? [];
-	const processOptions = useMemo(() => {
-		return processItems.map((v) => v.name.trim()).filter((v) => v.length > 0);
-	}, [processItems]);
+	const processOptions = processesQuery.data ?? [];
+	// const processOptions = useMemo(() => {
+	// 	return processItems.map((v) => v.name.trim()).filter((v) => v.length > 0);
+	// }, [processItems]);
 
-	const selectedProcessDescription = useMemo(() => {
-		if (!processName.trim()) return null;
-		const found = processItems.find(
-			(p) => p.name.trim() === processName.trim(),
-		);
-		return found?.description ?? null;
-	}, [processItems, processName]);
+	// const selectedProcessDescription = useMemo(() => {
+	// 	if (!processName.trim()) return null;
+	// 	const found = processItems.find(
+	// 		(p) => p.name.trim() === processName.trim(),
+	// 	);
+	// 	return found?.description ?? null;
+	// }, [processItems, processName]);
 
 	const resetState = useCallback(() => {
 		setSelectedFile(null);
@@ -554,7 +552,7 @@ export const S2tCommitEditor = ({
 								commitName: undefined,
 							}));
 						}}
-						placeholder="название коммита"
+						placeholder="Название коммита"
 						fullWidth
 						disabled={isSaving || isApplying}
 						error={Boolean(fieldErrors.commitName)}
@@ -605,79 +603,56 @@ export const S2tCommitEditor = ({
 										*
 									</Typography>
 								</Typography>
-								<Autocomplete
-									freeSolo
-									disablePortal
-									loading={isProcessOptionsLoading}
-									options={processOptions}
-									value={processName}
-									onChange={(_, value) => {
-										const name =
-											typeof value === "string" ? value : value || "";
-										setProcessName(name);
-										setFieldErrors((prev) => ({
-											...prev,
-											processName: undefined,
-										}));
-										const found = processItems.find(
-											(p) => p.name.trim() === name.trim(),
-										);
-										if (found?.description) {
-											setProcessDescription(found.description);
-										}
-									}}
-									onInputChange={(_, value) => {
-										setProcessName(value);
-										setFieldErrors((prev) => ({
-											...prev,
-											processName: undefined,
-										}));
-									}}
-									slotProps={{
-										popper: {
-											sx: {
-												position: "relative",
-												width: "100% !important",
-												transform: "none !important",
-											},
-										},
-										paper: {
-											sx: { maxHeight: 200 },
-										},
-									}}
-									renderInput={(params) => (
-										<TextField
-											{...params}
-											name="s2tProcessName"
-											autoComplete="s2tProcessName"
-											placeholder="выберите или введите наименование процесса"
-											fullWidth
-											disabled={isSaving || isApplying}
-											error={Boolean(fieldErrors.processName)}
-											helperText={fieldErrors.processName}
-											InputProps={{
-												...params.InputProps,
-												endAdornment: (
-													<>
-														{isProcessOptionsLoading ? (
-															<CircularProgress color="inherit" size={16} />
-														) : null}
-														{params.InputProps.endAdornment}
-													</>
-												),
-											}}
-										/>
-									)}
-								/>
-								{selectedProcessDescription && (
-									<Typography
-										variant="body2"
-										color="text.secondary"
-										sx={{ gridColumn: "2", mt: -1 }}
-									>
-										{selectedProcessDescription}
-									</Typography>
-								)}
+
+								<div>
+									<TextField
+										name="s2tProcessName"
+										autoComplete="s2tProcessName"
+										placeholder="выберите или введите наименование процесса"
+										fullWidth
+										value={processName}
+										onChange={(e) => {
+											setProcessName(e.target.value);
+											setFieldErrors((prev) => ({
+												...prev,
+												processName: undefined,
+											}));
+										}}
+										disabled={isSaving || isApplying}
+										error={Boolean(fieldErrors.processName)}
+										helperText={fieldErrors.processName}
+									/>
+									<Spacer />
+									<Card height="200px" overflow="auto">
+										{processOptions
+											.filter((process) => process.includes(processName))
+											.map((process, idx, array) => {
+												return (
+													<div
+														key={process}
+														style={{
+															cursor: "pointer",
+															backgroundColor:
+																process === processName
+																	? "#027bf317"
+																	: undefined,
+															padding: "4px 8px",
+															borderRadius: "4px",
+														}}
+														onClick={() => {
+															setProcessName(process);
+															setFieldErrors((prev) => ({
+																...prev,
+																processName: undefined,
+															}));
+														}}
+													>
+														{process}
+													</div>
+												);
+											})}
+									</Card>
+								</div>
 								<Typography sx={{ pt: 1 }}>Описание</Typography>
 								<TextField
 									name="s2tProcessDescription"

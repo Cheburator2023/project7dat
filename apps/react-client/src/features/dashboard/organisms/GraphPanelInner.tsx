@@ -1493,7 +1493,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			if (!node) return;
 			const x = node.position.x + (node.measured?.width ?? NODE_WIDTH) / 2;
 			const y = node.position.y + (node.measured?.height ?? 100) / 2;
-			setCenter(x, y, { duration: 200 });
+			setCenter(x, y, { duration: 500, zoom: 1 });
 		}, [getNode, nodes, selectedEntityId, setCenter]);
 
 		const handleNodesChange = useCallback(

@@ -248,7 +248,7 @@ const MUIPaperStyled = styled(Paper, {
 	overflow: hidden;
 	& > div {
 		padding: 0;
-		//overflow: ${({ overflow }) => overflow && "auto"};
+		overflow: ${({ overflow }) => overflow};
 	}
 `;
 
