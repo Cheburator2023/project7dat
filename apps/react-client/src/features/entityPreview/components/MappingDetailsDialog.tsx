@@ -56,7 +56,7 @@ export const MappingDetailsDialog = ({
 	const {
 		setZoomToNode,
 		selectEntity,
-		setSelectedAttribute,
+		selectEntityWithAttribute,
 		setHighlightedMapping,
 	} = useDashboardStore();
 
@@ -76,15 +76,16 @@ export const MappingDetailsDialog = ({
 	// Navigate to Dashboard with attribute highlight
 	const handleGoToDashboard = useCallback(
 		(entityId: string, attrName?: string) => {
-			selectEntity(entityId);
-			setZoomToNode(entityId);
 			if (attrName) {
-				setSelectedAttribute({ entityId, attrName });
+				selectEntityWithAttribute(entityId, attrName);
+			} else {
+				selectEntity(entityId);
 			}
+			setZoomToNode(entityId);
 			onClose();
 			navigate("/");
 		},
-		[navigate, onClose, selectEntity, setZoomToNode, setSelectedAttribute],
+		[navigate, onClose, selectEntity, selectEntityWithAttribute, setZoomToNode],
 	);
 
 	// Navigate to Dashboard with mapping highlight

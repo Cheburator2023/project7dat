@@ -37,6 +37,8 @@ export interface DataLineageEntity {
 	name: string | null;
 	description?: string;
 	entity_change?: string;
+	container_change?: string;
+	container_description?: string;
 	attrSeq?: DataLineageAttribute[];
 }
 

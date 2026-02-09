@@ -26,8 +26,12 @@ import type {
 import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 import { useDashboardStore } from "../../dashboard/stores";
 import { graphNodeTypes } from "./ModelNodePreviewComponent";
-import { getLayoutedElements, buildLineageGraph } from "../../dashboard/utils";
-import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../dashboard/constants";
+import { buildLineageGraph } from "../../dashboard/utils";
+import {
+	TYPE_COLORS,
+	HIGHLIGHT_COLORS,
+	DEPTH_LEVEL_COLORS,
+} from "../../dashboard/constants";
 import type { EntityConnection, EntityNodeData } from "../../dashboard/types";
 import { useParams } from "react-router-dom";
 import {
@@ -47,9 +51,12 @@ import {
 	ContentCopy,
 	Info,
 	OpenInNew,
+	SwapHoriz,
+	SwapVert,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { getLayoutedElements } from "@react-client/features/modelPreview/utils/dagreLayout";
 
 const getUpstreamNodes = (
 	nodeId: string,
@@ -172,6 +179,63 @@ const getMaxDepthFromNode = (
 	return depth;
 };
 
+const computeNodeDepths = (
+	rootId: string,
+	upstream: Map<string, Set<string>>,
+	downstream: Map<string, Set<string>>,
+	visibleNodeIds: Set<string>,
+): Map<string, number> => {
+	const depths = new Map<string, number>();
+	if (!rootId) return depths;
+	depths.set(rootId, 0);
+
+	// BFS upstream (negative depths)
+	let frontier: string[] = [rootId];
+	let level = 0;
+	const visitedUp = new Set<string>([rootId]);
+	while (frontier.length > 0) {
+		level -= 1;
+		const next: string[] = [];
+		for (const current of frontier) {
+			const parents = upstream.get(current);
+			if (!parents) continue;
+			for (const parent of parents) {
+				if (visitedUp.has(parent) || !visibleNodeIds.has(parent)) continue;
+				visitedUp.add(parent);
+				depths.set(parent, level);
+				next.push(parent);
+			}
+		}
+		frontier = next;
+	}
+
+	// BFS downstream (positive depths)
+	frontier = [rootId];
+	level = 0;
+	const visitedDown = new Set<string>([rootId]);
+	while (frontier.length > 0) {
+		level += 1;
+		const next: string[] = [];
+		for (const current of frontier) {
+			const children = downstream.get(current);
+			if (!children) continue;
+			for (const child of children) {
+				if (visitedDown.has(child) || !visibleNodeIds.has(child)) continue;
+				visitedDown.add(child);
+				if (!depths.has(child)) {
+					depths.set(child, level);
+				}
+				next.push(child);
+			}
+		}
+		frontier = next;
+	}
+
+	return depths;
+};
+
+const DEPTH_GROUP_PADDING = 40;
+
 // Helper function to get edge description based on entity types
 const getEdgeDescription = (
 	sourceEntity: DataLineageEntity,
@@ -210,6 +274,7 @@ interface GraphPanelInnerProps {
 	onEdgeClick?: (sourceId: string, targetId: string) => void;
 	onNodeContextMenu?: (event: NodeContextMenuEvent) => void;
 	onSelectNode?: (data: any) => void;
+	entity: DataLineageEntity | null;
 }
 
 export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
@@ -222,8 +287,11 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		onUpstreamDownstreamChange,
 		onEdgeClick,
 		onNodeContextMenu,
+		entity,
 		onSelectNode,
 	}) => {
+		console.log("🐸 Pepe said >> data:", data);
+
 		const navigate = useNavigate();
 		const [selectedNode, setSelectedNode] = useState<string>(
 			selectedEntityId || "",
@@ -247,8 +315,9 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
-			selectedAttribute,
-			setSelectedAttribute,
+			selectedAttributes,
+			toggleSelectedAttribute,
+			clearSelectedAttributes,
 			searchMatchedEntities,
 			globalSearchQuery,
 			zoomToNodeId,
@@ -399,12 +468,25 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleNodeClick = useCallback(
 			(id: string) => {
+				if (
+					id.startsWith("__model_node__") ||
+					id.startsWith("__model__fake_node__")
+				) {
+					const inputVectorId = id
+						.replace("__model_node__", "")
+						.replace("__model__fake_node__", "");
+					onSelectEntity(inputVectorId);
+					return;
+				}
 				onSelectEntity(id);
 				if (onSelectNode) {
-					onSelectNode(id);
+					const entity = data?.entities.find((e) => e.id === id);
+					if (entity) {
+						onSelectNode(entity);
+					}
 				}
 			},
-			[onSelectEntity, onSelectNode],
+			[data, onSelectEntity, onSelectNode],
 		);
 
 		const handleNodeDblClick = useCallback(
@@ -434,12 +516,12 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		);
 
 		const handleClearSelectedAttribute = useCallback(() => {
-			setSelectedAttribute(null);
-		}, [setSelectedAttribute]);
+			clearSelectedAttributes();
+		}, [clearSelectedAttributes]);
 
 		const handlePaneClick = useCallback(() => {
-			setSelectedAttribute(null);
-		}, [setSelectedAttribute]);
+			clearSelectedAttributes();
+		}, [clearSelectedAttributes]);
 
 		const handleOpenEntity = useCallback(
 			(entityId: string) => {
@@ -467,17 +549,9 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleAttrClick = useCallback(
 			(entityId: string, attrName: string) => {
-				// Toggle selection: if clicking same attribute, deselect; otherwise select new one
-				if (
-					selectedAttribute?.entityId === entityId &&
-					selectedAttribute?.attrName === attrName
-				) {
-					setSelectedAttribute(null);
-				} else {
-					setSelectedAttribute({ entityId, attrName });
-				}
+				toggleSelectedAttribute({ entityId, attrName });
 			},
-			[selectedAttribute, setSelectedAttribute],
+			[toggleSelectedAttribute],
 		);
 
 		// Build attribute connection map for hover highlighting
@@ -535,31 +609,42 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [hoveredAttribute, attrConnectionMap]);
 
 		// Compute selected/clicked-highlighted attributes for each entity
+		// BFS traversal from all selected attributes
 		const selectedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
-			if (!selectedAttribute) return result;
+			if (selectedAttributes.length === 0) return result;
 
-			const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
-			const connectedAttrs = attrConnectionMap.get(selectedKey);
+			const visited = new Set<string>();
+			const queue: string[] = [];
 
-			// Highlight the selected attribute itself
-			if (!result.has(selectedAttribute.entityId)) {
-				result.set(selectedAttribute.entityId, new Set());
+			for (const attr of selectedAttributes) {
+				const key = `${attr.entityId}::${attr.attrName}`;
+				if (!visited.has(key)) {
+					visited.add(key);
+					queue.push(key);
+				}
 			}
-			result.get(selectedAttribute.entityId)!.add(selectedAttribute.attrName);
 
-			// Highlight connected attributes
-			if (connectedAttrs) {
-				for (const key of connectedAttrs) {
-					const [entityId, attrName] = key.split("::");
-					if (!result.has(entityId)) {
-						result.set(entityId, new Set());
+			while (queue.length > 0) {
+				const current = queue.shift()!;
+				const [entityId, attrName] = current.split("::");
+				if (!result.has(entityId)) {
+					result.set(entityId, new Set());
+				}
+				result.get(entityId)!.add(attrName);
+
+				const neighbors = attrConnectionMap.get(current);
+				if (neighbors) {
+					for (const neighbor of neighbors) {
+						if (!visited.has(neighbor)) {
+							visited.add(neighbor);
+							queue.push(neighbor);
+						}
 					}
-					result.get(entityId)!.add(attrName);
 				}
 			}
 			return result;
-		}, [selectedAttribute, attrConnectionMap]);
+		}, [selectedAttributes, attrConnectionMap]);
 
 		// Get selected entity
 		const selectedEntity = useMemo(() => {
@@ -701,6 +786,73 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 				return node;
 			});
 
+			// Add synthetic "model" node to visually separate model and input_vector
+			if (selectedNode) {
+				const selected = filteredEntities.find((e) => e.id === selectedNode);
+				if (selected?.type === "input_vector") {
+					const modelNodeId = `__model__fake_node__${selectedNode}`;
+					nodes.push({
+						id: modelNodeId,
+						type: "entityNode",
+						position: { x: 0, y: 0 },
+						data: {
+							entity: {
+								id: modelNodeId,
+								modified: false,
+								type: "Model",
+								name: entity?.namespace || "",
+								description: data?.desc.appId || "",
+								attrSeq: [],
+							} as any,
+							highlightType: "none",
+							onNodeClick: handleNodeClick,
+							onNodeDoubleClick: handleNodeDblClick,
+							onOpenEntity: handleOpenEntity,
+							onViewDetails: handleViewDetails,
+							onAttrHover: handleAttrHover,
+							onAttrClick: handleAttrClick,
+							graphId,
+							entityCount: filteredEntities?.length,
+							upstreamCount: 0,
+							downstreamCount: 0,
+							highlightedSourceAttrs: new Set<string>(),
+							highlightedTargetAttrs: new Set<string>(),
+							hoverHighlightedAttrs: new Set<string>(),
+							selectedHighlightedAttrs: new Set<string>(),
+							isSearchActive,
+							isSearchMatch: false,
+						},
+					});
+
+					const syntheticEdgeId = `${modelNodeId}->${selectedNode}`;
+					if (!edgeSet.has(syntheticEdgeId)) {
+						edgeSet.add(syntheticEdgeId);
+						edges.push({
+							id: syntheticEdgeId,
+							source: modelNodeId,
+							target: selectedNode,
+							sourceHandle: "entity-source",
+							targetHandle: "entity-target",
+							type: "default",
+							animated: false,
+							style: {
+								stroke: "#9aa0a6",
+								strokeWidth: 1,
+								strokeDasharray: "4 4",
+								opacity: 0.7,
+							},
+							markerEnd: {
+								type: MarkerType.ArrowClosed,
+								color: "#9aa0a6",
+							},
+							label: "model",
+							labelStyle: { fontSize: 9, fill: "#777" },
+							labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
+						});
+					}
+				}
+			}
+
 			// Build a map of all attributes each entity actually has
 			const entityAttrNames = new Map<string, Set<string>>();
 			for (const entity of uniqueEntities) {
@@ -792,19 +944,23 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 						labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
 					});
 
-					// Render attribute-level edges only when an attribute is selected
+					// Render attribute-level edges only when attributes are selected
 					if (
-						selectedAttribute !== null &&
+						selectedAttributes.length > 0 &&
 						dep.attrMaps &&
 						dep.attrMaps.length > 0
 					) {
+						const sourceHighlighted = selectedHighlightedByEntity.get(
+							dep.entityId,
+						);
+						const targetHighlighted = selectedHighlightedByEntity.get(
+							mapping.entityId,
+						);
 						for (const attrMap of dep.attrMaps) {
 							const isSelectedSrc =
-								selectedAttribute.entityId === dep.entityId &&
-								selectedAttribute.attrName === attrMap.src;
+								sourceHighlighted?.has(attrMap.src) ?? false;
 							const isSelectedDst =
-								selectedAttribute.entityId === mapping.entityId &&
-								selectedAttribute.attrName === attrMap.dst;
+								targetHighlighted?.has(attrMap.dst) ?? false;
 							if (!isSelectedSrc && !isSelectedDst) continue;
 
 							const attrEdgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
@@ -859,17 +1015,225 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			upstreamCounts,
 			downstreamCounts,
 			hoverHighlightedByEntity,
-			selectedAttribute,
+			selectedAttributes,
+			selectedHighlightedByEntity,
 			searchMatchedEntities,
 			globalSearchQuery,
 			showFullGraphByDefault,
 		]);
 
-		// Apply layout
-		const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(
-			() => getLayoutedElements(initialNodes, initialEdges, layoutDirection),
-			[initialNodes, initialEdges, layoutDirection],
-		);
+		// Compute depth levels for each visible node relative to selectedNode
+		const nodeDepths = useMemo(() => {
+			const visibleIds = new Set(initialNodes.map((n: { id: string }) => n.id));
+			const depths = computeNodeDepths(
+				selectedNode,
+				lineageGraph.upstream,
+				lineageGraph.downstream,
+				visibleIds,
+			);
+			if (selectedNode) {
+				const modelNodeId = `__model__fake_node__${selectedNode}`;
+				if (visibleIds.has(modelNodeId)) depths.set(modelNodeId, 0);
+			}
+			return depths;
+		}, [selectedNode, lineageGraph, initialNodes]);
+
+		// Apply layout, then inject depth-level group nodes (sub-flows)
+		const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
+			const { nodes: dagreNodes, edges: dagreEdges } = getLayoutedElements(
+				initialNodes,
+				initialEdges,
+				layoutDirection,
+			);
+
+			if (!selectedNode || nodeDepths.size === 0) {
+				return { nodes: dagreNodes, edges: dagreEdges };
+			}
+
+			// Group nodes by their depth level
+			const depthBuckets = new Map<number, typeof dagreNodes>();
+			for (const node of dagreNodes) {
+				const depth = nodeDepths.get(node.id);
+				if (depth === undefined) continue;
+				if (!depthBuckets.has(depth)) depthBuckets.set(depth, []);
+				depthBuckets.get(depth)!.push(node);
+			}
+
+			if (depthBuckets.size <= 1) {
+				return { nodes: dagreNodes, edges: dagreEdges };
+			}
+
+			// --- Pass 1: compute raw bounding box per depth level ---
+			const sortedDepths = [...depthBuckets.keys()].sort((a, b) => a - b);
+			const isHorizontal = layoutDirection === "LR";
+
+			const getNodeW = (node: (typeof dagreNodes)[0]) =>
+				node.measured?.width ??
+				(node as unknown as { width?: number }).width ??
+				320;
+			const getNodeH = (node: (typeof dagreNodes)[0]) =>
+				node.measured?.height ??
+				(node as unknown as { height?: number }).height ??
+				140;
+
+			type BBox = { minX: number; minY: number; maxX: number; maxY: number };
+			const rawBoxes = new Map<number, BBox>();
+
+			for (const depth of sortedDepths) {
+				const bucket = depthBuckets.get(depth)!;
+				let minX = Number.POSITIVE_INFINITY;
+				let minY = Number.POSITIVE_INFINITY;
+				let maxX = Number.NEGATIVE_INFINITY;
+				let maxY = Number.NEGATIVE_INFINITY;
+				for (const node of bucket) {
+					const x = node.position.x;
+					const y = node.position.y;
+					if (x < minX) minX = x;
+					if (y < minY) minY = y;
+					if (x + getNodeW(node) > maxX) maxX = x + getNodeW(node);
+					if (y + getNodeH(node) > maxY) maxY = y + getNodeH(node);
+				}
+				rawBoxes.set(depth, { minX, minY, maxX, maxY });
+			}
+
+			// --- Pass 2: resolve overlaps along the layout axis ---
+			const GROUP_GAP = 10;
+			const shiftByDepth = new Map<number, number>();
+			for (const d of sortedDepths) shiftByDepth.set(d, 0);
+
+			for (let i = 1; i < sortedDepths.length; i++) {
+				const prevDepth = sortedDepths[i - 1];
+				const currDepth = sortedDepths[i];
+				const prevBox = rawBoxes.get(prevDepth)!;
+				const currBox = rawBoxes.get(currDepth)!;
+				const prevShift = shiftByDepth.get(prevDepth)!;
+
+				if (isHorizontal) {
+					const prevEnd = prevBox.maxX + prevShift + DEPTH_GROUP_PADDING;
+					const currStart =
+						currBox.minX + shiftByDepth.get(currDepth)! - DEPTH_GROUP_PADDING;
+					if (currStart < prevEnd + GROUP_GAP) {
+						const delta = prevEnd + GROUP_GAP - currStart;
+						for (let j = i; j < sortedDepths.length; j++) {
+							shiftByDepth.set(
+								sortedDepths[j],
+								shiftByDepth.get(sortedDepths[j])! + delta,
+							);
+						}
+					}
+				} else {
+					const prevEnd = prevBox.maxY + prevShift + DEPTH_GROUP_PADDING;
+					const currStart =
+						currBox.minY + shiftByDepth.get(currDepth)! - DEPTH_GROUP_PADDING;
+					if (currStart < prevEnd + GROUP_GAP) {
+						const delta = prevEnd + GROUP_GAP - currStart;
+						for (let j = i; j < sortedDepths.length; j++) {
+							shiftByDepth.set(
+								sortedDepths[j],
+								shiftByDepth.get(sortedDepths[j])! + delta,
+							);
+						}
+					}
+				}
+			}
+
+			// Apply shifts to node positions
+			for (const depth of sortedDepths) {
+				const shift = shiftByDepth.get(depth)!;
+				if (shift === 0) continue;
+				const bucket = depthBuckets.get(depth)!;
+				for (const node of bucket) {
+					if (isHorizontal) {
+						node.position = { ...node.position, x: node.position.x + shift };
+					} else {
+						node.position = { ...node.position, y: node.position.y + shift };
+					}
+				}
+			}
+
+			// --- Pass 3: create group nodes from adjusted positions ---
+			const groupNodes: Node[] = [];
+			const childNodeUpdates = new Map<
+				string,
+				{ parentId: string; relX: number; relY: number }
+			>();
+
+			for (const depth of sortedDepths) {
+				// Skip group for depth 0
+				if (depth === 0) continue;
+				const bucket = depthBuckets.get(depth)!;
+
+				let minX = Number.POSITIVE_INFINITY;
+				let minY = Number.POSITIVE_INFINITY;
+				let maxX = Number.NEGATIVE_INFINITY;
+				let maxY = Number.NEGATIVE_INFINITY;
+				for (const node of bucket) {
+					const x = node.position.x;
+					const y = node.position.y;
+					if (x < minX) minX = x;
+					if (y < minY) minY = y;
+					if (x + getNodeW(node) > maxX) maxX = x + getNodeW(node);
+					if (y + getNodeH(node) > maxY) maxY = y + getNodeH(node);
+				}
+
+				const extraBottomPadding = 6;
+				const groupX = minX - DEPTH_GROUP_PADDING;
+				const groupY = minY - DEPTH_GROUP_PADDING - 24;
+				const groupW = maxX - minX + DEPTH_GROUP_PADDING * 2;
+				const groupH =
+					maxY - minY + DEPTH_GROUP_PADDING * 2 + 24 + extraBottomPadding;
+
+				const colorIdx =
+					((depth % DEPTH_LEVEL_COLORS.length) + DEPTH_LEVEL_COLORS.length) %
+					DEPTH_LEVEL_COLORS.length;
+				const color = DEPTH_LEVEL_COLORS[colorIdx];
+
+				const depthLabel =
+					depth < 0 ? `Upstream ${Math.abs(depth)}` : `Downstream ${depth}`;
+
+				const groupId = `__depth_group_${depth}`;
+				groupNodes.push({
+					id: groupId,
+					type: "depthGroup",
+					position: { x: groupX, y: groupY },
+					data: { label: depthLabel },
+					style: {
+						width: groupW,
+						height: groupH,
+						backgroundColor: color.bg,
+						border: `2px dashed ${color.border}`,
+						borderRadius: 12,
+						padding: 0,
+						zIndex: -1,
+					},
+					draggable: false,
+					selectable: false,
+				} as Node);
+
+				for (const node of bucket) {
+					childNodeUpdates.set(node.id, {
+						parentId: groupId,
+						relX: node.position.x - groupX,
+						relY: node.position.y - groupY,
+					});
+				}
+			}
+
+			const updatedChildNodes = dagreNodes.map((node) => {
+				const update = childNodeUpdates.get(node.id);
+				if (!update) return node;
+				return {
+					...node,
+					parentId: update.parentId,
+					position: { x: update.relX, y: update.relY },
+				};
+			});
+
+			return {
+				nodes: [...groupNodes, ...updatedChildNodes],
+				edges: dagreEdges,
+			};
+		}, [initialNodes, initialEdges, layoutDirection, selectedNode, nodeDepths]);
 
 		const [nodes, setNodes, onNodesChange] = useNodesState(
 			layoutedNodes as Node[],
@@ -888,6 +1252,8 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		// Context menu handlers
 		const handleNodeContextMenu = useCallback(
 			(event: React.MouseEvent, node: Node) => {
+				// Skip context menu for group nodes
+				if (node.id.startsWith("__depth_group_")) return;
 				event.preventDefault();
 				const entityNode = node as unknown as EntityNode;
 				setContextMenu({
@@ -980,27 +1346,54 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			setCenter(x, y, { duration: 500 });
 		}, [getNode, rootEntityId, setCenter]);
 
+		const handleDepthLegendClick = useCallback(
+			(depth: number) => {
+				const targetId = depth === 0 ? selectedNode : `__depth_group_${depth}`;
+				if (!targetId) return;
+				const node = getNode(targetId);
+				if (!node) return;
+				const style = node.style as unknown as
+					| { width?: number; height?: number }
+					| undefined;
+				const width = node.measured?.width ?? style?.width ?? 280;
+				const height = node.measured?.height ?? style?.height ?? 120;
+				const x = node.position.x + width / 2;
+				const y = node.position.y + height / 2;
+				setCenter(x, y, { zoom: 0.9, duration: 400 });
+			},
+			[getNode, selectedNode, setCenter],
+		);
+
 		// Open entity page with selected attribute highlight
+		// Find first selected attribute for this context menu entity (for navigation)
+		const contextMenuSelectedAttr = useMemo(() => {
+			if (!contextMenu) return null;
+			return (
+				selectedAttributes.find((a) => a.entityId === contextMenu.entityId) ??
+				null
+			);
+		}, [contextMenu, selectedAttributes]);
+
 		const handleGoToEntityWithSelectedAttr = useCallback(() => {
-			if (contextMenu && selectedAttribute) {
+			if (contextMenu && contextMenuSelectedAttr) {
 				const encodedId = encodeURIComponent(contextMenu.entityId);
 				navigate(
-					`/entity/${encodedId}?highlightAttr=${encodeURIComponent(selectedAttribute.attrName)}`,
+					`/entity/${encodedId}?highlightAttr=${encodeURIComponent(contextMenuSelectedAttr.attrName)}`,
 				);
 			}
 			setContextMenu(null);
-		}, [contextMenu, selectedAttribute, navigate]);
+		}, [contextMenu, contextMenuSelectedAttr, navigate]);
 
 		// Open Dashboard with entity and selected attribute highlight via URL params
 		const handleGoToDashboardWithSelectedAttr = useCallback(() => {
-			if (contextMenu && selectedAttribute) {
+			if (contextMenu && contextMenuSelectedAttr) {
 				const params = new URLSearchParams();
 				params.set("entityId", contextMenu.entityId);
-				params.set("attrName", selectedAttribute.attrName);
+				params.set("attrName", contextMenuSelectedAttr.attrName);
 				navigate(`/?${params.toString()}`);
 			}
 			setContextMenu(null);
-		}, [contextMenu, selectedAttribute, navigate]);
+		}, [contextMenu, contextMenuSelectedAttr, navigate]);
 
 		useEffect(() => {
 			setNodes(layoutedNodes as Node[]);
@@ -1070,7 +1463,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					nodesDraggable
 					fitView
 					minZoom={0.1}
-					maxZoom={2}
+					maxZoom={6}
 					defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
 					proOptions={{ hideAttribution: true }}
 				>
@@ -1117,9 +1510,39 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 								<AccountTree style={{ fontSize: 16, color: "#666" }} />
 							</button>
 						</div>
+						<div data-name="toggle_layout_direction">
+							<button
+								onClick={() =>
+									setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
+								}
+								style={{
+									width: 26,
+									height: 26,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									background: "#fff",
+									border: "none",
+									cursor: "pointer",
+									padding: 0,
+								}}
+								title={
+									layoutDirection === "LR" ? "Вертикальный" : "Горизонтальный"
+								}
+								type="button"
+							>
+								{layoutDirection === "LR" ? (
+									<SwapVert style={{ fontSize: 16, color: "#666" }} />
+								) : (
+									<SwapHoriz style={{ fontSize: 16, color: "#666" }} />
+								)}
+							</button>
+						</div>
 					</Controls>
 					<MiniMap
 						nodeColor={(node) => {
+							// Skip group nodes in minimap coloring
+							if (node.id.startsWith("__depth_group_")) return "transparent";
 							const entityNode = node as unknown as EntityNode;
 							if (entityNode.data?.highlightType === "selected")
 								return HIGHLIGHT_COLORS.selected;
@@ -1148,44 +1571,73 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 						>
 							<div style={{ marginBottom: 8 }}>
 								<div style={{ fontSize: 11, color: "#666" }}>
-									{filteredEntities.length} связанных сущностей
+									{filteredEntities.length - 1} связанных сущностей
 								</div>
 							</div>
-							<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-								{selectedAttribute && (
-									<button
-										onClick={handleClearSelectedAttribute}
-										style={{
-											padding: "6px 12px",
-											border: "1px solid #ddd",
-											borderRadius: 6,
-											background: "#fff",
-											cursor: "pointer",
-											fontSize: 11,
-										}}
-										title={selectedAttribute.attrName}
-										type="button"
-									>
-										✕ Очистить атрибут
-									</button>
-								)}
-								<button
-									onClick={() =>
-										setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
-									}
+							{selectedNode && nodeDepths.size > 1 && (
+								<div
 									style={{
-										padding: "6px 12px",
-										border: "1px solid #ddd",
-										borderRadius: 6,
-										background: "#fff",
-										cursor: "pointer",
-										fontSize: 11,
+										marginTop: 10,
+										borderTop: "1px solid #eee",
+										paddingTop: 8,
 									}}
-									type="button"
 								>
-									{layoutDirection === "LR" ? "↔ Гориз." : "↕ Верт."}
-								</button>
-							</div>
+									<div
+										style={{
+											fontSize: 10,
+											color: "#999",
+											marginBottom: 4,
+											textTransform: "uppercase",
+											letterSpacing: 0.5,
+										}}
+									>
+										Уровни глубины
+									</div>
+									{[...new Set(nodeDepths.values())]
+										.sort((a, b) => a - b)
+										.map((depth) => {
+											const colorIdx =
+												((depth % DEPTH_LEVEL_COLORS.length) +
+													DEPTH_LEVEL_COLORS.length) %
+												DEPTH_LEVEL_COLORS.length;
+											const color = DEPTH_LEVEL_COLORS[colorIdx];
+											const label =
+												depth === 0
+													? "Выбранная"
+													: depth < 0
+														? `Upstream ${Math.abs(depth)}`
+														: `Downstream ${depth}`;
+											return (
+												<div
+													key={depth}
+													data-name={`depth_legend_item_${depth}`}
+													style={{
+														display: "flex",
+														alignItems: "center",
+														gap: 6,
+														marginBottom: 2,
+														cursor: "pointer",
+													}}
+													onClick={() => handleDepthLegendClick(depth)}
+												>
+													<div
+														style={{
+															width: 12,
+															height: 12,
+															borderRadius: 3,
+															backgroundColor: color.bg,
+															border: `2px dashed ${color.border}`,
+															flexShrink: 0,
+														}}
+													/>
+													<span style={{ fontSize: 10, color: "#666" }}>
+														{label}
+													</span>
+												</div>
+											);
+										})}
+								</div>
+							)}
 						</div>
 					</Panel>
 					{selectedNode && maxTraversalDepth > 1 && (
@@ -1345,7 +1797,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 							setSelectedConnection(null);
 						}}
 						connection={selectedConnection}
-						selectedAttribute={selectedAttribute}
+						selectedAttribute={selectedAttributes[0] ?? null}
 					/>
 				)}
 
@@ -1389,30 +1841,28 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 						</ListItemIcon>
 						<ListItemText primary="Открыть в новой вкладке" />
 					</MenuItem>
-					{selectedAttribute &&
-						contextMenu?.entityId === selectedAttribute.entityId && (
-							<MenuItem onClick={handleGoToEntityWithSelectedAttr}>
-								<ListItemIcon>
-									<OpenInNew fontSize="small" />
-								</ListItemIcon>
-								<ListItemText
-									primary="Открыть с выделением атрибута"
-									secondary={selectedAttribute.attrName}
-								/>
-							</MenuItem>
-						)}
-					{selectedAttribute &&
-						contextMenu?.entityId === selectedAttribute.entityId && (
-							<MenuItem onClick={handleGoToDashboardWithSelectedAttr}>
-								<ListItemIcon>
-									<CenterFocusStrong fontSize="small" />
-								</ListItemIcon>
-								<ListItemText
-									primary="В Dashboard с выделением"
-									secondary={selectedAttribute.attrName}
-								/>
-							</MenuItem>
-						)}
+					{contextMenuSelectedAttr && (
+						<MenuItem onClick={handleGoToEntityWithSelectedAttr}>
+							<ListItemIcon>
+								<OpenInNew fontSize="small" />
+							</ListItemIcon>
+							<ListItemText
+								primary="Открыть с выделением атрибута"
+								secondary={contextMenuSelectedAttr.attrName}
+							/>
+						</MenuItem>
+					)}
+					{contextMenuSelectedAttr && (
+						<MenuItem onClick={handleGoToDashboardWithSelectedAttr}>
+							<ListItemIcon>
+								<CenterFocusStrong fontSize="small" />
+							</ListItemIcon>
+							<ListItemText
+								primary="В Dashboard с выделением"
+								secondary={contextMenuSelectedAttr.attrName}
+							/>
+						</MenuItem>
+					)}
 					<Divider />
 					<MenuItem onClick={handleContextMenuZoomToNode}>
 						<ListItemIcon>
@@ -1443,5 +1893,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		);
 	},
 );
+
+ModelGraphPanelInner.displayName = "ModelGraphPanelInner";
 
 ModelGraphPanelInner.displayName = "ModelGraphPanelInner";

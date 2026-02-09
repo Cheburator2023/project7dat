@@ -24,6 +24,7 @@ import { getLayoutedElements, buildLineageGraph } from "../utils";
 import {
 	TYPE_COLORS,
 	HIGHLIGHT_COLORS,
+	DEPTH_LEVEL_COLORS,
 	MAX_VISIBLE_ATTRS,
 	ATTR_EDGE_COLORS,
 	NODE_WIDTH,
@@ -45,6 +46,63 @@ const EMPTY_STRING_SET = new Set<string>();
 const EMPTY_SEARCH_MATCHES = new Map<string, number>();
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
+
+const computeNodeDepths = (
+	rootId: string,
+	upstream: Map<string, Set<string>>,
+	downstream: Map<string, Set<string>>,
+	visibleNodeIds: Set<string>,
+): Map<string, number> => {
+	const depths = new Map<string, number>();
+	if (!rootId) return depths;
+	depths.set(rootId, 0);
+
+	// BFS upstream (negative depths)
+	let frontier: string[] = [rootId];
+	let level = 0;
+	const visitedUp = new Set<string>([rootId]);
+	while (frontier.length > 0) {
+		level -= 1;
+		const next: string[] = [];
+		for (const current of frontier) {
+			const parents = upstream.get(current);
+			if (!parents) continue;
+			for (const parent of parents) {
+				if (visitedUp.has(parent) || !visibleNodeIds.has(parent)) continue;
+				visitedUp.add(parent);
+				depths.set(parent, level);
+				next.push(parent);
+			}
+		}
+		frontier = next;
+	}
+
+	// BFS downstream (positive depths)
+	frontier = [rootId];
+	level = 0;
+	const visitedDown = new Set<string>([rootId]);
+	while (frontier.length > 0) {
+		level += 1;
+		const next: string[] = [];
+		for (const current of frontier) {
+			const children = downstream.get(current);
+			if (!children) continue;
+			for (const child of children) {
+				if (visitedDown.has(child) || !visibleNodeIds.has(child)) continue;
+				visitedDown.add(child);
+				if (!depths.has(child)) {
+					depths.set(child, level);
+				}
+				next.push(child);
+			}
+		}
+		frontier = next;
+	}
+
+	return depths;
+};
+
+const DEPTH_GROUP_PADDING = 40;
 
 const getUpstreamNodesLimited = (
 	nodeId: string,
@@ -197,8 +255,9 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
-			selectedAttribute,
-			setSelectedAttribute,
+			selectedAttributes,
+			toggleSelectedAttribute,
+			clearSelectedAttributes,
 			globalAttributeSearchQuery,
 			localNodeAttributeSearchQueries,
 			searchMatchedEntities,
@@ -209,8 +268,9 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			useShallow((state) => ({
 				hoveredAttribute: state.hoveredAttribute,
 				setHoveredAttribute: state.setHoveredAttribute,
-				selectedAttribute: state.selectedAttribute,
-				setSelectedAttribute: state.setSelectedAttribute,
+				selectedAttributes: state.selectedAttributes,
+				toggleSelectedAttribute: state.toggleSelectedAttribute,
+				clearSelectedAttributes: state.clearSelectedAttributes,
 				globalAttributeSearchQuery: state.globalAttributeSearchQuery,
 				localNodeAttributeSearchQueries: state.localNodeAttributeSearchQueries,
 				searchMatchedEntities: state.searchMatchedEntities,
@@ -317,6 +377,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		const handleNodeContextMenu = useCallback(
 			(event: React.MouseEvent, node: Node) => {
 				event.preventDefault();
+				if (node.id.startsWith("__depth_group_")) return;
 				if (onNodeContextMenu) {
 					onNodeContextMenu({
 						entityId: node.id,
@@ -351,20 +412,14 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleAttrClick = useCallback(
 			(entityId: string, attrName: string) => {
-				// Toggle selection: if clicking same attribute, deselect; otherwise select new one
-				const current = useDashboardStore.getState().selectedAttribute;
-				if (current?.entityId === entityId && current?.attrName === attrName) {
-					setSelectedAttribute(null);
-					return;
-				}
-				setSelectedAttribute({ entityId, attrName });
+				toggleSelectedAttribute({ entityId, attrName });
 			},
-			[setSelectedAttribute],
+			[toggleSelectedAttribute],
 		);
 
 		const handleClearSelectedAttribute = useCallback(() => {
-			setSelectedAttribute(null);
-		}, [setSelectedAttribute]);
+			clearSelectedAttributes();
+		}, [clearSelectedAttributes]);
 
 		const handleGhostClick = useCallback(() => {
 			setDepthLimit((prev) => Math.min(prev + 1, maxTraversalDepth));
@@ -448,12 +503,18 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		// BFS traversal to find all transitively connected attributes in the flow
 		const selectedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
-			if (!selectedAttribute) return result;
+			if (selectedAttributes.length === 0) return result;
 
-			const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
 			const visited = new Set<string>();
-			const queue = [selectedKey];
-			visited.add(selectedKey);
+			const queue: string[] = [];
+
+			for (const attr of selectedAttributes) {
+				const key = `${attr.entityId}::${attr.attrName}`;
+				if (!visited.has(key)) {
+					visited.add(key);
+					queue.push(key);
+				}
+			}
 
 			while (queue.length > 0) {
 				const current = queue.shift()!;
@@ -474,7 +535,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 			return result;
-		}, [selectedAttribute, attrConnectionMap]);
+		}, [selectedAttributes, attrConnectionMap]);
 
 		const searchedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
@@ -851,12 +912,219 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		]);
 
 		// Apply layout (only based on topology)
-		const { nodes: layoutedTopologyNodes, edges: layoutedTopologyEdges } =
-			useMemo(
-				() =>
-					getLayoutedElements(topologyNodes, topologyEdges, layoutDirection),
-				[topologyNodes, topologyEdges, layoutDirection],
+
+		const nodeDepths = useMemo(() => {
+			if (!selectedEntityId) return new Map<string, number>();
+			const visibleIds = new Set(
+				topologyNodes.map((n: { id: string }) => n.id),
 			);
+			return computeNodeDepths(
+				selectedEntityId,
+				lineageGraph.upstream,
+				lineageGraph.downstream,
+				visibleIds,
+			);
+		}, [selectedEntityId, topologyNodes, lineageGraph]);
+
+		const { nodes: layoutedTopologyNodes, edges: layoutedTopologyEdges } =
+			useMemo(() => {
+				const { nodes: dagreNodes, edges: dagreEdges } = getLayoutedElements(
+					topologyNodes,
+					topologyEdges,
+					layoutDirection,
+				);
+
+				if (!selectedEntityId || nodeDepths.size === 0) {
+					return { nodes: dagreNodes, edges: dagreEdges };
+				}
+
+				// Group nodes by their depth level
+				const depthBuckets = new Map<number, typeof dagreNodes>();
+				for (const node of dagreNodes) {
+					const depth = nodeDepths.get(node.id);
+					if (depth === undefined) continue;
+					if (!depthBuckets.has(depth)) depthBuckets.set(depth, []);
+					depthBuckets.get(depth)!.push(node);
+				}
+
+				if (depthBuckets.size <= 1) {
+					return { nodes: dagreNodes, edges: dagreEdges };
+				}
+
+				// --- Pass 1: compute raw bounding box per depth level ---
+				const sortedDepths = [...depthBuckets.keys()].sort((a, b) => a - b);
+				const isHorizontal = layoutDirection === "LR";
+
+				const getNodeW = (node: (typeof dagreNodes)[0]) =>
+					node.measured?.width ??
+					(node as unknown as { width?: number }).width ??
+					NODE_WIDTH;
+				const getNodeH = (node: (typeof dagreNodes)[0]) =>
+					node.measured?.height ??
+					(node as unknown as { height?: number }).height ??
+					140;
+
+				type BBox = { minX: number; minY: number; maxX: number; maxY: number };
+				const rawBoxes = new Map<number, BBox>();
+				for (const depth of sortedDepths) {
+					const bucket = depthBuckets.get(depth)!;
+					let minX = Number.POSITIVE_INFINITY;
+					let minY = Number.POSITIVE_INFINITY;
+					let maxX = Number.NEGATIVE_INFINITY;
+					let maxY = Number.NEGATIVE_INFINITY;
+					for (const node of bucket) {
+						const x = node.position.x;
+						const y = node.position.y;
+						if (x < minX) minX = x;
+						if (y < minY) minY = y;
+						if (x + getNodeW(node) > maxX) maxX = x + getNodeW(node);
+						if (y + getNodeH(node) > maxY) maxY = y + getNodeH(node);
+					}
+					rawBoxes.set(depth, { minX, minY, maxX, maxY });
+				}
+
+				// --- Pass 2: resolve overlaps along the layout axis ---
+				const GROUP_GAP = 10;
+				const shiftByDepth = new Map<number, number>();
+				for (const d of sortedDepths) shiftByDepth.set(d, 0);
+				for (let i = 1; i < sortedDepths.length; i++) {
+					const prevDepth = sortedDepths[i - 1];
+					const currDepth = sortedDepths[i];
+					const prevBox = rawBoxes.get(prevDepth)!;
+					const currBox = rawBoxes.get(currDepth)!;
+					const prevShift = shiftByDepth.get(prevDepth)!;
+
+					if (isHorizontal) {
+						const prevEnd = prevBox.maxX + prevShift + DEPTH_GROUP_PADDING;
+						const currStart =
+							currBox.minX + shiftByDepth.get(currDepth)! - DEPTH_GROUP_PADDING;
+						if (currStart < prevEnd + GROUP_GAP) {
+							const delta = prevEnd + GROUP_GAP - currStart;
+							for (let j = i; j < sortedDepths.length; j++) {
+								shiftByDepth.set(
+									sortedDepths[j],
+									shiftByDepth.get(sortedDepths[j])! + delta,
+								);
+							}
+						}
+					} else {
+						const prevEnd = prevBox.maxY + prevShift + DEPTH_GROUP_PADDING;
+						const currStart =
+							currBox.minY + shiftByDepth.get(currDepth)! - DEPTH_GROUP_PADDING;
+						if (currStart < prevEnd + GROUP_GAP) {
+							const delta = prevEnd + GROUP_GAP - currStart;
+							for (let j = i; j < sortedDepths.length; j++) {
+								shiftByDepth.set(
+									sortedDepths[j],
+									shiftByDepth.get(sortedDepths[j])! + delta,
+								);
+							}
+						}
+					}
+				}
+
+				// Apply shifts to node positions
+				for (const depth of sortedDepths) {
+					const shift = shiftByDepth.get(depth)!;
+					if (shift === 0) continue;
+					const bucket = depthBuckets.get(depth)!;
+					for (const node of bucket) {
+						if (isHorizontal) {
+							node.position = { ...node.position, x: node.position.x + shift };
+						} else {
+							node.position = { ...node.position, y: node.position.y + shift };
+						}
+					}
+				}
+
+				// --- Pass 3: create group nodes from adjusted positions ---
+				const groupNodes: Node[] = [];
+				const childNodeUpdates = new Map<
+					string,
+					{ parentId: string; relX: number; relY: number }
+				>();
+
+				for (const depth of sortedDepths) {
+					if (depth === 0) continue;
+					const bucket = depthBuckets.get(depth)!;
+
+					let minX = Number.POSITIVE_INFINITY;
+					let minY = Number.POSITIVE_INFINITY;
+					let maxX = Number.NEGATIVE_INFINITY;
+					let maxY = Number.NEGATIVE_INFINITY;
+					for (const node of bucket) {
+						const x = node.position.x;
+						const y = node.position.y;
+						if (x < minX) minX = x;
+						if (y < minY) minY = y;
+						if (x + getNodeW(node) > maxX) maxX = x + getNodeW(node);
+						if (y + getNodeH(node) > maxY) maxY = y + getNodeH(node);
+					}
+
+					const extraBottomPadding = 6;
+					const groupX = minX - DEPTH_GROUP_PADDING;
+					const groupY = minY - DEPTH_GROUP_PADDING - 24;
+					const groupW = maxX - minX + DEPTH_GROUP_PADDING * 2;
+					const groupH =
+						maxY - minY + DEPTH_GROUP_PADDING * 2 + 24 + extraBottomPadding;
+
+					const colorIdx =
+						((depth % DEPTH_LEVEL_COLORS.length) + DEPTH_LEVEL_COLORS.length) %
+						DEPTH_LEVEL_COLORS.length;
+					const color = DEPTH_LEVEL_COLORS[colorIdx];
+
+					const depthLabel =
+						depth < 0 ? `Upstream ${Math.abs(depth)}` : `Downstream ${depth}`;
+
+					const groupId = `__depth_group_${depth}`;
+					groupNodes.push({
+						id: groupId,
+						type: "depthGroup",
+						position: { x: groupX, y: groupY },
+						data: { label: depthLabel },
+						style: {
+							width: groupW,
+							height: groupH,
+							backgroundColor: color.bg,
+							border: `2px dashed ${color.border}`,
+							borderRadius: 12,
+							padding: 0,
+							zIndex: -1,
+						},
+						draggable: false,
+						selectable: false,
+					} as Node);
+
+					for (const node of bucket) {
+						childNodeUpdates.set(node.id, {
+							parentId: groupId,
+							relX: node.position.x - groupX,
+							relY: node.position.y - groupY,
+						});
+					}
+				}
+
+				const updatedChildNodes = dagreNodes.map((node) => {
+					const update = childNodeUpdates.get(node.id);
+					if (!update) return node;
+					return {
+						...node,
+						parentId: update.parentId,
+						position: { x: update.relX, y: update.relY },
+					};
+				});
+
+				return {
+					nodes: [...groupNodes, ...updatedChildNodes],
+					edges: dagreEdges,
+				};
+			}, [
+				topologyNodes,
+				topologyEdges,
+				layoutDirection,
+				selectedEntityId,
+				nodeDepths,
+			]);
 
 		const [nodes, setNodes, onNodesChange] = useNodesState(
 			layoutedTopologyNodes as Node[],
@@ -1037,7 +1305,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 
 		useEffect(() => {
 			// Start from layouted entity-level edges and decorate + append attr edges
-			const shouldShowAttrEdges = selectedAttribute !== null;
+			const shouldShowAttrEdges = selectedAttributes.length > 0;
 
 			// Build attribute-level edges dynamically
 			const attrEdges: Edge[] = [];
@@ -1182,7 +1450,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			setEdges,
 			layoutedTopologyEdges,
 			isAnyAttributeSearchActive,
-			selectedAttribute,
+			selectedAttributes,
 			selectedOrSearchedAttrsByEntity,
 			data.mappings,
 			layoutedTopologyNodes,
@@ -1339,7 +1607,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 							)}
 						</button>
 					</div>
-					{selectedAttribute && (
+					{selectedAttributes.length > 0 && (
 						<div data-name="clear_selected_attribute">
 							<button
 								onClick={handleClearSelectedAttribute}
@@ -1354,7 +1622,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 									cursor: "pointer",
 									padding: 0,
 								}}
-								title={`Очистить атрибут: ${selectedAttribute.attrName}`}
+								title={`Очистить атрибуты (${selectedAttributes.length})`}
 								type="button"
 							>
 								<ClearAll style={{ fontSize: 16, color: "#666" }} />

@@ -164,8 +164,10 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
-			selectedAttribute,
-			setSelectedAttribute,
+			selectedAttributes,
+			toggleSelectedAttribute,
+			clearSelectedAttributes,
+			selectEntityWithAttribute,
 			searchMatchedEntities,
 			globalSearchQuery,
 			zoomToNodeId,
@@ -188,12 +190,12 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			// Ensure the graph is focused on the same entity as the highlighted attribute
 			setSelectedNode(entityId);
 			onSelectEntity(entityId);
-			setSelectedAttribute({ entityId, attrName });
+			selectEntityWithAttribute(entityId, attrName);
 		}, [
 			onSelectEntity,
 			searchParams,
 			selectedEntityId,
-			setSelectedAttribute,
+			selectEntityWithAttribute,
 			setSelectedNode,
 			urlEntityId,
 		]);
@@ -378,22 +380,14 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleAttrClick = useCallback(
 			(entityId: string, attrName: string) => {
-				// Toggle selection: if clicking same attribute, deselect; otherwise select new one
-				if (
-					selectedAttribute?.entityId === entityId &&
-					selectedAttribute?.attrName === attrName
-				) {
-					setSelectedAttribute(null);
-				} else {
-					setSelectedAttribute({ entityId, attrName });
-				}
+				toggleSelectedAttribute({ entityId, attrName });
 			},
-			[selectedAttribute, setSelectedAttribute],
+			[toggleSelectedAttribute],
 		);
 
 		const handleClearSelectedAttribute = useCallback(() => {
-			setSelectedAttribute(null);
-		}, [setSelectedAttribute]);
+			clearSelectedAttributes();
+		}, [clearSelectedAttributes]);
 
 		// Build attribute connection map for hover highlighting
 		// Maps "entityId::attrName" -> Set of connected "entityId::attrName"
@@ -450,15 +444,21 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [hoveredAttribute, attrConnectionMap]);
 
 		// Compute selected/clicked-highlighted attributes for each entity
-		// BFS traversal to find all transitively connected attributes in the flow
+		// BFS traversal from all selected attributes
 		const selectedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
-			if (!selectedAttribute) return result;
+			if (selectedAttributes.length === 0) return result;
 
-			const selectedKey = `${selectedAttribute.entityId}::${selectedAttribute.attrName}`;
 			const visited = new Set<string>();
-			const queue = [selectedKey];
-			visited.add(selectedKey);
+			const queue: string[] = [];
+
+			for (const attr of selectedAttributes) {
+				const key = `${attr.entityId}::${attr.attrName}`;
+				if (!visited.has(key)) {
+					visited.add(key);
+					queue.push(key);
+				}
+			}
 
 			while (queue.length > 0) {
 				const current = queue.shift()!;
@@ -479,7 +479,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 			return result;
-		}, [selectedAttribute, attrConnectionMap]);
+		}, [selectedAttributes, attrConnectionMap]);
 
 		// Create nodes and edges
 		const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
@@ -944,26 +944,34 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [contextMenu, setZoomToNode, navigate]);
 
 		// Open entity page with selected attribute highlight
+		const contextMenuSelectedAttr = useMemo(() => {
+			if (!contextMenu) return null;
+			return (
+				selectedAttributes.find((a) => a.entityId === contextMenu.entityId) ??
+				null
+			);
+		}, [contextMenu, selectedAttributes]);
+
 		const handleGoToEntityWithSelectedAttr = useCallback(() => {
-			if (contextMenu && selectedAttribute) {
+			if (contextMenu && contextMenuSelectedAttr) {
 				const encodedId = encodeURIComponent(contextMenu.entityId);
 				navigate(
-					`/entity/${encodedId}?highlightAttr=${encodeURIComponent(selectedAttribute.attrName)}`,
+					`/entity/${encodedId}?highlightAttr=${encodeURIComponent(contextMenuSelectedAttr.attrName)}`,
 				);
 			}
 			setContextMenu(null);
-		}, [contextMenu, selectedAttribute, navigate]);
+		}, [contextMenu, contextMenuSelectedAttr, navigate]);
 
 		// Open Dashboard with entity and selected attribute highlight via URL params
 		const handleGoToDashboardWithSelectedAttr = useCallback(() => {
-			if (contextMenu && selectedAttribute) {
+			if (contextMenu && contextMenuSelectedAttr) {
 				const params = new URLSearchParams();
 				params.set("entityId", contextMenu.entityId);
-				params.set("attrName", selectedAttribute.attrName);
+				params.set("attrName", contextMenuSelectedAttr.attrName);
 				navigate(`/?${params.toString()}`);
 			}
 			setContextMenu(null);
-		}, [contextMenu, selectedAttribute, navigate]);
+		}, [contextMenu, contextMenuSelectedAttr, navigate]);
 
 		useEffect(() => {
 			setNodes(layoutedNodes as Node[]);
@@ -989,7 +997,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		// Edge decoration effect: highlight entity edges + add dynamic attr edges
 		useEffect(() => {
 			const attrEdges: Edge[] = [];
-			if (selectedAttribute) {
+			if (selectedAttributes.length > 0) {
 				const edgeSet = new Set<string>();
 				const visibleEntityIds = new Set(nodes.map((n) => n.id));
 
@@ -1064,7 +1072,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 			setEdges([...layoutedEdges, ...attrEdges]);
 		}, [
-			selectedAttribute,
+			selectedAttributes,
 			selectedHighlightedByEntity,
 			data?.mappings,
 			nodes,
@@ -1141,7 +1149,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 								</div>
 							</div>
 							<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-								{selectedAttribute && (
+								{selectedAttributes.length > 0 && (
 									<button
 										onClick={handleClearSelectedAttribute}
 										style={{
@@ -1152,10 +1160,10 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 											cursor: "pointer",
 											fontSize: 11,
 										}}
-										title={selectedAttribute.attrName}
+										title={`Очистить атрибуты (${selectedAttributes.length})`}
 										type="button"
 									>
-										✕ Очистить атрибут
+										✕ Очистить атрибуты ({selectedAttributes.length})
 									</button>
 								)}
 								<button
@@ -1207,7 +1215,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 							setSelectedConnection(null);
 						}}
 						connection={selectedConnection}
-						selectedAttribute={selectedAttribute}
+						selectedAttribute={selectedAttributes[0] ?? null}
 					/>
 				)}
 
@@ -1251,30 +1259,28 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 						</ListItemIcon>
 						<ListItemText primary="Открыть в новой вкладке" />
 					</MenuItem>
-					{selectedAttribute &&
-						contextMenu?.entityId === selectedAttribute.entityId && (
-							<MenuItem onClick={handleGoToEntityWithSelectedAttr}>
-								<ListItemIcon>
-									<OpenInNew fontSize="small" />
-								</ListItemIcon>
-								<ListItemText
-									primary="Открыть с выделением атрибута"
-									secondary={selectedAttribute.attrName}
-								/>
-							</MenuItem>
-						)}
-					{selectedAttribute &&
-						contextMenu?.entityId === selectedAttribute.entityId && (
-							<MenuItem onClick={handleGoToDashboardWithSelectedAttr}>
-								<ListItemIcon>
-									<CenterFocusStrong fontSize="small" />
-								</ListItemIcon>
-								<ListItemText
-									primary="В Dashboard с выделением"
-									secondary={selectedAttribute.attrName}
-								/>
-							</MenuItem>
-						)}
+					{contextMenuSelectedAttr && (
+						<MenuItem onClick={handleGoToEntityWithSelectedAttr}>
+							<ListItemIcon>
+								<OpenInNew fontSize="small" />
+							</ListItemIcon>
+							<ListItemText
+								primary="Открыть с выделением атрибута"
+								secondary={contextMenuSelectedAttr.attrName}
+							/>
+						</MenuItem>
+					)}
+					{contextMenuSelectedAttr && (
+						<MenuItem onClick={handleGoToDashboardWithSelectedAttr}>
+							<ListItemIcon>
+								<CenterFocusStrong fontSize="small" />
+							</ListItemIcon>
+							<ListItemText
+								primary="В Dashboard с выделением"
+								secondary={contextMenuSelectedAttr.attrName}
+							/>
+						</MenuItem>
+					)}
 					<Divider />
 					<MenuItem onClick={handleContextMenuZoomToNode}>
 						<ListItemIcon>

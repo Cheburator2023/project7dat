@@ -31,6 +31,49 @@ export const HIGHLIGHT_COLORS = {
 	searchMatch: "#ff5722", // Orange for search matches
 } as const;
 
+export const DEPTH_LEVEL_COLORS = [
+	{
+		bg: "rgba(255, 193, 7, 0.08)",
+		border: "rgba(255, 193, 7, 0.3)",
+		label: "#f9a825",
+	},
+	{
+		bg: "rgba(76, 175, 80, 0.08)",
+		border: "rgba(76, 175, 80, 0.3)",
+		label: "#388e3c",
+	},
+	{
+		bg: "rgba(33, 150, 243, 0.08)",
+		border: "rgba(33, 150, 243, 0.3)",
+		label: "#1976d2",
+	},
+	{
+		bg: "rgba(156, 39, 176, 0.08)",
+		border: "rgba(156, 39, 176, 0.3)",
+		label: "#7b1fa2",
+	},
+	{
+		bg: "rgba(0, 188, 212, 0.08)",
+		border: "rgba(0, 188, 212, 0.3)",
+		label: "#00838f",
+	},
+	{
+		bg: "rgba(255, 87, 34, 0.08)",
+		border: "rgba(255, 87, 34, 0.3)",
+		label: "#d84315",
+	},
+	{
+		bg: "rgba(233, 30, 99, 0.08)",
+		border: "rgba(233, 30, 99, 0.3)",
+		label: "#c2185b",
+	},
+	{
+		bg: "rgba(63, 81, 181, 0.08)",
+		border: "rgba(63, 81, 181, 0.3)",
+		label: "#283593",
+	},
+] as const;
+
 export const ATTR_EDGE_COLORS = [
 	"#2196f3",
 	"#4caf50",

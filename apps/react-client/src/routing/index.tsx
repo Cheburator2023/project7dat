@@ -5,8 +5,7 @@ import { SwaggerPage } from "@react-client/features/swagger/SwaggerPage";
 import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPreviewPage";
 
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
-import { ObjectsPage } from "@react-client/new_features/objectsList/ObjectsPage";
-import { ObjectCardPage } from "@react-client/new_features/objectsList/ObjectCardPage";
+import { ObjectsPage } from "@react-client/features/objects/ObjectsPage";
 import { ModelsPage } from "@react-client/new_features/models/ModelsPage";
 import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { SettingsPage } from "@react-client/features/settings/SettingsPage";
@@ -43,7 +42,6 @@ export const Routing = () => (
 			element={<JsonDataReportPage />}
 		/>
 		<Route path={routes.objects.rootPath} element={<ObjectsPage />} />
-		<Route path={routes.objectCard.rootPath} element={<ObjectCardPage />} />
 		<Route path={routes.models.rootPath} element={<ModelsPage />} />
 		<Route path={routes.modelCard.rootPath} element={<ModelPreviewPage />} />
 		<Route
