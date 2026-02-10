@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, useMemo } from "react";
-import { Button, type SelectChangeEvent } from "@mui/material";
+import { Button, IconButton, type SelectChangeEvent } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
@@ -30,6 +30,7 @@ import {
 } from "../utils";
 import type { EntityRow } from "../types";
 import { S2tImportDialog } from "@react-client/features/s2tImport/S2tImportDialog";
+import { RefreshCwIcon } from "lucide-react";
 
 // S2T format conversion utilities
 interface S2TFormat {
@@ -82,7 +83,7 @@ const convertGraphToS2T = (graph: DataLineageGraph): S2TFormat => {
 	};
 };
 
-export const DashboardHeader = memo(({ isLoading }: { isLoading: boolean }) => {
+export const DashboardHeader = memo(() => {
 	// Data lineage store for commit functionality
 	const {
 		currentGraphId,
@@ -108,8 +109,9 @@ export const DashboardHeader = memo(({ isLoading }: { isLoading: boolean }) => {
 
 	// Query client and mutations
 	const queryClient = useQueryClient();
-	const { refetch: refetchCurrentGraph, isPending: isCurrentGraphPending } =
-		useCurrentDataLineageGraph();
+	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph({
+		enabled: false,
+	});
 	const { refetch: refetchCommitList } = useCommitList({
 		graphId: undefined,
 	});
@@ -288,7 +290,7 @@ export const DashboardHeader = memo(({ isLoading }: { isLoading: boolean }) => {
 
 	return (
 		<>
-			<Header isLoading={isLoading}>
+			<Header>
 				<SelectedEntityChip />
 				<Flex gap={8} alignItems="center">
 					<GlobalSearchField />
@@ -361,12 +363,12 @@ export const DashboardHeader = memo(({ isLoading }: { isLoading: boolean }) => {
 					</Select> */}
 
 					{/* Refresh button */}
-					{/* <IconButton
+					<IconButton
 						onClick={handleManualLoad}
 						title="Загрузить текущее состояние"
 					>
-						<RefreshIcon />
-					</IconButton> */}
+						<RefreshCwIcon />
+					</IconButton>
 				</Flex>
 			</Header>
 

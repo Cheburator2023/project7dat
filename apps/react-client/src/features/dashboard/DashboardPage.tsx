@@ -25,6 +25,7 @@ import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 export const DashboardPage = () => {
 	const [, setSearchParams] = useSearchParams();
+	useCurrentDataLineageGraph({ enabled: true });
 	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore(
 		useShallow((state) => ({
 			selectEntityWithAttribute: state.selectEntityWithAttribute,
@@ -120,11 +121,9 @@ export const DashboardPage = () => {
 		[model, isPersistEnabled],
 	);
 
-	const { isPending } = useCurrentDataLineageGraph();
-
 	return (
 		<Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-			<DashboardHeader isLoading={isPending} />
+			<DashboardHeader />
 
 			<FlexLayoutWrapper>
 				<Layout

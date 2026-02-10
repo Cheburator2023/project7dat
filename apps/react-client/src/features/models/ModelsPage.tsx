@@ -20,9 +20,10 @@ import {
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { DataLineageEntity } from "@data-lineage/shared-schemas";
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
-import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import {
+	DataLineageStore,
+	useDataLineageStore,
+} from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
 import { routes } from "@react-client/routing/routes";
@@ -85,73 +86,16 @@ const mapGraphToModels = (graph: DataLineageGraph): Model[] => {
 	}));
 };
 
-const getStatusColor = (status: Model["status"]) => {
-	switch (status) {
-		case "active":
-			return "success";
-		case "draft":
-			return "warning";
-		case "archived":
-			return "error";
-		default:
-			return "default";
-	}
-};
-
-const _TYPE_COLORS: Record<string, string> = {
-	table: "#1976d2",
-	view: "#9c27b0",
-	rdd: "#f57c00",
-	unresolved: "#c2185b",
-};
-
-const _StatusChipRenderer = ({ value }: { value: Model["status"] }) => {
-	const statusLabels = {
-		active: "Активная",
-		draft: "Черновик",
-		archived: "Архивная",
-	};
-
-	if (!value) return null;
-
-	return (
-		<Chip
-			label={statusLabels[value]}
-			color={getStatusColor(value) as any}
-			size="small"
-		/>
-	);
-};
-
-const _TagsRenderer = ({ value }: { value: string[] }) => {
-	return (
-		<Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-			{value.map((tag, index) => (
-				<Chip
-					key={index}
-					label={tag}
-					size="small"
-					variant="outlined"
-					sx={{ fontSize: "0.7rem", height: "20px" }}
-				/>
-			))}
-		</Box>
-	);
-};
+const selector = (state: DataLineageStore) => ({
+	currentGraph: state.currentGraph,
+});
 
 export const ModelsPage = () => {
 	const [searchQuery, setSearchQuery] = useState("");
 	const { mode } = useColorScheme();
-
-	const { currentGraph } = useDataLineageStore(
-		useShallow((state) => ({
-			currentGraph: state.currentGraph,
-		})),
-	);
-
+	const { currentGraph } = useDataLineageStore(useShallow(selector));
 	const { selectEntity } = useDashboardStore();
 
-	const { isPending } = useCurrentDataLineageGraph();
 	// const { data: jsonDataList, isLoading, error } = useJsonDataList();
 	const navigate = useNavigate();
 
@@ -173,21 +117,6 @@ export const ModelsPage = () => {
 				(model.description?.toLowerCase().includes(query) ?? false),
 		);
 	}, [baseModels, searchQuery]);
-
-	if (isPending) {
-		return (
-			<Box
-				sx={{
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					minHeight: "50vh",
-				}}
-			>
-				<CircularProgress />
-			</Box>
-		);
-	}
 
 	const columnDefs: ColDef<Model>[] = [
 		{

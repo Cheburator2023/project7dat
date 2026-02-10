@@ -106,7 +106,7 @@ export const AllCommitsPage: FC = () => {
 		}
 	};
 
-	const s2tColumnDefs: ColDef<S2tCommitItem>[] = useMemo(
+	const s2tColumnDefs: ColDef<any>[] = useMemo(
 		() => [
 			{
 				headerName: "ID",

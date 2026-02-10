@@ -79,7 +79,7 @@ interface DataLineageActions {
 	commitChangesWithMessage: (message: string) => Promise<void>;
 }
 
-type DataLineageStore = DataLineageState & DataLineageActions;
+export type DataLineageStore = DataLineageState & DataLineageActions;
 
 const initialState: DataLineageState = {
 	currentGraph: null,

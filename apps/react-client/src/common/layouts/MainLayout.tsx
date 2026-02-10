@@ -63,7 +63,7 @@ export function MainLayout({
 		isPending: isCurrentGraphPending,
 		isFetching: isCurrentGraphFetching,
 		isLoading: isCurrentGraphLoading,
-	} = useCurrentDataLineageGraph();
+	} = useCurrentDataLineageGraph({ enabled: false });
 
 	const isPending =
 		isCurrentGraphPending || isCurrentGraphFetching || isCurrentGraphLoading;
