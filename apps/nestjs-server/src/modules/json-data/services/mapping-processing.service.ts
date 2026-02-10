@@ -8,6 +8,8 @@ import { FailedMappingsEntity } from "../entities/failed-mappings.entity";
 import { EntityEntity } from "../entities/entity.entity";
 import { AttributeEntity } from "../entities/attribute.entity";
 import { EntityMapSourceEntity } from "../entities/entity-map-source.entity";
+import {EntityContainerEntity} from "../entities/entity-container.entity";
+import {SystemsEntity} from "../entities/systems.entity";
 
 @Injectable()
 export class MappingProcessingService {
@@ -193,66 +195,147 @@ export class MappingProcessingService {
 			await queryRunner.manager.save(EntityMapSourceEntity, entityMapSource);
 		}
 	}
-	private async handleDependency(
-		dep: any,
-		entityMapId: number,
-		changeId: number,
-		queryRunner: QueryRunner,
-	): Promise<string[]> {
-		const warnings: string[] = [];
 
-		// Поиск source сущности
-		const sourceEntity = await queryRunner.manager.findOne(EntityEntity, {
-			where: { full_name: dep.entityId },
-		});
+    private async handleDependency(
+        dep: any,
+        entityMapId: number,
+        changeId: number,
+        queryRunner: QueryRunner,
+    ): Promise<string[]> {
+        const warnings: string[] = [];
 
-		if (!sourceEntity) {
-			const warning = `Source сущность не найдена: ${dep.entityId}. Зависимость будет пропущена.`;
-			this.logger.warn(warning);
-			warnings.push(warning);
-			return warnings;
-		}
+        // Ищем source сущность с учетом system_code
+        let sourceEntity = await queryRunner.manager.findOne(EntityEntity, {
+            where: { full_name: dep.entityId },
+            relations: ['entity_container', 'entity_container.system']
+        });
 
-		// Обработка attrMaps
-		if (dep.attrMaps && Array.isArray(dep.attrMaps)) {
-			for (const attrMap of dep.attrMaps) {
-				try {
-					await this.handleAttrMap(
-						attrMap,
-						entityMapId,
-						sourceEntity.entity_id,
-						changeId,
-						queryRunner,
-					);
-				} catch (error) {
-					const warning = `Ошибка обработки attrMap для зависимости ${dep.entityId}: ${error.message}`;
-					this.logger.warn(warning);
-					warnings.push(warning);
-				}
-			}
-		}
+        // Если не найдена, создаем с учетом system_code
+        if (!sourceEntity) {
+            const warning = `Source сущность не найдена: ${dep.entityId}. Будет создана новая запись.`;
+            this.logger.warn(warning);
+            warnings.push(warning);
 
-		// Обработка attrDeps
-		if (dep.atrDeps && Array.isArray(dep.atrDeps)) {
-			for (const attrDep of dep.atrDeps) {
-				try {
-					await this.handleAttrDep(
-						attrDep,
-						entityMapId,
-						sourceEntity.entity_id,
-						changeId,
-						queryRunner,
-					);
-				} catch (error) {
-					const warning = `Ошибка обработки attrDep для зависимости ${dep.entityId}: ${error.message}`;
-					this.logger.warn(warning);
-					warnings.push(warning);
-				}
-			}
-		}
+            // Создаем новую сущность с учетом system_code
+            sourceEntity = await this.createEntityWithSystemCode(
+                dep.entityId,
+                dep.entityId.split('.').pop() || dep.entityId,
+                dep.system_code || "1642",
+                changeId,
+                queryRunner
+            );
+        } else if (dep.system_code) {
+            // Проверяем соответствие system_code
+            const entitySystemCode = sourceEntity.entity_container?.system?.code;
+            if (entitySystemCode !== dep.system_code) {
+                const warning = `Несоответствие system_code: сущность ${dep.entityId} имеет код ${entitySystemCode}, а в зависимости указан ${dep.system_code}`;
+                this.logger.warn(warning);
+                warnings.push(warning);
+            }
+        }
 
-		return warnings;
-	}
+        if (!sourceEntity) {
+            const errorWarning = `Не удалось создать/найти source сущность: ${dep.entityId}. Зависимость будет пропущена.`;
+            this.logger.error(errorWarning);
+            warnings.push(errorWarning);
+            return warnings;
+        }
+
+        // Обработка attrMaps
+        if (dep.attrMaps && Array.isArray(dep.attrMaps)) {
+            for (const attrMap of dep.attrMaps) {
+                try {
+                    await this.handleAttrMap(
+                        attrMap,
+                        entityMapId,
+                        sourceEntity.entity_id,
+                        changeId,
+                        queryRunner,
+                    );
+                } catch (error) {
+                    const warning = `Ошибка обработки attrMap для зависимости ${dep.entityId}: ${error.message}`;
+                    this.logger.warn(warning);
+                    warnings.push(warning);
+                }
+            }
+        }
+
+        // Обработка attrDeps
+        if (dep.atrDeps && Array.isArray(dep.atrDeps)) {
+            for (const attrDep of dep.atrDeps) {
+                try {
+                    await this.handleAttrDep(
+                        attrDep,
+                        entityMapId,
+                        sourceEntity.entity_id,
+                        changeId,
+                        queryRunner,
+                    );
+                } catch (error) {
+                    const warning = `Ошибка обработки attrDep для зависимости ${dep.entityId}: ${error.message}`;
+                    this.logger.warn(warning);
+                    warnings.push(warning);
+                }
+            }
+        }
+
+        return warnings;
+    }
+
+    private async createEntityWithSystemCode(
+        fullName: string,
+        name: string,
+        systemCode: string,
+        changeId: number,
+        queryRunner: QueryRunner
+    ): Promise<EntityEntity | null> {
+        try {
+            // Получаем или создаем систему
+            let system = await queryRunner.manager.findOne(SystemsEntity, {
+                where: { code: systemCode }
+            });
+
+            if (!system) {
+                system = new SystemsEntity();
+                system.code = systemCode;
+                system.name = `Система ${systemCode}`;
+                system = await queryRunner.manager.save(SystemsEntity, system);
+            }
+
+            // Создаем контейнер
+            const namespace = fullName.includes('.')
+                ? fullName.substring(0, fullName.lastIndexOf('.'))
+                : 'default';
+
+            let container = await queryRunner.manager.findOne(EntityContainerEntity, {
+                where: { value: namespace }
+            });
+
+            if (!container) {
+                container = new EntityContainerEntity();
+                container.change_id = changeId;
+                container.entity_container_type_id = 1; // DB_HIVE
+                container.value = namespace;
+                container.description = `Контейнер для ${namespace} (система: ${systemCode})`;
+                container.system_id = system.system_id;
+                container = await queryRunner.manager.save(EntityContainerEntity, container);
+            }
+
+            // Создаем сущность
+            const entity = new EntityEntity();
+            entity.full_name = fullName;
+            entity.name = name;
+            entity.entity_type_id = 1; // TABLE_HIVE по умолчанию
+            entity.entity_container_id = container.entity_container_id;
+            entity.change_id = changeId;
+            entity.description = `Автоматически созданная сущность для системы ${systemCode}`;
+
+            return await queryRunner.manager.save(EntityEntity, entity);
+        } catch (error) {
+            this.logger.error(`Ошибка создания сущности: ${error.message}`);
+            return null;
+        }
+    }
 
 	private async handleAttrMap(
 		attrMap: any,

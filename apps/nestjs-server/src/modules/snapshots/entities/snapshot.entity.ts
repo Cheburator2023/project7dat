@@ -1,39 +1,37 @@
 import {
-	Entity,
-	PrimaryGeneratedColumn,
-	Column,
-	CreateDateColumn,
+    Entity,
+    PrimaryColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+    BeforeInsert,
 } from "typeorm";
+import { v4 as uuidv4 } from "uuid";
 
 @Entity("snapshots")
 export class SnapshotEntity {
-	@PrimaryGeneratedColumn("uuid")
-	id: string;
+    @PrimaryColumn("uuid")
+    snapshot_id: string;
 
-	@Column({ type: "varchar", length: 255 })
-	name: string;
+    @BeforeInsert()
+    generateId() {
+        if (!this.snapshot_id) {
+            this.snapshot_id = uuidv4();
+        }
+    }
 
-	@Column({ type: "jsonb" })
-	data: Record<string, any>;
+    @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+    timestamp: Date;
 
-	@Column({ type: "text", nullable: true })
-	description?: string;
+    @Column({ name: "user_name", type: "varchar", length: 255 })
+    user: string;
 
-	@Column({ type: "varchar", length: 255 })
-	sourceDataId: string;
+    @Column({ type: "jsonb" })
+    snapshot_json: Record<string, any>;
 
-	@Column({ type: "varchar", length: 50, default: "1.0.0" })
-	version: string;
+    @CreateDateColumn({ name: "created_at" })
+    created_at: Date;
 
-	@Column({ type: "jsonb", nullable: true })
-	commits?: any[];
-
-	@Column({ type: "varchar", length: 255, nullable: true })
-	originalName?: string;
-
-	@Column({ type: "text", nullable: true })
-	originalDescription?: string;
-
-	@CreateDateColumn()
-	createdAt: Date;
+    @UpdateDateColumn({ name: "updated_at" })
+    updated_at: Date;
 }
