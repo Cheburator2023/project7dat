@@ -238,6 +238,10 @@ export class JsonStructureValidationService extends JsonStructureValidator {
                         if (!dep.system_code) {
                             dep.system_code = mapping.system_code || "1642";
                         }
+                        // Нормализация process_description
+                        if (dep.process !== undefined && dep.process_description === undefined) {
+                            dep.process_description = "";
+                        }
                     });
                 }
             });
@@ -483,6 +487,13 @@ export class JsonStructureValidationService extends JsonStructureValidator {
         if (!sourceEntity) {
             warnings.push(
                 `Маппинг ${mappingIndex}, зависимость ${depIndex}: source entity не найдена: ${dep.entityId}`,
+            );
+        }
+
+        // Проверка process_description при наличии process
+        if (dep.process !== undefined && dep.process_description === undefined) {
+            warnings.push(
+                `Маппинг ${mappingIndex}, зависимость ${depIndex}: отсутствует process_description при наличии process`
             );
         }
 

@@ -16,7 +16,7 @@ export class EntityMapEntity {
 	@Column()
 	entity_id: number;
 
-	@Column({ type: "text", nullable: true })
+	@Column({ type: "varchar", nullable: true })
 	description: string;
 
 	@Column({ nullable: true })

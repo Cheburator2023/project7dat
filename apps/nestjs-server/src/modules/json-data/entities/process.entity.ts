@@ -31,7 +31,7 @@ export class ProcessEntity {
     @Column({ nullable: true })
     group_id: number | null;
 
-    @Column({ type: "text", nullable: true })
+    @Column({ type: "varchar", nullable: true })
     description: string;
 
     @ManyToOne(() => ChangeEntity)
