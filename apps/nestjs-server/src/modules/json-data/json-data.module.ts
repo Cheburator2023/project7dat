@@ -47,7 +47,6 @@ import { JsonBusinessRulesValidationService } from "./services/json-business-rul
 import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
 import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
 import { CacheService } from "./services/cache.service";
-import { JsonExportService } from "./services/json-export.service";
 
 // Abstract classes
 import {
@@ -62,13 +61,12 @@ import { JsonDataController } from "./controllers/json-data.controller";
 import { JsonCommitController } from "./controllers/json-commit.controller";
 import { JsonImportController } from "./controllers/json-import.controller";
 import { JsonValidationController } from "./controllers/json-validation.controller";
-import { JsonExportController } from "./controllers/json-export.controller";
 import { CacheMonitorController } from "./controllers/cache-monitor.controller";
 
 // Modules
 import { ChangelogModule } from "../changelog/changelog.module";
-import {JsonExportNewController} from "./controllers/json-export-new.controller";
-import { JsonExportNewService } from "./services/json-export-new.service";
+import {JsonExportController} from "./controllers/json-export.controller";
+import { JsonExportService } from "./services/json-export.service";
 
 @Global()
 @Module({})
@@ -123,7 +121,6 @@ export class JsonDataModule {
             JsonCommitService,
             JsonImportService,
             JsonExportService,
-            JsonExportNewService,
             CacheService,
 
             // Conflict and Migration services
@@ -178,7 +175,6 @@ export class JsonDataModule {
             JsonImportController,
             JsonValidationController,
             JsonExportController,
-            JsonExportNewController,
             CacheMonitorController,
         ];
 
@@ -203,7 +199,6 @@ export class JsonDataModule {
             JsonSchemaVersionValidationService,
             JsonValidationOrchestratorService,
             JsonExportService,
-            JsonExportNewService,
             CacheService,
 
             // Abstract classes
