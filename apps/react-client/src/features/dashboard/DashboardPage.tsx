@@ -3,7 +3,6 @@ import { useSearchParams, useLocation } from "react-router";
 import { Box } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
-import { CommitHistory } from "@react-client/features/commitHistory/CommitHistory";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
 import { useShallow } from "zustand/react/shallow";
 
@@ -89,8 +88,6 @@ export const DashboardPage = () => {
 				return <SelectionInfoPanel />;
 			case "code-editor":
 				return <CodeEditorPanel />;
-			case "commit-history":
-				return <CommitHistory />;
 			case "issues":
 				return <IssuesPanel />;
 			case "schema":

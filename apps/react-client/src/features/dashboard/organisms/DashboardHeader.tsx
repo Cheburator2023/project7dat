@@ -6,7 +6,6 @@ import { useShallow } from "zustand/react/shallow";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { CommitDialog } from "@react-client/features/commitHistory/CommitDialog";
 import {
 	useCurrentDataLineageGraph,
 	useCommitList,
@@ -372,11 +371,6 @@ export const DashboardHeader = memo(() => {
 				</Flex>
 			</Header>
 
-			{/* Commit Dialog */}
-			<CommitDialog
-				open={isCommitDialogOpen}
-				onClose={handleCommitDialogClose}
-			/>
 			<S2tImportDialog
 				open={isS2tImportDialogOpen}
 				onClose={() => setIsS2tImportDialogOpen(false)}
