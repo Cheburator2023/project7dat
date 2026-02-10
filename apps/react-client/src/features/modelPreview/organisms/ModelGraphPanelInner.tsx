@@ -1462,10 +1462,11 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					nodeTypes={graphNodeTypes}
 					nodesDraggable
 					fitView
-					minZoom={1}
-					maxZoom={6}
+					minZoom={0.01}
+					maxZoom={1}
 					defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
 					proOptions={{ hideAttribution: true }}
+					onlyRenderVisibleElements
 				>
 					<Background color="#e0e0e0" gap={20} />
 					<Controls>

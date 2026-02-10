@@ -59,7 +59,14 @@ export function MainLayout({
 }) {
 	const store = useGlobalSettingsStore();
 	const { mode } = useColorScheme();
-	const { isPending } = useCurrentDataLineageGraph();
+	const {
+		isPending: isCurrentGraphPending,
+		isFetching: isCurrentGraphFetching,
+		isLoading: isCurrentGraphLoading,
+	} = useCurrentDataLineageGraph();
+
+	const isPending =
+		isCurrentGraphPending || isCurrentGraphFetching || isCurrentGraphLoading;
 
 	const [progress, setProgress] = useState(() => {
 		try {

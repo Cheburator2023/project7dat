@@ -1126,14 +1126,15 @@ export const ModelGraphWindow = ({
 										onInit={setReactFlowInstance}
 										nodeTypes={nodeTypes}
 										connectionMode={ConnectionMode.Loose}
-										minZoom={0.1}
-										maxZoom={4}
+										minZoom={0.01}
+										maxZoom={1}
 										defaultEdgeOptions={{
 											type: "default",
 											animated: false,
 										}}
 										proOptions={{ hideAttribution: true }}
 										colorMode={mode}
+										onlyRenderVisibleElements
 									>
 										<Controls />
 										<Background />

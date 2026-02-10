@@ -41,7 +41,7 @@ export const LoadingOverlay = ({
 					variant="h6"
 					sx={{ mb: 3, textAlign: "center", fontWeight: 600 }}
 				>
-					{title ?? "Загрузка данных..."}
+					{title ?? "Загрузка свежих данных..."}
 				</Typography>
 				<LinearProgress
 					variant="determinate"

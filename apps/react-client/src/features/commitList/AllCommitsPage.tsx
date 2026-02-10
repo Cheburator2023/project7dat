@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import { Chip, IconButton } from "@mui/material";
 import type { ChipProps } from "@mui/material";
 import type { FC } from "react";
@@ -6,7 +6,6 @@ import {
 	Box,
 	Typography,
 	Button,
-	Alert,
 	Dialog,
 	DialogTitle,
 	DialogContent,
@@ -27,7 +26,10 @@ import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
-import { useS2tCommitList } from "@react-client/api/hooks";
+import {
+	useCurrentDataLineageGraph,
+	useS2tCommitList,
+} from "@react-client/api/hooks";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { s2tCommitStoreService } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { Header } from "@react-client/common/navigation/organisms/Header";
@@ -37,6 +39,12 @@ import { useAuthStore } from "@react-client/common/store/authStore";
 import { EditMetadataDialog } from "./EditMetadataDialog";
 import { EditJsonDialog } from "./EditJsonDialog";
 import { MergeCommitDialog } from "./MergeCommitDialog";
+
+const defaultColDef = {
+	resizable: true,
+	sortable: true,
+	filter: true,
+};
 
 export const AllCommitsPage: FC = () => {
 	const { mode } = useColorScheme();
@@ -62,12 +70,19 @@ export const AllCommitsPage: FC = () => {
 	const [deleteCommit, setDeleteCommit] = useState<S2tCommitItem | null>(null);
 	const [deleteLoading, setDeleteLoading] = useState(false);
 
-	const handleRefresh = () => {
+	useEffect(() => {
 		s2tCommitsQuery.refetch();
-	};
+	}, []);
+
+	const {
+		refetch: refetchCurrentGraph,
+		isPending: isCurrentGraphPending,
+		isLoading: isCurrentGraphLoading,
+	} = useCurrentDataLineageGraph({ enabled: false });
 
 	const handleDialogSaved = () => {
 		s2tCommitsQuery.refetch();
+		// here need to refetch all main dl data
 	};
 
 	const handleDeleteRequest = (commit: S2tCommitItem) => {
@@ -179,14 +194,12 @@ export const AllCommitsPage: FC = () => {
 			},
 			{
 				headerName: "Действия",
-				field: "id",
-				width: 180,
+				field: "actions",
+				width: 200,
 				sortable: false,
 				filter: false,
 				pinned: "right",
 				cellRenderer: (params: any) => {
-					console.log("🐸 Pepe said >> AllCommitsPage >> params:", params);
-
 					const row = params.data as S2tCommitItem | undefined;
 					if (!row) return null;
 					return (
@@ -253,15 +266,6 @@ export const AllCommitsPage: FC = () => {
 		[],
 	);
 
-	const defaultColDef = useMemo(
-		() => ({
-			resizable: true,
-			sortable: true,
-			filter: true,
-		}),
-		[],
-	);
-
 	const handleOpenS2tCommitCreatePage = useCallback(() => {
 		navigate("/s2t-commits/new");
 	}, [navigate]);
@@ -274,23 +278,6 @@ export const AllCommitsPage: FC = () => {
 		},
 		[navigate],
 	);
-
-	if (error) {
-		return (
-			<Box sx={{ padding: 3 }}>
-				<Alert
-					severity="error"
-					action={
-						<Button color="inherit" size="small" onClick={handleRefresh}>
-							Повторить
-						</Button>
-					}
-				>
-					Ошибка загрузки коммитов: {error.message}
-				</Alert>
-			</Box>
-		);
-	}
 
 	return (
 		<Box>
@@ -326,7 +313,11 @@ export const AllCommitsPage: FC = () => {
 						pagination={true}
 						paginationPageSize={20}
 						paginationPageSizeSelector={[10, 20, 50, 100]}
-						loading={s2tCommitsQuery.isLoading}
+						loading={
+							s2tCommitsQuery.isLoading ||
+							isCurrentGraphPending ||
+							isCurrentGraphLoading
+						}
 						theme={
 							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
 						}
@@ -354,7 +345,10 @@ export const AllCommitsPage: FC = () => {
 				commit={mergeCommit}
 				username={username}
 				onClose={() => setMergeCommit(null)}
-				onApplied={handleDialogSaved}
+				onApplied={() => {
+					handleDialogSaved();
+					refetchCurrentGraph();
+				}}
 			/>
 			<Dialog open={!!deleteCommit} onClose={() => setDeleteCommit(null)}>
 				<DialogTitle>Удалить коммит?</DialogTitle>
