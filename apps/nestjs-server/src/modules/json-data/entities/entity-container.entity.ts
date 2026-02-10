@@ -20,7 +20,7 @@ export class EntityContainerEntity {
 	@Column()
 	entity_container_type_id: number;
 
-	@Column({ type: "text", nullable: true })
+	@Column({ type: "varchar", nullable: true })
 	description: string;
 
 	@Column({ type: "varchar", nullable: true })

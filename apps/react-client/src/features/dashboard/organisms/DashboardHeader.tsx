@@ -321,7 +321,6 @@ export const DashboardHeader = memo(() => {
 					)}
 
 					{/* Entity preview navigation */}
-					{/* <EntityPreviewNavigationButton /> */}
 
 					{/* Import format selector */}
 					{/* <Select

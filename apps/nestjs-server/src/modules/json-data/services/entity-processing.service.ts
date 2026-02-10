@@ -13,17 +13,18 @@ import { SystemsEntity } from "../entities/systems.entity";
 @Injectable()
 export class EntityProcessingService {
 	private readonly logger = new Logger(EntityProcessingService.name);
-	private containerTypeCache: Map<string, number> = new Map();
 
 	constructor(
 		@InjectRepository(EntityEntity)
-		readonly _entityRepository: Repository<EntityEntity>,
+		private readonly entityRepository: Repository<EntityEntity>,
 		@InjectRepository(AttributeEntity)
-		readonly _attributeRepository: Repository<AttributeEntity>,
+		private readonly attributeRepository: Repository<AttributeEntity>,
 		@InjectRepository(EntityMapEntity)
-		readonly _entityMapRepository: Repository<EntityMapEntity>,
+		private readonly entityMapRepository: Repository<EntityMapEntity>,
 		@InjectRepository(EntityContainerEntity)
-		readonly _entityContainerRepository: Repository<EntityContainerEntity>,
+		private readonly entityContainerRepository: Repository<EntityContainerEntity>,
+		@InjectRepository(SystemsEntity)
+		private readonly systemsRepository: Repository<SystemsEntity>,
 		private readonly entityTypeService: EntityTypeService,
 		private readonly attributeTypeService: AttributeTypeService,
 	) {}
@@ -147,58 +148,54 @@ export class EntityProcessingService {
 		}
 
 		try {
+			// Получаем или создаем систему на основе system_code
+			const systemCode = entityData.system_code || "1642";
+			let system = await queryRunner.manager.findOne(SystemsEntity, {
+				where: { code: systemCode },
+			});
+
+			if (!system) {
+				this.logger.log(`Создание новой системы: ${systemCode}`);
+				system = new SystemsEntity();
+				system.code = systemCode;
+				system.name = `Система ${systemCode}`;
+				system = await queryRunner.manager.save(SystemsEntity, system);
+			}
+
 			// Поиск существующего контейнера
 			let container = await queryRunner.manager.findOne(EntityContainerEntity, {
 				where: { value: entityData.namespace },
+				relations: ["system"],
 			});
 
 			if (!container) {
-				this.logger.log(`Создание нового контейнера: ${entityData.namespace}`);
+				this.logger.log(
+					`Создание нового контейнера: ${entityData.namespace} для системы ${systemCode}`,
+				);
 
 				// Создание нового контейнера
 				container = new EntityContainerEntity();
 				container.change_id = changeId;
 				container.entity_container_type_id = await this.determineContainerType(
 					entityData.type,
-					changeId,
-					queryRunner,
 				);
 				container.value = entityData.namespace;
 				container.description =
 					entityData.container_description ||
-					`Контейнер для ${entityData.namespace}`;
+					`Контейнер для ${entityData.namespace} (система: ${systemCode})`;
+				container.system_id = system.system_id;
 
-				// Определение system_id если доступно
-				const systemIdRaw = entityData.system_id;
-				const systemCodeRaw = entityData.system_code;
-				const systemCodeOrId =
-					typeof systemIdRaw === "string" && systemIdRaw.trim()
-						? systemIdRaw.trim()
-						: typeof systemCodeRaw === "string" && systemCodeRaw.trim()
-							? systemCodeRaw.trim()
-							: null;
-
-				if (typeof systemIdRaw === "number") {
-					container.system_id = systemIdRaw;
-				} else if (
-					typeof systemIdRaw === "string" &&
-					/^[0-9]+$/.test(systemIdRaw.trim())
-				) {
-					container.system_id = Number.parseInt(systemIdRaw.trim(), 10);
-				} else if (systemCodeOrId) {
-					const system = await queryRunner.manager.findOne(SystemsEntity, {
-						where: { code: systemCodeOrId },
-					});
-
-					if (system) {
-						container.system_id = system.system_id;
-					} else {
-						this.logger.warn(
-							`Не найдена система по code='${systemCodeOrId}' для namespace='${entityData.namespace}'`,
-						);
-					}
-				}
-
+				container = await queryRunner.manager.save(
+					EntityContainerEntity,
+					container,
+				);
+			} else if (container.system_id !== system.system_id) {
+				// Если система изменилась, обновляем контейнер
+				this.logger.log(
+					`Обновление системы контейнера ${entityData.namespace} на ${systemCode}`,
+				);
+				container.system_id = system.system_id;
+				container.change_id = changeId;
 				container = await queryRunner.manager.save(
 					EntityContainerEntity,
 					container,
@@ -212,47 +209,16 @@ export class EntityProcessingService {
 		}
 	}
 
-	private async determineContainerType(
-		entityType: string,
-		changeId: number,
-		queryRunner: QueryRunner,
-	): Promise<number> {
-		const typeNameMapping: { [key: string]: string } = {
-			table: "DB_HIVE",
-			view: "DB_HIVE",
-			json: "MODEL",
-			input_vector: "MODEL",
-			unresolved: "DAPP",
-			rdd: "DAPP",
+	private async determineContainerType(entityType: string): Promise<number> {
+		const typeMapping: { [key: string]: number } = {
+			table: 1, // DB_HIVE
+			view: 1, // DB_HIVE
+			json: 2, // MODEL
+			input_vector: 2, // MODEL
+			unresolved: 1, // DAPP
+			rdd: 1, // DAPP
 		};
-		const typeName = typeNameMapping[entityType] || "DEFAULT";
-
-		// Проверяем кэш
-		if (this.containerTypeCache.has(typeName)) {
-			return this.containerTypeCache.get(typeName)!;
-		}
-
-		// Ищем существующий тип по имени
-		const existingType = await queryRunner.query(
-			`SELECT entity_container_type_id FROM entity_container_type WHERE value = $1 LIMIT 1`,
-			[typeName],
-		);
-
-		if (existingType.length > 0) {
-			const typeId = existingType[0].entity_container_type_id;
-			this.containerTypeCache.set(typeName, typeId);
-			return typeId;
-		}
-
-		// Создаём новый тип
-		const newType = await queryRunner.query(
-			`INSERT INTO entity_container_type (change_id, value, description) VALUES ($1, $2, $3) RETURNING entity_container_type_id`,
-			[changeId, typeName, `Тип контейнера ${typeName}`],
-		);
-
-		const typeId = newType[0].entity_container_type_id;
-		this.containerTypeCache.set(typeName, typeId);
-		return typeId;
+		return typeMapping[entityType] || 1;
 	}
 
 	private async handleEntityMappings(
@@ -308,14 +274,14 @@ export class EntityProcessingService {
 			if (!existingEntityMap) {
 				this.logger.log(`Создание entity_map для сущности: ${entityData.id}`);
 
-				const entityMap = queryRunner.manager.create(EntityMapEntity, {
-					entity_id: entity.entity_id,
-					process_id: processId,
-					description: entityData.description || `Маппинг для ${entityData.id}`,
-					change_id: changeId,
-				});
+				const entityMap = new EntityMapEntity();
+				entityMap.entity_id = entity.entity_id;
+				entityMap.process_id = processId;
+				entityMap.description =
+					entityData.description || `Маппинг для ${entityData.id}`;
+				entityMap.change_id = changeId;
 
-				await queryRunner.manager.save(entityMap);
+				await queryRunner.manager.save(EntityMapEntity, entityMap);
 			} else {
 				this.logger.log(
 					`Entity_map уже существует для сущности: ${entityData.id}`,

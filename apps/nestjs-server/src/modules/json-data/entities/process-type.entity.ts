@@ -18,7 +18,7 @@ export class ProcessTypeEntity {
 	@Column({ type: "varchar" })
 	name: string;
 
-	@Column({ type: "text", nullable: true })
+	@Column({ type: "varchar", nullable: true })
 	description: string;
 
 	@ManyToOne(() => ChangeEntity)

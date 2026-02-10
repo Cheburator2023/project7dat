@@ -19,13 +19,32 @@ type JsonExportEntity = {
 
 type JsonExportMapping = {
 	entityId: string;
-	process?: string;
-	process_description?: string;
 	description?: string;
+	system_code?: string;
+	relation_change?: string;
+	entity_map_id?: number;
+	target_id?: number;
 	deps?: Array<{
 		entityId: string;
-		attrMaps?: Array<{ src: string; dst: string }>;
-		atrDeps?: Array<{ attr: string; linkTypes?: string[] }>;
+		system_code?: string;
+		source_id?: number;
+		process_id?: number;
+		process?: string;
+		process_description?: string;
+		process_change?: string;
+		attrMaps?: Array<{
+			src: string;
+			dst: string;
+			src_id?: number;
+			dst_id?: number;
+			relation_change?: string;
+		}>;
+		atrDeps?: Array<{
+			attr: string;
+			linkTypes?: string[];
+			src_id?: number;
+			relation_change?: string;
+		}>;
 	}>;
 };
 
@@ -534,11 +553,16 @@ export class S2tExportService {
 			PLACEHOLDER_CELL_VALUE,
 		]);
 
-		if (mapping.process || mapping.process_description || mapping.description) {
+		// В новой структуре process/process_description находятся внутри deps[]
+		const firstDep = mapping.deps?.[0];
+		const processName = firstDep?.process;
+		const processDescription = firstDep?.process_description;
+
+		if (processName || processDescription || mapping.description) {
 			datasetsSheet.addRow([
-				mapping.process ?? "-",
-				mapping.process_description ?? mapping.description ?? "",
-				mapping.process ?? "-",
+				processName ?? "-",
+				processDescription ?? mapping.description ?? "",
+				processName ?? "-",
 				mapping.description ?? "",
 				PLACEHOLDER_CELL_VALUE,
 			]);
@@ -656,9 +680,8 @@ export class S2tExportService {
 		this.logger.log(
 			`Экспорт S2T отчёта для '${params.targetEntityId}' по change_id=${params.changeId}`,
 		);
-		const exportData = (await this.jsonExportService.exportByChangeId(
-			params.changeId,
-		)) as any as JsonExportResult;
+		const exportData =
+			(await this.jsonExportService.exportToJson()) as any as JsonExportResult;
 
 		const { workbook, fileName } = await this.buildWorkbook({
 			exportData,

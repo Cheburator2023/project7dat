@@ -5,7 +5,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "nest start --watch",
-		"dev:god": "cross-env NODE_ENV=development NO_ROLES=true nest start --watch",
+		"dev:god": "cross-env NODE_ENV=development NO_ROLES=true DB_SYNCHRONIZE=false nest start --watch",
 		"build": "nest build",
 		"start": "cross-env NO_ROLES=true tsx dist/main",
 		"start:debug": "nest start --debug --watch",
