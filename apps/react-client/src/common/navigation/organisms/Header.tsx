@@ -2,8 +2,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SettingsIcon from "@mui/icons-material/Settings";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import { Chip, Divider, IconButton, Typography } from "@mui/material";
+import { Divider, IconButton, Typography } from "@mui/material";
 import axios from "axios";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
@@ -118,6 +117,7 @@ export function Header({
 					data-test-id="header--Card-0"
 					zoom={0.7}
 					uuid="header_uuid"
+					overflow={null}
 					style={{ overflow: "visible", padding: "4px" }}
 				>
 					<Flex
@@ -178,29 +178,6 @@ export function Header({
 							data-test-id="header--Flex-2"
 						>
 							{children}
-
-							{pendingS2t?.commitId && (
-								<>
-									<Chip
-										id="commit_id_chip"
-										onClick={() => setIsS2tCommitDialogOpen(true)}
-										clickable
-										size="small"
-										variant="outlined"
-										color={pendingS2t.state === "failed" ? "error" : "warning"}
-										label={`S2T: ${pendingS2t.state} (${pendingS2t.commitId.slice(0, 8)})`}
-										title={`S2T commit ${pendingS2t.commitId} (${pendingS2t.state})`}
-									/>
-									<IconButton
-										size="small"
-										onClick={handleApplyPendingS2t}
-										title="Применить S2T коммит"
-										disabled={isApplyingS2t || pendingS2t.state === "applying"}
-									>
-										<PlayArrowIcon fontSize="small" />
-									</IconButton>
-								</>
-							)}
 
 							<Divider orientation="vertical" variant="middle" flexItem />
 

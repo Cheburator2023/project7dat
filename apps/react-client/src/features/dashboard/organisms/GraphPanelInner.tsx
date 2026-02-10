@@ -358,6 +358,42 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			};
 		}, [selectedEntityId, lineageGraph, depthLimit]);
 
+		useEffect(() => {
+			if (!selectedEntityId) return;
+			const upstreamEntries: Record<string, string[]> = {};
+			for (const [entityId, neighbors] of lineageGraph.upstream.entries()) {
+				if (upstreamNodes.has(entityId) || entityId === selectedEntityId) {
+					upstreamEntries[entityId] = [...(neighbors ?? [])];
+				}
+			}
+			const downstreamEntries: Record<string, string[]> = {};
+			for (const [entityId, neighbors] of lineageGraph.downstream.entries()) {
+				if (downstreamNodes.has(entityId) || entityId === selectedEntityId) {
+					downstreamEntries[entityId] = [...(neighbors ?? [])];
+				}
+			}
+			const wholedata = {
+				upstreamNodes: [...upstreamNodes],
+				downstreamNodes: [...downstreamNodes],
+				upstreamEntries,
+				downstreamConnections: downstreamEntries,
+				mappings: data.mappings?.filter(
+					(m) =>
+						m.entityId === selectedEntityId ||
+						upstreamNodes.has(m.entityId) ||
+						downstreamNodes.has(m.entityId),
+				),
+			};
+			console.log(wholedata);
+		}, [
+			selectedEntityId,
+			depthLimit,
+			upstreamNodes,
+			downstreamNodes,
+			lineageGraph,
+			data.mappings,
+		]);
+
 		// Notify parent about upstream/downstream changes
 		useEffect(() => {
 			onUpstreamDownstreamChange(upstreamNodes, downstreamNodes);
