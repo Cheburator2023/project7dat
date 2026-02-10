@@ -1,8 +1,11 @@
 import { memo, useMemo, useState, useCallback } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import * as fuzzysort from "fuzzysort";
 import type { EntityNodeData } from "../../dashboard/types";
-import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../dashboard/constants";
+import {
+	TYPE_COLORS,
+	HIGHLIGHT_COLORS,
+	MAX_VISIBLE_ATTRS,
+} from "../../dashboard/constants";
 import { useDashboardStore } from "../../dashboard/stores";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
@@ -111,15 +114,21 @@ export const EntityNodePreviewComponent = memo(
 			entity,
 			highlightType,
 			onNodeClick,
+			onNodeDoubleClick,
 			onAttrClick,
+			onAttrHover,
 			onViewDetails,
 			upstreamCount,
 			downstreamCount,
+			graphId,
 			highlightedSourceAttrs = EMPTY_STRING_SET,
 			highlightedTargetAttrs = EMPTY_STRING_SET,
 			selectedHighlightedAttrs = EMPTY_STRING_SET,
 			isSearchActive = false,
 			isSearchMatch = false,
+			showAllAttrs = false,
+			isExpanded = false,
+			handleExpandToggle,
 		} = data;
 		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 		const attrs = entity.attrSeq || [];
@@ -135,6 +144,14 @@ export const EntityNodePreviewComponent = memo(
 		// Use global search if available, otherwise local
 		const activeSearchQuery = globalAttributeSearchQuery || localSearchQuery;
 
+		// Debounce store update for local search if needed, but here we just use local state primarily
+		// Dashboard syncs with store, we can keep it simple here or match.
+		// Let's match simple local state for now unless we need store sync.
+		// Dashboard: const setLocalNodeAttributeSearch = useDashboardStore(...)
+		// EntityGraphPanelInner logic doesn't seem to use localNodeAttributeSearchQueries?
+		// Checking EntityGraphPanelInner... it doesn't seem to pass localNodeAttributeSearchQueries or use it for filtering.
+		// So local state is fine here.
+
 		// Calculate related attributes (those with mappings)
 		const relatedAttrNames = useMemo(() => {
 			return new Set([
@@ -148,33 +165,61 @@ export const EntityNodePreviewComponent = memo(
 			selectedHighlightedAttrs,
 		]);
 
-		// Fuzzy search for attributes using fuzzysort
 		const searchedAttrs = useMemo(() => {
-			if (!activeSearchQuery || activeSearchQuery.length < 2) {
-				return null;
+			const q = activeSearchQuery.trim().toLowerCase();
+			if (!q || q.length < 2) return null;
+			const matched = new Set<string>();
+			for (const attr of attrs) {
+				const name = attr.name?.toLowerCase() ?? "";
+				const type = attr.type?.toLowerCase() ?? "";
+				if (name.includes(q) || type.includes(q)) {
+					matched.add(attr.name);
+				}
 			}
-			// Search in both name and type fields
-			const results = fuzzysort.go(activeSearchQuery, attrs, {
-				keys: ["name", "type"],
-				threshold: -10000,
-			});
-			return new Set(results.map((r) => r.obj.name));
+			return matched;
 		}, [activeSearchQuery, attrs]);
 
-		// Show attributes based on search or selected attribute highlighting
-		const visibleAttrs = useMemo(() => {
+		const isExpandedEffective =
+			isExpanded || selectedHighlightedAttrs.size > 0 || searchedAttrs !== null;
+
+		const { visibleAttrs, moreCount } = useMemo(() => {
+			if (!isExpandedEffective) {
+				return { visibleAttrs: [], moreCount: 0 };
+			}
+
 			if (searchedAttrs) {
-				return attrs.filter(
+				const filtered = attrs.filter(
 					(attr) =>
 						(searchedAttrs.has(attr.name) && relatedAttrNames.has(attr.name)) ||
 						selectedHighlightedAttrs.has(attr.name),
 				);
+				return { visibleAttrs: filtered, moreCount: 0 };
 			}
+
 			if (selectedHighlightedAttrs.size > 0) {
-				return attrs.filter((attr) => selectedHighlightedAttrs.has(attr.name));
+				const filtered = attrs.filter((attr) =>
+					selectedHighlightedAttrs.has(attr.name),
+				);
+				return { visibleAttrs: filtered, moreCount: 0 };
 			}
-			return [];
-		}, [attrs, relatedAttrNames, searchedAttrs, selectedHighlightedAttrs]);
+
+			const allRelatedAttrs = showAllAttrs
+				? attrs
+				: attrs.filter((attr) => relatedAttrNames.has(attr.name));
+			const maxAttrs = showAllAttrs ? 20 : MAX_VISIBLE_ATTRS;
+			const limited = allRelatedAttrs.slice(0, maxAttrs);
+			return {
+				visibleAttrs: limited,
+				moreCount: Math.max(0, allRelatedAttrs.length - limited.length),
+			};
+		}, [
+			attrs,
+			isExpandedEffective,
+			relatedAttrNames,
+			searchedAttrs,
+			selectedHighlightedAttrs,
+			showAllAttrs,
+		]);
 
 		const isSearchMatchHighlight = highlightType === "searchMatch";
 		const borderColor =
@@ -290,7 +335,10 @@ export const EntityNodePreviewComponent = memo(
 		);
 
 		return (
-			<div style={nodeContainerStyle}>
+			<div
+				style={nodeContainerStyle}
+				onDoubleClick={() => onNodeDoubleClick?.(id, graphId || "")}
+			>
 				{/* Header */}
 				<div style={headerStyle}>
 					<div style={HEADER_FLEX_STYLE}>
@@ -374,11 +422,15 @@ export const EntityNodePreviewComponent = memo(
 							const isSelectedHighlighted = selectedHighlightedAttrs.has(
 								attr.name,
 							);
-							const isHighlighted = isSelectedHighlighted;
+							const leftArrow = isTargetHighlighted || isSelectedHighlighted;
+							const rightArrow = isSourceHighlighted || isSelectedHighlighted;
+
 							return (
 								<div
 									key={attr.name}
 									onClick={(e) => handleAttrClickMemo(e, attr.name)}
+									onMouseEnter={() => onAttrHover?.(id, attr.name)}
+									onMouseLeave={() => onAttrHover?.(id, null)}
 									style={{
 										display: "flex",
 										justifyContent: "space-between",
@@ -405,26 +457,65 @@ export const EntityNodePreviewComponent = memo(
 										id={`attr-target-${attr.name}`}
 										style={{
 											background:
-												isTargetHighlighted || isHighlighted
+												isTargetHighlighted || isSelectedHighlighted
 													? HIGHLIGHT_COLORS.selected
 													: colors.border,
-											width: isHighlighted ? 8 : 6,
-											height: isHighlighted ? 8 : 6,
+											width: isSelectedHighlighted ? 8 : 6,
+											height: isSelectedHighlighted ? 8 : 6,
 											left: -3,
 											border: "1px solid #fff",
 											transition: "all 0.15s ease",
 										}}
 									/>
+									<input
+										type="checkbox"
+										checked={isSelectedHighlighted}
+										readOnly
+										style={{
+											width: 12,
+											height: 12,
+											margin: 0,
+											marginRight: 4,
+											flexShrink: 0,
+											cursor: "pointer",
+											accentColor: HIGHLIGHT_COLORS.selected,
+										}}
+									/>
+									<span
+										style={{
+											width: 12,
+											color: leftArrow
+												? HIGHLIGHT_COLORS.selected
+												: "transparent",
+											fontWeight: 700,
+											flexShrink: 0,
+										}}
+									>
+										←
+									</span>
 									<span
 										style={{
 											...ATTR_NAME_STYLE,
-											color: isHighlighted ? "#333" : "#555",
-											fontWeight: isHighlighted ? 600 : 400,
+											color: isSelectedHighlighted ? "#333" : "#555",
+											fontWeight: isSelectedHighlighted ? 600 : 400,
 										}}
 									>
 										{attr.name}
 									</span>
 									<span style={ATTR_TYPE_STYLE}>{attr.type}</span>
+									<span
+										style={{
+											width: 12,
+											color: rightArrow
+												? HIGHLIGHT_COLORS.selected
+												: "transparent",
+											fontWeight: 700,
+											flexShrink: 0,
+											textAlign: "right",
+										}}
+									>
+										→
+									</span>
 									{/* Source handle for this attribute */}
 									<Handle
 										type="source"
@@ -432,11 +523,11 @@ export const EntityNodePreviewComponent = memo(
 										id={`attr-source-${attr.name}`}
 										style={{
 											background:
-												isSourceHighlighted || isHighlighted
+												isSourceHighlighted || isSelectedHighlighted
 													? HIGHLIGHT_COLORS.selected
 													: colors.border,
-											width: isHighlighted ? 8 : 6,
-											height: isHighlighted ? 8 : 6,
+											width: isSelectedHighlighted ? 8 : 6,
+											height: isSelectedHighlighted ? 8 : 6,
 											right: -3,
 											border: "1px solid #fff",
 											transition: "all 0.15s ease",
@@ -445,6 +536,26 @@ export const EntityNodePreviewComponent = memo(
 								</div>
 							);
 						})}
+						{moreCount > 0 &&
+							searchedAttrs === null &&
+							selectedHighlightedAttrs.size === 0 && (
+								<div
+									onClick={(e) => {
+										e.stopPropagation();
+										handleExpandToggle?.(id);
+									}}
+									style={{
+										padding: "4px 12px",
+										fontSize: 10,
+										color: "#1976d2",
+										background: "#f8f9fa",
+										textAlign: "center",
+										cursor: "pointer",
+									}}
+								>
+									+{moreCount} ещё...
+								</div>
+							)}
 					</div>
 				)}
 
@@ -468,4 +579,101 @@ export const EntityNodePreviewComponent = memo(
 
 EntityNodePreviewComponent.displayName = "EntityNodePreviewComponent";
 
-export const graphNodeTypes = { entityNode: EntityNodePreviewComponent };
+interface DepthGroupNodeData {
+	label?: string;
+	[key: string]: unknown;
+}
+
+type DepthGroupNodeType = Node<DepthGroupNodeData, "depthGroup">;
+
+const DepthGroupNode = memo<NodeProps<DepthGroupNodeType>>(({ data }) => {
+	return (
+		<div
+			style={{
+				width: "100%",
+				height: "100%",
+				display: "flex",
+				flexDirection: "column",
+				alignItems: "flex-start",
+				justifyContent: "flex-start",
+				pointerEvents: "none",
+			}}
+		>
+			<div
+				style={{
+					fontSize: 12,
+					fontWeight: 600,
+					padding: "6px 10px",
+					color: "#333",
+					pointerEvents: "none",
+				}}
+			>
+				{data.label ?? ""}
+			</div>
+		</div>
+	);
+});
+
+DepthGroupNode.displayName = "DepthGroupNode";
+
+interface GhostNodeData extends Record<string, unknown> {
+	direction: "upstream" | "downstream";
+	boundaryNodeId: string;
+	onClickGhost: () => void;
+}
+
+type GhostNode = Node<GhostNodeData, "ghostNode">;
+
+export const GhostNodeComponent = memo(({ data }: NodeProps<GhostNode>) => {
+	const isUpstream = data.direction === "upstream";
+	return (
+		<div
+			onClick={data.onClickGhost}
+			onKeyDown={(e) => {
+				if (e.key === "Enter") data.onClickGhost();
+			}}
+			role="button"
+			tabIndex={0}
+			style={{
+				padding: "8px 16px",
+				borderRadius: 8,
+				border: `2px dashed ${isUpstream ? "#6366f1" : "#f59e0b"}`,
+				background: isUpstream ? "#eef2ff" : "#fffbeb",
+				cursor: "pointer",
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				gap: 6,
+				fontSize: 11,
+				color: isUpstream ? "#4f46e5" : "#aa5c03",
+				fontWeight: 500,
+				minWidth: 250,
+				opacity: 0.9,
+				transition: "opacity 0.15s",
+			}}
+		>
+			<Handle
+				type="target"
+				position={Position.Left}
+				id="ghost-target"
+				style={{ opacity: 0, width: 1, height: 1 }}
+			/>
+			<span>{isUpstream ? "⬆" : "⬇"}</span>
+			<span>Ещё</span>
+			<Handle
+				type="source"
+				position={Position.Right}
+				id="ghost-source"
+				style={{ opacity: 0, width: 1, height: 1 }}
+			/>
+		</div>
+	);
+});
+
+GhostNodeComponent.displayName = "GhostNodeComponent";
+
+export const graphNodeTypes = {
+	entityNode: EntityNodePreviewComponent,
+	ghostNode: GhostNodeComponent,
+	depthGroup: DepthGroupNode,
+};
