@@ -18,7 +18,7 @@ export class AttributeTypeEntity {
 	@Column({ type: "varchar", nullable: true })
 	name: string;
 
-	@Column({ type: "text", nullable: true })
+	@Column({ type: "varchar", nullable: true })
 	description: string;
 
 	@Column({ type: "varchar", nullable: true })

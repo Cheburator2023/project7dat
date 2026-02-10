@@ -1,4 +1,4 @@
-import { Injectable, Logger, PayloadTooLargeException } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
 	ValidationResult,
@@ -13,49 +13,19 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 	private readonly maxJsonSize: number;
 	private readonly maxEntities: number;
 	private readonly maxAttributes: number;
-
-	private readonly validEntityTypes = [
-		"table",
-		"view",
-		"unresolved",
-		"rdd",
-		"json",
-		"input_vector",
-	];
+	private readonly validEntityTypes = ["table", "view", "json", "input_vector", "unresolved", "rdd"];
 	private readonly validAttributeTypes = [
-		"timestamp",
-		"date",
-		"datetime",
-		"decimal",
-		"numeric",
-		"double",
-		"float",
-		"string",
-		"varchar",
-		"text",
-		"char",
-		"integer",
-		"int",
-		"bigint",
-		"smallint",
-		"boolean",
-		"bool",
+		"timestamp", "date", "datetime", "decimal", "numeric",
+		"double", "float", "string", "varchar", "text", "char",
+		"integer", "int", "bigint", "smallint", "boolean", "bool",
 	];
+	private readonly validSystemCodes = ["1642", "1655"]; // DAPP и ПИМ
 
 	constructor(private readonly configService: ConfigService) {
 		super();
-		this.maxJsonSize = this.configService.get<number>(
-			"MAX_JSON_SIZE",
-			52428800,
-		);
-		this.maxEntities = this.configService.get<number>(
-			"MAX_ENTITIES_PER_IMPORT",
-			100000,
-		);
-		this.maxAttributes = this.configService.get<number>(
-			"MAX_ATTRIBUTES_PER_ENTITY",
-			200000,
-		);
+		this.maxJsonSize = this.configService.get<number>("MAX_JSON_SIZE", 52428800);
+		this.maxEntities = this.configService.get<number>("MAX_ENTITIES_PER_IMPORT", 1000);
+		this.maxAttributes = this.configService.get<number>("MAX_ATTRIBUTES_PER_ENTITY", 200);
 	}
 
 	validateStructure(data: any): ValidationResult {
@@ -65,7 +35,7 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		this.logger.log("Начало валидации структуры JSON");
 
 		// Проверка размера
-		this.validateJsonSize(data);
+		this.validateJsonSize(data, errors);
 
 		// Проверка базовой структуры
 		this.validateBasicStructure(data, errors, warnings);
@@ -223,16 +193,19 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 				}
 
 				// Нормализация namespace
-				// Для json-сущностей (S2T JSON) по требованиям namespace может быть пустым
-				if (!entity.namespace && entity.type !== "json") {
+				if (!entity.namespace) {
 					entity.namespace = "default";
+				}
+
+				// Нормализация system_code
+				if (!entity.system_code) {
+					entity.system_code = "1642"; // Значение по умолчанию для DAPP
 				}
 
 				// Нормализация атрибутов
 				if (entity.attrSeq && Array.isArray(entity.attrSeq)) {
 					entity.attrSeq.forEach((attr: any) => {
 						if (attr.type) {
-							// Нормализация типа атрибута - приведение к базовому типу
 							attr.type = this.normalizeAttributeType(attr.type);
 						}
 						if (attr.comment === undefined) {
@@ -242,11 +215,15 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 				}
 			});
 		}
+
 		// Нормализация маппингов
 		if (normalized.mappings && Array.isArray(normalized.mappings)) {
 			normalized.mappings.forEach((mapping: any) => {
 				if (!mapping.deps) {
 					mapping.deps = [];
+				}
+				if (!mapping.system_code) {
+					mapping.system_code = "1642"; // Значение по умолчанию
 				}
 
 				// Нормализация зависимостей
@@ -257,6 +234,13 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 						}
 						if (!dep.atrDeps) {
 							dep.atrDeps = [];
+						}
+						if (!dep.system_code) {
+							dep.system_code = mapping.system_code || "1642";
+						}
+						// Нормализация process_description
+						if (dep.process !== undefined && dep.process_description === undefined) {
+							dep.process_description = "";
 						}
 					});
 				}
@@ -306,20 +290,16 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		return normalized;
 	}
 
-	private validateJsonSize(data: any): void {
+	private validateJsonSize(data: any, errors: string[]): void {
 		const jsonSize = JSON.stringify(data).length;
 		if (jsonSize > this.maxJsonSize) {
-			throw new PayloadTooLargeException(
+			throw new BadRequestException(
 				`Размер JSON превышает лимит: ${jsonSize} > ${this.maxJsonSize}`,
 			);
 		}
 	}
 
-	private validateBasicStructure(
-		data: any,
-		errors: string[],
-		warnings: string[],
-	): void {
+	private validateBasicStructure(data: any, errors: string[], warnings: string[]): void {
 		if (!data.desc) {
 			errors.push("Отсутствует объект desc");
 		} else {
@@ -340,11 +320,7 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		}
 	}
 
-	private validateEntities(
-		entities: any[],
-		errors: string[],
-		warnings: string[],
-	): void {
+	private validateEntities(entities: any[], errors: string[], warnings: string[]): void {
 		if (!entities || !Array.isArray(entities)) {
 			return;
 		}
@@ -380,9 +356,18 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 				`Сущность ${index}: отсутствует флаг modified (будет установлен в false)`,
 			);
 		}
+		if (!entity.system_code) {
+			warnings.push(
+				`Сущность ${index}: отсутствует system_code (будет установлено значение по умолчанию 1642)`,
+			);
+		}
 
 		if (entity.type && !this.validEntityTypes.includes(entity.type)) {
 			errors.push(`Сущность ${index}: неверный тип '${entity.type}'`);
+		}
+
+		if (entity.system_code && !this.validSystemCodes.includes(entity.system_code)) {
+			warnings.push(`Сущность ${index}: неизвестный system_code '${entity.system_code}'`);
 		}
 
 		this.validateEntityAttributes(entity, index, errors, warnings);
@@ -405,14 +390,7 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		}
 
 		entity.attrSeq.forEach((attr: any, attrIndex: number) => {
-			this.validateSingleAttribute(
-				attr,
-				entityIndex,
-				attrIndex,
-				entity.id,
-				errors,
-				warnings,
-			);
+			this.validateSingleAttribute(attr, entityIndex, attrIndex, entity.id, errors, warnings);
 		});
 	}
 
@@ -425,14 +403,10 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		warnings: string[],
 	): void {
 		if (!attr.name) {
-			errors.push(
-				`Сущность ${entityIndex}, атрибут ${attrIndex}: отсутствует name`,
-			);
+			errors.push(`Сущность ${entityIndex}, атрибут ${attrIndex}: отсутствует name`);
 		}
 		if (!attr.type) {
-			errors.push(
-				`Сущность ${entityIndex}, атрибут ${attrIndex}: отсутствует type`,
-			);
+			errors.push(`Сущность ${entityIndex}, атрибут ${attrIndex}: отсутствует type`);
 		}
 
 		if (attr.type) {
@@ -470,21 +444,16 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		if (!mapping.entityId) {
 			errors.push(`Маппинг ${index}: отсутствует entityId`);
 		}
+		if (!mapping.system_code) {
+			warnings.push(`Маппинг ${index}: отсутствует system_code (будет установлено значение по умолчанию 1642)`);
+		}
 
 		const targetEntity = entities.find((e: any) => e.id === mapping.entityId);
 		if (!targetEntity) {
-			warnings.push(
-				`Маппинг ${index}: target entity не найдена: ${mapping.entityId}`,
-			);
+			warnings.push(`Маппинг ${index}: target entity не найдена: ${mapping.entityId}`);
 		}
 
-		this.validateMappingDependencies(
-			mapping,
-			index,
-			entities,
-			errors,
-			warnings,
-		);
+		this.validateMappingDependencies(mapping, index, entities, errors, warnings);
 	}
 
 	private validateMappingDependencies(
@@ -499,14 +468,7 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		}
 
 		mapping.deps.forEach((dep: any, depIndex: number) => {
-			this.validateSingleDependency(
-				dep,
-				index,
-				depIndex,
-				entities,
-				errors,
-				warnings,
-			);
+			this.validateSingleDependency(dep, index, depIndex, entities, errors, warnings);
 		});
 	}
 
@@ -519,9 +481,10 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		warnings: string[],
 	): void {
 		if (!dep.entityId) {
-			errors.push(
-				`Маппинг ${mappingIndex}, зависимость ${depIndex}: отсутствует entityId`,
-			);
+			errors.push(`Маппинг ${mappingIndex}, зависимость ${depIndex}: отсутствует entityId`);
+		}
+		if (!dep.system_code) {
+			warnings.push(`Маппинг ${mappingIndex}, зависимость ${depIndex}: отсутствует system_code (будет установлено значение по умолчанию 1642)`);
 		}
 
 		const sourceEntity = entities.find((e: any) => e.id === dep.entityId);
@@ -531,22 +494,15 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 			);
 		}
 
-		this.validateAttributeMaps(
-			dep,
-			mappingIndex,
-			depIndex,
-			sourceEntity,
-			errors,
-			warnings,
-		);
-		this.validateAttributeDeps(
-			dep,
-			mappingIndex,
-			depIndex,
-			sourceEntity,
-			errors,
-			warnings,
-		);
+		// Проверка process_description при наличии process
+		if (dep.process !== undefined && dep.process_description === undefined) {
+			warnings.push(
+				`Маппинг ${mappingIndex}, зависимость ${depIndex}: отсутствует process_description при наличии process`,
+			);
+		}
+
+		this.validateAttributeMaps(dep, mappingIndex, depIndex, sourceEntity, errors, warnings);
+		this.validateAttributeDeps(dep, mappingIndex, depIndex, sourceEntity, errors, warnings);
 	}
 
 	private validateAttributeMaps(

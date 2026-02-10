@@ -18,7 +18,7 @@ export class EntityTypeEntity {
 	@Column({ type: "varchar", nullable: true })
 	name: string;
 
-	@Column({ type: "text", nullable: true })
+	@Column({ type: "varchar", nullable: true })
 	description: string;
 
 	@ManyToOne(() => ChangeEntity)
