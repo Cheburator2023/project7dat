@@ -15,8 +15,6 @@ import { enableMapSet } from "immer";
 
 import { MainLayout } from "@react-client/common/layouts/MainLayout";
 import { NotificationDrawer } from "./common/notification/NotificationDrawer";
-import { MergeGraphWindow } from "./features/merge/organisms/MergeGraphWindow";
-import { DiffWindow } from "./features/merge/organisms/DiffWindow";
 
 import { setupApiInterceptors } from "./api/apiInterceptor";
 
@@ -98,8 +96,6 @@ export function App({ token, bridged, user, onLogout, keycloak }: AppProps) {
 									<Routing />
 								</MainLayout>
 								<NotificationDrawer />
-								<MergeGraphWindow />
-								<DiffWindow />
 							</LocalizationProvider>
 						</Suspense>
 					</AppTheme>

@@ -1,6 +1,4 @@
 import CallMissedOutgoingIcon from "@mui/icons-material/CallMissedOutgoing";
-import CheckIcon from "@mui/icons-material/Check";
-import CloseIcon from "@mui/icons-material/Close";
 import { Box, Button, Divider } from "@mui/material";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -10,7 +8,6 @@ import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
 import { routes } from "@react-client/routing/routes";
-import { useMergeStore } from "@react-client/stores/mergeStore";
 
 // Классификация роутов по категориям меню (статический контекст)
 const MOCKED_NEW_ROUTE_KEYS = [
@@ -57,8 +54,6 @@ const secondaryListItems = [
 export function MenuContent() {
 	const navigate = useNavigate();
 	const location = useLocation();
-
-	const { isMergeActive, confirmMerge, cancelMerge } = useMergeStore();
 
 	const handler = (path: string) => {
 		navigate(path);
@@ -389,48 +384,6 @@ export function MenuContent() {
 								</ListItemButton>
 							</ListItem>
 						))}
-					</>
-				)}
-
-				{/* Разделы мерджа */}
-				{isMergeActive && (
-					<>
-						<Divider
-							sx={{ my: 1 }}
-							data-test-id="menu-content--Divider-merge"
-						/>
-						<ListItem
-							disablePadding
-							sx={{ display: "block", mb: 0.2 }}
-							onClick={confirmMerge}
-							data-test-id="menu-content--ListItem-confirm"
-						>
-							<ListItemButton data-test-id="menu-content--ListItemButton-confirm">
-								<ListItemIcon data-test-id="menu-content--ListItemIcon-confirm">
-									<CheckIcon sx={{ color: "success.main" }} />
-								</ListItemIcon>
-								<ListItemText
-									primary="Подтвердить"
-									data-test-id="menu-content--ListItemText-confirm"
-								/>
-							</ListItemButton>
-						</ListItem>
-						<ListItem
-							disablePadding
-							sx={{ display: "block", mb: 0.2 }}
-							onClick={cancelMerge}
-							data-test-id="menu-content--ListItem-cancel"
-						>
-							<ListItemButton data-test-id="menu-content--ListItemButton-cancel">
-								<ListItemIcon data-test-id="menu-content--ListItemIcon-cancel">
-									<CloseIcon sx={{ color: "error.main" }} />
-								</ListItemIcon>
-								<ListItemText
-									primary="Отменить"
-									data-test-id="menu-content--ListItemText-cancel"
-								/>
-							</ListItemButton>
-						</ListItem>
 					</>
 				)}
 			</List>
