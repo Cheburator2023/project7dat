@@ -6,6 +6,13 @@ export class JsonExportDescDto {
         example: "2024-01-15T10:30:00.000Z"
     })
     change_date: string;
+
+    @ApiProperty({
+        description: "Код системы по умолчанию",
+        example: "1642",
+        required: false
+    })
+    default_system_code?: string;
 }
 
 export class JsonExportAttributeDto {
@@ -14,7 +21,7 @@ export class JsonExportAttributeDto {
 
     @ApiProperty({
         description: "Тип данных атрибута",
-        enum: ['TIMESTAMP', 'DECIMAL', 'STRING', 'INTEGER']
+        enum: ['TIMESTAMP', 'DECIMAL', 'STRING', 'INTEGER', 'BOOLEAN']
     })
     type: string;
 
@@ -43,6 +50,13 @@ export class JsonExportEntityDto {
 
     @ApiProperty({ description: "Имя сущности" })
     name: string;
+
+    @ApiProperty({
+        description: "Код системы сущности",
+        example: "1642",
+        required: false
+    })
+    system_code?: string;
 
     @ApiProperty({ description: "Дата изменения сущности" })
     entity_change: string;
@@ -90,6 +104,9 @@ export class JsonExportDependencyDto {
     @ApiProperty({ description: "Имя сущности источника" })
     entityId: string;
 
+    @ApiProperty({ description: "Код системы источника", example: "1642", required: false })
+    system_code?: string;
+
     @ApiProperty({ type: [JsonExportAttrMapDto], description: "Маппинг атрибутов" })
     attrMaps: JsonExportAttrMapDto[];
 
@@ -100,6 +117,9 @@ export class JsonExportDependencyDto {
 export class JsonExportMappingDto {
     @ApiProperty({ description: "Имя сущности цели" })
     entityId: string;
+
+    @ApiProperty({ description: "Код системы цели", example: "1642", required: false })
+    system_code?: string;
 
     @ApiProperty({ description: "Наименование процесса DAG", required: false })
     process?: string;

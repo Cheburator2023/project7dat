@@ -1,97 +1,88 @@
 import {
-	Entity,
-	PrimaryGeneratedColumn,
-	Column,
-	CreateDateColumn,
-	ManyToOne,
-	JoinColumn,
+    Entity,
+    PrimaryColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+    ManyToOne,
+    JoinColumn,
+    Index,
+    BeforeInsert,
 } from "typeorm";
-import { JsonDataEntity } from "./json-data.entity";
-
-/**
- * Структура изменений коммита для entities и mappings
- */
-export interface CommitChangesData {
-	entities: {
-		added: Array<{
-			id: string;
-			type: string;
-			name: string | null;
-			namespace?: string;
-			data: Record<string, any>;
-		}>;
-		removed: Array<{
-			id: string;
-			type?: string;
-			name?: string | null;
-		}>;
-		modified: Array<{
-			id: string;
-			type: string;
-			name: string | null;
-			changes: Array<{ field: string; oldValue: any; newValue: any }>;
-			oldData?: Record<string, any>;
-			newData?: Record<string, any>;
-		}>;
-	};
-	mappings: {
-		added: Array<{
-			id: number;
-			entityId: string;
-			data: Record<string, any>;
-		}>;
-		removed: Array<{
-			id: number;
-			entityId?: string;
-		}>;
-		modified: Array<{
-			id: number;
-			entityId: string;
-			changes: Array<{ field: string; oldValue: any; newValue: any }>;
-			oldData?: Record<string, any>;
-			newData?: Record<string, any>;
-		}>;
-	};
-	summary: {
-		totalChanges: number;
-		entities: { added: number; removed: number; modified: number };
-		mappings: { added: number; removed: number; modified: number };
-	};
-}
+import { v4 as uuidv4 } from "uuid";
 
 @Entity("json_commits")
+@Index("idx_json_commits_parent_id", ["parent_id"])
+@Index("idx_json_commits_state", ["state"])
+@Index("idx_json_commits_type", ["type"])
+@Index("idx_json_commits_timestamp", ["timestamp"])
+@Index("idx_json_commits_user", ["user"])
 export class JsonCommitEntity {
-	@PrimaryGeneratedColumn("uuid")
-	id: string;
+    @PrimaryColumn("uuid")
+    commit_id: string;
 
-	@Column({ type: "varchar", length: 500 })
-	message: string;
+    @BeforeInsert()
+    generateId() {
+        if (!this.commit_id) {
+            this.commit_id = uuidv4();
+        }
+    }
 
-	@Column({ type: "jsonb" })
-	diff: Record<string, any>;
+    @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+    timestamp: Date;
 
-	/**
-	 * Структурированные изменения коммита с детализацией по entities и mappings
-	 */
-	@Column({ type: "jsonb", nullable: true })
-	changes: CommitChangesData | null;
+    @Column({ name: "user_name", type: "varchar", length: 255 })
+    user: string;
 
-	@Column({ type: "uuid" })
-	graphId: string;
+    @Column({ type: "uuid", nullable: true })
+    parent_id: string | null;
 
-	@Column({ type: "varchar", length: 20 })
-	version: string;
+    @ManyToOne(() => JsonCommitEntity, { nullable: true })
+    @JoinColumn({ name: "parent_id" })
+    parent: JsonCommitEntity | null;
 
-	@Column({ type: "varchar", length: 50 })
-	status: string;
+    @Column({ type: "varchar", length: 255, nullable: true })
+    commit_name: string;
 
-	@ManyToOne(() => JsonDataEntity, { onDelete: "CASCADE" })
-	@JoinColumn({ name: "graphId" })
-	jsonData: JsonDataEntity;
+    @Column({ type: "text", nullable: true })
+    commit_description: string | null;
 
-	@Column({ nullable: true })
-	authorName: string;
+    @Column({
+        type: "varchar",
+        length: 50,
+        default: "processing"
+    })
+    state: "processing" | "done";
 
-	@CreateDateColumn()
-	createdAt: Date;
+    @Column({ type: "jsonb", nullable: true })
+    commit: Record<string, any> | null;
+
+    @Column({
+        type: "varchar",
+        length: 50
+    })
+    type: "table" | "json" | "model";
+
+    @CreateDateColumn({ name: "created_at" })
+    created_at: Date;
+
+    @UpdateDateColumn({ name: "updated_at" })
+    updated_at: Date;
+
+    // Вспомогательные методы
+    isOriginal(): boolean {
+        return this.parent_id === null;
+    }
+
+    isProcessing(): boolean {
+        return this.state === "processing";
+    }
+
+    isDone(): boolean {
+        return this.state === "done";
+    }
+
+    canEdit(): boolean {
+        return this.isProcessing() && !this.isDone();
+    }
 }
