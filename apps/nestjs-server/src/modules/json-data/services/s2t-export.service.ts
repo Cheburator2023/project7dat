@@ -129,12 +129,6 @@ export class S2tExportService {
 		return exportData.entities.find((e) => e.id === entityId) ?? null;
 	}
 
-	private findMapping(exportData: JsonExportResult, targetEntityId: string) {
-		return (
-			exportData.mappings.find((m) => m.entityId === targetEntityId) ?? null
-		);
-	}
-
 	private getAttrMeta(entity: JsonExportEntity, attrName: string) {
 		const attr = entity.attrSeq?.find((a) => a.name === attrName);
 		return {
@@ -184,7 +178,7 @@ export class S2tExportService {
 		addPlaceholderRow?: boolean;
 	}) {
 		const headerRow = params.worksheet.getRow(1);
-		headerRow.values = [null, ...params.headers];
+		headerRow.values = params.headers;
 		headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
 		headerRow.alignment = {
 			vertical: "middle",
@@ -244,7 +238,7 @@ export class S2tExportService {
 		worksheet.mergeCells(1, 3, 1, 18);
 		worksheet.getCell(1, 3).value = "Source";
 
-		worksheet.mergeCells(1, 19, 1, 30);
+		worksheet.mergeCells(1, 19, 1, 32);
 		worksheet.getCell(1, 19).value = "Target";
 
 		// Style group header row
@@ -266,7 +260,7 @@ export class S2tExportService {
 			worksheet,
 			row: 1,
 			fromCol: 19,
-			toCol: 30,
+			toCol: 32,
 			fillArgb: COLORS.targetGroup,
 		});
 
@@ -302,10 +296,12 @@ export class S2tExportService {
 			"PK",
 			"FK",
 			"Not Null",
+			"Rejectable",
+			"Trace New Values",
 		];
 
 		const headerRow2 = worksheet.getRow(2);
-		headerRow2.values = [null, ...headers];
+		headerRow2.values = headers;
 		headerRow2.font = { bold: true };
 		headerRow2.alignment = {
 			vertical: "middle",
@@ -360,10 +356,6 @@ export class S2tExportService {
 				"Отчёт S2T не формируется для временных сущностей",
 			);
 		}
-
-		const mapping =
-			this.findMapping(params.exportData, params.targetEntityId) ??
-			({ entityId: params.targetEntityId, deps: [] } as JsonExportMapping);
 
 		const targetParts = parseSchemaAndTable(targetEntity.id);
 		const fileName = buildDefaultFileName({
@@ -478,18 +470,30 @@ export class S2tExportService {
 			addPlaceholderRow: false,
 		});
 
-		// Заполнение Source Tables / Target Tables / Datasets
+		// Собираем ВСЕ маппинги из exportData (не только для targetEntityId)
+		const allMappings = params.exportData.mappings ?? [];
+
+		// Заполнение Source Tables — собираем уникальные source-сущности из ВСЕХ маппингов
 		const sourceEntitiesById = new Map<string, JsonExportEntity>();
-		for (const dep of mapping?.deps ?? []) {
-			const sourceEntity = this.findEntity(params.exportData, dep.entityId);
-			if (!sourceEntity) continue;
-			if (
-				isTempLike(sourceEntity.id) ||
-				(sourceEntity.name ? isTempLike(sourceEntity.name) : false)
-			) {
-				continue;
+		const targetEntitiesById = new Map<string, JsonExportEntity>();
+
+		for (const m of allMappings) {
+			// Каждый маппинг имеет target (m.entityId) и sources (m.deps[].entityId)
+			const tgtEntity = this.findEntity(params.exportData, m.entityId);
+			if (tgtEntity) {
+				targetEntitiesById.set(tgtEntity.id, tgtEntity);
 			}
-			sourceEntitiesById.set(sourceEntity.id, sourceEntity);
+			for (const dep of m.deps ?? []) {
+				const srcEntity = this.findEntity(params.exportData, dep.entityId);
+				if (!srcEntity) continue;
+				if (
+					isTempLike(srcEntity.id) ||
+					(srcEntity.name ? isTempLike(srcEntity.name) : false)
+				) {
+					continue;
+				}
+				sourceEntitiesById.set(srcEntity.id, srcEntity);
+			}
 		}
 
 		const sourceEntities = Array.from(sourceEntitiesById.values());
@@ -541,6 +545,7 @@ export class S2tExportService {
 			});
 		}
 
+		// Target Tables — добавляем все target-сущности
 		const targetDatabase = targetEntity.system_code ?? PLACEHOLDER_CELL_VALUE;
 		targetTablesSheet.addRow([
 			targetDatabase,
@@ -553,20 +558,25 @@ export class S2tExportService {
 			PLACEHOLDER_CELL_VALUE,
 		]);
 
-		// В новой структуре process/process_description находятся внутри deps[]
-		const firstDep = mapping.deps?.[0];
-		const processName = firstDep?.process;
-		const processDescription = firstDep?.process_description;
-
-		if (processName || processDescription || mapping.description) {
-			datasetsSheet.addRow([
-				processName ?? "-",
-				processDescription ?? mapping.description ?? "",
-				processName ?? "-",
-				mapping.description ?? "",
-				PLACEHOLDER_CELL_VALUE,
-			]);
-		} else {
+		// Datasets — собираем уникальные процессы из ВСЕХ маппингов
+		const seenProcesses = new Set<string>();
+		let datasetsRows = 0;
+		for (const m of allMappings) {
+			for (const dep of m.deps ?? []) {
+				const processKey = dep.process ?? dep.process_description ?? "";
+				if (!processKey || seenProcesses.has(processKey)) continue;
+				seenProcesses.add(processKey);
+				datasetsSheet.addRow([
+					dep.process ?? "-",
+					dep.process_description ?? m.description ?? "",
+					dep.process ?? "-",
+					m.description ?? "",
+					PLACEHOLDER_CELL_VALUE,
+				]);
+				datasetsRows += 1;
+			}
+		}
+		if (datasetsRows === 0) {
 			this.addNoDataRow({
 				worksheet: datasetsSheet,
 				columnsCount: 5,
@@ -595,63 +605,80 @@ export class S2tExportService {
 			messageColumnIndex1Based: 2,
 		});
 
+		// Mapping sheet — итерируем ВСЕ маппинги, для каждого показываем source→target
 		let rowIndex = 3;
 		let seq = 1;
-		for (const dep of mapping?.deps ?? []) {
-			const sourceEntity = this.findEntity(params.exportData, dep.entityId);
-			if (!sourceEntity) {
+		for (const m of allMappings) {
+			const curTargetEntity = this.findEntity(params.exportData, m.entityId);
+			if (!curTargetEntity) {
 				this.logger.warn(
-					`Источник '${dep.entityId}' не найден в entities, пропускаю`,
+					`Target '${m.entityId}' не найден в entities, пропускаю`,
 				);
 				continue;
 			}
+			const curTargetParts = parseSchemaAndTable(curTargetEntity.id);
+			const curTargetSystemCode = curTargetEntity.system_code ?? "";
 
-			if (
-				isTempLike(sourceEntity.id) ||
-				(sourceEntity.name ? isTempLike(sourceEntity.name) : false)
-			) {
-				continue;
-			}
+			for (const dep of m.deps ?? []) {
+				const sourceEntity = this.findEntity(params.exportData, dep.entityId);
+				if (!sourceEntity) {
+					this.logger.warn(
+						`Источник '${dep.entityId}' не найден в entities, пропускаю`,
+					);
+					continue;
+				}
 
-			const sourceParts = parseSchemaAndTable(sourceEntity.id);
-			const sourceSystemCode = sourceEntity.system_code ?? "";
-			const targetSystemCode = targetEntity.system_code ?? "";
+				if (
+					isTempLike(sourceEntity.id) ||
+					(sourceEntity.name ? isTempLike(sourceEntity.name) : false)
+				) {
+					continue;
+				}
 
-			for (const attrMap of dep.attrMaps ?? []) {
-				const sourceAttrMeta = this.getAttrMeta(sourceEntity, attrMap.src);
-				const targetAttrMeta = this.getAttrMeta(targetEntity, attrMap.dst);
+				const sourceParts = parseSchemaAndTable(sourceEntity.id);
+				const sourceSystemCode = sourceEntity.system_code ?? "";
 
-				const row = mappingSheet.getRow(rowIndex);
-				row.getCell(1).value = seq;
-				row.getCell(2).value = "";
+				for (const attrMap of dep.attrMaps ?? []) {
+					const sourceAttrMeta = this.getAttrMeta(sourceEntity, attrMap.src);
+					const targetAttrMeta = this.getAttrMeta(curTargetEntity, attrMap.dst);
 
-				row.getCell(3).value = sourceSystemCode;
-				row.getCell(4).value =
-					sourceParts.schema ?? sourceEntity.namespace ?? "";
-				row.getCell(5).value = sourceParts.table;
-				row.getCell(6).value = sourceEntity.description ?? "";
-				row.getCell(7).value = attrMap.src;
-				row.getCell(8).value = sourceAttrMeta.comment;
-				row.getCell(9).value = sourceAttrMeta.type;
+					const row = mappingSheet.getRow(rowIndex);
+					row.getCell(1).value = seq;
+					row.getCell(2).value = "";
 
-				row.getCell(19).value = targetSystemCode;
-				row.getCell(20).value =
-					targetParts.schema ?? targetEntity.namespace ?? "";
-				row.getCell(21).value = targetParts.table;
-				row.getCell(22).value = attrMap.dst;
-				row.getCell(23).value = targetAttrMeta.comment;
-				row.getCell(24).value = targetEntity.description ?? "";
-				row.getCell(26).value = targetAttrMeta.type;
+					row.getCell(3).value = sourceSystemCode;
+					row.getCell(4).value =
+						sourceParts.schema ?? sourceEntity.namespace ?? "";
+					row.getCell(5).value = sourceParts.table;
+					row.getCell(6).value = sourceEntity.description ?? "";
+					row.getCell(7).value = attrMap.src;
+					row.getCell(8).value = sourceAttrMeta.comment;
+					row.getCell(9).value = sourceAttrMeta.type;
 
-				row.commit();
-				rowIndex += 1;
-				seq += 1;
+					row.getCell(19).value = curTargetSystemCode;
+					row.getCell(20).value =
+						curTargetParts.schema ?? curTargetEntity.namespace ?? "";
+					row.getCell(21).value = curTargetParts.table;
+					row.getCell(22).value = attrMap.dst;
+					row.getCell(23).value = targetAttrMeta.comment;
+					row.getCell(24).value = curTargetEntity.description ?? "";
+					row.getCell(25).value = "";
+					row.getCell(26).value = targetAttrMeta.type;
+
+					row.commit();
+					rowIndex += 1;
+					seq += 1;
+				}
 			}
 		}
 
+		this.logger.log(
+			`[S2T] Mapping sheet: ${seq - 1} строк из ${allMappings.length} маппингов`,
+		);
+
 		// Если маппингов нет (или attrMaps пустые) — оставляем плейсхолдеры
 		if (rowIndex === 3) {
-			const row = Array.from({ length: 30 }, () => PLACEHOLDER_CELL_VALUE);
+			const row = Array.from({ length: 32 }, () => PLACEHOLDER_CELL_VALUE);
 			row[0] = NO_DATA_CELL_VALUE;
 			mappingSheet.addRow(row);
 		}
@@ -660,9 +687,20 @@ export class S2tExportService {
 	}
 
 	async exportCurrentToXlsx(params: { targetEntityId: string }) {
-		this.logger.log(`Экспорт S2T отчёта для '${params.targetEntityId}'`);
-		const exportData =
-			(await this.jsonExportService.exportToJson()) as any as JsonExportResult;
+		this.logger.log(
+			`[S2T] exportCurrentToXlsx вызван для '${params.targetEntityId}'`,
+		);
+		const exportData = (await this.jsonExportService.exportEntityRelations(
+			params.targetEntityId,
+		)) as any as JsonExportResult;
+
+		const totalDeps =
+			exportData.mappings?.reduce((sum, m) => sum + (m.deps?.length ?? 0), 0) ??
+			0;
+		this.logger.log(
+			`[S2T] exportEntityRelations вернул: entities=${exportData.entities?.length ?? 0}, ` +
+				`mappings=${exportData.mappings?.length ?? 0}, totalDeps=${totalDeps}`,
+		);
 
 		const { workbook, fileName } = await this.buildWorkbook({
 			exportData,
@@ -680,8 +718,9 @@ export class S2tExportService {
 		this.logger.log(
 			`Экспорт S2T отчёта для '${params.targetEntityId}' по change_id=${params.changeId}`,
 		);
-		const exportData =
-			(await this.jsonExportService.exportToJson()) as any as JsonExportResult;
+		const exportData = (await this.jsonExportService.exportEntityRelations(
+			params.targetEntityId,
+		)) as any as JsonExportResult;
 
 		const { workbook, fileName } = await this.buildWorkbook({
 			exportData,

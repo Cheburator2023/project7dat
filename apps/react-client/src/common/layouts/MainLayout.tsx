@@ -64,9 +64,20 @@ export function MainLayout({
 		isFetching: isCurrentGraphFetching,
 		isLoading: isCurrentGraphLoading,
 	} = useCurrentDataLineageGraph({ enabled: false });
+	console.log(
+		"🐸 Pepe said >> MainLayout >> isCurrentGraphLoading:",
+		isCurrentGraphLoading,
+	);
+	console.log(
+		"🐸 Pepe said >> MainLayout >> isCurrentGraphFetching:",
+		isCurrentGraphFetching,
+	);
+	console.log(
+		"🐸 Pepe said >> MainLayout >> isCurrentGraphPending:",
+		isCurrentGraphPending,
+	);
 
-	const isPending =
-		isCurrentGraphPending || isCurrentGraphFetching || isCurrentGraphLoading;
+	const isPending = isCurrentGraphFetching || isCurrentGraphLoading;
 
 	const [progress, setProgress] = useState(() => {
 		try {

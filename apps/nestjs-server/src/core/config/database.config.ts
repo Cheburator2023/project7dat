@@ -72,7 +72,7 @@ export const databaseConfig = registerAs(
 		const fullConfig: PostgresDatabaseConfig = {
 			...baseConfig,
 			entities: [__dirname + "/../../**/*.entity{.ts,.js}"],
-			synchronize: process.env.DB_SYNCHRONIZE === "true" || !isProduction,
+			synchronize: false,
 			logging: process.env.DB_LOGGING === "true" || !isProduction,
 			migrations: [__dirname + "/../../migrations/*{.ts,.js}"],
 			migrationsRun: process.env.DB_MIGRATIONS_RUN === "true",

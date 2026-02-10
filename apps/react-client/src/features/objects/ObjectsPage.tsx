@@ -10,6 +10,7 @@ import {
 	DashboardHeader,
 } from "@react-client/features/dashboard/organisms";
 import { useDashboardStore } from "@react-client/features/dashboard";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 export const flexLayoutJson: IJsonModel = {
 	global: {
@@ -56,6 +57,7 @@ export const ObjectsPage = () => {
 			setZoomToNode: state.setZoomToNode,
 		})),
 	);
+	useCurrentDataLineageGraph();
 
 	const location = useLocation();
 

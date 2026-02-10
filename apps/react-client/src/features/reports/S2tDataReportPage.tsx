@@ -1,5 +1,12 @@
-import { useCallback, useMemo } from "react";
-import { Alert, Box, Button, Stack, Typography } from "@mui/material";
+import { useCallback, useMemo, useState } from "react";
+import {
+	Alert,
+	Box,
+	Button,
+	CircularProgress,
+	Stack,
+	Typography,
+} from "@mui/material";
 import { format } from "date-fns/esm";
 import { toast } from "sonner";
 import { Header } from "@react-client/common/navigation/organisms/Header";
@@ -62,6 +69,7 @@ export const S2tDataReportPage = () => {
 	const { selectedEntityId } = useDashboardStore();
 	const { currentGraph } = useDataLineageStore();
 	const { accessToken } = useAuthStore();
+	const [loading, setLoading] = useState(false);
 
 	const derived = useMemo(() => {
 		if (!currentGraph || !selectedEntityId) {
@@ -88,6 +96,7 @@ export const S2tDataReportPage = () => {
 	}, [currentGraph, selectedEntityId]);
 
 	const handleDownload = useCallback(async () => {
+		if (loading) return;
 		const API_BASE_URL =
 			window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
 		if (!selectedEntityId) {
@@ -99,6 +108,7 @@ export const S2tDataReportPage = () => {
 			return;
 		}
 
+		setLoading(true);
 		try {
 			const url = new URL(`${API_BASE_URL}/api/s2t-export/dl`);
 			url.searchParams.set("entityId", selectedEntityId);
@@ -123,67 +133,71 @@ export const S2tDataReportPage = () => {
 			});
 		} catch (e: any) {
 			toast.error(`Не удалось скачать отчёт: ${e?.message ?? "ошибка"}`);
+		} finally {
+			setLoading(false);
 		}
-	}, [accessToken, derived, selectedEntityId]);
+	}, [accessToken, derived, loading, selectedEntityId]);
 
 	return (
 		<Box>
 			<Header title={"Отчёт: Формат S2T"} />
-			<Box sx={{ p: 2 }}>
-				<Card>
-					<Stack spacing={2}>
-						<Typography variant="body1">
-							Выгрузка файла отчёта для выбранной витрины в формате S2T (.xlsx).
-						</Typography>
 
-						{!selectedEntityId && (
-							<Alert severity="warning">
-								Сначала выбери витрину (таблицу или view) на главной странице.
-							</Alert>
-						)}
+			<Card>
+				<Stack spacing={2}>
+					<Typography variant="body1">
+						Выгрузка файла отчёта для выбранной витрины в формате S2T (.xlsx).
+					</Typography>
 
-						{selectedEntityId && !derived.entity && (
-							<Alert severity="error">
-								Не удалось найти выбранную сущность в текущем графе.
-							</Alert>
-						)}
+					{!selectedEntityId && (
+						<Alert severity="warning">
+							Сначала выбери витрину (таблицу или view) на главной странице.
+						</Alert>
+					)}
 
-						{derived.entity && (
-							<Alert
-								severity={derived.isAllowedEntityType ? "info" : "warning"}
-							>
-								<Box
-									sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
-								>
-									<Typography variant="subtitle2">Выбранная витрина</Typography>
+					{selectedEntityId && !derived.entity && (
+						<Alert severity="error">
+							Не удалось найти выбранную сущность в текущем графе.
+						</Alert>
+					)}
+
+					{derived.entity && (
+						<Alert severity={derived.isAllowedEntityType ? "info" : "warning"}>
+							<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+								<Typography variant="subtitle2">Выбранная витрина</Typography>
+								<Typography variant="body2">
+									Схема: {derived.entity.namespace || "—"}
+								</Typography>
+								<Typography variant="body2">
+									Таблица/view: {derived.entity.name ?? derived.entity.id}
+								</Typography>
+								<Typography variant="body2">
+									Тип: {derived.entity.type}
+								</Typography>
+								{derived.fileName && (
 									<Typography variant="body2">
-										Схема: {derived.entity.namespace || "—"}
+										Имя файла: {derived.fileName}
 									</Typography>
-									<Typography variant="body2">
-										Таблица/view: {derived.entity.name ?? derived.entity.id}
-									</Typography>
-									<Typography variant="body2">
-										Тип: {derived.entity.type}
-									</Typography>
-									{derived.fileName && (
-										<Typography variant="body2">
-											Имя файла: {derived.fileName}
-										</Typography>
-									)}
-								</Box>
-							</Alert>
-						)}
+								)}
+							</Box>
+						</Alert>
+					)}
 
-						<Button
-							variant="contained"
-							onClick={handleDownload}
-							disabled={!derived.entity || !derived.isAllowedEntityType}
-						>
-							Скачать отчёт (.xlsx)
-						</Button>
-					</Stack>
-				</Card>
-			</Box>
+					<Button
+						variant="contained"
+						onClick={handleDownload}
+						disabled={
+							!derived.entity || !derived.isAllowedEntityType || loading
+						}
+						startIcon={
+							loading ? (
+								<CircularProgress size={16} color="inherit" />
+							) : undefined
+						}
+					>
+						Скачать отчёт (.xlsx)
+					</Button>
+				</Stack>
+			</Card>
 		</Box>
 	);
 };
