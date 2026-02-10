@@ -45,7 +45,7 @@ export const useDataLineageGraph = (
 	});
 };
 
-export const useCurrentDataLineageGraph = () => {
+export const useCurrentDataLineageGraph = (options?: { enabled?: boolean }) => {
 	const { initializeGraph, setCurrentGraphId } = useDataLineageStore();
 
 	return useQuery({
@@ -82,8 +82,9 @@ export const useCurrentDataLineageGraph = () => {
 				return null;
 			}
 		},
-		staleTime: 5 * 60 * 1000,
+		staleTime: 100,
 		retry: false,
+		enabled: options?.enabled,
 	});
 };
 

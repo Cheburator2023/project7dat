@@ -1693,11 +1693,12 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					onNodeContextMenu={handleNodeContextMenu}
 					nodeTypes={graphNodeTypes}
 					nodesDraggable
-					minZoom={0.1}
-					maxZoom={2}
+					minZoom={0.01}
+					maxZoom={1}
 					defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
 					proOptions={{ hideAttribution: true }}
 					colorMode={mode}
+					onlyRenderVisibleElements
 				>
 					<Background color="#e0e0e0" gap={20} />
 					<Controls>

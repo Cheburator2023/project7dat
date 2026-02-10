@@ -32,7 +32,6 @@ import {
 	useColorScheme,
 } from "@mui/material";
 import {
-	Code,
 	ContentCopy,
 	OpenInNew,
 	CenterFocusStrong,
@@ -1266,10 +1265,11 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 				onNodeContextMenu={handleNodeContextMenu}
 				nodeTypes={nodeTypes}
 				fitView
-				minZoom={0.1}
-				maxZoom={2}
+				minZoom={0.01}
+				maxZoom={1}
 				proOptions={{ hideAttribution: true }}
 				colorMode={mode}
+				onlyRenderVisibleElements
 			>
 				<Background color="#e0e0e0" gap={16} />
 				<Controls />
