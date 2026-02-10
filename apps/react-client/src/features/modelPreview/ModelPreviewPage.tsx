@@ -130,7 +130,6 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
 	const [currentEntityId, setCurrentEntityId] = useState();
-	const { isPending } = useCurrentDataLineageGraph();
 	const [calculatedEntities, _setCalculatedEntities] = useState<
 		DataLineageEntity[]
 	>([]);
@@ -316,19 +315,6 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		},
 		[model, isPersistEnabled],
 	);
-
-	if (isPending) {
-		return (
-			<Flex
-				width="100%"
-				height="100%"
-				justifyContent="center"
-				alignItems="center"
-			>
-				<CircularProgress />
-			</Flex>
-		);
-	}
 
 	if (!selectedEntity) {
 		return (

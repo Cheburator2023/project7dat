@@ -9,8 +9,6 @@ import {
 	EntitiesPanel,
 	DashboardHeader,
 } from "@react-client/features/dashboard/organisms";
-
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { useDashboardStore } from "@react-client/features/dashboard";
 
 export const flexLayoutJson: IJsonModel = {
@@ -51,7 +49,6 @@ export const flexLayoutJson: IJsonModel = {
 };
 
 export const ObjectsPage = () => {
-	const { isPending } = useCurrentDataLineageGraph();
 	const [, setSearchParams] = useSearchParams();
 	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore(
 		useShallow((state) => ({
@@ -85,7 +82,7 @@ export const ObjectsPage = () => {
 
 	return (
 		<Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-			<DashboardHeader isLoading={isPending} />
+			<DashboardHeader />
 
 			<FlexLayoutWrapper>
 				<EntitiesPanel />

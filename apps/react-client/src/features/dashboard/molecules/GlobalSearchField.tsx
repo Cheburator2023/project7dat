@@ -11,7 +11,6 @@ export const GlobalSearchField = memo(() => {
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const { globalSearchQuery, setGlobalSearch } = useDashboardStore();
 	const [localValue, setLocalValue] = useState(globalSearchQuery);
-	const { isPending } = useCurrentDataLineageGraph();
 
 	// Sync local value with store when store changes externally
 	useEffect(() => {
@@ -42,7 +41,6 @@ export const GlobalSearchField = memo(() => {
 				value={localValue}
 				onChange={(e) => setLocalValue(e.target.value)}
 				size="small"
-				disabled={isPending}
 				sx={{ width: 350 }}
 				helperText={
 					localValue.length > 0 && localValue.length < MIN_SEARCH_LENGTH
