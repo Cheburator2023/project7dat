@@ -16,7 +16,6 @@ import { S2tImportDialog } from "@react-client/features/s2tImport/S2tImportDialo
 import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
 import { NotificationButton } from "../../notification/NotificationButton";
-import { CreateSnapshotDialog } from "../../../features/snapshotsList/CreateSnapshotDialog";
 
 export function Header({
 	children,
@@ -31,7 +30,6 @@ export function Header({
 }) {
 	const { toggleSideMenu, isSideMenuVisible } = useGlobalSettingsStore();
 	const navigate = useNavigate();
-	const [isSnapshotDialogOpen, setIsSnapshotDialogOpen] = useState(false);
 	const [pendingS2t, setPendingS2t] = useState<{
 		commitId: string;
 		state: string;
@@ -216,10 +214,7 @@ export function Header({
 							)} */}
 
 							<NotificationButton isLoading={!!isLoading} />
-							<ColorModeIconDropdown
-								isLoading={!!isLoading}
-								data-test-id="header--ColorModeIconDropdown-0"
-							/>
+							<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
 							<IconButton
 								onClick={() => navigate("/settings")}
 								title="Настройки"
@@ -238,11 +233,6 @@ export function Header({
 				open={isS2tCommitDialogOpen}
 				onClose={() => setIsS2tCommitDialogOpen(false)}
 				prefillCommitId={pendingS2t?.commitId ?? null}
-			/>
-
-			<CreateSnapshotDialog
-				open={isSnapshotDialogOpen}
-				onClose={() => setIsSnapshotDialogOpen(false)}
 			/>
 		</>
 	);

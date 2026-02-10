@@ -21,7 +21,7 @@ const _data: any = [
 		name: "Dashboard2",
 		Component: () => (
 			<div style={{ zoom: 0.8 }}>
-				<DashboardPage />
+				<div />
 			</div>
 		),
 	},
