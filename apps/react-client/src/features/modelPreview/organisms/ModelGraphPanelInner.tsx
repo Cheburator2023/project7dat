@@ -34,10 +34,8 @@ import {
 } from "../../dashboard/constants";
 import type { EntityConnection, EntityNodeData } from "../../dashboard/types";
 import { useParams } from "react-router-dom";
-import {
-	EntityDetailsDialog,
-	MappingDetailsDialog,
-} from "@react-client/features/entityPreview";
+import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
+import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 import {
 	Divider,
 	ListItemIcon,
@@ -290,8 +288,6 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		entity,
 		onSelectNode,
 	}) => {
-		console.log("🐸 Pepe said >> data:", data);
-
 		const navigate = useNavigate();
 		const [selectedNode, setSelectedNode] = useState<string>(
 			selectedEntityId || "",

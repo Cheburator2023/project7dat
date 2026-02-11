@@ -23,7 +23,7 @@ import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
-import { MappingDetailsDialog } from "@react-client/features/entityPreview";
+import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 
 import { useDashboardStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
