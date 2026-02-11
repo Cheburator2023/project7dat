@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
 import {
-	CircularProgress,
 	styled,
 	Box,
 	Alert,
@@ -17,7 +16,6 @@ import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "./components/EntityJsonEditor";
 import { EntityDetailsView } from "./components/EntityDetailsView";
 import { useParams, useSearchParams } from "react-router-dom";
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 
@@ -30,6 +28,7 @@ import {
 import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/ModelGraphPanel";
 import { useDashboardStore } from "@react-client/features/dashboard";
 import { SearchIcon } from "lucide-react";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
 	table: <TableChartIcon fontSize={"large"} />,
@@ -292,6 +291,8 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		[selectedEntity, relatedMappings, calculatedEntities],
 	);
 
+	useCurrentDataLineageGraph({ enabled: !currentGraph?.entities });
+
 	const onAction = useCallback(
 		(action: Action) => {
 			const result = action;
@@ -338,11 +339,7 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 					<Flex gap={10}>
 						{selectedEntity.namespace}
 
-						<Chip
-							label="model"
-							size="small"
-							color="secondary"
-						/>
+						<Chip label="model" size="small" color="secondary" />
 					</Flex>
 				}
 			>

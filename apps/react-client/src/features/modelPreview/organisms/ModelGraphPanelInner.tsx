@@ -483,8 +483,6 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			[data, onSelectEntity, onSelectNode],
 		);
 
-
-
 		const handleNodeDblClick = useCallback(
 			(entityId: string, gId: string) => onNodeDoubleClick(entityId, gId),
 			[onNodeDoubleClick],
@@ -1284,11 +1282,14 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleContextMenuGoToEntity = useCallback(() => {
 			if (contextMenu) {
-				if(contextMenu.entityType === 'model'){
-					const encodedId = encodeURIComponent(contextMenu.entityId.replace("__model_node__", "")
-						.replace("__model__fake_node__", ""));
+				if (contextMenu.entityType === "model") {
+					const encodedId = encodeURIComponent(
+						contextMenu.entityId
+							.replace("__model_node__", "")
+							.replace("__model__fake_node__", ""),
+					);
 					navigate(`/services/models/${encodedId}`);
-					return
+					return;
 				}
 				const encodedId = encodeURIComponent(contextMenu.entityId);
 				navigate(`/entity/${encodedId}`);
@@ -1298,12 +1299,15 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleContextMenuOpenInNewTab = useCallback(() => {
 			if (contextMenu) {
-				if(contextMenu.entityType === 'model'){
-					const encodedId = encodeURIComponent(contextMenu.entityId.replace("__model_node__", "")
-						.replace("__model__fake_node__", ""));
+				if (contextMenu.entityType === "model") {
+					const encodedId = encodeURIComponent(
+						contextMenu.entityId
+							.replace("__model_node__", "")
+							.replace("__model__fake_node__", ""),
+					);
 					const url = new URL(`/models/${encodedId}`, window.location.href);
 					window.open(url.toString(), "_blank", "noopener,noreferrer");
-					return
+					return;
 				}
 				const encodedId = encodeURIComponent(contextMenu.entityId);
 				const url = new URL(`/entity/${encodedId}`, window.location.href);
@@ -1579,19 +1583,8 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 								boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
 							}}
 						>
-							<div style={{ marginBottom: 8 }}>
-								<div style={{ fontSize: 11, color: "#666" }}>
-									{filteredEntities.length - 1} связанных сущностей
-								</div>
-							</div>
 							{selectedNode && nodeDepths.size > 1 && (
-								<div
-									style={{
-										marginTop: 10,
-										borderTop: "1px solid #eee",
-										paddingTop: 8,
-									}}
-								>
+								<div>
 									<div
 										style={{
 											fontSize: 10,
