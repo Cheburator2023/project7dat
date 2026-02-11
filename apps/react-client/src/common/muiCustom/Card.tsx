@@ -215,7 +215,7 @@ type BaseCardProps = PaperProps & {
 	width?: string;
 	header?: any;
 	onClose?: any;
-	overflow?: string;
+	overflow?: string | null;
 	nonClickable?: boolean;
 	showZoomControl?: boolean;
 };
@@ -242,7 +242,7 @@ export const Card = (props: CardProps) => {
 
 const MUIPaperStyled = styled(Paper, {
 	shouldForwardProp: (prop) => prop !== "overflow",
-})<{ overflow: string }>`
+})<{ overflow: string | null }>`
 	pointer-events: all;
 	position: relative;
 	overflow: hidden;

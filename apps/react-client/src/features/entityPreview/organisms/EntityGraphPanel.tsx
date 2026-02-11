@@ -11,10 +11,8 @@ import { ContentCopy, Info } from "@mui/icons-material";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useNavigate } from "react-router-dom";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
-import {
-	EntityDetailsDialog,
-	MappingDetailsDialog,
-} from "@react-client/features/entityPreview";
+import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
+import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 
 import { useDashboardStore } from "../../dashboard/stores";

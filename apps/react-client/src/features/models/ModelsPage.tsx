@@ -13,6 +13,7 @@ import { Search } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef } from "ag-grid-community";
 import { useNavigate } from "react-router-dom";
+
 import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
@@ -29,6 +30,7 @@ import { useDashboardStore } from "@react-client/features/dashboard/stores";
 import { routes } from "@react-client/routing/routes";
 import { EntityRow } from "@react-client/features/dashboard";
 import { DataLineageGraph } from "@react-client/types/dataLineage";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 // Extended interface based on DataLineageEntity for UI display purposes
 export interface Model extends DataLineageEntity {
@@ -91,6 +93,7 @@ const selector = (state: DataLineageStore) => ({
 });
 
 export const ModelsPage = () => {
+	useCurrentDataLineageGraph();
 	const [searchQuery, setSearchQuery] = useState("");
 	const { mode } = useColorScheme();
 	const { currentGraph } = useDataLineageStore(useShallow(selector));

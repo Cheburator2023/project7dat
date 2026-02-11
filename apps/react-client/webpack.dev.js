@@ -4,6 +4,7 @@ const webpack = require("webpack");
 const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
+const child_process = require("child_process");
 const { DefinePlugin } = webpack;
 const APP_NAME = "dataLineage";
 
@@ -12,6 +13,7 @@ const git_revision = require("node:child_process")
 	.execSync('git show --format="short" -s')
 	.toString()
 	.trim();
+const git_hash = child_process.execSync("git rev-parse --short HEAD").toString().trim();
 
 module.exports = merge(common, {
 	mode: "development",
@@ -60,6 +62,7 @@ module.exports = merge(common, {
 			"process.env.GIT_REVISION": JSON.stringify(git_revision || ""),
 			"process.env.APP_NAME": JSON.stringify(APP_NAME),
 			"process.env.NO_ROLES": JSON.stringify(process.env.NO_ROLES || ""),
+			"process.env.GIT_HASH": JSON.stringify(git_hash || ""),
 		}),
 	],
 	watchOptions: {

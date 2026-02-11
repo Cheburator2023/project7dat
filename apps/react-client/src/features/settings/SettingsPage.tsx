@@ -18,6 +18,8 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
 import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
+import { useUserStore } from "@react-client/common/store/userStore";
+import { Flex } from "@react-client/common/primitives/Flex";
 
 export const SettingsPage = () => {
 	const {
@@ -28,6 +30,7 @@ export const SettingsPage = () => {
 		resetPanelState,
 		resetAllPanels,
 	} = usePanelSettingsStore();
+	const { user } = useUserStore();
 
 	const { showFullGraphByDefault, setShowFullGraphByDefault } =
 		useGraphSettingsStore();
@@ -55,10 +58,9 @@ export const SettingsPage = () => {
 	return (
 		<div>
 			<Header title="Настройки" />
-
-			<Box sx={{ p: 2, maxWidth: 900, margin: "0 auto" }}>
+			<Flex flexDirection="column" gap={6}>
 				{/* Настройки графа */}
-				<Card sx={{ mb: 3 }}>
+				<Card>
 					<CardContent>
 						<Typography variant="h6" gutterBottom>
 							Панель графа
@@ -89,7 +91,7 @@ export const SettingsPage = () => {
 				</Card>
 
 				{/* Глобальная настройка */}
-				<Card sx={{ mb: 3 }}>
+				<Card>
 					<CardContent>
 						<Typography variant="h6" gutterBottom>
 							Сохранение состояния панелей
@@ -191,7 +193,31 @@ export const SettingsPage = () => {
 						)}
 					</CardContent>
 				</Card>
-			</Box>
+
+				<Flex flexDirection="column">
+					<Typography
+						variant="caption"
+						sx={{
+							pb: 0,
+							color: "text.secondary",
+						}}
+					>
+						System info
+					</Typography>
+					{process.env.GIT_HASH ? (
+						<Typography
+							variant="caption"
+							sx={{
+								pb: 0,
+								color: "text.secondary",
+							}}
+							data-test-id="side-menu--Version"
+						>
+							hash: {process.env.GIT_HASH}
+						</Typography>
+					) : null}
+				</Flex>
+			</Flex>
 		</div>
 	);
 };

@@ -78,7 +78,7 @@ export const AllCommitsPage: FC = () => {
 		refetch: refetchCurrentGraph,
 		isPending: isCurrentGraphPending,
 		isLoading: isCurrentGraphLoading,
-	} = useCurrentDataLineageGraph({ enabled: false });
+	} = useCurrentDataLineageGraph();
 
 	const handleDialogSaved = () => {
 		s2tCommitsQuery.refetch();
@@ -313,11 +313,7 @@ export const AllCommitsPage: FC = () => {
 						pagination={true}
 						paginationPageSize={20}
 						paginationPageSizeSelector={[10, 20, 50, 100]}
-						loading={
-							s2tCommitsQuery.isLoading ||
-							isCurrentGraphPending ||
-							isCurrentGraphLoading
-						}
+						loading={s2tCommitsQuery.isLoading}
 						theme={
 							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
 						}

@@ -12,6 +12,16 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { EntityPreviewPage } from "./EntityPreviewPage";
 
+const StyledDialog = styled(Dialog)(({ theme }) => ({
+	"& .MuiDialogContent-root": {
+		padding: 0,
+		overflow: "hidden",
+	},
+	"& .MuiDialogTitle-root": {
+		borderBottom: `1px solid ${theme.palette.divider}`,
+	},
+}));
+
 export const EntityPreviewModal: React.FC = () => {
 	const { isPreviewOpen, selectedEntityId, closePreview } =
 		useEntityPreviewStore(
@@ -75,13 +85,3 @@ export const EntityPreviewModal: React.FC = () => {
 		</StyledDialog>
 	);
 };
-
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-	"& .MuiDialogContent-root": {
-		padding: 0,
-		overflow: "hidden",
-	},
-	"& .MuiDialogTitle-root": {
-		borderBottom: `1px solid ${theme.palette.divider}`,
-	},
-}));

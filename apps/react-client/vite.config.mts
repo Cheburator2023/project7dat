@@ -26,6 +26,8 @@ const git_revision = child_process
 	.toString()
 	.trim();
 
+const git_hash = child_process.execSync("git rev-parse --short HEAD").toString().trim();
+
 export default defineConfig({
   cacheDir: fileURLToPath(new URL("./.cache/vite-app", import.meta.url)),
   base: "/",
@@ -126,6 +128,7 @@ export default defineConfig({
 
 	define: {
 		"process.env.GIT_REVISION": JSON.stringify(git_revision),
+		"process.env.GIT_HASH": JSON.stringify(git_hash),
 		"process.env.NO_ROLES": JSON.stringify(process.env.NO_ROLES),
 	},
 
