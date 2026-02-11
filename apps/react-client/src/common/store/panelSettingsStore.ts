@@ -13,10 +13,8 @@ export interface PanelConfig {
 interface PanelSettingsState {
 	// Глобальная настройка сохранения в localStorage
 	persistLayoutsEnabled: boolean;
-	setPersistLayoutsEnabled: (enabled: boolean) => void;
-
-	// Настройки для каждой панели
 	panels: PanelConfig[];
+	setPersistLayoutsEnabled: (enabled: boolean) => void;
 
 	// Включить/выключить сохранение для конкретной панели
 	togglePanelPersist: (panelId: string) => void;
@@ -28,11 +26,11 @@ interface PanelSettingsState {
 	resetAllPanels: () => void;
 
 	// Проверить, включено ли сохранение для панели
-	isPanelPersistEnabled: (panelId: string) => boolean;
+	isPanelPersistEnabled: (panelId: string) => any;
 }
 
 // Список всех панелей приложения
-const defaultPanels: PanelConfig[] = [
+export const defaultPanelsSettings: PanelConfig[] = [
 	{
 		id: "dashboard",
 		name: "Главная (Dashboard)",
@@ -48,10 +46,10 @@ const defaultPanels: PanelConfig[] = [
 		enabled: false,
 	},
 	{
-		id: "object-card",
-		name: "Карточка объекта",
-		description: "Панель карточки объекта данных",
-		localStorageKey: "object-card-layout",
+		id: "model-preview",
+		name: "Просмотр модели",
+		description: "Панель просмотра деталей модели",
+		localStorageKey: "model-preview-layout",
 		enabled: false,
 	},
 ];
@@ -60,22 +58,24 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 	persist(
 		(set, get) => ({
 			persistLayoutsEnabled: false,
-			panels: defaultPanels,
-
+			panels: defaultPanelsSettings,
 			setPersistLayoutsEnabled: (enabled: boolean) => {
 				if (!enabled) {
 					// При выключении глобальной настройки сбрасываем все панели
-					const { panels } = get();
-					for (const panel of panels) {
+					for (const panel of defaultPanelsSettings) {
 						localStorage.removeItem(panel.localStorageKey);
 					}
 				}
+
 				set({ persistLayoutsEnabled: enabled });
+
+				if (!enabled) {
+					localStorage.removeItem("panel-settings-storage");
+				}
 			},
 
 			togglePanelPersist: (panelId: string) => {
-				const state = get();
-				const panel = state.panels.find((p) => p.id === panelId);
+				const panel = defaultPanelsSettings.find((p) => p.id === panelId);
 
 				if (panel && panel.enabled) {
 					// При выключении панели удаляем её layout из localStorage
@@ -90,15 +90,14 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 			},
 
 			resetPanelState: (panelId: string) => {
-				const panel = get().panels.find((p) => p.id === panelId);
+				const panel = defaultPanelsSettings.find((p) => p.id === panelId);
 				if (panel) {
 					localStorage.removeItem(panel.localStorageKey);
 				}
 			},
 
 			resetAllPanels: () => {
-				const { panels } = get();
-				for (const panel of panels) {
+				for (const panel of defaultPanelsSettings) {
 					localStorage.removeItem(panel.localStorageKey);
 				}
 			},
@@ -106,7 +105,7 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 			isPanelPersistEnabled: (panelId: string) => {
 				const state = get();
 				if (!state.persistLayoutsEnabled) return false;
-				const panel = state.panels.find((p) => p.id === panelId);
+				const panel = defaultPanelsSettings.find((p) => p.id === panelId);
 				return panel?.enabled ?? false;
 			},
 		}),

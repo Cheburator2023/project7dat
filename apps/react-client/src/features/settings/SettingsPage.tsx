@@ -16,7 +16,10 @@ import {
 } from "@mui/material";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { Header } from "@react-client/common/navigation/organisms/Header";
-import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
+import {
+	defaultPanelsSettings,
+	usePanelSettingsStore,
+} from "@react-client/common/store/panelSettingsStore";
 import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
 import { useUserStore } from "@react-client/common/store/userStore";
 import { Flex } from "@react-client/common/primitives/Flex";
@@ -25,12 +28,11 @@ export const SettingsPage = () => {
 	const {
 		persistLayoutsEnabled,
 		setPersistLayoutsEnabled,
-		panels,
 		togglePanelPersist,
 		resetPanelState,
 		resetAllPanels,
+		panels,
 	} = usePanelSettingsStore();
-	const { user } = useUserStore();
 
 	const { showFullGraphByDefault, setShowFullGraphByDefault } =
 		useGraphSettingsStore();
@@ -109,12 +111,7 @@ export const SettingsPage = () => {
 							}
 							label="Включить сохранение расположения панелей"
 						/>
-					</CardContent>
-				</Card>
 
-				{/* Список панелей */}
-				<Card>
-					<CardContent>
 						<Box
 							sx={{
 								display: "flex",
@@ -146,12 +143,18 @@ export const SettingsPage = () => {
 										<TableRow key={panel.id}>
 											<TableCell>
 												<Typography variant="body2" fontWeight="medium">
-													{panel.name}
+													{
+														defaultPanelsSettings.find((p) => p.id === panel.id)
+															?.name
+													}
 												</Typography>
 											</TableCell>
 											<TableCell>
 												<Typography variant="body2" color="text.secondary">
-													{panel.description}
+													{
+														defaultPanelsSettings.find((p) => p.id === panel.id)
+															?.description
+													}
 												</Typography>
 											</TableCell>
 											<TableCell align="center">

@@ -102,90 +102,14 @@ export const DashboardHeader = memo(() => {
 		})),
 	);
 
-	// Commit dialog state
-	const [isCommitDialogOpen, setIsCommitDialogOpen] = useState(false);
 	const [isS2tImportDialogOpen, setIsS2tImportDialogOpen] = useState(false);
 
-	// Query client and mutations
-	const queryClient = useQueryClient();
 	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph({
 		enabled: false,
 	});
 	const { refetch: refetchCommitList } = useCommitList({
 		graphId: undefined,
 	});
-
-	// Get all entities for filter options
-	const { data: jsonDataList } = useJsonDataList();
-
-	// Build entities list for filter options
-	const allEntities: EntityRow[] = useMemo(() => {
-		if (!jsonDataList) return [];
-		const rows: EntityRow[] = [];
-
-		jsonDataList.forEach((item: JsonDataItem) => {
-			const schema = item.data as DataLineageSchema | undefined;
-			if (!schema?.entities) return;
-
-			// Build lineage graph for counts
-			const lineageGraph = buildLineageGraph(schema.mappings || []);
-
-			schema.entities.forEach((entity) => {
-				const upstreamNodes = getUpstreamNodes(
-					entity.id,
-					lineageGraph.upstream,
-				);
-				upstreamNodes.delete(entity.id);
-				const downstreamNodes = getDownstreamNodes(
-					entity.id,
-					lineageGraph.downstream,
-				);
-				downstreamNodes.delete(entity.id);
-
-				rows.push({
-					id: entity.id,
-					graphId: item.id,
-					name: entity.name ?? entity.id,
-					type: entity.type,
-					namespace: entity.namespace ?? "",
-					attributeCount: entity.attrSeq?.length ?? 0,
-					upstreamCount: upstreamNodes.size,
-					downstreamCount: downstreamNodes.size,
-					isDataMart: upstreamNodes.size > 0 && downstreamNodes.size === 0,
-					isSource: upstreamNodes.size === 0 && downstreamNodes.size > 0,
-					modified: entity.modified ?? false,
-					description: item.description || "",
-					entity_change: entity.entity_change ?? "",
-				});
-			});
-		});
-
-		return rows;
-	}, [jsonDataList]);
-
-	// Calculate filter options from entities
-	const filterOptions = useMemo(() => {
-		const entityTypes = [...new Set(allEntities.map((e) => e.type))];
-		const namespaces = [
-			...new Set(allEntities.map((e) => e.namespace).filter(Boolean)),
-		];
-		return { entityTypes, namespaces };
-	}, [allEntities]);
-
-	// Commit handlers
-	const handleCommitChanges = useCallback(() => {
-		setIsCommitDialogOpen(true);
-	}, []);
-
-	const handleCommitDialogClose = useCallback(() => {
-		setIsCommitDialogOpen(false);
-		queryClient.invalidateQueries({
-			queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
-		});
-		if (currentGraphId) {
-			refetchCommitList();
-		}
-	}, [queryClient, currentGraphId, refetchCommitList]);
 
 	// Import handler with format support
 	const handleImport = useCallback(
@@ -293,36 +217,8 @@ export const DashboardHeader = memo(() => {
 				<SelectedEntityChip />
 				<Flex gap={8} alignItems="center">
 					<GlobalSearchField />
-					<FilterButton filterOptions={filterOptions} />
+					<FilterButton />
 
-					{/* Divider */}
-					{/* <Divider orientation="vertical" flexItem sx={{ mx: 1 }} /> */}
-
-					{/* Commit buttons */}
-					{hasUnsavedChanges && (
-						<Flex gap={6}>
-							<Button
-								variant="outlined"
-								color="error"
-								onClick={discardChanges}
-								size="small"
-							>
-								Отменить
-							</Button>
-							<Button
-								variant="contained"
-								color="primary"
-								onClick={handleCommitChanges}
-								size="small"
-							>
-								Создать коммит
-							</Button>
-						</Flex>
-					)}
-
-					{/* Entity preview navigation */}
-
-					{/* Import format selector */}
 					{/* <Select
 						value=""
 						onChange={handleImportFormatChange}

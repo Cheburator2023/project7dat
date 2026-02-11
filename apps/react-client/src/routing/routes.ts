@@ -68,12 +68,6 @@ export const routes = {
 		disabled: false,
 		showInNavbar: false,
 	},
-	objectCard: {
-		name: "Карточка объекта",
-		rootPath: "/objects/:objectId",
-		disabled: false,
-		showInNavbar: false,
-	},
 	modelCard: {
 		name: "Модели",
 		rootPath: "/services/models/:entityId",

@@ -61,5 +61,5 @@
 		"editor.defaultFormatter": "biomejs.biome"
 	},
 	"typescript.preferences.importModuleSpecifier": "non-relative",
-    "npm.packageManager": "npm"
+	"npm.packageManager": "npm"
 }
