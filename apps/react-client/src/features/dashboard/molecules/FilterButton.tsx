@@ -26,7 +26,7 @@ interface FilterButtonProps {
 	};
 }
 
-export const FilterButton = memo(({ filterOptions }: FilterButtonProps) => {
+export const FilterButton = memo(() => {
 	const [open, setOpen] = useState(false);
 	const { filters, updateFilter, resetFilters } = useDashboardStore();
 
@@ -84,7 +84,14 @@ export const FilterButton = memo(({ filterOptions }: FilterButtonProps) => {
 							Тип сущности
 						</Typography>
 						<Box display="flex" flexWrap="wrap" gap={0.5}>
-							{filterOptions.entityTypes.map((type) => {
+							{[
+								"table",
+								"view",
+								"rdd",
+								"unresolved",
+								"input_vector",
+								"json",
+							].map((type) => {
 								const colors = TYPE_COLORS[type] || TYPE_COLORS.table;
 								const isSelected = filters.entityTypes.includes(type);
 								return (
@@ -113,7 +120,7 @@ export const FilterButton = memo(({ filterOptions }: FilterButtonProps) => {
 					</Box>
 
 					{/* Namespace Filter */}
-					{filterOptions.namespaces.length > 0 && (
+					{/* {filterOptions.namespaces.length > 0 && (
 						<Box mb={2}>
 							<Typography variant="caption" color="text.secondary" mb={0.5}>
 								Схема / Namespace
@@ -155,7 +162,7 @@ export const FilterButton = memo(({ filterOptions }: FilterButtonProps) => {
 								})}
 							</Box>
 						</Box>
-					)}
+					)} */}
 
 					{/* Modified Only */}
 					<FormControlLabel

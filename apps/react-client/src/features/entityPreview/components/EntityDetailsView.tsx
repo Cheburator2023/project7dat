@@ -153,6 +153,29 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 											scope="row"
 											sx={{ fontWeight: 600 }}
 										>
+											Наименование системы
+										</TableCell>
+										<TableCell>{entity.system_name || "Не указано"}</TableCell>
+									</TableRow>
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
+											Описание контейнера
+										</TableCell>
+										<TableCell>
+											{entity.container_description || "Не указано"}
+										</TableCell>
+									</TableRow>
+
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
 											Имя
 										</TableCell>
 										<TableCell>{entity.name || "Не указано"}</TableCell>
@@ -182,7 +205,10 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 												scope="row"
 												sx={{ fontWeight: 600 }}
 											>
-												Пространство имен
+												{entity.type === "json" ||
+												entity.type === "input_vector"
+													? "Модель"
+													: "Пространство имен"}
 											</TableCell>
 											<TableCell>{entity.namespace}</TableCell>
 										</TableRow>
