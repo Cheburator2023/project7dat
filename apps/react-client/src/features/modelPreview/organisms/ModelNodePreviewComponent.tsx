@@ -111,7 +111,7 @@ export const ModelNodePreviewComponent = memo(
 			entity,
 			highlightType,
 			onNodeClick,
-			onOpenEntity,
+			onNodeDoubleClick,
 			onViewDetails,
 			onAttrClick,
 			upstreamCount,
@@ -197,13 +197,20 @@ export const ModelNodePreviewComponent = memo(
 		const handleNavClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
-				if (onOpenEntity) {
-					onOpenEntity(entity.id);
+				console.log({entity})
+				debugger
+				if(entity.type === 'model'){
+
+					const entityId =
+						id.startsWith("__model_node__") ||
+						id.startsWith("__model__fake_node__")
+					 ? id : `__model__fake_node__${id}.${entity.namespace}`
+					onNodeClick?.(entityId);
 					return;
 				}
 				onNodeClick?.(id);
 			},
-			[entity.id, id, onNodeClick, onOpenEntity],
+			[id, onNodeClick],
 		);
 
 		const handleViewDetailsClick = useCallback(
@@ -326,8 +333,7 @@ export const ModelNodePreviewComponent = memo(
 						{attrs.length > 0 && (
 							<span style={ATTR_COUNT_STYLE}>{attrs.length} атр.</span>
 						)}
-						{(data.entity.type as any) !== "Model" && (
-							<>
+						{(data.entity.type as any) !== "model" && (
 								<button
 									onClick={handleViewDetailsClick}
 									style={detailsButtonStyle}
@@ -336,6 +342,7 @@ export const ModelNodePreviewComponent = memo(
 								>
 									ⓘ
 								</button>
+						)}
 								<button
 									onClick={handleNavClick}
 									style={navButtonStyle}
@@ -344,8 +351,7 @@ export const ModelNodePreviewComponent = memo(
 								>
 									↗
 								</button>
-							</>
-						)}
+
 					</div>
 				</div>
 
@@ -364,34 +370,34 @@ export const ModelNodePreviewComponent = memo(
 				)} */}
 
 				{/* Search input for attributes */}
-				{!globalAttributeSearchQuery &&
-					(data.entity.type as any) !== "Model" && (
-						<div
-							className="nodrag nopan"
-							style={{
-								padding: "8px 12px",
-								borderBottom: "1px solid #e0e0e0",
-							}}
-							onPointerDown={handleStopPropagation}
-							onMouseDown={handleStopPropagation}
-						>
-							<input
-								type="text"
-								placeholder="Поиск атрибутов (мин. 2 символа)..."
-								value={localSearchQuery}
-								onChange={(e) => setLocalSearchQuery(e.target.value)}
-								onClick={handleStopPropagation}
-								style={{
-									width: "100%",
-									padding: "4px 8px",
-									fontSize: 10,
-									border: "1px solid #ddd",
-									borderRadius: 4,
-									outline: "none",
-								}}
-							/>
-						</div>
-					)}
+				{/*{!globalAttributeSearchQuery &&*/}
+				{/*	(data.entity.type as any) !== "Model" && (*/}
+				{/*		<div*/}
+				{/*			className="nodrag nopan"*/}
+				{/*			style={{*/}
+				{/*				padding: "8px 12px",*/}
+				{/*				borderBottom: "1px solid #e0e0e0",*/}
+				{/*			}}*/}
+				{/*			onPointerDown={handleStopPropagation}*/}
+				{/*			onMouseDown={handleStopPropagation}*/}
+				{/*		>*/}
+				{/*			<input*/}
+				{/*				type="text"*/}
+				{/*				placeholder="Поиск атрибутов (мин. 2 символа)..."*/}
+				{/*				value={localSearchQuery}*/}
+				{/*				onChange={(e) => setLocalSearchQuery(e.target.value)}*/}
+				{/*				onClick={handleStopPropagation}*/}
+				{/*				style={{*/}
+				{/*					width: "100%",*/}
+				{/*					padding: "4px 8px",*/}
+				{/*					fontSize: 10,*/}
+				{/*					border: "1px solid #ddd",*/}
+				{/*					borderRadius: 4,*/}
+				{/*					outline: "none",*/}
+				{/*				}}*/}
+				{/*			/>*/}
+				{/*		</div>*/}
+				{/*	)}*/}
 
 				{/* Related attributes */}
 				{visibleAttrs.length > 0 && (

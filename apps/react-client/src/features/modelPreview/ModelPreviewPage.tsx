@@ -217,8 +217,7 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 			? decodeURIComponent(urlEntityId)
 			: undefined;
 
-		const targetEntityId =
-			currentEntityId || propEntityId || decodedUrlEntityId;
+		const targetEntityId = decodedUrlEntityId;
 
 		if (targetEntityId) {
 			console.log(
@@ -337,12 +336,12 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 			<Header
 				title={
 					<Flex gap={10}>
-						{selectedEntity.id}
+						{selectedEntity.namespace}
 
 						<Chip
-							label={selectedEntity.type}
+							label="model"
 							size="small"
-							color={selectedEntity.type === "table" ? "primary" : "secondary"}
+							color="secondary"
 						/>
 					</Flex>
 				}

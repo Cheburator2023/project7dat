@@ -143,6 +143,16 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 											scope="row"
 											sx={{ fontWeight: 600 }}
 										>
+											Система
+										</TableCell>
+										<TableCell>{entity.system_code || "Не указано"}</TableCell>
+									</TableRow>
+									<TableRow>
+										<TableCell
+											component="th"
+											scope="row"
+											sx={{ fontWeight: 600 }}
+										>
 											Имя
 										</TableCell>
 										<TableCell>{entity.name || "Не указано"}</TableCell>
