@@ -197,14 +197,14 @@ export const ModelNodePreviewComponent = memo(
 		const handleNavClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
-				console.log({entity})
-				debugger
-				if(entity.type === 'model'){
+				console.log({ entity });
 
+				if ((entity.type as any) === "model") {
 					const entityId =
 						id.startsWith("__model_node__") ||
 						id.startsWith("__model__fake_node__")
-					 ? id : `__model__fake_node__${id}.${entity.namespace}`
+							? id
+							: `__model__fake_node__${id}.${entity.namespace}`;
 					onNodeClick?.(entityId);
 					return;
 				}
@@ -334,24 +334,23 @@ export const ModelNodePreviewComponent = memo(
 							<span style={ATTR_COUNT_STYLE}>{attrs.length} атр.</span>
 						)}
 						{(data.entity.type as any) !== "model" && (
-								<button
-									onClick={handleViewDetailsClick}
-									style={detailsButtonStyle}
-									title="Открыть детали"
-									type="button"
-								>
-									ⓘ
-								</button>
+							<button
+								onClick={handleViewDetailsClick}
+								style={detailsButtonStyle}
+								title="Открыть детали"
+								type="button"
+							>
+								ⓘ
+							</button>
 						)}
-								<button
-									onClick={handleNavClick}
-									style={navButtonStyle}
-									title="Открыть страницу сущности"
-									type="button"
-								>
-									↗
-								</button>
-
+						<button
+							onClick={handleNavClick}
+							style={navButtonStyle}
+							title="Открыть страницу сущности"
+							type="button"
+						>
+							↗
+						</button>
 					</div>
 				</div>
 

@@ -1428,7 +1428,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			entityId: string;
 			entityName: string;
 			entityType: string;
-			entity:any;
+			entity: any;
 			x: number;
 			y: number;
 		} | null>(null);
@@ -1440,13 +1440,16 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				if (node.id.startsWith("__depth_group_")) return;
 				const entityNode = node as unknown as EntityNode;
 
-				const id = entityNode.data?.entity?.type === 'model' ? `__model__fake_node__${entityNode.data?.entity?.id}.${entityNode.data?.entity?.namespace}` : node.id;
+				const id =
+					(entityNode.data?.entity?.type as any) === "model"
+						? `__model__fake_node__${entityNode.data?.entity?.id}.${entityNode.data?.entity?.namespace}`
+						: node.id;
 				setContextMenu({
 					entityId: id,
 					entityName:
 						entityNode.data?.entity?.name || entityNode.data?.entity?.id || "",
 					entityType: entityNode.data?.entity?.type || "",
-					entity:entityNode.data?.entity,
+					entity: entityNode.data?.entity,
 					x: event.clientX,
 					y: event.clientY,
 				});
@@ -1473,34 +1476,37 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleContextMenuGoToEntity = useCallback(() => {
 			if (contextMenu) {
-				console.log({contextMenu})
-				debugger
-				if(contextMenu.entityType === 'model'){
-
-						const inputVectorId = contextMenu.entityId
-							.replace("__model_node__", "")
-							.replace("__model__fake_node__", "");
-						const encodedId = encodeURIComponent(inputVectorId);
-						onSelectEntity(encodedId);
-						navigate(`/services/models/${encodedId}`);
-					return
+				console.log({ contextMenu });
+				if (contextMenu.entityType === "model") {
+					const inputVectorId = contextMenu.entityId
+						.replace("__model_node__", "")
+						.replace("__model__fake_node__", "");
+					const encodedId = encodeURIComponent(inputVectorId);
+					onSelectEntity(encodedId);
+					navigate(`/services/models/${encodedId}`);
+					return;
 				}
 				const encodedId = encodeURIComponent(contextMenu.entityId);
 				onSelectEntity(encodedId);
 				navigate(`/entity/${encodedId}`);
-
 			}
 			setContextMenu(null);
 		}, [contextMenu]);
 
 		const handleContextMenuOpenInNewTab = useCallback(() => {
 			if (contextMenu) {
-				if(contextMenu.entityType === 'model'){
-					const encodedId = encodeURIComponent(contextMenu.entityId.replace("__model_node__", "")
-						.replace("__model__fake_node__", ""));
-					const url = new URL(`/services/models/${encodedId}`, window.location.href);
+				if (contextMenu.entityType === "model") {
+					const encodedId = encodeURIComponent(
+						contextMenu.entityId
+							.replace("__model_node__", "")
+							.replace("__model__fake_node__", ""),
+					);
+					const url = new URL(
+						`/services/models/${encodedId}`,
+						window.location.href,
+					);
 					window.open(url.toString(), "_blank", "noopener,noreferrer");
-					return
+					return;
 				}
 				const encodedId = encodeURIComponent(contextMenu.entityId);
 				const url = new URL(`/entity/${encodedId}`, window.location.href);
@@ -1829,22 +1835,6 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 							borderRadius: 8,
 						}}
 					/>
-					<Panel position="top-left">
-						<div
-							style={{
-								background: "#fff",
-								padding: 12,
-								borderRadius: 8,
-								boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-							}}
-						>
-							<div style={{ marginBottom: 8 }}>
-								<div style={{ fontSize: 11, color: "#666" }}>
-									{filteredEntities?.length} связанных сущностей
-								</div>
-							</div>
-						</div>
-					</Panel>
 					{selectedNode && maxTraversalDepth > 1 && (
 						<Panel position="bottom-center">
 							{isDepthPanelOpen ? (

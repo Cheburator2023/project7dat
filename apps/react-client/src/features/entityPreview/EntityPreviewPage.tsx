@@ -1,14 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
-import {
-	CircularProgress,
-	styled,
-	Box,
-	Alert,
-	TextField,
-	InputAdornment,
-} from "@mui/material";
+import { styled, Box, Alert, TextField, InputAdornment } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
@@ -17,7 +10,6 @@ import { EntityJsonEditor } from "./components/EntityJsonEditor";
 import { EntityDetailsView } from "./components/EntityDetailsView";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
-import { Flex } from "@react-client/common/primitives/Flex";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
 
@@ -206,6 +198,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 			currentGraph: state.currentGraph,
 		})),
 	);
+	useCurrentDataLineageGraph({ enabled: !currentGraph?.entities });
 
 	const selectedEntity = useMemo(() => {
 		if (!currentGraph?.entities) return null;
