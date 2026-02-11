@@ -45,7 +45,6 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 
 	useEffect(() => {
 		if (commit) {
-			console.log("🐸 Pepe said >> EditJsonDialog >> commit:", commit);
 			const formatted = JSON.stringify(commit.payload, null, 2);
 			setJsonText(formatted);
 			setOriginalPayload(commit.payload);

@@ -22,8 +22,6 @@ export type Props = {
 };
 
 const MfeRoot = (props: Props) => {
-	console.log("MfeRoot >> bridged DL:", props.bridged);
-
 	useDeepEffect(() => {
 		if (props?.urlConfig && props?.token) {
 			window.urlConfig = props.urlConfig;

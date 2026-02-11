@@ -35,10 +35,9 @@ import {
 } from "../../dashboard/constants";
 import type { EntityConnection, EntityNodeData } from "../../dashboard/types";
 import { useParams, useSearchParams } from "react-router-dom";
-import {
-	EntityDetailsDialog,
-	MappingDetailsDialog,
-} from "@react-client/features/entityPreview";
+import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
+import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
+
 import {
 	Divider,
 	ListItemIcon,

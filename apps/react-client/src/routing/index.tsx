@@ -3,7 +3,6 @@ import { PlaygroundPage } from "@react-client/playground/PlaygroundPage";
 import { SwaggerPage } from "@react-client/features/swagger/SwaggerPage";
 
 import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPreviewPage";
-
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
 import { ObjectsPage } from "@react-client/features/objects/ObjectsPage";
 import { ModelsPage } from "@react-client/features/models/ModelsPage";
@@ -11,7 +10,7 @@ import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { SettingsPage } from "@react-client/features/settings/SettingsPage";
 import { S2tCommitCreatePage } from "@react-client/features/s2tImport/S2tCommitCreatePage";
 import { S2tCommitDetailsPage } from "@react-client/features/s2tImport/S2tCommitDetailsPage";
-import { ModelPreviewPage } from "@react-client/features/modelPreview";
+import { ModelPreviewPage } from "@react-client/features/modelPreview/ModelPreviewPage";
 import { JsonDataReportPage } from "@react-client/features/reports/JsonDataReportPage";
 import { S2tDataReportPage } from "@react-client/features/reports/S2tDataReportPage";
 

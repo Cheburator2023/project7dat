@@ -5,6 +5,11 @@ import { toast } from "sonner";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import {
+	buildLineageGraph,
+	getUpstreamNodes,
+	getDownstreamNodes,
+} from "@react-client/features/dashboard/utils";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import type {
 	DataLineageEntity,
@@ -41,13 +46,22 @@ const buildEntityReport = (params: {
 	const entity =
 		params.graph.entities.find((e) => e.id === params.selectedEntityId) ?? null;
 
+	// BFS по графу lineage — собираем все связанные сущности (upstream + downstream)
+	const { upstream, downstream } = buildLineageGraph(params.graph.mappings);
+	const upstreamIds = getUpstreamNodes(params.selectedEntityId, upstream);
+	const downstreamIds = getDownstreamNodes(params.selectedEntityId, downstream);
+
+	const allRelatedIds = new Set<string>([...upstreamIds, ...downstreamIds]);
+
+	// Маппинги, у которых target или любой source входит в набор связанных сущностей
 	const mappings = params.graph.mappings.filter(
 		(m) =>
-			m.entityId === params.selectedEntityId ||
-			(m.deps ?? []).some((d) => d.entityId === params.selectedEntityId),
+			allRelatedIds.has(m.entityId) ||
+			(m.deps ?? []).some((d) => allRelatedIds.has(d.entityId)),
 	);
 
-	const entityIds = new Set<string>([params.selectedEntityId]);
+	// Собираем все entityId из отобранных маппингов
+	const entityIds = new Set<string>(allRelatedIds);
 	for (const mapping of mappings) {
 		entityIds.add(mapping.entityId);
 		for (const dep of mapping.deps ?? []) {
@@ -139,61 +153,56 @@ export const JsonDataReportPage = () => {
 	return (
 		<Box>
 			<Header title={"Отчёт: Формат JSON"} />
-			<Box sx={{ p: 2 }}>
-				<Card>
-					<Stack spacing={2}>
-						<Typography variant="body1">
-							Выгрузка файла отчёта для выбранной витрины в формате JSON.
-						</Typography>
 
-						{!selectedEntityId && (
-							<Alert severity="warning">
-								Сначала выбери витрину (таблицу или view) на главной странице.
-							</Alert>
-						)}
+			<Card>
+				<Stack spacing={2}>
+					<Typography variant="body1">
+						Выгрузка файла отчёта для выбранной витрины в формате JSON.
+					</Typography>
 
-						{selectedEntityId && !derived.entity && (
-							<Alert severity="error">
-								Не удалось найти выбранную сущность в текущем графе.
-							</Alert>
-						)}
+					{!selectedEntityId && (
+						<Alert severity="warning">
+							Сначала выбери витрину (таблицу или view) на главной странице.
+						</Alert>
+					)}
 
-						{derived.entity && (
-							<Alert
-								severity={derived.isAllowedEntityType ? "info" : "warning"}
-							>
-								<Box
-									sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
-								>
-									<Typography variant="subtitle2">Выбранная витрина</Typography>
+					{selectedEntityId && !derived.entity && (
+						<Alert severity="error">
+							Не удалось найти выбранную сущность в текущем графе.
+						</Alert>
+					)}
+
+					{derived.entity && (
+						<Alert severity={derived.isAllowedEntityType ? "info" : "warning"}>
+							<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+								<Typography variant="subtitle2">Выбранная витрина</Typography>
+								<Typography variant="body2">
+									Схема: {derived.entity.namespace || "—"}
+								</Typography>
+								<Typography variant="body2">
+									Таблица/view: {derived.entity.name ?? derived.entity.id}
+								</Typography>
+								<Typography variant="body2">
+									Тип: {derived.entity.type}
+								</Typography>
+								{derived.fileName && (
 									<Typography variant="body2">
-										Схема: {derived.entity.namespace || "—"}
+										Имя файла: {derived.fileName}
 									</Typography>
-									<Typography variant="body2">
-										Таблица/view: {derived.entity.name ?? derived.entity.id}
-									</Typography>
-									<Typography variant="body2">
-										Тип: {derived.entity.type}
-									</Typography>
-									{derived.fileName && (
-										<Typography variant="body2">
-											Имя файла: {derived.fileName}
-										</Typography>
-									)}
-								</Box>
-							</Alert>
-						)}
+								)}
+							</Box>
+						</Alert>
+					)}
 
-						<Button
-							variant="contained"
-							onClick={handleDownload}
-							disabled={!derived.entity || !derived.isAllowedEntityType}
-						>
-							Скачать отчёт (.json)
-						</Button>
-					</Stack>
-				</Card>
-			</Box>
+					<Button
+						variant="contained"
+						onClick={handleDownload}
+						disabled={!derived.entity || !derived.isAllowedEntityType}
+					>
+						Скачать отчёт (.json)
+					</Button>
+				</Stack>
+			</Card>
 		</Box>
 	);
 };
