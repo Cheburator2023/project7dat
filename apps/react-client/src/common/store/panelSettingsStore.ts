@@ -62,7 +62,7 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 			setPersistLayoutsEnabled: (enabled: boolean) => {
 				if (!enabled) {
 					// При выключении глобальной настройки сбрасываем все панели
-					for (const panel of defaultPanelsSettings) {
+					for (const panel of panels) {
 						localStorage.removeItem(panel.localStorageKey);
 					}
 				}
@@ -75,7 +75,7 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 			},
 
 			togglePanelPersist: (panelId: string) => {
-				const panel = defaultPanelsSettings.find((p) => p.id === panelId);
+				const panel = get().panels.find((p) => p.id === panelId);
 
 				if (panel && panel.enabled) {
 					// При выключении панели удаляем её layout из localStorage
@@ -90,14 +90,14 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 			},
 
 			resetPanelState: (panelId: string) => {
-				const panel = defaultPanelsSettings.find((p) => p.id === panelId);
+				const panel = get().panels.find((p) => p.id === panelId);
 				if (panel) {
 					localStorage.removeItem(panel.localStorageKey);
 				}
 			},
 
 			resetAllPanels: () => {
-				for (const panel of defaultPanelsSettings) {
+				for (const panel of get().panels) {
 					localStorage.removeItem(panel.localStorageKey);
 				}
 			},
@@ -105,7 +105,7 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 			isPanelPersistEnabled: (panelId: string) => {
 				const state = get();
 				if (!state.persistLayoutsEnabled) return false;
-				const panel = defaultPanelsSettings.find((p) => p.id === panelId);
+				const panel = state.panels.find((p) => p.id === panelId);
 				return panel?.enabled ?? false;
 			},
 		}),
