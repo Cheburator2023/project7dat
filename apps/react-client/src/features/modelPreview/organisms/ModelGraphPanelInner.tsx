@@ -476,18 +476,18 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 						.replace("__model_node__", "")
 						.replace("__model__fake_node__", "");
 					onSelectEntity(inputVectorId);
+					const encodedId = encodeURIComponent(inputVectorId);
+					navigate(`/services/models/${encodedId}`);
 					return;
 				}
 				onSelectEntity(id);
-				if (onSelectNode) {
-					const entity = data?.entities.find((e) => e.id === id);
-					if (entity) {
-						onSelectNode(entity);
-					}
-				}
+				const encodedId = encodeURIComponent(id);
+				navigate(`/entity/${id}`);
 			},
 			[data, onSelectEntity, onSelectNode],
 		);
+
+
 
 		const handleNodeDblClick = useCallback(
 			(entityId: string, gId: string) => onNodeDoubleClick(entityId, gId),
@@ -748,8 +748,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 				const searchScore = searchMatchedEntities.get(entity.id);
 				const isSearchMatch = globalSearchQuery && searchScore !== undefined;
 
-				if (entity.id === selectedNode) highlightType = "selected";
-				else if (upstreamNodes.has(entity.id)) highlightType = "upstream";
+				if (upstreamNodes.has(entity.id)) highlightType = "upstream";
 				else if (downstreamNodes.has(entity.id)) highlightType = "downstream";
 				else if (isSearchMatch) highlightType = "searchMatch";
 
@@ -799,12 +798,12 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 							entity: {
 								id: modelNodeId,
 								modified: false,
-								type: "Model",
+								type: "model",
 								name: entity?.namespace || "",
 								description: data?.desc.appId || "",
 								attrSeq: [],
 							} as any,
-							highlightType: "none",
+							highlightType: "selected",
 							onNodeClick: handleNodeClick,
 							onNodeDoubleClick: handleNodeDblClick,
 							onOpenEntity: handleOpenEntity,
@@ -829,8 +828,8 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 						edgeSet.add(syntheticEdgeId);
 						edges.push({
 							id: syntheticEdgeId,
-							source: modelNodeId,
-							target: selectedNode,
+							target: modelNodeId,
+							source: selectedNode,
 							sourceHandle: "entity-source",
 							targetHandle: "entity-target",
 							type: "default",
@@ -1289,6 +1288,12 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleContextMenuGoToEntity = useCallback(() => {
 			if (contextMenu) {
+				if(contextMenu.entityType === 'model'){
+					const encodedId = encodeURIComponent(contextMenu.entityId.replace("__model_node__", "")
+						.replace("__model__fake_node__", ""));
+					navigate(`/services/models/${encodedId}`);
+					return
+				}
 				const encodedId = encodeURIComponent(contextMenu.entityId);
 				navigate(`/entity/${encodedId}`);
 			}
@@ -1297,8 +1302,16 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleContextMenuOpenInNewTab = useCallback(() => {
 			if (contextMenu) {
+				if(contextMenu.entityType === 'model'){
+					const encodedId = encodeURIComponent(contextMenu.entityId.replace("__model_node__", "")
+						.replace("__model__fake_node__", ""));
+					const url = new URL(`/models/${encodedId}`, window.location.href);
+					window.open(url.toString(), "_blank", "noopener,noreferrer");
+					return
+				}
 				const encodedId = encodeURIComponent(contextMenu.entityId);
-				window.open(`/entity/${encodedId}`, "_blank");
+				const url = new URL(`/entity/${encodedId}`, window.location.href);
+				window.open(url.toString(), "_blank", "noopener,noreferrer");
 			}
 			setContextMenu(null);
 		}, [contextMenu]);

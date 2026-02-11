@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useCallback } from "react";
+import React, { memo, useMemo, useState, useCallback } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { EntityNodeData } from "../../dashboard/types";
 import {
@@ -7,6 +7,7 @@ import {
 	MAX_VISIBLE_ATTRS,
 } from "../../dashboard/constants";
 import { useDashboardStore } from "../../dashboard/stores";
+import {ModelNodePreviewComponent} from "@react-client/features/modelPreview/organisms/ModelNodePreviewComponent";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
 
@@ -364,22 +365,26 @@ export const EntityNodePreviewComponent = memo(
 						{attrs.length > 0 && (
 							<span style={ATTR_COUNT_STYLE}>{attrs.length} атр.</span>
 						)}
-						<button
-							onClick={handleViewDetailsClick}
-							style={detailsButtonStyle}
-							title="Открыть детали"
-							type="button"
-						>
-							ⓘ
-						</button>
-						<button
-							onClick={handleNavClick}
-							style={navButtonStyle}
-							title="Открыть страницу сущности"
-							type="button"
-						>
-							↗
-						</button>
+						{(entity.type as any) !== "model" && (
+							<>
+								<button
+									onClick={handleViewDetailsClick}
+									style={detailsButtonStyle}
+									title={"Открыть детали"}
+									type="button"
+								>
+									ⓘ
+								</button>
+								<button
+									onClick={handleNavClick}
+									style={navButtonStyle}
+									title="Открыть страницу сущности"
+									type="button"
+								>
+									↗
+								</button>
+							</>
+						)}
 					</div>
 				</div>
 
@@ -676,4 +681,5 @@ export const graphNodeTypes = {
 	entityNode: EntityNodePreviewComponent,
 	ghostNode: GhostNodeComponent,
 	depthGroup: DepthGroupNode,
+	modelNode: ModelNodePreviewComponent
 };
