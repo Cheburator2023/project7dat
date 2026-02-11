@@ -19,11 +19,9 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { toast } from "sonner";
 import { useAuthStore } from "@react-client/common/store/authStore";
 import { useDashboardStore } from "../stores";
-import {
-	EntityDetailsDialog,
-	MappingDetailsDialog,
-} from "@react-client/features/entityPreview";
 import type { EntityConnection } from "../types";
+import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
+import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 
 const sanitizeFilePart = (value: string) =>
 	value.replace(/[^a-zA-Z0-9._-]+/g, "_");

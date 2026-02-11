@@ -64,12 +64,10 @@ interface AppProps {
 	onLogout?: () => void;
 }
 
-export function App({ token, bridged, user, onLogout, keycloak }: AppProps) {
-	useEffect(() => {
-		console.log("App", {
-			AppProps: { token, bridged, user, onLogout, keycloak },
-		});
-	}, [bridged, user, onLogout, keycloak]);
+export function App({ bridged, user, onLogout, keycloak }: AppProps) {
+	useEffect(() => {}, [bridged, user, onLogout, keycloak]);
+
+	console.log("MfeRoot >> bridged DL:", !!bridged);
 
 	const _onLogoutHandler = () => {
 		if (onLogout || keycloak) {
