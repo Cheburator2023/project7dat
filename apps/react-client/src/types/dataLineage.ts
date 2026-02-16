@@ -99,7 +99,9 @@ export interface EntityDependency {
 }
 
 // Frontend-specific graph interface that extends the shared schema
-export interface DataLineageGraph extends DataLineageSchema {}
+export interface DataLineageGraph extends DataLineageSchema {
+	id: string;
+}
 
 export interface DataLineageNode {
 	id: string;

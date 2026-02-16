@@ -50,9 +50,10 @@ export const useCurrentDataLineageGraph = (options?: { enabled?: boolean }) => {
 
 	return useQuery({
 		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
+
 		queryFn: async () => {
 			try {
-				const backendItem = await jsonDataService.getCurrent();
+				const backendItem: any = await jsonDataService.getCurrent();
 
 				if (!backendItem) {
 					return null;
@@ -70,10 +71,13 @@ export const useCurrentDataLineageGraph = (options?: { enabled?: boolean }) => {
 					mappings: backendItem.mappings,
 				} as DataLineageGraph;
 
-				console.log(graph);
+				console.log(
+					"🐸 Pepe said >> useCurrentDataLineageGraph >> graph:",
+					graph,
+				);
 
 				initializeGraph(graph);
-				setCurrentGraphId(graph.id);
+				setCurrentGraphId(graph.id as string);
 				return graph;
 			} catch (error) {
 				console.warn("No current graph available:", error);
