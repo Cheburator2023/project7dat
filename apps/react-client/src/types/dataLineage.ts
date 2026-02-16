@@ -47,8 +47,12 @@ export interface DataLineageEntity {
 export interface DataLineageMapping {
 	id: number;
 	entityId: string;
+	system_code?: string;
+	process?: string;
+	processId?: number | null;
 	deps?: Array<{
 		entityId: string;
+		system_code?: string;
 		attrMaps?: Array<{
 			src: string;
 			dst: string;

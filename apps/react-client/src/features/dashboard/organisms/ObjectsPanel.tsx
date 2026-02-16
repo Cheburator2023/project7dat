@@ -103,19 +103,35 @@ export const ObjectsPanel = memo(() => {
 
 		(currentSchema.mappings || []).forEach((mapping: DataLineageMapping) => {
 			if (!mapping.deps) return;
-			mapping.deps.forEach((dep) => {
+			mapping.deps.forEach((dep, depIndex) => {
 				const sourceEntity = entityMap.get(dep.entityId);
 				const targetEntity = entityMap.get(mapping.entityId);
 				if (!sourceEntity || !targetEntity) return;
 
 				const attrMaps = dep.attrMaps || [];
+				const processFallbackId = mapping.processId ?? mapping.id;
+				const normalizedProcessFallbackId =
+					processFallbackId != null &&
+					String(processFallbackId).trim() !== "" &&
+					String(processFallbackId).toLowerCase() !== "undefined" &&
+					String(processFallbackId).toLowerCase() !== "null"
+						? String(processFallbackId)
+						: null;
+				const processName =
+					mapping.process?.trim() ||
+					(normalizedProcessFallbackId
+						? `Процесс #${normalizedProcessFallbackId}`
+						: "Процесс не указан");
 				rows.push({
-					id: `${effectiveGraphId}::${dep.entityId}->${mapping.entityId}`,
+					id: `${effectiveGraphId}::${dep.entityId}->${mapping.entityId}::${mapping.id}::${depIndex}`,
 					graphId: effectiveGraphId || "",
 					sourceEntity: dep.entityId,
 					sourceName: sourceEntity.name || sourceEntity.id,
 					targetEntity: mapping.entityId,
 					targetName: targetEntity.name || targetEntity.id,
+					processName,
+					processId: mapping.processId,
+					processCode: mapping.system_code || dep.system_code,
 					attrMappingsCount: attrMaps.length,
 					attrMaps,
 				});
@@ -329,6 +345,56 @@ export const ObjectsPanel = memo(() => {
 				},
 			},
 			{
+				field: "processName",
+				headerName: "Процесс",
+				flex: 1,
+				minWidth: 220,
+				cellRenderer: ({ value, data }: { value: string; data: LinkRow }) => {
+					const highlights = linkHighlightsMap.get(data.id);
+					const highlightedProcessName = highlights?.get("processName");
+					const highlightedProcessCode = highlights?.get("processCode");
+
+					return (
+						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+							<Chip
+								label={value}
+								size="small"
+								color="secondary"
+								variant="filled"
+								sx={{
+									maxWidth: "100%",
+									"& .MuiChip-label": {
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										whiteSpace: "nowrap",
+									},
+								}}
+							/>
+							{data.processCode ? (
+								<Typography variant="caption" color="text.secondary">
+									{highlightedProcessCode ? (
+										<span
+											dangerouslySetInnerHTML={{
+												__html: highlightedProcessCode,
+											}}
+										/>
+									) : (
+										data.processCode
+									)}
+								</Typography>
+							) : null}
+							{highlightedProcessName ? (
+								<Typography
+									variant="caption"
+									color="text.secondary"
+									dangerouslySetInnerHTML={{ __html: highlightedProcessName }}
+								/>
+							) : null}
+						</Box>
+					);
+				},
+			},
+			{
 				field: "attrMappingsCount",
 				headerName: "Маппинги",
 				width: 100,
@@ -422,12 +488,28 @@ export const ObjectsPanel = memo(() => {
 				const targetEntity = entityMap.get(mapping.entityId);
 				if (!sourceEntity || !targetEntity) continue;
 
+				const processFallbackId = mapping.processId ?? mapping.id;
+				const normalizedProcessFallbackId =
+					processFallbackId != null &&
+					String(processFallbackId).trim() !== "" &&
+					String(processFallbackId).toLowerCase() !== "undefined" &&
+					String(processFallbackId).toLowerCase() !== "null"
+						? String(processFallbackId)
+						: null;
+				const processName =
+					mapping.process?.trim() ||
+					(normalizedProcessFallbackId
+						? `Процесс #${normalizedProcessFallbackId}`
+						: "Процесс не указан");
 				connections.push({
-					id: `${dep.entityId}->${mapping.entityId}`,
+					id: `${dep.entityId}->${mapping.entityId}::${mapping.id}`,
 					sourceId: dep.entityId,
 					targetId: mapping.entityId,
 					sourceName: sourceEntity.name,
 					targetName: targetEntity.name,
+					processName,
+					processId: mapping.processId,
+					processCode: mapping.system_code || dep.system_code,
 					attrMaps: dep.attrMaps || [],
 					description: "",
 				});
@@ -458,6 +540,9 @@ export const ObjectsPanel = memo(() => {
 				targetId: selectedLink.targetEntity,
 				sourceName: selectedLink.sourceName,
 				targetName: selectedLink.targetName,
+				processName: selectedLink.processName,
+				processId: selectedLink.processId,
+				processCode: selectedLink.processCode,
 				attrMaps: selectedLink.attrMaps,
 				description: "",
 			}

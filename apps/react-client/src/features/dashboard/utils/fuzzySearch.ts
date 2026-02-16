@@ -302,7 +302,12 @@ export function fuzzySearchObjects<
  * Perform fuzzy search on links
  */
 export function fuzzySearchLinks<
-	T extends { sourceName: string; targetName: string },
+	T extends {
+		sourceName: string;
+		targetName: string;
+		processName?: string;
+		processCode?: string;
+	},
 >(
 	items: T[],
 	query: string,
@@ -325,10 +330,12 @@ export function fuzzySearchLinks<
 		item,
 		sourceName: fuzzysort.prepare(item.sourceName),
 		targetName: fuzzysort.prepare(item.targetName),
+		processName: fuzzysort.prepare(item.processName || ""),
+		processCode: fuzzysort.prepare(item.processCode || ""),
 	}));
 
 	const results = fuzzysort.go(query, prepared, {
-		keys: ["sourceName", "targetName"],
+		keys: ["sourceName", "targetName", "processName", "processCode"],
 		threshold,
 		limit,
 	});
@@ -346,6 +353,18 @@ export function fuzzySearchLinks<
 			highlights.set(
 				"targetName",
 				highlightMatches(result[1], result.obj.item.targetName),
+			);
+		}
+		if (result[2] && result.obj.item.processName) {
+			highlights.set(
+				"processName",
+				highlightMatches(result[2], result.obj.item.processName),
+			);
+		}
+		if (result[3] && result.obj.item.processCode) {
+			highlights.set(
+				"processCode",
+				highlightMatches(result[3], result.obj.item.processCode),
 			);
 		}
 

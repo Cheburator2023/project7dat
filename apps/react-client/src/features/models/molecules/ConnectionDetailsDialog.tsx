@@ -41,6 +41,13 @@ export const ConnectionDetailsDialog = ({
 	onClose,
 	connection,
 }: ConnectionDetailsDialogProps) => {
+	const normalizedProcessName =
+		connection.processName &&
+		connection.processName.trim() &&
+		connection.processName !== "Процесс #undefined"
+			? connection.processName
+			: "Процесс не указан";
+
 	const [viewMode, setViewMode] = useState<ViewMode>("mapping");
 
 	const hasFunctions = connection.functions && connection.functions.length > 0;
@@ -61,6 +68,19 @@ export const ConnectionDetailsDialog = ({
 					<Typography variant="h6">
 						Связь {connection.sourceName} → {connection.targetName}
 					</Typography>
+					<Chip
+						label={normalizedProcessName}
+						size="small"
+						color="secondary"
+						variant="filled"
+					/>
+					{connection.processCode ? (
+						<Chip
+							label={`Система: ${connection.processCode}`}
+							size="small"
+							variant="outlined"
+						/>
+					) : null}
 					<IconButton
 						onClick={onClose}
 						sx={{ position: "absolute", right: 8, top: 8 }}
@@ -72,6 +92,14 @@ export const ConnectionDetailsDialog = ({
 
 			<DialogContent>
 				<Stack spacing={4}>
+					<Paper sx={{ p: 2, bgcolor: "secondary.50" }}>
+						<Typography variant="body2" color="text.secondary">
+							Процесс: <strong>{normalizedProcessName}</strong>
+							{connection.processCode
+								? ` (система: ${connection.processCode})`
+								: ""}
+						</Typography>
+					</Paper>
 					{/* Описание связи */}
 					<Paper sx={{ p: 3, bgcolor: "grey.50" }}>
 						<Typography variant="body2" color="text.secondary">

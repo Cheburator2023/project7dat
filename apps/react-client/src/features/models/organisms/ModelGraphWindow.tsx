@@ -67,6 +67,9 @@ export interface ObjectConnection {
 	targetId: string;
 	sourceName: string;
 	targetName: string;
+	processName: string;
+	processId?: number | null;
+	processCode?: string;
 	description: string;
 	mappings: AttributeMapping[];
 	functions?: AttributeFunction[];
@@ -569,6 +572,19 @@ export const ModelGraphWindow = ({
 				if (!sourceEntity) return;
 				const attrMaps = dep.attrMaps ?? [];
 				if (attrMaps.length === 0) return;
+				const processFallbackId = mapping.processId ?? mapping.id;
+				const normalizedProcessFallbackId =
+					processFallbackId != null &&
+					String(processFallbackId).trim() !== "" &&
+					String(processFallbackId).toLowerCase() !== "undefined" &&
+					String(processFallbackId).toLowerCase() !== "null"
+						? String(processFallbackId)
+						: null;
+				const processName =
+					mapping.process?.trim() ||
+					(normalizedProcessFallbackId
+						? `Процесс #${normalizedProcessFallbackId}`
+						: "Процесс не указан");
 
 				const mappingsList: AttributeMapping[] = attrMaps.map((am, idx) => {
 					const srcAttr = sourceEntity.attrSeq?.find((a) => a.name === am.src);
@@ -588,6 +604,9 @@ export const ModelGraphWindow = ({
 					targetId: mapping.entityId,
 					sourceName: sourceEntity.name ?? sourceEntity.id,
 					targetName: targetEntity.name ?? targetEntity.id,
+					processName,
+					processId: mapping.processId,
+					processCode: mapping.system_code || dep.system_code,
 					description:
 						mapping.entityId === model.id
 							? "Трансформация источника в модель"

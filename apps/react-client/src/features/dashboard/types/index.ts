@@ -39,6 +39,9 @@ export interface LinkRow {
 	sourceName: string;
 	targetEntity: string;
 	targetName: string;
+	processName: string;
+	processId?: number | null;
+	processCode?: string;
 	attrMappingsCount: number;
 	attrMaps: Array<{ src: string; dst: string }>;
 }
@@ -53,6 +56,9 @@ export interface EntityConnection {
 	targetId: string;
 	sourceName: string;
 	targetName: string;
+	processName: string;
+	processId?: number | null;
+	processCode?: string;
 	attrMaps: Array<{ src: string; dst: string }>;
 	description: string;
 }

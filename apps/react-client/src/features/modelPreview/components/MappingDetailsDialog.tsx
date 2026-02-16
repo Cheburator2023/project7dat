@@ -15,6 +15,7 @@ import {
 	Chip,
 	Paper,
 	IconButton,
+	Alert,
 } from "@mui/material";
 import {
 	Close as CloseIcon,
@@ -26,16 +27,7 @@ import {
 } from "@mui/icons-material";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
-
-interface EntityConnection {
-	id: string;
-	sourceId: string;
-	targetId: string;
-	sourceName: string;
-	targetName: string;
-	attrMaps: Array<{ src: string; dst: string }>;
-	description?: string;
-}
+import type { EntityConnection } from "@react-client/features/dashboard/types";
 
 interface MappingDetailsDialogProps {
 	open: boolean;
@@ -52,6 +44,13 @@ export const MappingDetailsDialog = ({
 	onClose,
 	connection,
 }: MappingDetailsDialogProps) => {
+	const normalizedProcessName =
+		connection.processName &&
+		connection.processName.trim() &&
+		connection.processName !== "Процесс #undefined"
+			? connection.processName
+			: "Процесс не указан";
+
 	const navigate = useNavigate();
 	const {
 		setZoomToNode,
@@ -162,6 +161,21 @@ export const MappingDetailsDialog = ({
 							<Typography variant="h6" fontWeight={600}>
 								{connection.sourceName} → {connection.targetName}
 							</Typography>
+							<Box sx={{ display: "flex", gap: 1, mt: 1, flexWrap: "wrap" }}>
+								<Chip
+									label={normalizedProcessName}
+									size="small"
+									color="secondary"
+									variant="filled"
+								/>
+								{connection.processCode ? (
+									<Chip
+										label={`Система: ${connection.processCode}`}
+										size="small"
+										variant="outlined"
+									/>
+								) : null}
+							</Box>
 						</Box>
 					</Box>
 					<IconButton
@@ -178,7 +192,14 @@ export const MappingDetailsDialog = ({
 			</DialogTitle>
 
 			<DialogContent sx={{ p: 3 }}>
-				<Stack spacing={3}>
+				<Stack spacing={3} padding={"10px 0"}>
+					<Alert severity="info" variant="outlined">
+						Связь относится к процессу <strong>{normalizedProcessName}</strong>
+						{connection.processCode
+							? ` (система: ${connection.processCode})`
+							: ""}
+						.
+					</Alert>
 					{/* Информация о связи */}
 					<Spacer />
 					<Paper elevation={0}>

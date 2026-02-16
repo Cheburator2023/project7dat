@@ -36,7 +36,7 @@ import {
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
-import { EntityConnection } from "@react-client/features/dashboard";
+import type { EntityConnection } from "@react-client/features/dashboard/types";
 
 interface EntityDetailsDialogProps {
 	open: boolean;
@@ -125,7 +125,9 @@ export const EntityDetailsDialog = ({
 	const filteredConnections = connections.filter(
 		(conn) =>
 			conn.sourceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			conn.targetName.toLowerCase().includes(searchTerm.toLowerCase()),
+			conn.targetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			conn.processName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			(conn.processCode || "").toLowerCase().includes(searchTerm.toLowerCase()),
 	);
 
 	const getConnectionDirection = (connection: EntityConnection) => {
@@ -465,6 +467,17 @@ export const EntityDetailsDialog = ({
 												Связь
 											</TableCell>
 											<TableCell
+												sx={{
+													bgcolor: "grey.100",
+													fontWeight: 600,
+													borderBottom: "2px solid",
+													borderBottomColor: "grey.300",
+													minWidth: 220,
+												}}
+											>
+												Процесс
+											</TableCell>
+											<TableCell
 												width={100}
 												sx={{
 													bgcolor: "grey.100",
@@ -509,6 +522,39 @@ export const EntityDetailsDialog = ({
 													<Typography variant="body2" fontWeight={500}>
 														{getConnectionDirection(conn)}
 													</Typography>
+												</TableCell>
+												<TableCell>
+													<Box
+														sx={{
+															display: "flex",
+															flexDirection: "column",
+															gap: 0.5,
+														}}
+													>
+														<Chip
+															label={conn.processName}
+															size="small"
+															color="secondary"
+															variant="filled"
+															sx={{
+																width: "fit-content",
+																maxWidth: "100%",
+																"& .MuiChip-label": {
+																	overflow: "hidden",
+																	textOverflow: "ellipsis",
+																	whiteSpace: "nowrap",
+																},
+															}}
+														/>
+														{conn.processCode ? (
+															<Typography
+																variant="caption"
+																color="text.secondary"
+															>
+																{conn.processCode}
+															</Typography>
+														) : null}
+													</Box>
 												</TableCell>
 												<TableCell>
 													<Chip
