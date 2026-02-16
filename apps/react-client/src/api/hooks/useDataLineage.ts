@@ -71,11 +71,6 @@ export const useCurrentDataLineageGraph = (options?: { enabled?: boolean }) => {
 					mappings: backendItem.mappings,
 				} as DataLineageGraph;
 
-				console.log(
-					"🐸 Pepe said >> useCurrentDataLineageGraph >> graph:",
-					graph,
-				);
-
 				initializeGraph(graph);
 				setCurrentGraphId(graph.id as string);
 				return graph;
