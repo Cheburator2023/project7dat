@@ -61,6 +61,8 @@ interface S2tCommitEditorProps {
 	active: boolean;
 	onClose?: () => void;
 	onImported?: () => void;
+	onSaved?: (commitId: string) => void;
+	onOpenNewVersionUpload?: () => void;
 	prefillCommitId?: string | null;
 	showCloseButton?: boolean;
 }
@@ -69,6 +71,8 @@ export const S2tCommitEditor = ({
 	active,
 	onClose,
 	onImported,
+	onSaved,
+	onOpenNewVersionUpload,
 	prefillCommitId,
 	showCloseButton = false,
 }: S2tCommitEditorProps) => {
@@ -95,7 +99,6 @@ export const S2tCommitEditor = ({
 	}>({});
 
 	const [isSaving, setIsSaving] = useState(false);
-	const [isApplying, setIsApplying] = useState(false);
 	const [error, setError] = useState<string>("");
 	const [_infoMessage, setInfoMessage] = useState<string>("");
 	const [_validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -107,9 +110,6 @@ export const S2tCommitEditor = ({
 		error: string | null;
 	} | null>(null);
 	const [originalCommitId, setOriginalCommitId] = useState<string | null>(null);
-	const [prefilledCommitJson, setPrefilledCommitJson] = useState<any | null>(
-		null,
-	);
 	const [prefilledCommitType, setPrefilledCommitType] = useState<
 		"table" | "json" | "model" | null
 	>(null);
@@ -123,7 +123,6 @@ export const S2tCommitEditor = ({
 	const processesQuery = useProcesses({
 		enabled: active && shouldShowProcessFields,
 	});
-	const isProcessOptionsLoading = processesQuery.isLoading;
 	const processOptions = processesQuery.data ?? [];
 	// const processOptions = useMemo(() => {
 	// 	return processItems.map((v) => v.name.trim()).filter((v) => v.length > 0);
@@ -146,7 +145,6 @@ export const S2tCommitEditor = ({
 		setFieldErrors({});
 		setConvertedMeta(null);
 		setIsSaving(false);
-		setIsApplying(false);
 		setError("");
 		setInfoMessage("");
 		setValidationErrors([]);
@@ -154,7 +152,6 @@ export const S2tCommitEditor = ({
 		setSavedCommit(null);
 		setOriginalCommitId(null);
 		setDragOver(false);
-		setPrefilledCommitJson(null);
 		setPrefilledCommitType(null);
 	}, []);
 
@@ -192,7 +189,6 @@ export const S2tCommitEditor = ({
 				);
 				setProcessName(String(payloadDesc?.process ?? ""));
 				setProcessDescription(String(payloadDesc?.description ?? ""));
-				setPrefilledCommitJson(payload ?? null);
 				setPrefilledCommitType(
 					(commit?.type ?? null) as "table" | "json" | "model" | null,
 				);
@@ -299,7 +295,7 @@ export const S2tCommitEditor = ({
 	}, [commitType]);
 
 	const handleSaveCommit = useCallback(
-		async (mode?: "overwrite" | "edition") => {
+		async (mode?: "overwrite") => {
 			setFieldErrors({});
 			if (!commitName.trim()) {
 				setError("");
@@ -312,10 +308,7 @@ export const S2tCommitEditor = ({
 				return;
 			}
 
-			const canSaveWithoutFile = Boolean(
-				prefilledCommitJson && savedCommit?.id,
-			);
-			if (!selectedFile && !canSaveWithoutFile) {
+			if (!selectedFile) {
 				setError("Выберите файл S2T (.xlsx)");
 				return;
 			}
@@ -330,42 +323,29 @@ export const S2tCommitEditor = ({
 			try {
 				let commitJson: any = null;
 
-				if (selectedFile) {
-					const xlsxBase64 = await fileToBase64(selectedFile);
+				const xlsxBase64 = await fileToBase64(selectedFile);
 
-					const convertResponse = await axios.post(
-						`${API_BASE_URL}/api/s2t-import/convert-xlsx-to-commit-json`,
-						{
-							xlsxBase64,
-							fileName: selectedFile.name,
-							commitName: commitName.trim(),
-							processName: shouldShowProcessFields ? processName : undefined,
-							processDescription: showProcessFields
-								? processDescription.trim()
-								: undefined,
-						},
-					);
+				const convertResponse = await axios.post(
+					`${API_BASE_URL}/api/s2t-import/convert-xlsx-to-commit-json`,
+					{
+						xlsxBase64,
+						fileName: selectedFile.name,
+						commitName: commitName.trim(),
+						processName: shouldShowProcessFields ? processName : undefined,
+						processDescription: showProcessFields
+							? processDescription.trim()
+							: undefined,
+					},
+				);
 
-					commitJson = convertResponse.data?.commitJson;
-					const meta = convertResponse.data?.meta;
+				commitJson = convertResponse.data?.commitJson;
+				const meta = convertResponse.data?.meta;
 
-					setConvertedMeta({
-						fileName: meta?.fileName,
-						generatedAt: meta?.generatedAt ?? new Date().toISOString(),
-						worksheetsCount: commitJson?.entities?.length ?? 0,
-					});
-				} else {
-					commitJson = {
-						...prefilledCommitJson,
-						desc: {
-							...(prefilledCommitJson?.desc ?? {}),
-							process: shouldShowProcessFields ? processName : undefined,
-							description: shouldShowProcessFields
-								? processDescription.trim() || undefined
-								: undefined,
-						},
-					};
-				}
+				setConvertedMeta({
+					fileName: meta?.fileName,
+					generatedAt: meta?.generatedAt ?? new Date().toISOString(),
+					worksheetsCount: commitJson?.entities?.length ?? 0,
+				});
 
 				const validateResponse = await axios.post(
 					`${API_BASE_URL}/api/json-validation/validate`,
@@ -405,10 +385,7 @@ export const S2tCommitEditor = ({
 					`${API_BASE_URL}/api/s2t-import/commits`,
 					{
 						id: mode === "overwrite" ? savedCommit?.id : undefined,
-						parent_id:
-							mode === "edition"
-								? (originalCommitId ?? savedCommit?.id)
-								: undefined,
+						parent_id: undefined,
 						commit_name: commitName.trim(),
 						commit_description: commitDescription.trim()
 							? commitDescription.trim()
@@ -433,7 +410,6 @@ export const S2tCommitEditor = ({
 					change_id: saveResponse.data?.change_id ?? null,
 					error: saveResponse.data?.error ?? null,
 				});
-				setPrefilledCommitJson(commitJson);
 				setPrefilledCommitType(commitType);
 
 				localStorage.setItem(
@@ -446,11 +422,9 @@ export const S2tCommitEditor = ({
 					}),
 				);
 
-				setInfoMessage(
-					mode === "edition"
-						? "Создана редакция коммита. Теперь можно применить."
-						: "Коммит сохранён. Теперь можно применить.",
-				);
+				setInfoMessage("Коммит сохранён.");
+				onImported?.();
+				onSaved?.(savedId);
 			} catch (e: any) {
 				setError(e?.response?.data?.message || e?.message || "Ошибка импорта");
 			} finally {
@@ -461,8 +435,7 @@ export const S2tCommitEditor = ({
 			commitDescription,
 			commitName,
 			commitType,
-			originalCommitId,
-			prefilledCommitJson,
+			onImported,
 			processDescription,
 			processName,
 			selectedFile,
@@ -472,58 +445,6 @@ export const S2tCommitEditor = ({
 			username,
 		],
 	);
-
-	const handleApplyCommit = useCallback(async () => {
-		if (!savedCommit?.id) {
-			setError("Сначала сохраните коммит");
-			return;
-		}
-		setError("");
-		setInfoMessage("");
-		setIsApplying(true);
-		try {
-			localStorage.setItem(
-				S2T_PENDING_COMMIT_LS_KEY,
-				JSON.stringify({
-					commitId: savedCommit.id,
-					originalCommitId: originalCommitId ?? savedCommit.id,
-					state: "applying",
-					updatedAt: new Date().toISOString(),
-				}),
-			);
-
-			const applyResponse = await axios.post(
-				`${API_BASE_URL}/api/s2t-import/commits/${savedCommit.id}/apply`,
-				{ user: username, sourceType: "DAPP" },
-			);
-
-			const commit = applyResponse.data?.commit;
-			setSavedCommit({
-				id: commit?.id ?? savedCommit.id,
-				state: commit?.state ?? "done",
-				change_id: commit?.change_id ?? applyResponse.data?.changeId ?? null,
-				error: commit?.error ?? null,
-			});
-
-			onImported?.();
-			setInfoMessage("Коммит применён.");
-			localStorage.removeItem(S2T_PENDING_COMMIT_LS_KEY);
-			handleClose();
-		} catch (e: any) {
-			localStorage.setItem(
-				S2T_PENDING_COMMIT_LS_KEY,
-				JSON.stringify({
-					commitId: savedCommit.id,
-					originalCommitId: originalCommitId ?? savedCommit.id,
-					state: "failed",
-					updatedAt: new Date().toISOString(),
-				}),
-			);
-			setError(e?.response?.data?.message || e?.message || "Ошибка применения");
-		} finally {
-			setIsApplying(false);
-		}
-	}, [handleClose, onImported, originalCommitId, savedCommit, username]);
 
 	return (
 		<Card>
@@ -538,7 +459,7 @@ export const S2tCommitEditor = ({
 				{showCloseButton && (
 					<IconButton
 						onClick={handleClose}
-						disabled={isSaving || isApplying}
+						disabled={isSaving}
 						title="Закрыть"
 						edge="end"
 						size="small"
@@ -569,7 +490,7 @@ export const S2tCommitEditor = ({
 						}}
 						placeholder="Название коммита"
 						fullWidth
-						disabled={isSaving || isApplying}
+						disabled={isSaving}
 						error={Boolean(fieldErrors.commitName)}
 						helperText={fieldErrors.commitName}
 					/>
@@ -582,7 +503,7 @@ export const S2tCommitEditor = ({
 						multiline
 						rows={3}
 						fullWidth
-						disabled={isSaving || isApplying}
+						disabled={isSaving}
 					/>
 				</Box>
 
@@ -633,7 +554,7 @@ export const S2tCommitEditor = ({
 												processName: undefined,
 											}));
 										}}
-										disabled={isSaving || isApplying}
+										disabled={isSaving}
 										error={Boolean(fieldErrors.processName)}
 										helperText={fieldErrors.processName}
 									/>
@@ -641,7 +562,7 @@ export const S2tCommitEditor = ({
 									<Card height="200px" overflow="auto">
 										{processOptions
 											.filter((process) => process.includes(processName))
-											.map((process, idx, array) => {
+											.map((process) => {
 												return (
 													<div
 														key={process}
@@ -677,7 +598,7 @@ export const S2tCommitEditor = ({
 									multiline
 									rows={3}
 									fullWidth
-									disabled={isSaving || isApplying}
+									disabled={isSaving}
 								/>
 							</Box>
 						</Box>
@@ -810,9 +731,18 @@ export const S2tCommitEditor = ({
 			</Box>
 
 			<Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+				{prefillCommitId && (
+					<Button
+						onClick={onOpenNewVersionUpload}
+						variant="outlined"
+						disabled={isSaving}
+					>
+						Загрузить новую версию S2T
+					</Button>
+				)}
 				<Button
 					onClick={handleClose}
-					disabled={isSaving || isApplying}
+					disabled={isSaving}
 					title="Закрыть без сохранения и без применения изменений."
 				>
 					Отмена
@@ -823,11 +753,13 @@ export const S2tCommitEditor = ({
 					}
 					data-name="s2t_save_button"
 					variant="contained"
-					disabled={isSaving || isApplying}
+					disabled={isSaving || !selectedFile}
 					title={
-						savedCommit?.id
-							? "Сохранить текущий результат конвертации в хранилище коммитов, перезаписав ранее сохранённый коммит."
-							: "Сохранить текущий результат конвертации в хранилище коммитов как новый коммит."
+						!selectedFile
+							? "Сначала приложите файл S2T (.xlsx)."
+							: savedCommit?.id
+								? "Сохранить текущий результат конвертации в хранилище коммитов, перезаписав ранее сохранённый коммит."
+								: "Сохранить текущий результат конвертации в хранилище коммитов как новый коммит."
 					}
 				>
 					{isSaving ? (
@@ -837,35 +769,6 @@ export const S2tCommitEditor = ({
 						</Box>
 					) : (
 						"Сохранить"
-					)}
-				</Button>
-				<Button
-					onClick={() => handleSaveCommit("edition")}
-					variant="outlined"
-					disabled={
-						isSaving || isApplying || (!originalCommitId && !savedCommit?.id)
-					}
-					title="Сохранить как новую редакцию с ссылкой на родительский коммит."
-				>
-					Сохранить как редакцию
-				</Button>
-				<Button
-					onClick={handleApplyCommit}
-					variant="outlined"
-					disabled={!savedCommit?.id || isSaving || isApplying}
-					title={
-						!savedCommit?.id
-							? "Сначала сохрани коммит, после этого его можно применить."
-							: "Применить сохранённый коммит к текущей модели на сервере."
-					}
-				>
-					{isApplying ? (
-						<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-							<CircularProgress size={18} />
-							<span>Применение</span>
-						</Box>
-					) : (
-						"Применить"
 					)}
 				</Button>
 			</Box>

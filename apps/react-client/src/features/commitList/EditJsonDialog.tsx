@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import type { FC } from "react";
 import {
 	Dialog,
@@ -10,67 +10,97 @@ import {
 	Alert,
 	Box,
 	Typography,
-	Tabs,
-	Tab,
 } from "@mui/material";
-import { create as createDiff } from "jsondiffpatch";
-import * as htmlFormatter from "jsondiffpatch/formatters/html";
-import "jsondiffpatch/formatters/styles/html.css";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { s2tCommitStoreService } from "@react-client/api/hooks/s2tCommitStoreApi";
-
-const diffInstance = createDiff();
+import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
 
 interface EditJsonDialogProps {
 	open: boolean;
 	commit: S2tCommitItem | null;
+	editable?: boolean;
 	onClose: () => void;
 	onSaved: () => void;
 }
 
+interface EditJsonDialogEditorProps {
+	data: Record<string, unknown>;
+	dataKey: string;
+	editable: boolean;
+	saving: boolean;
+	onChange: (data: any) => void;
+}
+
+const EditJsonDialogEditor = memo(
+	({
+		data,
+		dataKey,
+		editable,
+		saving,
+		onChange,
+	}: EditJsonDialogEditorProps) => {
+		return (
+			<CodeJsonEditor
+				initialData={data}
+				dataKey={dataKey}
+				onChange={onChange}
+				editable={editable && !saving}
+				autoExpandAll={true}
+				deferInitialization={true}
+				syncWithDataLineageStore={false}
+			/>
+		);
+	},
+);
+
+EditJsonDialogEditor.displayName = "EditJsonDialogEditor";
+
 export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 	open,
 	commit,
+	editable = true,
 	onClose,
 	onSaved,
 }) => {
-	const [jsonText, setJsonText] = useState("");
-	const [originalPayload, setOriginalPayload] = useState<Record<
+	const [editedPayload, setEditedPayload] = useState<Record<
 		string,
 		unknown
 	> | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [tab, setTab] = useState(0);
+	const [isEditorMounted, setIsEditorMounted] = useState(false);
 
 	useEffect(() => {
 		if (commit) {
-			const formatted = JSON.stringify(commit.payload, null, 2);
-			setJsonText(formatted);
-			setOriginalPayload(commit.payload);
+			setEditedPayload(commit.payload as Record<string, unknown>);
 			setError(null);
-			setTab(0);
 		}
 	}, [commit]);
 
-	const { parsedJson, parseError } = useMemo(() => {
-		try {
-			const parsed = JSON.parse(jsonText);
-			return { parsedJson: parsed, parseError: null };
-		} catch (e: any) {
-			return { parsedJson: null, parseError: e.message as string };
+	useEffect(() => {
+		if (!open || !commit) {
+			setIsEditorMounted(false);
+			return;
 		}
-	}, [jsonText]);
 
-	const diffHtml = useMemo(() => {
-		if (!originalPayload || !parsedJson) return null;
-		const delta = diffInstance.diff(originalPayload, parsedJson);
-		if (!delta) return "<p style='padding:8px;color:#666'>Нет изменений</p>";
-		return htmlFormatter.format(delta, originalPayload);
-	}, [originalPayload, parsedJson]);
+		setIsEditorMounted(false);
+		const rafId = window.requestAnimationFrame(() => {
+			window.setTimeout(() => {
+				setIsEditorMounted(true);
+			}, 0);
+		});
+
+		return () => {
+			window.cancelAnimationFrame(rafId);
+		};
+	}, [open, commit]);
+
+	const handleEditorChange = useCallback((data: any) => {
+		setEditedPayload(data as Record<string, unknown>);
+	}, []);
 
 	const handleSave = async () => {
-		if (!commit || !parsedJson) return;
+		if (!commit || !editedPayload) return;
 		setSaving(true);
 		setError(null);
 		try {
@@ -80,7 +110,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 				commit_description: commit.commit_description ?? undefined,
 				type: commit.type,
 				user: commit.user ?? undefined,
-				payload: parsedJson,
+				payload: editedPayload,
 			});
 			onSaved();
 			onClose();
@@ -109,74 +139,49 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 						{error}
 					</Alert>
 				)}
-				<Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ px: 2 }}>
-					<Tab label="Редактор" />
-					<Tab label="Diff к оригиналу" disabled={!!parseError} />
-				</Tabs>
 
-				{tab === 0 && (
-					<Box sx={{ p: 2 }}>
-						{parseError && (
-							<Alert severity="warning" sx={{ mb: 1 }}>
-								JSON невалиден: {parseError}
-							</Alert>
-						)}
-						<textarea
-							value={jsonText}
-							onChange={(e) => setJsonText(e.target.value)}
-							style={{
-								width: "100%",
-								minHeight: 400,
-								fontFamily: "monospace",
-								fontSize: 13,
-								border: parseError ? "2px solid #f44336" : "1px solid #ccc",
-								borderRadius: 4,
-								padding: 8,
-								resize: "vertical",
-								backgroundColor: "inherit",
-								color: "inherit",
+				<Box sx={{ p: 2, height: 560 }}>
+					{!isEditorMounted || !editedPayload || !commit ? (
+						<Box
+							sx={{
+								height: "100%",
+								display: "flex",
+								flexDirection: "column",
+								alignItems: "center",
+								justifyContent: "center",
+								gap: 1,
 							}}
-							spellCheck={false}
-							disabled={saving}
+						>
+							<CircularProgress size={24} />
+							<Typography variant="body2" color="text.secondary">
+								Подготавливаем JSON редактор…
+							</Typography>
+						</Box>
+					) : (
+						<EditJsonDialogEditor
+							data={editedPayload}
+							dataKey={commit.id}
+							editable={editable}
+							saving={saving}
+							onChange={handleEditorChange}
 						/>
-					</Box>
-				)}
-
-				{tab === 1 && (
-					<Box
-						sx={{
-							p: 2,
-							maxHeight: 500,
-							overflow: "auto",
-							"& .jsondiffpatch-delta": { fontSize: 13 },
-							"& .jsondiffpatch-added .jsondiffpatch-value pre": {
-								backgroundColor: "rgba(76,175,80,0.15)",
-							},
-							"& .jsondiffpatch-deleted .jsondiffpatch-value pre": {
-								backgroundColor: "rgba(244,67,54,0.15)",
-							},
-							"& .jsondiffpatch-modified .jsondiffpatch-value pre": {
-								backgroundColor: "rgba(255,152,0,0.15)",
-							},
-						}}
-						dangerouslySetInnerHTML={{
-							__html: diffHtml ?? "",
-						}}
-					/>
-				)}
+					)}
+				</Box>
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose} disabled={saving}>
 					Отмена
 				</Button>
-				<Button
-					onClick={handleSave}
-					variant="contained"
-					disabled={saving || !!parseError || !parsedJson}
-					startIcon={saving ? <CircularProgress size={16} /> : undefined}
-				>
-					Сохранить
-				</Button>
+				{editable && (
+					<Button
+						onClick={handleSave}
+						variant="contained"
+						disabled={saving || !editedPayload}
+						startIcon={saving ? <CircularProgress size={16} /> : undefined}
+					>
+						Сохранить
+					</Button>
+				)}
 			</DialogActions>
 		</Dialog>
 	);

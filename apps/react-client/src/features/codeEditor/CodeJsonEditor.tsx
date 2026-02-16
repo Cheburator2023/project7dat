@@ -201,39 +201,58 @@ export const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 const searchInJsonData = (data: any, query: string, path = ""): string[] => {
 	const results: string[] = [];
 
-	if (isPrimitive(data)) {
-		const stringValue = String(data).toLowerCase();
-		if (stringValue.includes(query)) {
-			results.push(path);
-		}
+	if (query.trim().length === 0) {
 		return results;
 	}
 
-	const isArray = Array.isArray(data);
-	const entries = isArray
-		? data.map((item, index) => [index, item])
-		: Object.entries(data);
+	const queryLower = query.toLowerCase();
+	const visited = new WeakSet<object>();
+	const stack: Array<{ value: any; currentPath: string }> = [
+		{ value: data, currentPath: path },
+	];
 
-	entries.forEach(([key, value]) => {
-		const keyString = String(key).toLowerCase();
-		const currentPath = path === "" ? String(key) : `${path}.${key}`;
+	while (stack.length > 0) {
+		const node = stack.pop();
+		if (!node) continue;
 
-		// Поиск в ключах
-		if (keyString.includes(query)) {
-			results.push(currentPath);
-		}
-
-		// Поиск в значениях
+		const { value, currentPath } = node;
 		if (isPrimitive(value)) {
 			const stringValue = String(value).toLowerCase();
-			if (stringValue.includes(query)) {
+			if (stringValue.includes(queryLower)) {
 				results.push(currentPath);
 			}
-		} else {
-			// Рекурсивный поиск в объектах/массивах
-			results.push(...searchInJsonData(value, query, currentPath));
+			continue;
 		}
-	});
+
+		if (visited.has(value)) {
+			continue;
+		}
+		visited.add(value);
+
+		const entries = Array.isArray(value)
+			? value.map((item, index) => [index, item] as const)
+			: Object.entries(value);
+
+		for (let i = entries.length - 1; i >= 0; i -= 1) {
+			const [key, childValue] = entries[i];
+			const keyString = String(key).toLowerCase();
+			const childPath =
+				currentPath === "" ? String(key) : `${currentPath}.${key}`;
+
+			if (keyString.includes(queryLower)) {
+				results.push(childPath);
+			}
+
+			if (isPrimitive(childValue)) {
+				const stringValue = String(childValue).toLowerCase();
+				if (stringValue.includes(queryLower)) {
+					results.push(childPath);
+				}
+			} else {
+				stack.push({ value: childValue, currentPath: childPath });
+			}
+		}
+	}
 
 	return results;
 };
@@ -245,28 +264,46 @@ const getAllExpandablePaths = (data: any, path = ""): string[] => {
 		return paths;
 	}
 
-	const isArray = Array.isArray(data);
-	const entries = isArray
-		? data.map((item, index) => [index, item])
-		: Object.entries(data);
+	const visited = new WeakSet<object>();
+	const stack: Array<{ value: any; currentPath: string }> = [
+		{ value: data, currentPath: path },
+	];
 
-	if (path === "") {
-		paths.push("");
-		entries.forEach(([key, value]) => {
-			const currentPath = String(key);
-			if (!isPrimitive(value)) {
-				paths.push(currentPath);
-				paths.push(...getAllExpandablePaths(value, currentPath));
+	while (stack.length > 0) {
+		const node = stack.pop();
+		if (!node) {
+			continue;
+		}
+
+		const { value, currentPath } = node;
+		if (isPrimitive(value)) {
+			continue;
+		}
+
+		if (visited.has(value)) {
+			continue;
+		}
+		visited.add(value);
+
+		if (currentPath === "") {
+			paths.push("");
+		}
+
+		const entries = Array.isArray(value)
+			? value.map((item, index) => [index, item] as const)
+			: Object.entries(value);
+
+		for (let i = entries.length - 1; i >= 0; i -= 1) {
+			const [key, childValue] = entries[i];
+			if (isPrimitive(childValue)) {
+				continue;
 			}
-		});
-	} else {
-		entries.forEach(([key, value]) => {
-			const currentPath = `${path}.${key}`;
-			if (!isPrimitive(value)) {
-				paths.push(currentPath);
-				paths.push(...getAllExpandablePaths(value, currentPath));
-			}
-		});
+
+			const childPath =
+				currentPath === "" ? String(key) : `${currentPath}.${key}`;
+			paths.push(childPath);
+			stack.push({ value: childValue, currentPath: childPath });
+		}
 	}
 
 	return paths;
@@ -406,14 +443,38 @@ const flattenJsonData = (
 		];
 	}
 
-	const isArray = Array.isArray(data);
-	const entries = isArray
-		? data.map((item, index) => [index, item])
-		: Object.entries(data);
+	const visited = new WeakSet<object>();
 
-	// Для корневого объекта
-	if (path === "" && expandedPaths[""]) {
-		// Добавляем открывающую скобку для корневого объекта
+	if (visited.has(data)) {
+		return result;
+	}
+	visited.add(data);
+
+	type Frame = {
+		value: any;
+		path: string;
+		depth: number;
+		entries: Array<[string | number, any]>;
+		index: number;
+		isArray: boolean;
+		shouldClose: boolean;
+		isLastInParent: boolean;
+	};
+
+	const toEntries = (value: any): Array<[string | number, any]> => {
+		if (Array.isArray(value)) {
+			return value.map((item, index) => [index, item]);
+		}
+		return Object.entries(value);
+	};
+
+	const rootIsArray = Array.isArray(data);
+
+	if (path === "") {
+		if (!expandedPaths[""]) {
+			return result;
+		}
+
 		result.push({
 			path: "__root_opening__",
 			key: "",
@@ -424,133 +485,107 @@ const flattenJsonData = (
 			isExpanded: true,
 			parentPath: "",
 			nodeType: "opening",
-			syntaxElement: isArray ? "[" : "{",
-			isArrayElement: isArray,
+			syntaxElement: rootIsArray ? "[" : "{",
+			isArrayElement: rootIsArray,
 		});
+	} else {
+		if (!expandedPaths[path]) {
+			return result;
+		}
+	}
 
-		entries.forEach(([key, value], index) => {
-			const currentPath = String(key);
-			const isLast = index === entries.length - 1;
-			const isExpandable = !isPrimitive(value);
-			const isExpanded = Boolean(expandedPaths[currentPath]);
-
-			result.push({
-				path: currentPath,
-				key,
-				value,
-				depth: depth + 1,
-				isLast,
-				isExpandable,
-				isExpanded,
-				parentPath: "",
-				nodeType: "property",
-				isArrayElement: isArray,
-				showInlineOpeningBrace: isExpandable && isExpanded,
-			});
-
-			if (isExpandable && isExpanded) {
-				result.push(
-					...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
-				);
-			}
-		});
-
-		// Добавляем закрывающую скобку для корневого объекта
-		result.push({
-			path: "__root_closing__",
-			key: "",
+	const stack: Frame[] = [
+		{
 			value: data,
-			depth: 0,
-			isLast: true,
-			isExpandable: true,
-			isExpanded: true,
-			parentPath: "",
-			nodeType: "closing",
-			syntaxElement: isArray ? "]" : "}",
-			isArrayElement: isArray,
-		});
-	} else if (path !== "") {
-		// Для вложенных объектов/массивов
-		if (expandedPaths[path]) {
-			entries.forEach(([key, value], index) => {
-				const currentPath = `${path}.${key}`;
-				const isLast = index === entries.length - 1;
-				const isExpandable = !isPrimitive(value);
-				const isExpanded = Boolean(expandedPaths[currentPath]);
+			path,
+			depth,
+			entries: toEntries(data),
+			index: 0,
+			isArray: rootIsArray,
+			shouldClose: path !== "",
+			isLastInParent: true,
+		},
+	];
 
+	while (stack.length > 0) {
+		const frame = stack[stack.length - 1];
+		if (!frame) break;
+
+		if (frame.index >= frame.entries.length) {
+			stack.pop();
+			if (frame.path === "") {
 				result.push({
-					path: currentPath,
-					key,
-					value,
-					depth: depth + 1,
-					isLast,
-					isExpandable,
-					isExpanded,
-					parentPath: path,
-					nodeType: "property",
-					isArrayElement: isArray,
-					showInlineOpeningBrace: isExpandable && isExpanded,
+					path: "__root_closing__",
+					key: "",
+					value: frame.value,
+					depth: 0,
+					isLast: true,
+					isExpandable: true,
+					isExpanded: true,
+					parentPath: "",
+					nodeType: "closing",
+					syntaxElement: frame.isArray ? "]" : "}",
+					isArrayElement: frame.isArray,
 				});
-
-				if (isExpandable && isExpanded) {
-					result.push(
-						...flattenJsonData(value, expandedPaths, currentPath, depth + 1),
-					);
-				}
-			});
-
-			// Добавляем закрывающую скобку для вложенного объекта/массива
-			// Определяем isLast на основе родительского контекста
-			const parentPathParts = path.split(".");
-			const parentKey = parentPathParts[parentPathParts.length - 1];
-			const grandParentPath = parentPathParts.slice(0, -1).join(".");
-
-			let isLastInParent = true;
-			if (grandParentPath !== "" || parentPathParts.length === 1) {
-				// Получаем родительский объект для определения позиции
-				const parentData =
-					grandParentPath === ""
-						? parentPathParts.length === 1
-							? data
-							: null
-						: getValueByPath(data, grandParentPath);
-
-				if (parentData) {
-					const parentIsArray = Array.isArray(parentData);
-					const parentEntries = parentIsArray
-						? parentData.map((item: any, index: number) => [index, item])
-						: Object.entries(parentData);
-
-					const currentIndex = parentEntries.findIndex(
-						([key]) => String(key) === parentKey,
-					);
-					isLastInParent = currentIndex === parentEntries.length - 1;
-				}
+			} else if (frame.shouldClose) {
+				result.push({
+					path: `${frame.path}__closing__`,
+					key: "",
+					value: frame.value,
+					depth: frame.depth,
+					isLast: frame.isLastInParent,
+					isExpandable: true,
+					isExpanded: true,
+					parentPath: frame.path,
+					nodeType: "closing",
+					syntaxElement: frame.isArray ? "]" : "}",
+					isArrayElement: frame.isArray,
+				});
 			}
+			continue;
+		}
 
-			result.push({
-				path: `${path}__closing__`,
-				key: "",
-				value: data,
-				depth: depth,
-				isLast: isLastInParent,
-				isExpandable: true,
-				isExpanded: true,
-				parentPath: path,
-				nodeType: "closing",
-				syntaxElement: isArray ? "]" : "}",
-				isArrayElement: isArray,
-			});
+		const [key, value] = frame.entries[frame.index];
+		const isLast = frame.index === frame.entries.length - 1;
+		frame.index += 1;
+
+		const currentPath =
+			frame.path === "" ? String(key) : `${frame.path}.${key}`;
+		const isExpandable = !isPrimitive(value);
+		const isExpanded = Boolean(expandedPaths[currentPath]);
+
+		result.push({
+			path: currentPath,
+			key,
+			value,
+			depth: frame.depth + 1,
+			isLast,
+			isExpandable,
+			isExpanded,
+			parentPath: frame.path,
+			nodeType: "property",
+			isArrayElement: frame.isArray,
+			showInlineOpeningBrace: isExpandable && isExpanded,
+		});
+
+		if (isExpandable && isExpanded) {
+			if (!visited.has(value)) {
+				visited.add(value);
+				stack.push({
+					value,
+					path: currentPath,
+					depth: frame.depth + 1,
+					entries: toEntries(value),
+					index: 0,
+					isArray: Array.isArray(value),
+					shouldClose: true,
+					isLastInParent: isLast,
+				});
+			}
 		}
 	}
 
 	return result;
-};
-
-// Вспомогательная функция для получения значения по пути
-const getValueByPath = (obj: any, path: string): any => {
-	if (!path) return obj;
-	return path.split(".").reduce((current, key) => current?.[key], obj);
 };
 
 const SearchContainer = styled(Box)(({ theme }) => ({
@@ -762,7 +797,19 @@ const JsonSearchBar: React.FC<JsonSearchBarProps> = ({ data }) => {
 		goToNextResult,
 		goToPrevResult,
 		setFocus,
-	} = useJsonEditorStore();
+	} = useJsonEditorStore(
+		useShallow((state) => ({
+			searchQuery: state.searchQuery,
+			searchResults: state.searchResults,
+			currentSearchIndex: state.currentSearchIndex,
+			setSearchQuery: state.setSearchQuery,
+			searchInData: state.searchInData,
+			clearSearch: state.clearSearch,
+			goToNextResult: state.goToNextResult,
+			goToPrevResult: state.goToPrevResult,
+			setFocus: state.setFocus,
+		})),
+	);
 
 	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const query = event.target.value;
@@ -1240,6 +1287,11 @@ interface CodeJsonEditorProps {
 	initialData?: any;
 	onChange?: (data: any) => void;
 	isInitializing?: boolean;
+	editable?: boolean;
+	dataKey?: string | number;
+	autoExpandAll?: boolean;
+	deferInitialization?: boolean;
+	syncWithDataLineageStore?: boolean;
 }
 
 export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
@@ -1267,11 +1319,18 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 	},
 	onChange,
 	isInitializing = false,
+	editable = true,
+	dataKey,
+	autoExpandAll = true,
+	deferInitialization = false,
+	syncWithDataLineageStore = true,
 }) => {
 	const { mode } = useColorScheme();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const listRef = useRef<List>(null);
 	const isUpdatingFromStore = useRef(false);
+	const lastInitializedKeyRef = useRef<string | number | null>(null);
+	const normalizedDataKey = dataKey ?? "__default__";
 
 	const {
 		focusedPath,
@@ -1279,7 +1338,6 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 		expandedPaths,
 		jsonData,
 		setJsonData,
-		setJsonDataSilently,
 		setOnChange,
 		setFocus,
 		addHighlight,
@@ -1290,44 +1348,58 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 		expandAll,
 		searchResults,
 		currentSearchIndex,
-	} = useJsonEditorStore();
+	} = useJsonEditorStore(
+		useShallow((state) => ({
+			focusedPath: state.focusedPath,
+			highlightedPaths: state.highlightedPaths,
+			expandedPaths: state.expandedPaths,
+			jsonData: state.jsonData,
+			setJsonData: state.setJsonData,
+			setOnChange: state.setOnChange,
+			setFocus: state.setFocus,
+			addHighlight: state.addHighlight,
+			removeHighlight: state.removeHighlight,
+			clearHighlights: state.clearHighlights,
+			toggleExpanded: state.toggleExpanded,
+			setExpanded: state.setExpanded,
+			expandAll: state.expandAll,
+			searchResults: state.searchResults,
+			currentSearchIndex: state.currentSearchIndex,
+		})),
+	);
 
-	// Initialize store data and onChange callback
+	// Sync onChange callback only
 	useEffect(() => {
-		if (initialData && !jsonData) {
-			setJsonDataSilently(initialData);
-		}
 		setOnChange(onChange || null);
-	}, [initialData, jsonData, setJsonDataSilently, onChange, setOnChange]);
+	}, [onChange, setOnChange]);
 
 	const {
 		revealPosition,
 		isNeedReveal,
 		currentGraph,
-		hasUnsavedChanges,
 		selectedNodes,
 		selectNode,
 		setRevealPosition,
-		updateNode,
 		markAsChanged,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			revealPosition: state.revealPosition,
 			isNeedReveal: state.isNeedReveal,
 			currentGraph: state.currentGraph,
-			hasUnsavedChanges: state.hasUnsavedChanges,
 			selectedNodes: state.selectedNodes,
 			selectNode: state.selectNode,
 			setRevealPosition: state.setRevealPosition,
-			updateNode: state.updateNode,
 			markAsChanged: state.markAsChanged,
 		})),
 	);
 
 	const changedPaths = useMemo(() => {
+		if (!editable) {
+			return new Set<string>();
+		}
 		// По умолчанию разрешаем редактирование всех полей
 		return new Set(["*"]);
-	}, []);
+	}, [editable]);
 
 	const flatNodes = useMemo(() => {
 		return flattenJsonData(jsonData, expandedPaths);
@@ -1347,22 +1419,69 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 	}, [searchResults, currentSearchIndex, flatNodes]);
 
 	useEffect(() => {
-		if (initialData) {
+		if (!initialData) {
+			return;
+		}
+
+		if (lastInitializedKeyRef.current === normalizedDataKey) {
+			return;
+		}
+
+		lastInitializedKeyRef.current = normalizedDataKey;
+		let cancelled = false;
+
+		const applyData = () => {
+			if (cancelled) {
+				return;
+			}
+
 			isUpdatingFromStore.current = true;
 			setJsonData(initialData);
-			expandAll(initialData);
+
+			if (autoExpandAll) {
+				expandAll(initialData);
+			} else {
+				setExpanded("", true);
+			}
+
 			isUpdatingFromStore.current = false;
+		};
+
+		if (deferInitialization) {
+			const timer = window.setTimeout(applyData, 0);
+			return () => {
+				cancelled = true;
+				window.clearTimeout(timer);
+			};
 		}
-	}, [initialData, expandAll]);
+
+		applyData();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		initialData,
+		normalizedDataKey,
+		setJsonData,
+		expandAll,
+		setExpanded,
+		autoExpandAll,
+		deferInitialization,
+	]);
 
 	useEffect(() => {
+		if (!syncWithDataLineageStore) {
+			return;
+		}
+
 		if (currentGraph && !isUpdatingFromStore.current) {
 			isUpdatingFromStore.current = true;
 			setJsonData(currentGraph);
 			expandAll(currentGraph);
 			isUpdatingFromStore.current = false;
 		}
-	}, [currentGraph, expandAll]);
+	}, [currentGraph, expandAll, setJsonData, syncWithDataLineageStore]);
 
 	useEffect(() => {
 		if (selectedNodes.length > 0 && currentGraph) {
@@ -1411,6 +1530,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 
 			// Обновляем store если изменяется сущность графа
 			if (
+				syncWithDataLineageStore &&
 				pathParts[0] === "entities" &&
 				pathParts[1] !== undefined &&
 				currentGraph
@@ -1425,7 +1545,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 						markAsChanged();
 					}
 				}
-			} else {
+			} else if (syncWithDataLineageStore) {
 				// Для всех остальных изменений также помечаем как измененные
 				if (!isInitializing) {
 					markAsChanged();
@@ -1439,11 +1559,22 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 				}
 			}, 0);
 		},
-		[jsonData, onChange, currentGraph, updateNode, markAsChanged],
+		[
+			jsonData,
+			onChange,
+			currentGraph,
+			markAsChanged,
+			isInitializing,
+			syncWithDataLineageStore,
+		],
 	);
 
 	const handleNodeClick = useCallback(
 		(path: string) => {
+			if (!syncWithDataLineageStore) {
+				return;
+			}
+
 			const pathParts = path.split(".").filter(Boolean);
 			if (pathParts[0] === "entities" && pathParts[1] !== undefined) {
 				const entityIndex = Number.parseInt(pathParts[1], 10);
@@ -1454,7 +1585,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 				}
 			}
 		},
-		[currentGraph, selectNode, setRevealPosition],
+		[currentGraph, selectNode, setRevealPosition, syncWithDataLineageStore],
 	);
 
 	const focusPath = useCallback(
@@ -1486,6 +1617,10 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 	);
 
 	useLayoutEffect(() => {
+		if (!syncWithDataLineageStore) {
+			return;
+		}
+
 		if (revealPosition?.nodeId && currentGraph) {
 			const entityIndex = currentGraph.entities.findIndex(
 				(e) => e.id === revealPosition.nodeId,
@@ -1503,9 +1638,19 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 				}
 			}
 		}
-	}, [isNeedReveal, revealPosition, currentGraph, setExpanded]);
+	}, [
+		isNeedReveal,
+		revealPosition,
+		currentGraph,
+		setExpanded,
+		syncWithDataLineageStore,
+	]);
 
 	useLayoutEffect(() => {
+		if (!syncWithDataLineageStore) {
+			return;
+		}
+
 		if (isNeedReveal("editor") && revealPosition?.nodeId && currentGraph) {
 			const entityIndex = currentGraph.entities.findIndex(
 				(e) => e.id === revealPosition.nodeId,
@@ -1520,7 +1665,13 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 				}, 100);
 			}
 		}
-	}, [isNeedReveal, revealPosition, currentGraph, focusPath]);
+	}, [
+		isNeedReveal,
+		revealPosition,
+		currentGraph,
+		focusPath,
+		syncWithDataLineageStore,
+	]);
 
 	const _highlightPath = useCallback(
 		(path: string) => {
