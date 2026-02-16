@@ -150,7 +150,7 @@ export const ModelsPage = () => {
 
 	return (
 		<div>
-			<Header>
+			<Header title="Модели">
 				<Flex alignItems="center" gap={10} width="100%">
 					<TextField
 						fullWidth

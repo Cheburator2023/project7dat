@@ -213,7 +213,7 @@ export const DashboardHeader = memo(() => {
 
 	return (
 		<>
-			<Header>
+			<Header title="Объекты данных">
 				<SelectedEntityChip />
 				<Flex gap={8} alignItems="center">
 					<GlobalSearchField />
