@@ -244,7 +244,7 @@ const CustomNode = ({ data, id }: { data: CustomNodeData; id: string }) => {
 							}}
 						>
 							{getTypeLabel(data.type)}
-							{isDataMart && (
+							{/* {isDataMart && (
 								<span
 									style={{
 										marginLeft: 6,
@@ -273,7 +273,7 @@ const CustomNode = ({ data, id }: { data: CustomNodeData; id: string }) => {
 								>
 									источник
 								</span>
-							)}
+							)} */}
 						</div>
 						<div
 							style={{

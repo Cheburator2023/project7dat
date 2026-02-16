@@ -239,7 +239,7 @@ export const EntityNodeComponent = memo(
 									</span>
 								)}
 
-								{isDataMart && (
+								{/* {isDataMart && (
 									<span
 										style={{
 											marginLeft: 6,
@@ -268,7 +268,7 @@ export const EntityNodeComponent = memo(
 									>
 										источник
 									</span>
-								)}
+								)} */}
 							</div>
 							<div
 								style={{
