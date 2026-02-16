@@ -2,14 +2,20 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SettingsIcon from "@mui/icons-material/Settings";
-import { Divider, IconButton, Typography } from "@mui/material";
-import axios from "axios";
+import {
+	CircularProgress,
+	Divider,
+	IconButton,
+	Typography,
+} from "@mui/material";
+import { default as axios } from "axios";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useNavigate } from "react-router";
 import { useEffect, useState } from "react";
 import { Flex } from "../../primitives/Flex";
 import { useGlobalSettingsStore } from "../../store/globalSettingsStore";
+import { useMainDataLoadingStore } from "@react-client/common/store/mainDataLoadingStore";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
 import { S2tImportDialog } from "@react-client/features/s2tImport/S2tImportDialog";
 import { MenuButton } from "../molecules/MenuButton";
@@ -28,6 +34,8 @@ export function Header({
 	isLoading?: boolean;
 }) {
 	const { toggleSideMenu, isSideMenuVisible } = useGlobalSettingsStore();
+	const { isMainDataLoading, hasMainDataLoadedOnce } =
+		useMainDataLoadingStore();
 	const navigate = useNavigate();
 	const [pendingS2t, setPendingS2t] = useState<{
 		commitId: string;
@@ -37,10 +45,10 @@ export function Header({
 	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
 	const API_BASE_URL =
 		window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
-	const [isApplyingS2t, setIsApplyingS2t] = useState(false);
+	const [_isApplyingS2t, setIsApplyingS2t] = useState(false);
 	const [isS2tCommitDialogOpen, setIsS2tCommitDialogOpen] = useState(false);
 
-	const handleApplyPendingS2t = async () => {
+	const _handleApplyPendingS2t = async () => {
 		if (!pendingS2t?.commitId) return;
 		if (pendingS2t.state === "applying") return;
 		setIsApplyingS2t(true);
@@ -190,6 +198,12 @@ export function Header({
 								</IconButton>
 							)} */}
 
+							{hasMainDataLoadedOnce && isMainDataLoading && (
+								<CircularProgress
+									size={18}
+									data-test-id="header--MainDataLoadingIndicator-0"
+								/>
+							)}
 							<NotificationButton isLoading={!!isLoading} />
 							<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
 							<IconButton
