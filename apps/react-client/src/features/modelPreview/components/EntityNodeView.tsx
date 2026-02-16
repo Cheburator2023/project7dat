@@ -226,7 +226,7 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 									изм.
 								</span>
 							)}
-							{isDataMart && (
+							{/* {isDataMart && (
 								<span
 									style={{
 										marginLeft: 6,
@@ -255,7 +255,7 @@ const EntityNodeComponent = memo(({ data, id }: NodeProps<EntityNode>) => {
 								>
 									источник
 								</span>
-							)}
+							)} */}
 						</div>
 						<div
 							style={{
