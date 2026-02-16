@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { LoadingOverlay } from "@react-client/common/muiCustom/LoadingOverlay";
+import { useMainDataLoadingStore } from "@react-client/common/store/mainDataLoadingStore";
 import { SideMenu } from "../navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
 
@@ -58,6 +59,8 @@ export function MainLayout({
 	onLogout?: () => void;
 }) {
 	const store = useGlobalSettingsStore();
+	const { setMainDataLoading, markMainDataLoadedOnce, hasMainDataLoadedOnce } =
+		useMainDataLoadingStore();
 	const { mode } = useColorScheme();
 	const {
 		isPending: isCurrentGraphPending,
@@ -65,7 +68,22 @@ export function MainLayout({
 		isLoading: isCurrentGraphLoading,
 	} = useCurrentDataLineageGraph({ enabled: false });
 
-	const isPending = isCurrentGraphFetching || isCurrentGraphLoading;
+	const isInitialLoading = isCurrentGraphPending || isCurrentGraphLoading;
+	const isRefetching = isCurrentGraphFetching && !isInitialLoading;
+	const wasInitialLoadingRef = useRef(false);
+
+	useEffect(() => {
+		setMainDataLoading(isRefetching);
+		if (wasInitialLoadingRef.current && !isInitialLoading) {
+			markMainDataLoadedOnce();
+		}
+		wasInitialLoadingRef.current = isInitialLoading;
+	}, [
+		isInitialLoading,
+		isRefetching,
+		markMainDataLoadedOnce,
+		setMainDataLoading,
+	]);
 
 	const [progress, setProgress] = useState(() => {
 		try {
@@ -123,7 +141,20 @@ export function MainLayout({
 	}, [progress, isLoaderVisible]);
 
 	useEffect(() => {
-		if (isPending) {
+		if (hasMainDataLoadedOnce) {
+			if (isLoaderVisible) {
+				setIsLoaderVisible(false);
+				setProgress(0);
+			}
+			try {
+				localStorage.removeItem(MAIN_LAYOUT_LOADING_STATE_STORAGE_KEY);
+			} catch {
+				// ignore
+			}
+			return;
+		}
+
+		if (isInitialLoading) {
 			if (!isLoaderVisible) {
 				setIsLoaderVisible(true);
 				setProgress(0);
@@ -169,7 +200,7 @@ export function MainLayout({
 			if (finishTimer) window.clearInterval(finishTimer);
 			if (hideTimer) window.clearTimeout(hideTimer);
 		};
-	}, [isPending, isLoaderVisible]);
+	}, [hasMainDataLoadedOnce, isInitialLoading, isLoaderVisible]);
 
 	return (
 		<Flex id="main_layout_container" data-test-id="main-layout--Flex-0">
