@@ -62,7 +62,7 @@ export const usePanelSettingsStore = create<PanelSettingsState>()(
 			setPersistLayoutsEnabled: (enabled: boolean) => {
 				if (!enabled) {
 					// При выключении глобальной настройки сбрасываем все панели
-					for (const panel of panels) {
+					for (const panel of get().panels) {
 						localStorage.removeItem(panel.localStorageKey);
 					}
 				}
