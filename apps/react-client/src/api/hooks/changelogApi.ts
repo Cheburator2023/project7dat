@@ -1,4 +1,4 @@
-import axios from "axios";
+import { default as axios } from "axios";
 
 const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 
@@ -44,7 +44,16 @@ export interface GetChangelogParams {
 	dateTo?: string;
 }
 
+export interface ReleaseNotesResponse {
+	markdown: string;
+}
+
 export const changelogApi = {
+	getReleaseNotes: async (): Promise<ReleaseNotesResponse> => {
+		const response = await changelogApiInstance.get("/release-notes");
+		return response.data;
+	},
+
 	getChangelog: async (
 		params: GetChangelogParams = {},
 	): Promise<ChangelogResponse> => {

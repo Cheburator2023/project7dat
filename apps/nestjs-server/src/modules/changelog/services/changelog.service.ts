@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import {
 	ChangelogMemoryStorageService,
 	ChangelogRecord,
@@ -13,6 +15,15 @@ import {
 @Injectable()
 export class ChangelogService {
 	constructor(private readonly storageService: ChangelogMemoryStorageService) {}
+
+	async getReleaseNotesMarkdown(): Promise<string> {
+		const changelogPath = path.resolve(
+			__dirname,
+			"../../../../../../CHANGELOG.md",
+		);
+
+		return await readFile(changelogPath, "utf-8");
+	}
 
 	async logAction(
 		graphId: string,

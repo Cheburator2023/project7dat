@@ -17,6 +17,23 @@ import {
 export class ChangelogController {
 	constructor(private readonly changelogService: ChangelogService) {}
 
+	@Get("release-notes")
+	@ApiOperation({ summary: "Получить markdown релизного changelog" })
+	@ApiResponse({
+		status: 200,
+		description: "Содержимое корневого CHANGELOG.md",
+		schema: {
+			type: "object",
+			properties: {
+				markdown: { type: "string" },
+			},
+		},
+	})
+	async getReleaseNotes() {
+		const markdown = await this.changelogService.getReleaseNotesMarkdown();
+		return { markdown };
+	}
+
 	@Get()
 	@ApiOperation({ summary: "Получить общий changelog всех графиков" })
 	@ApiResponse({
