@@ -227,6 +227,18 @@ export const AllCommitsPage: FC = () => {
 							</IconButton>
 
 							<IconButton
+								size="small"
+								title="Редактировать"
+								disabled={!canEditCommit}
+								onClick={(e) => {
+									e.stopPropagation();
+									navigate(`/s2t-commits/${row.id}`);
+								}}
+							>
+								<EditIcon fontSize="small" />
+							</IconButton>
+
+							<IconButton
 								title={jsonTitle}
 								size="small"
 								onClick={(e) => {
@@ -364,7 +376,7 @@ export const AllCommitsPage: FC = () => {
 
 	return (
 		<Box>
-			<Header>
+			<Header title="Коммиты">
 				<Flex gap={8} alignItems="center">
 					<Button
 						onClick={handleOpenS2tCommitCreatePage}
@@ -553,7 +565,7 @@ const GridWrapper = styled(Flex)`
 	}
 
 	.jsondiffpatch-deleted .jsondiffpatch-property-name, .jsondiffpatch-deleted pre, .jsondiffpatch-modified .jsondiffpatch-left-value pre, .jsondiffpatch-textdiff-deleted {
-    background: #ffbbbb;
+    background: #8b1a1a;
 }
 
 	.jsondiffpatch-added .jsondiffpatch-property-name, .jsondiffpatch-added .jsondiffpatch-value pre, .jsondiffpatch-modified .jsondiffpatch-right-value pre, .jsondiffpatch-textdiff-added {
