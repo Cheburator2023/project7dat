@@ -11,6 +11,7 @@ import { SharedModule } from "src/core/shared/shared.module";
 import { databaseConfig } from "src/core/config/database.config";
 import { SnapshotEntity } from "src/modules/snapshots/entities/snapshot.entity";
 import { KeycloakModule } from "src/core/auth/keycloak/keycloak.module";
+import {S2TModule} from "../modules/s2t-converter/s2t.module";
 
 @Module({})
 export class AppModule {
@@ -21,6 +22,7 @@ export class AppModule {
 			SnapshotsModule.forRoot(),
 			DatabaseSchemaModule,
 			ChangelogModule,
+			S2TModule,
 			ConfigModule.forRoot(),
 			KeycloakModule.forRoot(),
 		];
