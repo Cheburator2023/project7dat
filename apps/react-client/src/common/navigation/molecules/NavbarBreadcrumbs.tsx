@@ -60,9 +60,12 @@ export function NavbarBreadcrumbs() {
 		if (pathname.startsWith("/changelog/")) {
 			const graphId = pathname.split("/changelog/")[1];
 			if (graphId) {
+				const changelogRoute = (routes as Record<string, { name?: string }>)[
+					"changelogTable"
+				];
 				return {
 					breadcrumbs: [
-						{ name: routes.changelogTable.name, isLink: false },
+						{ name: changelogRoute?.name ?? "Changelog", isLink: false },
 						{ name: `График: ${graphId}`, isLink: false },
 					],
 				};

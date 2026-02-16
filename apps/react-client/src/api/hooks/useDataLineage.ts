@@ -58,22 +58,9 @@ export const useCurrentDataLineageGraph = (options?: { enabled?: boolean }) => {
 					return null;
 				}
 
-				const graph = {
-					id: "current_stable_version",
-					desc: {
-						change_date: backendItem.desc.change_date,
-						appId: "current_stable_version",
-						appName: "system",
-					},
-					failedMappings: [],
-					entities: backendItem.entities,
-					mappings: backendItem.mappings,
-				} as DataLineageGraph;
-
-				console.log(graph);
-
+				const graph = backendItem.data as DataLineageGraph;
 				initializeGraph(graph);
-				setCurrentGraphId(graph.id);
+				setCurrentGraphId(backendItem.id);
 				return graph;
 			} catch (error) {
 				console.warn("No current graph available:", error);
