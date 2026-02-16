@@ -60,6 +60,7 @@ export function MainLayout({
 	const store = useGlobalSettingsStore();
 	const { mode } = useColorScheme();
 	const {
+		data: currentDataLineageGraph,
 		isPending: isCurrentGraphPending,
 		isFetching: isCurrentGraphFetching,
 		isLoading: isCurrentGraphLoading,
@@ -185,7 +186,7 @@ export function MainLayout({
 				data-test-id="main-layout--MainWrapper-0"
 			>
 				{children}
-				<LoadingOverlay open={isLoaderVisible} progress={progress} />
+				{/*<LoadingOverlay open={isLoaderVisible} progress={progress} />*/}
 			</MainWrapper>
 		</Flex>
 	);

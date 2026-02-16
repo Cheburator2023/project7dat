@@ -12,6 +12,14 @@ export const jsonDataApi = axios.create({
 	},
 });
 
+export const jsonSearchApi = axios.create({
+	baseURL: `${API_BASE_URL}/api/json-search`,
+	headers: {
+		"Content-Type": "application/json",
+	},
+});
+
+
 export const jsonCommitApi = axios.create({
 	baseURL: `${API_BASE_URL}/api/json-commits`,
 	headers: {
@@ -158,6 +166,9 @@ export const jsonDataService = {
 
 	getCurrent: (): Promise<JsonDataItem> =>
 		jsonDataApi.get("/dl").then((response) => response.data),
+
+	getSearchEntity: (search: string): Promise<JsonDataItem> =>
+		jsonSearchApi.post("/search", {search}).then((response) => response.data),
 
 	create: (data: CreateJsonDataRequest): Promise<JsonDataItem> =>
 		jsonDataApi.post("/create", data).then((response) => response.data),
