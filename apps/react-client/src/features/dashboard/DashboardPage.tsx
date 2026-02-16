@@ -24,7 +24,14 @@ import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 export const DashboardPage = () => {
 	const [, setSearchParams] = useSearchParams();
-	useCurrentDataLineageGraph({ enabled: true });
+
+	const { globalSearchQuery } = useDashboardStore();
+	const {refetch: refetchCurrentGraph} = useCurrentDataLineageGraph({ enabled: true, search: globalSearchQuery });
+
+	useEffect(()=>{
+		refetchCurrentGraph()
+	},[globalSearchQuery])
+
 	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore(
 		useShallow((state) => ({
 			selectEntityWithAttribute: state.selectEntityWithAttribute,

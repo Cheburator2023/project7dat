@@ -9,7 +9,7 @@ const MIN_SEARCH_LENGTH = 3;
 
 export const GlobalSearchField = memo(() => {
 	const searchInputRef = useRef<HTMLInputElement>(null);
-	const { globalSearchQuery, setGlobalSearch } = useDashboardStore();
+	const { globalSearchQuery, setGlobalSearch, refe } = useDashboardStore();
 	const [localValue, setLocalValue] = useState(globalSearchQuery);
 
 	// Sync local value with store when store changes externally
