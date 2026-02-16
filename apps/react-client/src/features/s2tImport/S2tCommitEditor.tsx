@@ -372,16 +372,31 @@ export const S2tCommitEditor = ({
 					{ data: commitJson },
 				);
 
-				if (!validateResponse.data?.isValid) {
-					setValidationErrors(
-						Array.isArray(validateResponse.data?.errors)
-							? validateResponse.data.errors
-							: [],
-					);
-					setValidationWarnings(
-						Array.isArray(validateResponse.data?.warnings)
-							? validateResponse.data.warnings
-							: [],
+				const validationData = validateResponse.data;
+				const isValid =
+					typeof validationData?.isValid === "boolean"
+						? validationData.isValid
+						: typeof validationData?.validation?.isValid === "boolean"
+							? validationData.validation.isValid
+							: false;
+				const validationErrors = Array.isArray(validationData?.errors)
+					? validationData.errors
+					: Array.isArray(validationData?.validation?.errors)
+						? validationData.validation.errors
+						: [];
+				const validationWarnings = Array.isArray(validationData?.warnings)
+					? validationData.warnings
+					: Array.isArray(validationData?.validation?.warnings)
+						? validationData.validation.warnings
+						: [];
+
+				if (!isValid) {
+					setValidationErrors(validationErrors);
+					setValidationWarnings(validationWarnings);
+					setError(
+						validationErrors.length > 0
+							? "Коммит не сохранён: найдены ошибки валидации."
+							: "Коммит не сохранён: валидация не пройдена.",
 					);
 					return;
 				}
@@ -732,31 +747,31 @@ export const S2tCommitEditor = ({
 					</Alert>
 				)} */}
 
-				{/* {validationErrors.length > 0 && (
+				{_validationErrors.length > 0 && (
 					<Alert severity="error">
 						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
 							<Typography variant="subtitle2">Ошибки валидации</Typography>
-							{validationErrors.map((m, idx) => (
+							{_validationErrors.map((m, idx) => (
 								<Typography key={idx} variant="body2">
 									{m}
 								</Typography>
 							))}
 						</Box>
 					</Alert>
-				)} */}
+				)}
 
-				{/* {validationWarnings.length > 0 && (
+				{_validationWarnings.length > 0 && (
 					<Alert severity="warning">
 						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
 							<Typography variant="subtitle2">Предупреждения</Typography>
-							{validationWarnings.map((m, idx) => (
+							{_validationWarnings.map((m, idx) => (
 								<Typography key={idx} variant="body2">
 									{m}
 								</Typography>
 							))}
 						</Box>
 					</Alert>
-				)} */}
+				)}
 				{/* 
 				{infoMessage && <Alert severity="info">{infoMessage}</Alert>}
 
@@ -806,6 +821,7 @@ export const S2tCommitEditor = ({
 					onClick={() =>
 						handleSaveCommit(savedCommit?.id ? "overwrite" : undefined)
 					}
+					data-name="s2t_save_button"
 					variant="contained"
 					disabled={isSaving || isApplying}
 					title={

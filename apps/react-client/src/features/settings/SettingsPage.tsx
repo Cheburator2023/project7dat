@@ -2,6 +2,7 @@ import {
 	Box,
 	Card,
 	CardContent,
+	CircularProgress,
 	FormControlLabel,
 	IconButton,
 	Switch,
@@ -14,6 +15,7 @@ import {
 	Tooltip,
 	Typography,
 } from "@mui/material";
+import { useMemo } from "react";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import {
@@ -21,10 +23,21 @@ import {
 	usePanelSettingsStore,
 } from "@react-client/common/store/panelSettingsStore";
 import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
-import { useUserStore } from "@react-client/common/store/userStore";
 import { Flex } from "@react-client/common/primitives/Flex";
+import { useReleaseNotes } from "@react-client/api/hooks/useReleaseNotes";
+
+const extractLatestVersion = (markdown: string): string | null => {
+	if (!markdown.trim()) return null;
+	const match = markdown.match(/^#\s+\[([^\]]+)\]/m);
+	return match?.[1] ?? null;
+};
 
 export const SettingsPage = () => {
+	const releaseNotesQuery = useReleaseNotes();
+	const releaseNotes = releaseNotesQuery.data?.markdown ?? "";
+	const releaseNotesLoading = releaseNotesQuery.isLoading;
+	const releaseNotesError = releaseNotesQuery.error?.message ?? "";
+
 	const {
 		persistLayoutsEnabled,
 		setPersistLayoutsEnabled,
@@ -36,6 +49,11 @@ export const SettingsPage = () => {
 
 	const { showFullGraphByDefault, setShowFullGraphByDefault } =
 		useGraphSettingsStore();
+
+	const latestChangelogVersion = useMemo(
+		() => extractLatestVersion(releaseNotes),
+		[releaseNotes],
+	);
 
 	const handleResetPanel = (panelId: string, panelName: string) => {
 		if (
@@ -207,6 +225,41 @@ export const SettingsPage = () => {
 					>
 						System info
 					</Typography>
+					{releaseNotesLoading ? (
+						<Typography
+							variant="caption"
+							sx={{
+								pb: 0,
+								color: "text.secondary",
+							}}
+						>
+							version: <CircularProgress size={10} />
+						</Typography>
+					) : null}
+					{!releaseNotesLoading && latestChangelogVersion ? (
+						<Typography
+							variant="caption"
+							sx={{
+								pb: 0,
+								color: "text.secondary",
+							}}
+						>
+							version: {latestChangelogVersion}
+						</Typography>
+					) : null}
+					{!releaseNotesLoading &&
+					!latestChangelogVersion &&
+					releaseNotesError ? (
+						<Typography
+							variant="caption"
+							sx={{
+								pb: 0,
+								color: "error.main",
+							}}
+						>
+							version: n/a
+						</Typography>
+					) : null}
 					{process.env.GIT_HASH ? (
 						<Typography
 							variant="caption"

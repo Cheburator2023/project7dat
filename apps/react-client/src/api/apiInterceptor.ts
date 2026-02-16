@@ -11,6 +11,7 @@ import { jsonCommitApi } from "./hooks/jsonCommitApi";
 import { jsonDataListApi } from "@react-client/api/hooks/jsonDataListApi";
 import { processesApi } from "@react-client/api/hooks/processesApi";
 import { s2tCommitStoreApi } from "@react-client/api/hooks/s2tCommitStoreApi";
+import { changelogApiInstance } from "@react-client/api/hooks/changelogApi";
 
 const getMethodFromConfig = (config: any): string => {
 	return config?.method?.toUpperCase() || "GET";
@@ -182,6 +183,7 @@ export const setupApiInterceptors = () => {
 	setupInterceptorsForInstance(jsonCommitApi);
 	setupInterceptorsForInstance(processesApi);
 	setupInterceptorsForInstance(s2tCommitStoreApi);
+	setupInterceptorsForInstance(changelogApiInstance);
 
 	// Also setup for global axios instance for any other API calls
 	setupInterceptorsForInstance(axios);
