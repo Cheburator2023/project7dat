@@ -60,7 +60,9 @@ export const ObjectDetailsDialog = ({
 		(conn) =>
 			conn.sourceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			conn.targetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			conn.description.toLowerCase().includes(searchTerm.toLowerCase()),
+			conn.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			conn.processName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			(conn.processCode || "").toLowerCase().includes(searchTerm.toLowerCase()),
 	);
 
 	const getTypeLabel = (type: ModelObject["type"]) => {
@@ -218,6 +220,7 @@ export const ObjectDetailsDialog = ({
 										<TableRow>
 											<TableCell width="30px" />
 											<TableCell>Связанные объекты</TableCell>
+											<TableCell>Процесс</TableCell>
 											<TableCell>Описание связи</TableCell>
 											<TableCell>Маппингов</TableCell>
 										</TableRow>
@@ -258,6 +261,31 @@ export const ObjectDetailsDialog = ({
 																<OpenInNewIcon fontSize="small" />
 															</IconButton>
 														)}
+													</Box>
+												</TableCell>
+												<TableCell>
+													<Box
+														sx={{
+															display: "flex",
+															flexDirection: "column",
+															gap: 0.5,
+														}}
+													>
+														<Chip
+															label={conn.processName}
+															size="small"
+															color="secondary"
+															variant="filled"
+															sx={{ width: "fit-content", maxWidth: "100%" }}
+														/>
+														{conn.processCode ? (
+															<Typography
+																variant="caption"
+																color="text.secondary"
+															>
+																{conn.processCode}
+															</Typography>
+														) : null}
 													</Box>
 												</TableCell>
 												<TableCell>

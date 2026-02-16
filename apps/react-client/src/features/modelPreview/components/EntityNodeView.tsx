@@ -48,8 +48,11 @@ interface EntityConnection {
 	targetId: string;
 	sourceName: string;
 	targetName: string;
+	processName: string;
+	processId?: number | null;
+	processCode?: string;
 	attrMaps: Array<{ src: string; dst: string }>;
-	description?: string;
+	description: string;
 }
 
 // Helper function to get edge description based on entity types
@@ -736,13 +739,29 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 				const sourceEntity = entityMap.get(dep.entityId);
 				const targetEntity = entityMap.get(mapping.entityId);
 				if (!sourceEntity || !targetEntity) return;
+				const processFallbackId = mapping.processId ?? mapping.id;
+				const normalizedProcessFallbackId =
+					processFallbackId != null &&
+					String(processFallbackId).trim() !== "" &&
+					String(processFallbackId).toLowerCase() !== "undefined" &&
+					String(processFallbackId).toLowerCase() !== "null"
+						? String(processFallbackId)
+						: null;
+				const processName =
+					mapping.process?.trim() ||
+					(normalizedProcessFallbackId
+						? `Процесс #${normalizedProcessFallbackId}`
+						: "Процесс не указан");
 
 				connections.push({
-					id: `${dep.entityId}->${mapping.entityId}`,
+					id: `${dep.entityId}->${mapping.entityId}::${mapping.id}`,
 					sourceId: dep.entityId,
 					targetId: mapping.entityId,
 					sourceName: sourceEntity.name || sourceEntity.id,
 					targetName: targetEntity.name || targetEntity.id,
+					processName,
+					processId: mapping.processId,
+					processCode: mapping.system_code || dep.system_code,
 					attrMaps: dep.attrMaps || [],
 					description: getEdgeDescription(
 						sourceEntity,
@@ -937,13 +956,14 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	const handleEdgeDoubleClick = useCallback(
 		(_event: React.MouseEvent, edge: Edge) => {
 			console.log(edge);
+			const edgePrefix = `${edge.source}->${edge.target}`;
 
 			const connection = entityConnections.find((conn) => {
 				if (selectedAttribute) {
 					console.log(selectedAttribute);
-					return conn.id === `${edge.source}->${edge.target}`;
+					return conn.id.startsWith(edgePrefix);
 				}
-				return conn.id === edge.id;
+				return conn.id === edge.id || conn.id.startsWith(edgePrefix);
 			});
 			if (connection) {
 				setSelectedConnection(connection);

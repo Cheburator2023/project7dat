@@ -480,13 +480,29 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					const sourceEntity = entityMap.get(dep.entityId);
 					const targetEntity = entityMap.get(mapping.entityId);
 					if (!sourceEntity || !targetEntity) return;
+					const processFallbackId = mapping.processId ?? mapping.id;
+					const normalizedProcessFallbackId =
+						processFallbackId != null &&
+						String(processFallbackId).trim() !== "" &&
+						String(processFallbackId).toLowerCase() !== "undefined" &&
+						String(processFallbackId).toLowerCase() !== "null"
+							? String(processFallbackId)
+							: null;
+					const processName =
+						mapping.process?.trim() ||
+						(normalizedProcessFallbackId
+							? `Процесс #${normalizedProcessFallbackId}`
+							: "Процесс не указан");
 
 					connections.push({
-						id: `${dep.entityId}->${mapping.entityId}`,
+						id: `${dep.entityId}->${mapping.entityId}::${mapping.id}`,
 						sourceId: dep.entityId,
 						targetId: mapping.entityId,
 						sourceName: sourceEntity.name || sourceEntity.id,
 						targetName: targetEntity.name || targetEntity.id,
+						processName,
+						processId: mapping.processId,
+						processCode: mapping.system_code || dep.system_code,
 						attrMaps: dep.attrMaps || [],
 						description: getEdgeDescription(
 							sourceEntity,
