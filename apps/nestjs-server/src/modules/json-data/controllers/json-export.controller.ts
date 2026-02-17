@@ -74,6 +74,19 @@ export class JsonExportController {
 		type: String,
 		description: "Фильтр по типу сущности (например input_vector)",
 	})
+	@ApiQuery({
+		name: "sortBy",
+		required: false,
+		type: String,
+		description:
+			"Поле для сортировки (name, namespace, type, entity_change, system_code)",
+	})
+	@ApiQuery({
+		name: "sortOrder",
+		required: false,
+		type: String,
+		description: "Направление сортировки (asc | desc)",
+	})
 	@ApiResponse({
 		status: 200,
 		description: "Страница сущностей успешно получена",
@@ -94,6 +107,8 @@ export class JsonExportController {
 		@Query("limit") limitRaw?: string,
 		@Query("search") search?: string,
 		@Query("type") type?: string,
+		@Query("sortBy") sortBy?: string,
+		@Query("sortOrder") sortOrder?: string,
 	) {
 		const page = pageRaw ? Number.parseInt(pageRaw, 10) : 1;
 		const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 50;
@@ -110,6 +125,9 @@ export class JsonExportController {
 			limit,
 			search,
 			type,
+			sortBy,
+			sortOrder:
+				sortOrder === "desc" ? "desc" : sortOrder === "asc" ? "asc" : undefined,
 		});
 	}
 
