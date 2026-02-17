@@ -354,12 +354,16 @@ export const jsonDataService = {
 		limit?: number;
 		search?: string;
 		type?: string;
+		sortBy?: string;
+		sortOrder?: "asc" | "desc";
 	}): Promise<PaginatedEntitiesResponse> => {
 		const searchParams = new URLSearchParams();
 		if (params.page) searchParams.append("page", params.page.toString());
 		if (params.limit) searchParams.append("limit", params.limit.toString());
 		if (params.search) searchParams.append("search", params.search);
 		if (params.type) searchParams.append("type", params.type);
+		if (params.sortBy) searchParams.append("sortBy", params.sortBy);
+		if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 
 		return jsonDataApi
 			.get(`/dl/paginated?${searchParams}`)

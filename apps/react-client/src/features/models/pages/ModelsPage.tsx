@@ -5,7 +5,7 @@ import { Box, TextField, InputAdornment, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { Search } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
-import type { ColDef } from "ag-grid-community";
+import type { ColDef, SortChangedEvent } from "ag-grid-community";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -31,6 +31,10 @@ export const ModelsPage = () => {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(50);
+	const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+	const [sortOrder, setSortOrder] = useState<"asc" | "desc" | undefined>(
+		undefined,
+	);
 	const { mode } = useColorScheme();
 	const { selectEntity } = useEntitiesStore();
 	const navigate = useNavigate();
@@ -45,6 +49,8 @@ export const ModelsPage = () => {
 		limit: pageSize,
 		search: searchQuery || undefined,
 		type: "input_vector",
+		sortBy,
+		sortOrder,
 	});
 
 	// Backend уже фильтрует по type=input_vector
@@ -72,6 +78,19 @@ export const ModelsPage = () => {
 
 	const handlePageSizeChange = useCallback((size: number) => {
 		setPageSize(size);
+		setPage(1);
+	}, []);
+
+	const handleSortChanged = useCallback((event: SortChangedEvent<ModelRow>) => {
+		const colState = event.api.getColumnState();
+		const sorted = colState.find((c) => c.sort);
+		if (sorted) {
+			setSortBy(sorted.colId);
+			setSortOrder(sorted.sort as "asc" | "desc");
+		} else {
+			setSortBy(undefined);
+			setSortOrder(undefined);
+		}
 		setPage(1);
 	}, []);
 
@@ -148,9 +167,10 @@ export const ModelsPage = () => {
 						}
 						defaultColDef={{
 							sortable: true,
-							filter: true,
+							filter: false,
 							resizable: true,
 						}}
+						onSortChanged={handleSortChanged}
 						animateRows={true}
 						rowSelection="single"
 						onRowDoubleClicked={(event) => {
@@ -164,6 +184,7 @@ export const ModelsPage = () => {
 						}}
 						domLayout="normal"
 						loading={isLoading}
+						overlayNoRowsTemplate="Нет данных"
 					/>
 				</Box>
 

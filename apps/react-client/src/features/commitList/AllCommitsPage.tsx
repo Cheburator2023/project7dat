@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useEffect, useRef } from "react";
+import { useMemo, useCallback, useState, useRef } from "react";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import type { FC } from "react";
 import {
@@ -10,7 +10,11 @@ import {
 	DialogActions,
 	DialogContent,
 	DialogTitle,
+	Divider,
 	IconButton,
+	ListItemIcon,
+	ListItemText,
+	Menu,
 	MenuItem,
 	TextField,
 	Typography,
@@ -22,9 +26,16 @@ import {
 	CompareArrows as CompareArrowsIcon,
 	Delete as DeleteIcon,
 	Edit as EditIcon,
+	MoreVert as MoreVertIcon,
+	OpenInNew as OpenInNewIcon,
 	Visibility as VisibilityIcon,
 } from "@mui/icons-material";
-import { type ColDef, type SelectionChangedEvent } from "ag-grid-community";
+import {
+	type CellContextMenuEvent,
+	type ColDef,
+	type SelectionChangedEvent,
+	type SortChangedEvent,
+} from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { create as createDiff } from "jsondiffpatch";
 import { format as formatDiffHtml } from "jsondiffpatch/formatters/html";
@@ -69,8 +80,24 @@ const formatCommitOptionLabel = (commit: S2tCommitItem): string => {
 export const AllCommitsPage: FC = () => {
 	const { mode } = useColorScheme();
 	const navigate = useNavigate();
-	const s2tCommitsQuery = useS2tCommitList({ enabled: true });
-	const s2tCommits = s2tCommitsQuery.data ?? [];
+	const [commitsPage, setCommitsPage] = useState(1);
+	const [commitsPageSize, setCommitsPageSize] = useState(20);
+	const [commitsSortBy, setCommitsSortBy] = useState<string | undefined>(
+		undefined,
+	);
+	const [commitsSortOrder, setCommitsSortOrder] = useState<
+		"asc" | "desc" | undefined
+	>(undefined);
+	const s2tCommitsQuery = useS2tCommitList({
+		enabled: true,
+		page: commitsPage,
+		limit: commitsPageSize,
+		sortBy: commitsSortBy,
+		sortOrder: commitsSortOrder,
+	});
+	const s2tCommits = s2tCommitsQuery.data?.items ?? [];
+	const totalCommits = s2tCommitsQuery.data?.total ?? 0;
+	const totalCommitsPages = s2tCommitsQuery.data?.totalPages ?? 1;
 
 	const hasProcessing = useMemo(
 		() => s2tCommits.some((c) => c.state === "processing"),
@@ -85,6 +112,14 @@ export const AllCommitsPage: FC = () => {
 	);
 	const [mergeCommit, setMergeCommit] = useState<S2tCommitItem | null>(null);
 
+	// Context menu state
+	const [contextMenuAnchor, setContextMenuAnchor] = useState<{
+		x: number;
+		y: number;
+	} | null>(null);
+	const [contextMenuCommit, setContextMenuCommit] =
+		useState<S2tCommitItem | null>(null);
+
 	const [diffCommit, setDiffCommit] = useState<S2tCommitItem | null>(null);
 	const [deleteCommit, setDeleteCommit] = useState<S2tCommitItem | null>(null);
 	const [deleteLoading, setDeleteLoading] = useState(false);
@@ -94,41 +129,36 @@ export const AllCommitsPage: FC = () => {
 	const [compareTargetId, setCompareTargetId] = useState<string>("");
 	const gridRef = useRef<AgGridReact<S2tCommitItem> | null>(null);
 
-	// Client-side pagination state
-	const [commitsPage, setCommitsPage] = useState(1);
-	const [commitsPageSize, setCommitsPageSize] = useState(20);
-
-	const totalCommits = s2tCommits.length;
-	const totalCommitsPages = Math.ceil(totalCommits / commitsPageSize) || 1;
-	const pagedCommits = useMemo(() => {
-		const offset = (commitsPage - 1) * commitsPageSize;
-		return s2tCommits.slice(offset, offset + commitsPageSize);
-	}, [s2tCommits, commitsPage, commitsPageSize]);
-
 	const authStore = useAuthStore();
 	const username = authStore.userInfo?.username ?? "system";
-	const {
-		refetch: refetchCurrentGraph,
-		isPending: isCurrentGraphPending,
-		isLoading: isCurrentGraphLoading,
-	} = useCurrentDataLineageGraph({ enabled: false });
+	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph({
+		enabled: false,
+	});
 
 	const handleCommitsPageSizeChange = useCallback((size: number) => {
 		setCommitsPageSize(size);
 		setCommitsPage(1);
 	}, []);
 
-	useEffect(() => {
-		s2tCommitsQuery.refetch();
-	}, []);
+	const handleCommitsSortChanged = useCallback(
+		(event: SortChangedEvent<S2tCommitItem>) => {
+			const colState = event.api.getColumnState();
+			const sorted = colState.find((c) => c.sort);
+			if (sorted) {
+				setCommitsSortBy(sorted.colId);
+				setCommitsSortOrder(sorted.sort as "asc" | "desc");
+			} else {
+				setCommitsSortBy(undefined);
+				setCommitsSortOrder(undefined);
+			}
+			setCommitsPage(1);
+		},
+		[],
+	);
 
 	const handleDialogSaved = () => {
 		s2tCommitsQuery.refetch();
 		// here need to refetch all main dl data
-	};
-
-	const handleDeleteRequest = (commit: S2tCommitItem) => {
-		setDeleteCommit(commit);
 	};
 
 	const handleDeleteConfirm = async () => {
@@ -162,6 +192,19 @@ export const AllCommitsPage: FC = () => {
 					params.value ? String(params.value).slice(0, 8) : "—",
 			},
 			{
+				headerName: "Наименование",
+				field: "commit_name",
+				width: 280,
+				cellRenderer: (params: any) => params.value || "—",
+			},
+
+			{
+				headerName: "Автор",
+				field: "user",
+				width: 180,
+				cellRenderer: (params: any) => params.value || "—",
+			},
+			{
 				headerName: "Статус",
 				field: "state",
 				width: 150,
@@ -189,10 +232,21 @@ export const AllCommitsPage: FC = () => {
 				},
 			},
 			{
-				headerName: "Название",
-				field: "commit_name",
-				width: 280,
+				headerName: "Описание",
+				field: "commit_description",
+				flex: 1,
+				minWidth: 220,
 				cellRenderer: (params: any) => params.value || "—",
+			},
+
+			{
+				headerName: "Изменен",
+				field: "updated_at",
+				width: 180,
+				cellRenderer: (params: any) => {
+					if (!params.value) return "—";
+					return new Date(params.value).toLocaleString("ru-RU");
+				},
 			},
 			{
 				headerName: "Тип файла",
@@ -209,126 +263,47 @@ export const AllCommitsPage: FC = () => {
 				},
 			},
 			{
-				headerName: "Автор",
-				field: "user",
-				width: 180,
-				cellRenderer: (params: any) => params.value || "—",
-			},
-			{
-				headerName: "Изменен",
-				field: "updated_at",
-				width: 180,
-				cellRenderer: (params: any) => {
-					if (!params.value) return "—";
-					return new Date(params.value).toLocaleString("ru-RU");
-				},
-			},
-			{
-				headerName: "Описание",
-				field: "commit_description",
-				flex: 1,
-				minWidth: 220,
-				cellRenderer: (params: any) => params.value || "—",
-			},
-
-			{
-				headerName: "Действия",
+				headerName: "",
 				field: "actions",
-				width: 240,
+				width: 60,
 				sortable: false,
 				filter: false,
 				pinned: "right",
 				cellRenderer: (params: any) => {
 					const row = params.data as S2tCommitItem | undefined;
 					if (!row) return null;
-					const canEditCommit = row.state === "processing";
-					const jsonTitle = canEditCommit
-						? "Редактировать JSON"
-						: "Просмотреть JSON";
 					return (
-						<Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-							<IconButton
-								size="small"
-								title="Редактировать метаданные"
-								disabled={!canEditCommit}
-								onClick={(e) => {
-									e.stopPropagation();
-									setEditMetaCommit(row);
-								}}
-							>
-								<EditIcon fontSize="small" />
-							</IconButton>
-
-							<IconButton
-								size="small"
-								title="Редактировать"
-								disabled={!canEditCommit}
-								onClick={(e) => {
-									e.stopPropagation();
-									navigate(`/s2t-commits/${row.id}`);
-								}}
-							>
-								<EditIcon fontSize="small" />
-							</IconButton>
-
-							<IconButton
-								title={jsonTitle}
-								size="small"
-								onClick={(e) => {
-									e.stopPropagation();
-									setEditJsonCommit(row);
-								}}
-							>
-								{canEditCommit ? (
-									<CodeIcon fontSize="small" />
-								) : (
-									<VisibilityIcon fontSize="small" />
-								)}
-							</IconButton>
-
-							<IconButton
-								title="Diff к текущему JSON"
-								size="small"
-								onClick={(e) => {
-									e.stopPropagation();
-									setDiffCommit(row);
-								}}
-							>
-								<CompareArrowsIcon fontSize="small" />
-							</IconButton>
-
-							<span title="Применить (merge)">
-								<IconButton
-									size="small"
-									color="warning"
-									disabled={row.state === "done"}
-									onClick={(e) => {
-										e.stopPropagation();
-										setMergeCommit(row);
-									}}
-								>
-									<MergeIcon fontSize="small" />
-								</IconButton>
-							</span>
-
-							<span title="Удалить коммит">
-								<IconButton
-									size="small"
-									color="error"
-									disabled={!canEditCommit}
-									onClick={(e) => {
-										e.stopPropagation();
-										handleDeleteRequest(row);
-									}}
-								>
-									<DeleteIcon fontSize="small" />
-								</IconButton>
-							</span>
-						</Box>
+						<IconButton
+							size="small"
+							onClick={(e) => {
+								e.stopPropagation();
+								setContextMenuCommit(row);
+								setContextMenuAnchor({ x: e.clientX, y: e.clientY });
+							}}
+						>
+							<MoreVertIcon fontSize="small" />
+						</IconButton>
 					);
 				},
 			},
 		],
+		[],
+	);
+
+	const handleCloseContextMenu = useCallback(() => {
+		setContextMenuAnchor(null);
+		setContextMenuCommit(null);
+	}, []);
+
+	const handleCellContextMenu = useCallback(
+		(event: CellContextMenuEvent<S2tCommitItem>) => {
+			event.event?.preventDefault();
+			if (event.data) {
+				const mouseEvent = event.event as MouseEvent;
+				setContextMenuCommit(event.data);
+				setContextMenuAnchor({ x: mouseEvent.clientX, y: mouseEvent.clientY });
+			}
+		},
 		[],
 	);
 
@@ -453,11 +428,13 @@ export const AllCommitsPage: FC = () => {
 				<GridWrapper height="100%">
 					<AgGridReact<S2tCommitItem>
 						ref={gridRef}
-						rowData={pagedCommits}
+						rowData={s2tCommits}
 						columnDefs={s2tColumnDefs}
 						defaultColDef={defaultColDef}
 						onRowDoubleClicked={handleS2tRowDoubleClick}
-						// onSelectionChanged={handleSelectionChanged}
+						onSortChanged={handleCommitsSortChanged}
+						onCellContextMenu={handleCellContextMenu}
+						preventDefaultOnContextMenu
 						loading={s2tCommitsQuery.isLoading}
 						theme={
 							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
@@ -481,6 +458,108 @@ export const AllCommitsPage: FC = () => {
 					pageSizeOptions={[10, 20, 50, 100]}
 				/>
 			</Box>
+
+			{/* Context menu for commit actions */}
+			<Menu
+				open={!!contextMenuAnchor}
+				onClose={handleCloseContextMenu}
+				anchorReference="anchorPosition"
+				anchorPosition={
+					contextMenuAnchor
+						? { top: contextMenuAnchor.y, left: contextMenuAnchor.x }
+						: undefined
+				}
+			>
+				{contextMenuCommit && [
+					<MenuItem
+						key="edit-meta"
+						disabled={contextMenuCommit.state !== "processing"}
+						onClick={() => {
+							setEditMetaCommit(contextMenuCommit);
+							handleCloseContextMenu();
+						}}
+					>
+						<ListItemIcon>
+							<EditIcon fontSize="small" />
+						</ListItemIcon>
+						<ListItemText>Редактировать метаданные</ListItemText>
+					</MenuItem>,
+					<MenuItem
+						key="open-page"
+						disabled={contextMenuCommit.state !== "processing"}
+						onClick={() => {
+							navigate(`/s2t-commits/${contextMenuCommit.id}`);
+							handleCloseContextMenu();
+						}}
+					>
+						<ListItemIcon>
+							<OpenInNewIcon fontSize="small" />
+						</ListItemIcon>
+						<ListItemText>Открыть коммит</ListItemText>
+					</MenuItem>,
+					<MenuItem
+						key="edit-json"
+						onClick={() => {
+							setEditJsonCommit(contextMenuCommit);
+							handleCloseContextMenu();
+						}}
+					>
+						<ListItemIcon>
+							{contextMenuCommit.state === "processing" ? (
+								<CodeIcon fontSize="small" />
+							) : (
+								<VisibilityIcon fontSize="small" />
+							)}
+						</ListItemIcon>
+						<ListItemText>
+							{contextMenuCommit.state === "processing"
+								? "Редактировать JSON"
+								: "Просмотреть JSON"}
+						</ListItemText>
+					</MenuItem>,
+					<MenuItem
+						key="diff"
+						onClick={() => {
+							setDiffCommit(contextMenuCommit);
+							handleCloseContextMenu();
+						}}
+					>
+						<ListItemIcon>
+							<CompareArrowsIcon fontSize="small" />
+						</ListItemIcon>
+						<ListItemText>Diff к текущему JSON</ListItemText>
+					</MenuItem>,
+					<Divider key="divider" />,
+					<MenuItem
+						key="merge"
+						disabled={contextMenuCommit.state === "done"}
+						onClick={() => {
+							setMergeCommit(contextMenuCommit);
+							handleCloseContextMenu();
+						}}
+					>
+						<ListItemIcon>
+							<MergeIcon fontSize={16} />
+						</ListItemIcon>
+						<ListItemText>Применить (merge)</ListItemText>
+					</MenuItem>,
+					<MenuItem
+						key="delete"
+						disabled={contextMenuCommit.state !== "processing"}
+						onClick={() => {
+							setDeleteCommit(contextMenuCommit);
+							handleCloseContextMenu();
+						}}
+						sx={{ color: "error.main" }}
+					>
+						<ListItemIcon>
+							<DeleteIcon fontSize="small" color="error" />
+						</ListItemIcon>
+						<ListItemText>Удалить коммит</ListItemText>
+					</MenuItem>,
+				]}
+			</Menu>
+
 			<EditMetadataDialog
 				open={!!editMetaCommit}
 				commit={editMetaCommit}

@@ -11,6 +11,8 @@ export const usePaginatedEntities = (params: {
 	limit: number;
 	search?: string;
 	type?: string;
+	sortBy?: string;
+	sortOrder?: "asc" | "desc";
 	enabled?: boolean;
 }) => {
 	return useQuery<PaginatedEntitiesResponse, Error>({
@@ -20,6 +22,8 @@ export const usePaginatedEntities = (params: {
 			params.limit,
 			params.search ?? "",
 			params.type ?? "",
+			params.sortBy ?? "",
+			params.sortOrder ?? "",
 		],
 		queryFn: () =>
 			jsonDataService.getPaginatedEntities({
@@ -27,6 +31,8 @@ export const usePaginatedEntities = (params: {
 				limit: params.limit,
 				search: params.search,
 				type: params.type,
+				sortBy: params.sortBy,
+				sortOrder: params.sortOrder,
 			}),
 		placeholderData: keepPreviousData,
 		staleTime: 30 * 1000,

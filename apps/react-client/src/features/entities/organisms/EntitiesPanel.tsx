@@ -12,6 +12,7 @@ import type {
 	CellContextMenuEvent,
 	GridReadyEvent,
 	GridApi,
+	SortChangedEvent,
 } from "ag-grid-community";
 import {
 	agGridCustomMUITheme,
@@ -56,6 +57,9 @@ export const EntitiesPanel = memo(
 			entitiesPageSize,
 			setEntitiesPage,
 			setEntitiesPageSize,
+			entitiesSortBy,
+			entitiesSortOrder,
+			setEntitiesSort,
 		} = useEntitiesStore();
 
 		// Backend pagination
@@ -67,6 +71,8 @@ export const EntitiesPanel = memo(
 			page: entitiesPage,
 			limit: entitiesPageSize,
 			search: globalSearchQuery || undefined,
+			sortBy: entitiesSortBy,
+			sortOrder: entitiesSortOrder,
 		});
 
 		const totalPages = paginatedData?.totalPages ?? 1;
@@ -202,6 +208,21 @@ export const EntitiesPanel = memo(
 			gridApiRef.current = event.api;
 		}, []);
 
+		const handleSortChanged = useCallback(
+			(event: SortChangedEvent<EntityRow>) => {
+				const colState = event.api.getColumnState();
+				console.log("🐸 Pepe said >> event:", event);
+
+				const sorted = colState.find((c) => c.sort);
+				if (sorted) {
+					setEntitiesSort(sorted.colId, sorted.sort as "asc" | "desc");
+				} else {
+					setEntitiesSort(undefined, undefined);
+				}
+			},
+			[setEntitiesSort],
+		);
+
 		const getRowStyle = useCallback(
 			(params: { data?: EntityRow }) => {
 				const entityId = params.data?.id;
@@ -240,6 +261,7 @@ export const EntitiesPanel = memo(
 						onRowClicked={handleRowClicked}
 						onRowDoubleClicked={handleRowDoubleClicked}
 						onCellContextMenu={handleCellContextMenu}
+						onSortChanged={handleSortChanged}
 						preventDefaultOnContextMenu
 						getRowStyle={getRowStyle}
 						rowSelection="single"

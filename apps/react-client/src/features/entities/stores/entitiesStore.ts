@@ -89,6 +89,14 @@ interface SelectionState {
 	entitiesPageSize: number;
 	setEntitiesPage: (page: number) => void;
 	setEntitiesPageSize: (size: number) => void;
+
+	// Backend sorting for entities panel
+	entitiesSortBy: string | undefined;
+	entitiesSortOrder: "asc" | "desc" | undefined;
+	setEntitiesSort: (
+		sortBy: string | undefined,
+		sortOrder: "asc" | "desc" | undefined,
+	) => void;
 }
 
 export const useEntitiesStore = create<SelectionState>((set) => ({
@@ -201,4 +209,13 @@ export const useEntitiesStore = create<SelectionState>((set) => ({
 	setEntitiesPage: (page) => set({ entitiesPage: page }),
 	setEntitiesPageSize: (size) =>
 		set({ entitiesPageSize: size, entitiesPage: 1 }),
+
+	entitiesSortBy: undefined,
+	entitiesSortOrder: undefined,
+	setEntitiesSort: (sortBy, sortOrder) =>
+		set({
+			entitiesSortBy: sortBy,
+			entitiesSortOrder: sortOrder,
+			entitiesPage: 1,
+		}),
 }));

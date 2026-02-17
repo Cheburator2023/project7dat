@@ -20,6 +20,17 @@ import {
 @Injectable()
 export class S2tCommitStoreService {
 	private readonly logger = new Logger(S2tCommitStoreService.name);
+	private readonly sortableFields = new Set<keyof S2tCommitEntity>([
+		"id",
+		"commit_name",
+		"commit_description",
+		"type",
+		"state",
+		"user",
+		"change_id",
+		"created_at",
+		"updated_at",
+	]);
 
 	constructor(
 		@InjectRepository(S2tCommitEntity)
@@ -74,11 +85,49 @@ export class S2tCommitStoreService {
 	async list(params?: {
 		state?: string;
 		type?: string;
-	}): Promise<S2tCommitEntity[]> {
+		page?: number;
+		limit?: number;
+		sortBy?: string;
+		sortOrder?: "asc" | "desc";
+	}): Promise<{
+		items: S2tCommitEntity[];
+		total: number;
+		page: number;
+		limit: number;
+		totalPages: number;
+	}> {
 		const where: any = {};
 		if (params?.state) where.state = params.state;
 		if (params?.type) where.type = params.type;
-		return await this.repo.find({ where, order: { created_at: "DESC" } });
+
+		const page = Math.max(1, params?.page ?? 1);
+		const limit = Math.min(200, Math.max(1, params?.limit ?? 20));
+		const requestedSortBy =
+			typeof params?.sortBy === "string" ? params.sortBy.trim() : "";
+		const sortBy =
+			requestedSortBy &&
+			requestedSortBy !== "undefined" &&
+			this.sortableFields.has(requestedSortBy as keyof S2tCommitEntity)
+				? (requestedSortBy as keyof S2tCommitEntity)
+				: "created_at";
+		const sortOrder = params?.sortOrder === "asc" ? "ASC" : "DESC";
+
+		const [items, total] = await this.repo.findAndCount({
+			where,
+			order: {
+				[sortBy]: sortOrder,
+			},
+			skip: (page - 1) * limit,
+			take: limit,
+		});
+
+		return {
+			items,
+			total,
+			page,
+			limit,
+			totalPages: Math.ceil(total / limit) || 1,
+		};
 	}
 
 	async applyCommit(params: {

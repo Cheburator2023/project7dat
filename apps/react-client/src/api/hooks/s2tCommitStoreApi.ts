@@ -42,13 +42,42 @@ export interface ApplyS2tCommitPayload {
 	sourceType?: "SURM" | "DAPP";
 }
 
+export interface S2tCommitListResponse {
+	items: S2tCommitItem[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+}
+
 export const s2tCommitStoreService = {
 	list: async (params?: {
 		state?: string;
 		type?: string;
-	}): Promise<S2tCommitItem[]> => {
+		page?: number;
+		limit?: number;
+		sortBy?: string;
+		sortOrder?: "asc" | "desc";
+	}): Promise<S2tCommitListResponse> => {
 		const response = await s2tCommitStoreApi.get("", { params });
-		return Array.isArray(response.data) ? response.data : [];
+		const data = response.data;
+		if (!data || typeof data !== "object") {
+			return {
+				items: [],
+				total: 0,
+				page: params?.page ?? 1,
+				limit: params?.limit ?? 20,
+				totalPages: 1,
+			};
+		}
+		return {
+			items: Array.isArray(data.items) ? data.items : [],
+			total: typeof data.total === "number" ? data.total : 0,
+			page: typeof data.page === "number" ? data.page : (params?.page ?? 1),
+			limit:
+				typeof data.limit === "number" ? data.limit : (params?.limit ?? 20),
+			totalPages: typeof data.totalPages === "number" ? data.totalPages : 1,
+		};
 	},
 	getById: async (id: string): Promise<S2tCommitItem> => {
 		const response = await s2tCommitStoreApi.get(`/${id}`);

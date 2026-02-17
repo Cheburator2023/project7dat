@@ -1191,6 +1191,8 @@ export class JsonExportService {
 		limit: number;
 		search?: string;
 		type?: string;
+		sortBy?: string;
+		sortOrder?: "asc" | "desc";
 	}): Promise<{
 		entities: JsonExportResponseDto["entities"];
 		total: number;
@@ -1199,7 +1201,7 @@ export class JsonExportService {
 		totalPages: number;
 		desc: JsonExportResponseDto["desc"];
 	}> {
-		const { page, limit, search, type } = params;
+		const { page, limit, search, type, sortBy, sortOrder } = params;
 		const startTime = Date.now();
 
 		// Получаем полный граф из кэша (или прогреваем)
@@ -1227,6 +1229,19 @@ export class JsonExportService {
 					(e.description && e.description.toUpperCase().includes(q)) ||
 					(e.system_code && e.system_code.toUpperCase().includes(q)),
 			);
+		}
+
+		// Сортировка
+		if (sortBy) {
+			const dir = sortOrder === "desc" ? -1 : 1;
+			entities = [...entities].sort((a, b) => {
+				const aVal = (a as any)[sortBy] ?? "";
+				const bVal = (b as any)[sortBy] ?? "";
+				if (typeof aVal === "string" && typeof bVal === "string") {
+					return dir * aVal.localeCompare(bVal, "ru", { sensitivity: "base" });
+				}
+				return dir * (aVal > bVal ? 1 : aVal < bVal ? -1 : 0);
+			});
 		}
 
 		const total = entities.length;

@@ -40,9 +40,31 @@ export class S2tCommitStoreController {
 	@ApiOperation({ summary: "Список S2T коммитов" })
 	@ApiQuery({ name: "state", required: false })
 	@ApiQuery({ name: "type", required: false })
+	@ApiQuery({ name: "page", required: false, type: Number })
+	@ApiQuery({ name: "limit", required: false, type: Number })
+	@ApiQuery({ name: "sortBy", required: false, type: String })
+	@ApiQuery({
+		name: "sortOrder",
+		required: false,
+		enum: ["asc", "desc"],
+	})
 	@ApiResponse({ status: 200 })
-	async list(@Query("state") state?: string, @Query("type") type?: string) {
-		return await this.service.list({ state, type });
+	async list(
+		@Query("state") state?: string,
+		@Query("type") type?: string,
+		@Query("page") page?: string,
+		@Query("limit") limit?: string,
+		@Query("sortBy") sortBy?: string,
+		@Query("sortOrder") sortOrder?: "asc" | "desc",
+	) {
+		return await this.service.list({
+			state,
+			type,
+			page: page ? Number(page) : undefined,
+			limit: limit ? Number(limit) : undefined,
+			sortBy,
+			sortOrder,
+		});
 	}
 
 	@Get(":id")

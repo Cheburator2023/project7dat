@@ -58,7 +58,7 @@ export const useCurrentDataLineageGraph = (options?: {
 			try {
 				if (!options?.search) {
 					setTimeout(() => {
-						jsonDataService.getCurrent().then((backendItem) => {
+						jsonDataService.getCurrent().then((backendItem: any) => {
 							console.log("CurrentDataLineageGraph >> ", backendItem);
 
 							if (!backendItem) {
@@ -85,7 +85,7 @@ export const useCurrentDataLineageGraph = (options?: {
 					}, 0);
 				}
 				if (options?.search && !currentGraphId) {
-					const backendItem = await jsonDataService.getSearchEntity(
+					const backendItem: any = await jsonDataService.getSearchEntity(
 						options?.search.toUpperCase(),
 					);
 
