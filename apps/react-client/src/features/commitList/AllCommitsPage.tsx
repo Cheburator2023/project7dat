@@ -31,7 +31,10 @@ import { format as formatDiffHtml } from "jsondiffpatch/formatters/html";
 import "jsondiffpatch/formatters/styles/html.css";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { useS2tCommitList } from "@react-client/api/hooks";
+import {
+	useCurrentDataLineageGraph,
+	useS2tCommitList,
+} from "@react-client/api/hooks";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { s2tCommitStoreService } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { Header } from "@react-client/common/navigation/organisms/Header";
@@ -43,6 +46,9 @@ import {
 import { DiffJsonDialog } from "./DiffJsonDialog";
 import { EditJsonDialog } from "./EditJsonDialog";
 import { EditMetadataDialog } from "./EditMetadataDialog";
+import { MergeIcon } from "lucide-react";
+import { MergeCommitDialog } from "@react-client/features/commitList/MergeCommitDialog";
+import { useAuthStore } from "@react-client/common/store/authStore";
 
 const defaultColDef = {
 	resizable: true,
@@ -77,6 +83,8 @@ export const AllCommitsPage: FC = () => {
 	const [editJsonCommit, setEditJsonCommit] = useState<S2tCommitItem | null>(
 		null,
 	);
+	const [mergeCommit, setMergeCommit] = useState<S2tCommitItem | null>(null);
+
 	const [diffCommit, setDiffCommit] = useState<S2tCommitItem | null>(null);
 	const [deleteCommit, setDeleteCommit] = useState<S2tCommitItem | null>(null);
 	const [deleteLoading, setDeleteLoading] = useState(false);
@@ -96,6 +104,14 @@ export const AllCommitsPage: FC = () => {
 		const offset = (commitsPage - 1) * commitsPageSize;
 		return s2tCommits.slice(offset, offset + commitsPageSize);
 	}, [s2tCommits, commitsPage, commitsPageSize]);
+
+	const authStore = useAuthStore();
+	const username = authStore.userInfo?.username ?? "system";
+	const {
+		refetch: refetchCurrentGraph,
+		isPending: isCurrentGraphPending,
+		isLoading: isCurrentGraphLoading,
+	} = useCurrentDataLineageGraph({ enabled: false });
 
 	const handleCommitsPageSizeChange = useCallback((size: number) => {
 		setCommitsPageSize(size);
@@ -139,9 +155,9 @@ export const AllCommitsPage: FC = () => {
 				field: "id",
 				width: 120,
 				pinned: "left",
-				checkboxSelection: true,
-				headerCheckboxSelection: true,
-				headerCheckboxSelectionFilteredOnly: true,
+				// checkboxSelection: true,
+				// headerCheckboxSelection: true,
+				// headerCheckboxSelectionFilteredOnly: true,
 				cellRenderer: (params: any) =>
 					params.value ? String(params.value).slice(0, 8) : "—",
 			},
@@ -218,7 +234,7 @@ export const AllCommitsPage: FC = () => {
 			{
 				headerName: "Действия",
 				field: "actions",
-				width: 200,
+				width: 240,
 				sortable: false,
 				filter: false,
 				pinned: "right",
@@ -281,10 +297,19 @@ export const AllCommitsPage: FC = () => {
 								<CompareArrowsIcon fontSize="small" />
 							</IconButton>
 
-							{/* <JsonViewerCell
-								value={params.data?.payload}
-								maxPreviewLength={80}
-							/> */}
+							<span title="Применить (merge)">
+								<IconButton
+									size="small"
+									color="warning"
+									disabled={row.state === "done"}
+									onClick={(e) => {
+										e.stopPropagation();
+										setMergeCommit(row);
+									}}
+								>
+									<MergeIcon fontSize="small" />
+								</IconButton>
+							</span>
 
 							<span title="Удалить коммит">
 								<IconButton
@@ -407,13 +432,13 @@ export const AllCommitsPage: FC = () => {
 					>
 						Импорт S2T
 					</Button>
-					<Button
+					{/* <Button
 						variant="outlined"
 						onClick={handleOpenCompareSelected}
 						disabled={selectedCommits.length !== 2}
 					>
 						Сравнить выбранные ({selectedCommits.length})
-					</Button>
+					</Button> */}
 				</Flex>
 			</Header>
 
@@ -432,7 +457,7 @@ export const AllCommitsPage: FC = () => {
 						columnDefs={s2tColumnDefs}
 						defaultColDef={defaultColDef}
 						onRowDoubleClicked={handleS2tRowDoubleClick}
-						onSelectionChanged={handleSelectionChanged}
+						// onSelectionChanged={handleSelectionChanged}
 						loading={s2tCommitsQuery.isLoading}
 						theme={
 							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
@@ -441,7 +466,6 @@ export const AllCommitsPage: FC = () => {
 						enableCellTextSelection={true}
 						ensureDomOrder={true}
 						maintainColumnOrder={true}
-						rowSelection={"multiple"}
 					/>
 				</GridWrapper>
 
@@ -474,6 +498,16 @@ export const AllCommitsPage: FC = () => {
 				open={!!diffCommit}
 				commit={diffCommit}
 				onClose={() => setDiffCommit(null)}
+			/>
+			<MergeCommitDialog
+				open={!!mergeCommit}
+				commit={mergeCommit}
+				username={username}
+				onClose={() => setMergeCommit(null)}
+				onApplied={() => {
+					handleDialogSaved();
+					refetchCurrentGraph();
+				}}
 			/>
 			<Dialog open={!!deleteCommit} onClose={() => setDeleteCommit(null)}>
 				<DialogTitle>Удалить коммит?</DialogTitle>

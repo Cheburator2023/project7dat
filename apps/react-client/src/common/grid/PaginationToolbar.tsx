@@ -57,8 +57,6 @@ export const PaginationToolbar = memo(
 					justifyContent: "space-between",
 					px: 1,
 					py: 0.25,
-					borderTop: "1px solid",
-					borderColor: "divider",
 					minHeight: 32,
 					opacity: isFetching ? 0.6 : 1,
 					transition: "opacity 0.15s",
