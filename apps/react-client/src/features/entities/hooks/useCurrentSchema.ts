@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useJsonDataList } from "@react-client/api/hooks";
-import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
 
@@ -17,7 +15,6 @@ import { useEntitiesStore } from "../stores";
  */
 export function useCurrentSchema() {
 	const selectedGraphId = useEntitiesStore((state) => state.selectedGraphId);
-	const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
 	// Get edited data from dataLineageStore
 	const { currentGraph, currentGraphId, hasUnsavedChanges } =
@@ -35,7 +32,7 @@ export function useCurrentSchema() {
 		if (currentGraphId) return currentGraphId;
 		// if (jsonDataList && jsonDataList.length > 0) return jsonDataList[0].id;
 		return null;
-	}, [selectedGraphId, currentGraphId, jsonDataList]);
+	}, [selectedGraphId, currentGraphId]);
 
 	// Get the schema - prefer edited version from dataLineageStore if available
 	const currentSchema: DataLineageSchema | null = useMemo(() => {
@@ -52,25 +49,13 @@ export function useCurrentSchema() {
 		}
 
 		// Otherwise, get from server data
-		if (!jsonDataList || !effectiveGraphId) return null;
-		const item = jsonDataList.find(
-			(i: JsonDataItem) => i.id === effectiveGraphId,
-		);
-		return item?.data ?? null;
-	}, [
-		jsonDataList,
-		effectiveGraphId,
-		currentGraph,
-		currentGraphId,
-		selectedGraphId,
-	]);
+		if (!effectiveGraphId) return null;
+		return null;
+	}, [effectiveGraphId, currentGraph, currentGraphId, selectedGraphId]);
 
 	return {
 		currentSchema,
 		effectiveGraphId,
-		isLoading,
-		error,
 		hasUnsavedChanges,
-		jsonDataList,
 	};
 }

@@ -47,7 +47,7 @@ export const ModelGraphPanel: React.FC<{
 	} = useEntitiesStore();
 
 	// Use currentSchema hook to get data synced with editor
-	const { currentSchema, effectiveGraphId, isLoading } = useCurrentSchema();
+	const { currentSchema, effectiveGraphId } = useCurrentSchema();
 	const navigate = useNavigate();
 
 	// Get setRevealPosition for scrolling to entity in editor
@@ -296,10 +296,6 @@ export const ModelGraphPanel: React.FC<{
 		}
 		handleCloseContextMenu();
 	}, [contextMenuEntity, entityConnections, handleCloseContextMenu]);
-
-	if (isLoading) {
-		return <LoadingSpinner />;
-	}
 
 	return (
 		<Box sx={{ height: "100%", width: "100%" }}>

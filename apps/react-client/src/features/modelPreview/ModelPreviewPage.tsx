@@ -291,7 +291,7 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		[selectedEntity, relatedMappings, calculatedEntities],
 	);
 
-	useCurrentDataLineageGraph({ enabled: !currentGraph?.entities });
+	useCurrentDataLineageGraph({ enabled: false });
 
 	const onAction = useCallback(
 		(action: Action) => {

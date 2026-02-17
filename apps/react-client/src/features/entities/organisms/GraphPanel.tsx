@@ -49,7 +49,7 @@ export const GraphPanel = memo(() => {
 	);
 
 	// Use currentSchema hook to get data synced with editor
-	const { currentSchema, effectiveGraphId, isLoading } = useCurrentSchema();
+	const { currentSchema, effectiveGraphId } = useCurrentSchema();
 	const navigate = useNavigate();
 
 	// Get setRevealPosition for scrolling to entity in editor
@@ -310,10 +310,6 @@ export const GraphPanel = memo(() => {
 		}
 		handleCloseContextMenu();
 	}, [contextMenuEntity, entityConnections, handleCloseContextMenu]);
-
-	if (isLoading) {
-		return <LoadingSpinner />;
-	}
 
 	if (!currentSchema || !effectiveGraphId) {
 		return <EmptyState message="Нет данных для отображения графа" />;

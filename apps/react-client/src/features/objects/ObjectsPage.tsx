@@ -57,7 +57,7 @@ export const ObjectsPage = () => {
 			setZoomToNode: state.setZoomToNode,
 		})),
 	);
-	useCurrentDataLineageGraph();
+	useCurrentDataLineageGraph({ enabled: false });
 
 	const location = useLocation();
 
