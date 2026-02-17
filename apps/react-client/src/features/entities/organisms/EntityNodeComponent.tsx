@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import { TYPE_COLORS, HIGHLIGHT_COLORS, MAX_VISIBLE_ATTRS } from "../constants";
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import type { EntityNodeData } from "../types";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
@@ -38,10 +38,10 @@ export const EntityNodeComponent = memo(
 		const attrs = entity.attrSeq || [];
 
 		const [localSearchQuery, setLocalSearchQuery] = useState("");
-		const globalAttributeSearchQuery = useDashboardStore(
+		const globalAttributeSearchQuery = useEntitiesStore(
 			selectGlobalAttributeSearch,
 		);
-		const setLocalNodeAttributeSearch = useDashboardStore(
+		const setLocalNodeAttributeSearch = useEntitiesStore(
 			(state) => state.setLocalNodeAttributeSearch,
 		);
 		const activeSearchQuery = globalAttributeSearchQuery || localSearchQuery;

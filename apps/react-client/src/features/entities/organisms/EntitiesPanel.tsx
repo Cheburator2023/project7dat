@@ -21,7 +21,7 @@ import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import { usePaginatedEntities } from "@react-client/api/hooks";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import { TypeChip } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
 import { EntityContextMenu, type EntityContextMenuState } from "../molecules";
@@ -56,7 +56,7 @@ export const EntitiesPanel = memo(
 			entitiesPageSize,
 			setEntitiesPage,
 			setEntitiesPageSize,
-		} = useDashboardStore();
+		} = useEntitiesStore();
 
 		// Backend pagination
 		const {

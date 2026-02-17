@@ -38,7 +38,7 @@ import {
 	Info,
 } from "@mui/icons-material";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 
@@ -662,7 +662,7 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 
 	const { fitView, setCenter, getNode } = useReactFlow();
 	const { setRevealPosition } = useDataLineageStore();
-	const { setZoomToNode } = useDashboardStore();
+	const { setZoomToNode } = useEntitiesStore();
 
 	// Build lineage graph
 	const lineageGraph = useMemo(() => buildLineageGraph(mappings), [mappings]);

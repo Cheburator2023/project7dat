@@ -11,7 +11,7 @@ import { format } from "date-fns/esm";
 import { toast } from "sonner";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Card } from "@react-client/common/muiCustom/Card";
-import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useAuthStore } from "@react-client/common/store/authStore";
 
@@ -66,7 +66,7 @@ const downloadBlob = (params: { blob: Blob; fileName: string }) => {
 };
 
 export const S2tDataReportPage = () => {
-	const { selectedEntityId } = useDashboardStore();
+	const { selectedEntityId } = useEntitiesStore();
 	const { currentGraph } = useDataLineageStore();
 	const { accessToken } = useAuthStore();
 	const [loading, setLoading] = useState(false);

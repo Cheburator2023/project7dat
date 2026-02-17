@@ -8,9 +8,9 @@ import { useShallow } from "zustand/react/shallow";
 import {
 	EntitiesPanel,
 	DashboardHeader,
-} from "@react-client/features/dashboard/organisms";
-import { useDashboardStore } from "@react-client/features/dashboard";
+} from "@react-client/features/entities/organisms";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 
 export const flexLayoutJson: IJsonModel = {
 	global: {
@@ -51,7 +51,7 @@ export const flexLayoutJson: IJsonModel = {
 
 export const ObjectsPage = () => {
 	const [, setSearchParams] = useSearchParams();
-	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore(
+	const { selectEntityWithAttribute, setZoomToNode } = useEntitiesStore(
 		useShallow((state) => ({
 			selectEntityWithAttribute: state.selectEntityWithAttribute,
 			setZoomToNode: state.setZoomToNode,

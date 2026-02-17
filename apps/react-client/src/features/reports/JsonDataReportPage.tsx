@@ -4,12 +4,12 @@ import { format } from "date-fns/esm";
 import { toast } from "sonner";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Card } from "@react-client/common/muiCustom/Card";
-import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 import {
 	buildLineageGraph,
 	getUpstreamNodes,
 	getDownstreamNodes,
-} from "@react-client/features/dashboard/utils";
+} from "@react-client/features/entities/utils";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import type {
 	DataLineageEntity,
@@ -98,7 +98,7 @@ const downloadJson = (params: { data: unknown; fileName: string }) => {
 };
 
 export const JsonDataReportPage = () => {
-	const { selectedEntityId } = useDashboardStore();
+	const { selectedEntityId } = useEntitiesStore();
 	const { currentGraph } = useDataLineageStore();
 
 	const derived = useMemo(() => {

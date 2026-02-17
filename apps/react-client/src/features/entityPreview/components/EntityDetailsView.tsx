@@ -26,7 +26,7 @@ import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
-import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 
 interface EntityDetailsViewProps {
 	entity: DataLineageEntity | null;
@@ -45,7 +45,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 		selectEntity,
 		setHighlightedMapping,
 		selectEntityWithAttribute,
-	} = useDashboardStore();
+	} = useEntitiesStore();
 
 	const relatedMappings = useMemo(() => {
 		if (!entity) return [];

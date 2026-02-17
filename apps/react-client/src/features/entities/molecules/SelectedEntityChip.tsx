@@ -1,9 +1,9 @@
 import { memo } from "react";
 import { Chip } from "@mui/material";
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 
 export const SelectedEntityChip = memo(() => {
-	const { selectedEntityId, clearHighlights } = useDashboardStore();
+	const { selectedEntityId, clearHighlights } = useEntitiesStore();
 
 	if (!selectedEntityId) return null;
 

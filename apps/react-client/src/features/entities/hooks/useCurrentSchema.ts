@@ -5,7 +5,7 @@ import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
 
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 
 /**
  * Hook that returns the current schema data.
@@ -16,7 +16,7 @@ import { useDashboardStore } from "../stores";
  * with the JSON editor when changes are made.
  */
 export function useCurrentSchema() {
-	const selectedGraphId = useDashboardStore((state) => state.selectedGraphId);
+	const selectedGraphId = useEntitiesStore((state) => state.selectedGraphId);
 	const { data: jsonDataList, isLoading, error } = useJsonDataList();
 
 	// Get edited data from dataLineageStore

@@ -35,7 +35,7 @@ import {
 } from "@mui/icons-material";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { Spacer } from "@react-client/common/primitives/Spacer";
-import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 
 interface EntityConnection {
 	id: string;
@@ -89,7 +89,7 @@ export const EntityDetailsDialog = ({
 		selectEntity,
 		selectEntityWithAttribute,
 		setHighlightedMapping,
-	} = useDashboardStore();
+	} = useEntitiesStore();
 	const [viewMode, setViewMode] = useState<ViewMode>("attributes");
 	const [searchTerm, setSearchTerm] = useState("");
 

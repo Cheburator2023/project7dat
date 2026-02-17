@@ -15,7 +15,7 @@ import {
 	Button,
 } from "@mui/material";
 import { FilterList as FilterListIcon } from "@mui/icons-material";
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import { TYPE_COLORS } from "../constants";
 import type { FilterState } from "../types";
 
@@ -28,7 +28,7 @@ interface FilterButtonProps {
 
 export const FilterButton = memo(() => {
 	const [open, setOpen] = useState(false);
-	const { filters, updateFilter, resetFilters } = useDashboardStore();
+	const { filters, updateFilter, resetFilters } = useEntitiesStore();
 
 	const activeFilterCount = useMemo(() => {
 		let count = 0;

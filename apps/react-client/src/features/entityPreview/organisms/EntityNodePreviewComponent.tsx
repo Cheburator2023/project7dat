@@ -1,13 +1,13 @@
 import React, { memo, useMemo, useState, useCallback } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import type { EntityNodeData } from "../../dashboard/types";
+import type { EntityNodeData } from "../../entities/types";
 import {
 	TYPE_COLORS,
 	HIGHLIGHT_COLORS,
 	MAX_VISIBLE_ATTRS,
-} from "../../dashboard/constants";
-import { useDashboardStore } from "../../dashboard/stores";
-import {ModelNodePreviewComponent} from "@react-client/features/modelPreview/organisms/ModelNodePreviewComponent";
+} from "../../entities/constants";
+import { useEntitiesStore } from "../../entities/stores";
+import { ModelNodePreviewComponent } from "@react-client/features/modelPreview/organisms/ModelNodePreviewComponent";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
 
@@ -138,7 +138,7 @@ export const EntityNodePreviewComponent = memo(
 		const [localSearchQuery, setLocalSearchQuery] = useState("");
 
 		// Get global attribute search from store with stable selector
-		const globalAttributeSearchQuery = useDashboardStore(
+		const globalAttributeSearchQuery = useEntitiesStore(
 			selectGlobalAttributeSearch,
 		);
 
@@ -148,7 +148,7 @@ export const EntityNodePreviewComponent = memo(
 		// Debounce store update for local search if needed, but here we just use local state primarily
 		// Dashboard syncs with store, we can keep it simple here or match.
 		// Let's match simple local state for now unless we need store sync.
-		// Dashboard: const setLocalNodeAttributeSearch = useDashboardStore(...)
+		// Dashboard: const setLocalNodeAttributeSearch = useEntitiesStore(...)
 		// EntityGraphPanelInner logic doesn't seem to use localNodeAttributeSearchQueries?
 		// Checking EntityGraphPanelInner... it doesn't seem to pass localNodeAttributeSearchQueries or use it for filtering.
 		// So local state is fine here.
@@ -681,5 +681,5 @@ export const graphNodeTypes = {
 	entityNode: EntityNodePreviewComponent,
 	ghostNode: GhostNodeComponent,
 	depthGroup: DepthGroupNode,
-	modelNode: ModelNodePreviewComponent
+	modelNode: ModelNodePreviewComponent,
 };

@@ -26,7 +26,7 @@ import type {
 } from "@react-client/types/dataLineage";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { LoadingSpinner, ObjectTypeChip } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
@@ -52,7 +52,7 @@ export const ObjectsPanel = memo(() => {
 		selectedAttributeName,
 		selectAttribute,
 		globalSearchQuery,
-	} = useDashboardStore();
+	} = useEntitiesStore();
 
 	// Use currentSchema hook to get data synced with editor
 	const { currentSchema, effectiveGraphId, isLoading } = useCurrentSchema();

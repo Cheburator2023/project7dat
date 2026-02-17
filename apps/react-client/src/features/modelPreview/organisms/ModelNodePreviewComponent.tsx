@@ -1,9 +1,9 @@
 import React, { memo, useMemo, useState, useCallback } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import * as fuzzysort from "fuzzysort";
-import type { EntityNodeData } from "../../dashboard/types";
-import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../dashboard/constants";
-import { useDashboardStore } from "../../dashboard/stores";
+import type { EntityNodeData } from "../../entities/types";
+import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../entities/constants";
+import { useEntitiesStore } from "../../entities/stores";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
 
@@ -129,7 +129,7 @@ export const ModelNodePreviewComponent = memo(
 		const [localSearchQuery, setLocalSearchQuery] = useState("");
 
 		// Get global attribute search from store with stable selector
-		const globalAttributeSearchQuery = useDashboardStore(
+		const globalAttributeSearchQuery = useEntitiesStore(
 			selectGlobalAttributeSearch,
 		);
 

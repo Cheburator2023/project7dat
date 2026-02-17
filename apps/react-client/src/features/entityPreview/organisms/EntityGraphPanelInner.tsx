@@ -23,17 +23,17 @@ import type {
 	DataLineageSchema,
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
-import { useDashboardStore } from "../../dashboard/stores";
+import { useEntitiesStore } from "../../entities/stores";
 import { graphNodeTypes } from "./EntityNodePreviewComponent";
-import { getLayoutedElements, buildLineageGraph } from "../../dashboard/utils";
+import { getLayoutedElements, buildLineageGraph } from "../../entities/utils";
 import {
 	TYPE_COLORS,
 	HIGHLIGHT_COLORS,
 	ATTR_EDGE_COLORS,
 	DEPTH_LEVEL_COLORS,
 	NODE_WIDTH,
-} from "../../dashboard/constants";
-import type { EntityConnection, EntityNodeData } from "../../dashboard/types";
+} from "../../entities/constants";
+import type { EntityConnection, EntityNodeData } from "../../entities/types";
 import { useParams, useSearchParams } from "react-router-dom";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
@@ -314,7 +314,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			globalSearchQuery,
 			zoomToNodeId,
 			setZoomToNode,
-		} = useDashboardStore(
+		} = useEntitiesStore(
 			useShallow((state) => ({
 				hoveredAttribute: state.hoveredAttribute,
 				setHoveredAttribute: state.setHoveredAttribute,

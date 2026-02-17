@@ -24,15 +24,15 @@ import type {
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
 import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
-import { useDashboardStore } from "../../dashboard/stores";
+import { useEntitiesStore } from "../../entities/stores";
 import { graphNodeTypes } from "./ModelNodePreviewComponent";
-import { buildLineageGraph } from "../../dashboard/utils";
+import { buildLineageGraph } from "../../entities/utils";
 import {
 	TYPE_COLORS,
 	HIGHLIGHT_COLORS,
 	DEPTH_LEVEL_COLORS,
-} from "../../dashboard/constants";
-import type { EntityConnection, EntityNodeData } from "../../dashboard/types";
+} from "../../entities/constants";
+import type { EntityConnection, EntityNodeData } from "../../entities/types";
 import { useParams } from "react-router-dom";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
@@ -318,7 +318,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			globalSearchQuery,
 			zoomToNodeId,
 			setZoomToNode,
-		} = useDashboardStore();
+		} = useEntitiesStore();
 
 		// Dialog state
 		const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);

@@ -1,15 +1,14 @@
 import { memo, useRef, useCallback, useState, useEffect } from "react";
 import { Box, TextField, InputAdornment, IconButton } from "@mui/material";
 import { Search as SearchIcon, Close as CloseIcon } from "@mui/icons-material";
-import { useDashboardStore } from "../stores";
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
+import { useEntitiesStore } from "../stores";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_SEARCH_LENGTH = 3;
 
 export const GlobalSearchField = memo(() => {
 	const searchInputRef = useRef<HTMLInputElement>(null);
-	const { globalSearchQuery, setGlobalSearch } = useDashboardStore();
+	const { globalSearchQuery, setGlobalSearch } = useEntitiesStore();
 	const [localValue, setLocalValue] = useState(globalSearchQuery);
 
 	// Sync local value with store when store changes externally
