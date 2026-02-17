@@ -17,7 +17,7 @@ import { LoadingSpinner } from "../atoms";
 
 export const CodeEditorPanel = memo(() => {
 	const { selectedEntityId } = useEntitiesStore();
-	const { currentSchema, isLoading } = useCurrentSchema();
+	const { currentSchema } = useCurrentSchema();
 
 	// Get dataLineageStore actions
 	const {
@@ -84,10 +84,6 @@ export const CodeEditorPanel = memo(() => {
 		clearHighlights,
 		setExpanded,
 	]);
-
-	if (isLoading) {
-		return <LoadingSpinner />;
-	}
 
 	if (!currentSchema) {
 		return (

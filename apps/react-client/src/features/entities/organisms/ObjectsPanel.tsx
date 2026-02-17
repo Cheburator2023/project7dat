@@ -55,7 +55,7 @@ export const ObjectsPanel = memo(() => {
 	} = useEntitiesStore();
 
 	// Use currentSchema hook to get data synced with editor
-	const { currentSchema, effectiveGraphId, isLoading } = useCurrentSchema();
+	const { currentSchema, effectiveGraphId } = useCurrentSchema();
 
 	// View mode toggle: "attributes" or "links"
 	const [viewMode, setViewMode] = useState<"attributes" | "links">(
@@ -560,10 +560,6 @@ export const ObjectsPanel = memo(() => {
 		},
 		[selectedAttributeName],
 	);
-
-	if (isLoading) {
-		return <LoadingSpinner />;
-	}
 
 	// Convert LinkRow to EntityConnection for MappingDetailsDialog
 	const selectedConnection: EntityConnection | null = selectedLink

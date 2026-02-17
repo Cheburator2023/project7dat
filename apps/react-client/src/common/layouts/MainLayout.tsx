@@ -67,7 +67,7 @@ export function MainLayout({
 		isPending: isCurrentGraphPending,
 		isFetching: isCurrentGraphFetching,
 		isLoading: isCurrentGraphLoading,
-	} = useCurrentDataLineageGraph({ enabled: true });
+	} = useCurrentDataLineageGraph({ enabled: false });
 
 	const isInitialLoading = isCurrentGraphPending || isCurrentGraphLoading;
 	const isRefetching = isCurrentGraphFetching && !isInitialLoading;
@@ -217,7 +217,7 @@ export function MainLayout({
 				data-test-id="main-layout--MainWrapper-0"
 			>
 				{children}
-				<LoadingOverlay open={isLoaderVisible} progress={progress} />
+				{/* <LoadingOverlay open={isLoaderVisible} progress={progress} /> */}
 			</MainWrapper>
 		</Flex>
 	);

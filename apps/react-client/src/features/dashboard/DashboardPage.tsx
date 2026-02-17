@@ -27,7 +27,7 @@ export const DashboardPage = () => {
 
 	// Загрузка полного графа для панелей Graph/CodeEditor/etc.
 	// Поиск по сущностям теперь идёт через бекенд-пагинацию в EntitiesPanel.
-	useCurrentDataLineageGraph({ enabled: true });
+	useCurrentDataLineageGraph({ enabled: false });
 
 	const { selectEntityWithAttribute, setZoomToNode } = useEntitiesStore(
 		useShallow((state) => ({

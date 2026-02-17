@@ -203,7 +203,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		})),
 	);
 	// Фоновая загрузка полного графа для GraphPanel
-	useCurrentDataLineageGraph({ enabled: !currentGraph?.entities });
+	useCurrentDataLineageGraph({ enabled: false });
 
 	// Определяем целевой entityId
 	const targetEntityId = useMemo(() => {

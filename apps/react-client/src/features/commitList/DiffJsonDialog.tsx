@@ -908,7 +908,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	commit,
 	onClose,
 }) => {
-	const { currentSchema, isLoading } = useCurrentSchema();
+	const { currentSchema } = useCurrentSchema();
 	const [diffResult, setDiffResult] = useState<DiffComputationResult | null>(
 		null,
 	);
@@ -1205,7 +1205,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 					</Box>
 				)}
 
-				{(isLoading || isComputing) && (
+				{isComputing && (
 					<Box
 						sx={{
 							display: "flex",
@@ -1223,7 +1223,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 					</Box>
 				)}
 
-				{!isLoading && !isComputing && !error && (
+				{!isComputing && !error && (
 					<>
 						<Box
 							sx={{
