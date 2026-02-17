@@ -1182,6 +1182,31 @@ export class JsonExportService {
 	}
 
 	/**
+	 * Пагинированные связи модели из кэша.
+	 * Формат ответа полностью идентичен entity-relations endpoint.
+	 */
+	async exportPaginatedModelRelations(params: {
+		modelId: string;
+		page: number;
+		limit: number;
+	}): Promise<{
+		entity: JsonExportResponseDto["entities"][0] | null;
+		mappings: JsonExportResponseDto["mappings"];
+		relatedEntities: JsonExportResponseDto["entities"];
+		total: number;
+		page: number;
+		limit: number;
+		totalPages: number;
+		desc: JsonExportResponseDto["desc"];
+	}> {
+		return await this.exportPaginatedEntityRelations({
+			entityId: params.modelId,
+			page: params.page,
+			limit: params.limit,
+		});
+	}
+
+	/**
 	 * Пагинированный экспорт сущностей из кэша.
 	 * Быстро отдаёт первую страницу, поиск по name/id/namespace/description.
 	 * Если кэш пуст — вызывает полный exportToJson() для прогрева.
@@ -1330,8 +1355,9 @@ export class JsonExportService {
 	}
 
 	/**
-	 * Пагинированные связи конкретной сущности из кэша.
-	 * Возвращает маппинги, где entityId (target) или deps[].entityId (source) совпадает.
+	 * Полный граф связей конкретной сущности из кэша.
+	 * Возвращает ВСЕ маппинги и связанные сущности (полный BFS без ограничения глубины).
+	 * Фильтрация по глубине выполняется на фронтенде.
 	 */
 	async exportPaginatedEntityRelations(params: {
 		entityId: string;
@@ -1347,7 +1373,7 @@ export class JsonExportService {
 		totalPages: number;
 		desc: JsonExportResponseDto["desc"];
 	}> {
-		const { entityId, page, limit } = params;
+		const { entityId } = params;
 		const startTime = Date.now();
 
 		let cached = await this.cacheService.getCachedExportAll();
@@ -1357,26 +1383,64 @@ export class JsonExportService {
 
 		const entity = cached.entities?.find((e) => e.id === entityId) ?? null;
 
-		// Все маппинги, где эта сущность — target или source
-		const allRelatedMappings = (cached.mappings ?? []).filter(
-			(m) =>
-				m.entityId === entityId || m.deps?.some((d) => d.entityId === entityId),
-		);
+		const mappings = cached.mappings ?? [];
 
-		const total = allRelatedMappings.length;
-		const totalPages = Math.ceil(total / limit) || 1;
-		const safePage = Math.min(Math.max(page, 1), totalPages);
-		const offset = (safePage - 1) * limit;
-		const pageMappings = allRelatedMappings.slice(offset, offset + limit);
+		// Build adjacency index for full BFS
+		const mappingsByTarget = new Map<
+			string,
+			JsonExportResponseDto["mappings"]
+		>();
+		const mappingsBySource = new Map<
+			string,
+			JsonExportResponseDto["mappings"]
+		>();
 
-		// Собираем связанные сущности для текущей страницы маппингов
-		const relatedEntityIds = new Set<string>();
-		for (const m of pageMappings) {
-			relatedEntityIds.add(m.entityId);
-			for (const d of m.deps ?? []) {
-				relatedEntityIds.add(d.entityId);
+		for (const mapping of mappings) {
+			const targetMappings = mappingsByTarget.get(mapping.entityId) ?? [];
+			targetMappings.push(mapping);
+			mappingsByTarget.set(mapping.entityId, targetMappings);
+
+			for (const dep of mapping.deps ?? []) {
+				const sourceMappings = mappingsBySource.get(dep.entityId) ?? [];
+				sourceMappings.push(mapping);
+				mappingsBySource.set(dep.entityId, sourceMappings);
 			}
 		}
+
+		// Full BFS — no depth limit
+		const visitedEntities = new Set<string>([entityId]);
+		const queue = [entityId];
+
+		while (queue.length > 0) {
+			const currentEntityId = queue.shift()!;
+
+			for (const mapping of mappingsByTarget.get(currentEntityId) ?? []) {
+				for (const dep of mapping.deps ?? []) {
+					if (!visitedEntities.has(dep.entityId)) {
+						visitedEntities.add(dep.entityId);
+						queue.push(dep.entityId);
+					}
+				}
+			}
+
+			for (const mapping of mappingsBySource.get(currentEntityId) ?? []) {
+				if (!visitedEntities.has(mapping.entityId)) {
+					visitedEntities.add(mapping.entityId);
+					queue.push(mapping.entityId);
+				}
+			}
+		}
+
+		const allRelatedMappings = mappings.filter((mapping) => {
+			if (!visitedEntities.has(mapping.entityId)) return false;
+			return (mapping.deps ?? []).some((dep) =>
+				visitedEntities.has(dep.entityId),
+			);
+		});
+
+		const total = allRelatedMappings.length;
+
+		const relatedEntityIds = new Set<string>(visitedEntities);
 		relatedEntityIds.delete(entityId);
 
 		const relatedEntities = (cached.entities ?? []).filter((e) =>
@@ -1385,18 +1449,18 @@ export class JsonExportService {
 
 		const duration = Date.now() - startTime;
 		this.logger.debug(
-			`exportPaginatedEntityRelations: entityId="${entityId}", page=${safePage}, ` +
-				`total=${total}, returned=${pageMappings.length}, ${duration}ms`,
+			`exportPaginatedEntityRelations: entityId="${entityId}", ` +
+				`total=${total}, returned=${allRelatedMappings.length}, entities=${relatedEntities.length}, ${duration}ms`,
 		);
 
 		return {
 			entity,
-			mappings: pageMappings,
+			mappings: allRelatedMappings,
 			relatedEntities,
 			total,
-			page: safePage,
-			limit,
-			totalPages,
+			page: 1,
+			limit: total,
+			totalPages: 1,
 			desc: cached.desc,
 		};
 	}

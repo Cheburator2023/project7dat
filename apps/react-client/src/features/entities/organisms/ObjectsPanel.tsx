@@ -28,13 +28,27 @@ import { MappingDetailsDialog } from "@react-client/features/entityPreview/compo
 
 import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
-import { LoadingSpinner, ObjectTypeChip } from "../atoms";
+import { ObjectTypeChip } from "../atoms/ObjectTypeChip";
 import { HIGHLIGHT_COLORS } from "../constants";
-import { fuzzySearchObjects, fuzzySearchLinks } from "../utils";
-import { EntityContextMenu, type EntityContextMenuState } from "../molecules";
+import { fuzzySearchObjects, fuzzySearchLinks } from "../utils/fuzzySearch";
+import {
+	EntityContextMenu,
+	type EntityContextMenuState,
+} from "../molecules/EntityContextMenu";
 import type { ObjectRow, LinkRow, EntityConnection } from "../types";
+import { usePaginatedEntities } from "@react-client/api/hooks/usePaginatedEntities";
+import { usePaginatedMappings } from "@react-client/api/hooks/usePaginatedMappings";
+import type {
+	PaginatedEntitiesResponse,
+	PaginatedMappingsResponse,
+} from "@react-client/api/hooks/jsonDataApi";
 
 const OBJECTS_PAGE_SIZES = [25, 50, 100, 200];
+
+type EntityLike = DataLineageEntity | PaginatedEntitiesResponse["entities"][0];
+type MappingLike =
+	| DataLineageMapping
+	| PaginatedMappingsResponse["mappings"][0];
 
 export const ObjectsPanel = memo(() => {
 	const { mode } = useColorScheme();
@@ -54,8 +68,31 @@ export const ObjectsPanel = memo(() => {
 		globalSearchQuery,
 	} = useEntitiesStore();
 
-	// Use currentSchema hook to get data synced with editor
-	const { currentSchema, effectiveGraphId } = useCurrentSchema();
+	const { effectiveGraphId } = useCurrentSchema();
+
+	const { data: paginatedEntitiesData, isLoading: isLoadingPaginatedEntities } =
+		usePaginatedEntities({
+			page: 1,
+			limit: 500,
+			enabled: true,
+		});
+	const { data: paginatedMappingsData, isLoading: isLoadingPaginatedMappings } =
+		usePaginatedMappings({
+			page: 1,
+			limit: 500,
+			enabled: true,
+		});
+
+	const entitiesSource = useMemo<EntityLike[]>(() => {
+		return paginatedEntitiesData?.entities ?? [];
+	}, [paginatedEntitiesData?.entities]);
+
+	const mappingsSource = useMemo<MappingLike[]>(() => {
+		return paginatedMappingsData?.mappings ?? [];
+	}, [paginatedMappingsData?.mappings]);
+
+	const isPanelLoading =
+		isLoadingPaginatedEntities || isLoadingPaginatedMappings;
 
 	// View mode toggle: "attributes" or "links"
 	const [viewMode, setViewMode] = useState<"attributes" | "links">(
@@ -68,11 +105,9 @@ export const ObjectsPanel = memo(() => {
 
 	// Transform data to object rows (attributes)
 	const objects: ObjectRow[] = useMemo(() => {
-		if (!currentSchema) return [];
-
 		const rows: ObjectRow[] = [];
-		const localEntities = currentSchema.entities ?? [];
-		localEntities.forEach((entity: DataLineageEntity) => {
+		const localEntities = entitiesSource;
+		localEntities.forEach((entity) => {
 			// Add entity row
 			rows.push({
 				id: `${effectiveGraphId}::${entity.id}`,
@@ -98,27 +133,31 @@ export const ObjectsPanel = memo(() => {
 		});
 
 		return rows;
-	}, [currentSchema, effectiveGraphId]);
+	}, [entitiesSource, effectiveGraphId]);
 
 	// Transform data to link rows (connections)
 	const links: LinkRow[] = useMemo(() => {
-		if (!currentSchema) return [];
-
 		const rows: LinkRow[] = [];
-		const entityMap = new Map<string, DataLineageEntity>();
-		for (const entity of currentSchema.entities || []) {
+		const entityMap = new Map<string, { id: string; name?: string | null }>();
+		for (const entity of entitiesSource) {
 			entityMap.set(entity.id, entity);
 		}
 
-		(currentSchema.mappings || []).forEach((mapping: DataLineageMapping) => {
+		mappingsSource.forEach((mapping) => {
 			if (!mapping.deps) return;
 			mapping.deps.forEach((dep, depIndex) => {
 				const sourceEntity = entityMap.get(dep.entityId);
 				const targetEntity = entityMap.get(mapping.entityId);
-				if (!sourceEntity || !targetEntity) return;
+				const sourceName = sourceEntity?.name || dep.entityId;
+				const targetName = targetEntity?.name || mapping.entityId;
 
 				const attrMaps = dep.attrMaps || [];
-				const processFallbackId = mapping.processId ?? mapping.id;
+				const mappingId =
+					"id" in mapping
+						? mapping.id
+						: (mapping.entity_map_id ?? `${mapping.entityId}_${dep.entityId}`);
+				const processFallbackId =
+					("processId" in mapping ? mapping.processId : undefined) ?? mappingId;
 				const normalizedProcessFallbackId =
 					processFallbackId != null &&
 					String(processFallbackId).trim() !== "" &&
@@ -127,19 +166,25 @@ export const ObjectsPanel = memo(() => {
 						? String(processFallbackId)
 						: null;
 				const processName =
-					mapping.process?.trim() ||
+					("process" in dep && typeof dep.process === "string"
+						? dep.process.trim()
+						: "") ||
 					(normalizedProcessFallbackId
 						? `Процесс #${normalizedProcessFallbackId}`
 						: "Процесс не указан");
+				const depProcessId =
+					"process_id" in dep && typeof dep.process_id === "number"
+						? dep.process_id
+						: undefined;
 				rows.push({
-					id: `${effectiveGraphId}::${dep.entityId}->${mapping.entityId}::${mapping.id}::${depIndex}`,
+					id: `${effectiveGraphId}::${dep.entityId}->${mapping.entityId}::${mappingId}::${depIndex}`,
 					graphId: effectiveGraphId || "",
 					sourceEntity: dep.entityId,
-					sourceName: sourceEntity.name || sourceEntity.id,
+					sourceName,
 					targetEntity: mapping.entityId,
-					targetName: targetEntity.name || targetEntity.id,
+					targetName,
 					processName,
-					processId: mapping.processId,
+					processId: depProcessId,
 					processCode: mapping.system_code || dep.system_code,
 					attrMappingsCount: attrMaps.length,
 					attrMaps,
@@ -148,7 +193,7 @@ export const ObjectsPanel = memo(() => {
 		});
 
 		return rows;
-	}, [currentSchema, effectiveGraphId]);
+	}, [entitiesSource, mappingsSource, effectiveGraphId]);
 
 	// Filter by selected entity first
 	const entityFilteredObjects = useMemo(() => {
@@ -158,26 +203,68 @@ export const ObjectsPanel = memo(() => {
 		return objects;
 	}, [objects, selectedEntityId]);
 
-	// Fuzzy search objects
-	const fuzzyObjectResults = useMemo(() => {
-		return fuzzySearchObjects(entityFilteredObjects, globalSearchQuery);
-	}, [entityFilteredObjects, globalSearchQuery]);
+	const objectsSearch = useMemo(() => {
+		const query = globalSearchQuery.trim();
+		if (!query) {
+			return {
+				items: entityFilteredObjects,
+				highlightsMap: new Map<string, Map<string, string>>(),
+			};
+		}
 
-	// Create highlights map for objects
-	const objectHighlightsMap = useMemo(() => {
-		const map = new Map<string, Map<string, string>>();
-		for (const result of fuzzyObjectResults) {
-			if (result.highlights.size > 0) {
-				map.set(result.item.id, result.highlights);
+		const entityRows = entityFilteredObjects.filter(
+			(row) => row.objectType !== "Признак",
+		);
+		const attributeRows = entityFilteredObjects.filter(
+			(row) => row.objectType === "Признак",
+		);
+
+		const attrsByEntityId = new Map<string, ObjectRow[]>();
+		for (const row of attributeRows) {
+			const list = attrsByEntityId.get(row.parentEntity);
+			if (list) {
+				list.push(row);
+			} else {
+				attrsByEntityId.set(row.parentEntity, [row]);
 			}
 		}
-		return map;
-	}, [fuzzyObjectResults]);
 
-	// Get filtered objects (sorted by fuzzy score)
-	const allFilteredObjects = useMemo(() => {
-		return fuzzyObjectResults.map((r) => r.item);
-	}, [fuzzyObjectResults]);
+		const entityRowByEntityId = new Map<string, ObjectRow>();
+		for (const row of entityRows) {
+			entityRowByEntityId.set(row.parentEntity, row);
+		}
+
+		const includedIds = new Set<string>();
+		const highlightsMap = new Map<string, Map<string, string>>();
+
+		const entityMatches = fuzzySearchObjects(entityRows, query);
+		for (const match of entityMatches) {
+			includedIds.add(match.item.id);
+			const attrs = attrsByEntityId.get(match.item.parentEntity) ?? [];
+			for (const attr of attrs) includedIds.add(attr.id);
+			if (match.highlights.size > 0) {
+				highlightsMap.set(match.item.id, match.highlights);
+			}
+		}
+
+		const attrMatches = fuzzySearchObjects(attributeRows, query);
+		for (const match of attrMatches) {
+			includedIds.add(match.item.id);
+			const parentEntityRow = entityRowByEntityId.get(match.item.parentEntity);
+			if (parentEntityRow) includedIds.add(parentEntityRow.id);
+			if (match.highlights.size > 0) {
+				highlightsMap.set(match.item.id, match.highlights);
+			}
+		}
+
+		return {
+			items: entityFilteredObjects.filter((row) => includedIds.has(row.id)),
+			highlightsMap,
+		};
+	}, [entityFilteredObjects, globalSearchQuery]);
+
+	const objectHighlightsMap = objectsSearch.highlightsMap;
+	const allFilteredObjects = objectsSearch.items;
 
 	const totalObjects = allFilteredObjects.length;
 	const totalObjectsPages = Math.ceil(totalObjects / objectsPageSize) || 1;
@@ -499,29 +586,39 @@ export const ObjectsPanel = memo(() => {
 
 	// Get entity for context menu
 	const contextMenuEntity = useMemo(() => {
-		if (!contextMenu || !currentSchema) return null;
+		if (!contextMenu) return null;
 		return (
-			currentSchema.entities?.find((e) => e.id === contextMenu.entityId) || null
+			(entitiesSource.find((e) => e.id === contextMenu.entityId) as
+				| DataLineageEntity
+				| null
+				| undefined) ?? null
 		);
-	}, [contextMenu, currentSchema]);
+	}, [contextMenu, entitiesSource]);
 
 	// Build connections for context menu
 	const entityConnections: EntityConnection[] = useMemo(() => {
-		if (!currentSchema) return [];
 		const connections: EntityConnection[] = [];
 		const entityMap = new Map<string, { name: string; id: string }>();
-		for (const e of currentSchema.entities || []) {
-			entityMap.set(e.id, { name: e.name || e.id, id: e.id });
+		for (const e of entitiesSource || []) {
+			entityMap.set(e.id, { name: (e as any).name || e.id, id: e.id });
 		}
 
-		for (const mapping of currentSchema.mappings || []) {
+		for (const mapping of mappingsSource || []) {
 			if (!mapping.deps) continue;
 			for (const dep of mapping.deps) {
 				const sourceEntity = entityMap.get(dep.entityId);
 				const targetEntity = entityMap.get(mapping.entityId);
 				if (!sourceEntity || !targetEntity) continue;
 
-				const processFallbackId = mapping.processId ?? mapping.id;
+				const mappingId =
+					"id" in mapping
+						? (mapping as any).id
+						: ((mapping as any).entity_map_id ??
+							(mapping as any).target_id ??
+							0);
+				const processFallbackId =
+					("processId" in mapping ? (mapping as any).processId : undefined) ??
+					mappingId;
 				const normalizedProcessFallbackId =
 					processFallbackId != null &&
 					String(processFallbackId).trim() !== "" &&
@@ -530,26 +627,32 @@ export const ObjectsPanel = memo(() => {
 						? String(processFallbackId)
 						: null;
 				const processName =
-					mapping.process?.trim() ||
+					("process" in dep && typeof (dep as any).process === "string"
+						? (dep as any).process.trim()
+						: "") ||
 					(normalizedProcessFallbackId
 						? `Процесс #${normalizedProcessFallbackId}`
 						: "Процесс не указан");
+				const depProcessId =
+					"process_id" in dep && typeof (dep as any).process_id === "number"
+						? (dep as any).process_id
+						: undefined;
 				connections.push({
-					id: `${dep.entityId}->${mapping.entityId}::${mapping.id}`,
+					id: `${dep.entityId}->${mapping.entityId}::${mappingId}`,
 					sourceId: dep.entityId,
 					targetId: mapping.entityId,
 					sourceName: sourceEntity.name,
 					targetName: targetEntity.name,
 					processName,
-					processId: mapping.processId,
-					processCode: mapping.system_code || dep.system_code,
-					attrMaps: dep.attrMaps || [],
+					processId: depProcessId,
+					processCode: (mapping as any).system_code || (dep as any).system_code,
+					attrMaps: (dep as any).attrMaps || [],
 					description: "",
 				});
 			}
 		}
 		return connections;
-	}, [currentSchema]);
+	}, [entitiesSource, mappingsSource]);
 
 	const getRowStyle = useCallback(
 		(params: { data?: ObjectRow }) => {
@@ -648,6 +751,9 @@ export const ObjectsPanel = memo(() => {
 						animateRows
 						rowHeight={28}
 						headerHeight={32}
+						loading={isPanelLoading}
+						overlayLoadingTemplate="Загрузка"
+						overlayNoRowsTemplate="Нет данных"
 					/>
 				) : (
 					<AgGridReact
@@ -660,6 +766,9 @@ export const ObjectsPanel = memo(() => {
 						animateRows
 						rowHeight={28}
 						headerHeight={32}
+						loading={isPanelLoading}
+						overlayLoadingTemplate="Загрузка"
+						overlayNoRowsTemplate="Нет данных"
 					/>
 				)}
 			</Box>

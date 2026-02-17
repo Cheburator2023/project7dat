@@ -174,6 +174,53 @@ export const getDownstreamNodes = (
 	return visited;
 };
 
+/**
+ * Compute the maximum BFS depth reachable from rootId
+ * across both upstream and downstream directions.
+ */
+export const getMaxDepthFromNode = (
+	lineageGraph: {
+		upstream: Map<string, Set<string>>;
+		downstream: Map<string, Set<string>>;
+	},
+	rootId: string,
+): number => {
+	const getDirectionalMaxDepth = (
+		graph: Map<string, Set<string>>,
+		startId: string,
+	): number => {
+		let maxDepth = 0;
+		const visited = new Set<string>([startId]);
+		let frontier = new Set<string>([startId]);
+		let depth = 0;
+
+		while (frontier.size > 0) {
+			const next = new Set<string>();
+			for (const id of frontier) {
+				for (const neighbor of graph.get(id) ?? []) {
+					if (visited.has(neighbor)) continue;
+					visited.add(neighbor);
+					next.add(neighbor);
+				}
+			}
+			if (next.size === 0) break;
+			depth += 1;
+			maxDepth = depth;
+			frontier = next;
+		}
+
+		return maxDepth;
+	};
+
+	const upstreamDepth = getDirectionalMaxDepth(lineageGraph.upstream, rootId);
+	const downstreamDepth = getDirectionalMaxDepth(
+		lineageGraph.downstream,
+		rootId,
+	);
+
+	return Math.max(upstreamDepth, downstreamDepth);
+};
+
 // ============================================================================
 // JSON Schema Inference Utilities
 // ============================================================================

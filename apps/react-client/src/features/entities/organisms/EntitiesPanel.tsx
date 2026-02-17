@@ -271,6 +271,7 @@ export const EntitiesPanel = memo(
 						headerHeight={32}
 						loading={isLoading}
 						overlayNoRowsTemplate="Нет данных"
+						overlayLoadingTemplate="Загрузка"
 					/>
 				</Box>
 

@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useMemo } from "react";
+import { memo, useState, useCallback, useMemo, useEffect } from "react";
 import {
 	Box,
 	Divider,
@@ -20,10 +20,19 @@ import { MappingDetailsDialog } from "@react-client/features/entityPreview/compo
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
+import { usePaginatedEntities } from "@react-client/api/hooks/usePaginatedEntities";
+import { usePaginatedMappings } from "@react-client/api/hooks/usePaginatedMappings";
+import { usePaginatedEntityRelations } from "@react-client/api/hooks/usePaginatedEntityRelations";
+import type {
+	PaginatedEntitiesResponse,
+	PaginatedMappingsResponse,
+} from "@react-client/api/hooks/jsonDataApi";
+import type { DataLineageMapping } from "@react-client/types/dataLineage";
 
 import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
-import { LoadingSpinner, EmptyState } from "../atoms";
+import { EmptyState } from "../atoms";
+import { LoadingSpinner } from "../atoms/LoadingSpinner";
 import { GraphPanelInner, type NodeContextMenuEvent } from "./GraphPanelInner";
 import type { EntityConnection } from "../types";
 import {
@@ -32,6 +41,15 @@ import {
 	buildLineageGraph,
 } from "../utils";
 import { LinkIcon } from "lucide-react";
+
+type EntityLike = DataLineageEntity | PaginatedEntitiesResponse["entities"][0];
+type MappingLike =
+	| {
+			deps?: Array<{ entityId: string }> | null;
+			entityId: string;
+			system_code?: string;
+	  }
+	| PaginatedMappingsResponse["mappings"][0];
 
 export const GraphPanel = memo(() => {
 	const {
@@ -51,6 +69,97 @@ export const GraphPanel = memo(() => {
 	// Use currentSchema hook to get data synced with editor
 	const { currentSchema, effectiveGraphId } = useCurrentSchema();
 	const navigate = useNavigate();
+
+	// Backend fallback: if currentSchema is not initialized yet, read from paginated API
+	const { data: paginatedEntitiesData, isLoading: isPaginatedEntitiesLoading } =
+		usePaginatedEntities({
+			page: 1,
+			limit: 500,
+			enabled: !currentSchema,
+		});
+	const { data: paginatedMappingsData, isLoading: isPaginatedMappingsLoading } =
+		usePaginatedMappings({
+			page: 1,
+			limit: 500,
+			enabled: !currentSchema,
+		});
+
+	const graphId = effectiveGraphId ?? "current_stable_version";
+
+	// Depth control state (filtering done on frontend)
+	const [depthLimit, setDepthLimit] = useState(1);
+
+	// Reset depth when selected entity changes
+	useEffect(() => {
+		setDepthLimit(1);
+	}, [selectedEntityId]);
+
+	// Fetch full graph of relations for selected entity (no depth param)
+	const { data: entityRelationsData, isLoading: isEntityRelationsLoading } =
+		usePaginatedEntityRelations({
+			entityId: selectedEntityId ?? "",
+			page: 1,
+			limit: 10000,
+			enabled: !!selectedEntityId,
+		});
+
+	const isPanelLoading = selectedEntityId
+		? isEntityRelationsLoading
+		: !currentSchema &&
+			(isPaginatedEntitiesLoading || isPaginatedMappingsLoading);
+
+	const entitiesSource = useMemo<EntityLike[]>(() => {
+		if (currentSchema?.entities?.length) return currentSchema.entities;
+		return paginatedEntitiesData?.entities ?? [];
+	}, [currentSchema?.entities, paginatedEntitiesData?.entities]);
+
+	const mappingsSource = useMemo<MappingLike[]>(() => {
+		if (currentSchema?.mappings?.length) return currentSchema.mappings as any;
+		return paginatedMappingsData?.mappings ?? [];
+	}, [currentSchema?.mappings, paginatedMappingsData?.mappings]);
+
+	// For selected entity always render only backend depth slice (no frontend merge).
+	const schemaForGraph = useMemo(() => {
+		if (selectedEntityId) {
+			if (!entityRelationsData) {
+				return {
+					entities: [],
+					mappings: [],
+					desc: undefined,
+				} as any;
+			}
+			const backendEntities = [
+				...(entityRelationsData.entity ? [entityRelationsData.entity] : []),
+				...entityRelationsData.relatedEntities,
+			];
+			const backendMappings = entityRelationsData.mappings.map(
+				(m, i) =>
+					({
+						...m,
+						id: m.entity_map_id ?? m.target_id ?? i,
+					}) as unknown as DataLineageMapping,
+			);
+			return {
+				entities: backendEntities,
+				mappings: backendMappings,
+				desc: entityRelationsData.desc,
+			} as any;
+		}
+		if (currentSchema) return currentSchema;
+		return {
+			entities: entitiesSource,
+			mappings: mappingsSource,
+			desc: paginatedEntitiesData?.desc ?? paginatedMappingsData?.desc,
+		} as any;
+	}, [
+		selectedEntityId,
+		entityRelationsData,
+		currentSchema,
+		entitiesSource,
+		mappingsSource,
+		paginatedEntitiesData?.desc,
+		paginatedMappingsData?.desc,
+	]);
 
 	// Get setRevealPosition for scrolling to entity in editor
 	const setRevealPosition = useDataLineageStore(
@@ -75,21 +184,28 @@ export const GraphPanel = memo(() => {
 
 	// Build connections for dialogs
 	const entityConnections = useMemo(() => {
-		if (!currentSchema) return [];
+		if (!schemaForGraph) return [];
 		const connections: EntityConnection[] = [];
-		const entityMap = new Map<string, DataLineageEntity>();
-		for (const e of currentSchema.entities || []) {
+		const entityMap = new Map<string, { id: string; name?: string | null }>();
+		for (const e of schemaForGraph.entities || []) {
 			entityMap.set(e.id, e);
 		}
 
-		for (const mapping of currentSchema.mappings || []) {
+		for (const mapping of schemaForGraph.mappings || []) {
 			if (!mapping.deps) continue;
 			for (const dep of mapping.deps) {
 				const sourceEntity = entityMap.get(dep.entityId);
 				const targetEntity = entityMap.get(mapping.entityId);
 				if (!sourceEntity || !targetEntity) continue;
 
-				const processFallbackId = mapping.processId ?? mapping.id;
+				const mappingId =
+					"id" in mapping
+						? (mapping as any).id
+						: ((mapping as any).entity_map_id ??
+							`${mapping.entityId}_${dep.entityId}`);
+				const processFallbackId =
+					("processId" in mapping ? (mapping as any).processId : undefined) ??
+					mappingId;
 				const normalizedProcessFallbackId =
 					processFallbackId != null &&
 					String(processFallbackId).trim() !== "" &&
@@ -98,18 +214,24 @@ export const GraphPanel = memo(() => {
 						? String(processFallbackId)
 						: null;
 				const processName =
-					mapping.process?.trim() ||
+					("process" in dep && typeof (dep as any).process === "string"
+						? (dep as any).process.trim()
+						: "") ||
 					(normalizedProcessFallbackId
 						? `Процесс #${normalizedProcessFallbackId}`
 						: "Процесс не указан");
+				const depProcessId =
+					"process_id" in dep && typeof (dep as any).process_id === "number"
+						? (dep as any).process_id
+						: undefined;
 				connections.push({
-					id: `${dep.entityId}->${mapping.entityId}::${mapping.id}`,
+					id: `${dep.entityId}->${mapping.entityId}::${mappingId}`,
 					sourceId: dep.entityId,
 					targetId: mapping.entityId,
 					sourceName: sourceEntity.name || sourceEntity.id,
 					targetName: targetEntity.name || targetEntity.id,
 					processName,
-					processId: mapping.processId,
+					processId: depProcessId,
 					processCode: mapping.system_code || dep.system_code,
 					attrMaps: dep.attrMaps || [],
 					description: "",
@@ -117,7 +239,7 @@ export const GraphPanel = memo(() => {
 			}
 		}
 		return connections;
-	}, [currentSchema]);
+	}, [schemaForGraph]);
 
 	const handleSelectEntity = useCallback(
 		(id: string | null) => selectEntity(id, effectiveGraphId),
@@ -126,24 +248,28 @@ export const GraphPanel = memo(() => {
 
 	const handleNodeDoubleClick = useCallback(
 		(entityId: string, _graphId: string) => {
-			const entity = currentSchema?.entities?.find((e) => e.id === entityId);
+			const entity = schemaForGraph?.entities?.find(
+				(e: any) => e.id === entityId,
+			);
 			if (entity) {
-				setDialogEntity(entity);
+				setDialogEntity(entity as DataLineageEntity);
 				setIsEntityDialogOpen(true);
 			}
 		},
-		[currentSchema],
+		[schemaForGraph],
 	);
 
 	const handleViewDetailsFromNode = useCallback(
 		(entityId: string) => {
-			const entity = currentSchema?.entities?.find((e) => e.id === entityId);
+			const entity = schemaForGraph?.entities?.find(
+				(e: any) => e.id === entityId,
+			);
 			if (entity) {
-				setDialogEntity(entity);
+				setDialogEntity(entity as DataLineageEntity);
 				setIsEntityDialogOpen(true);
 			}
 		},
-		[currentSchema],
+		[schemaForGraph],
 	);
 
 	const handleOpenEntity = useCallback(
@@ -184,16 +310,18 @@ export const GraphPanel = memo(() => {
 
 	// Get context menu entity
 	const contextMenuEntity = useMemo(() => {
-		if (!contextMenu || !currentSchema) return null;
+		if (!contextMenu || !schemaForGraph) return null;
 		return (
-			currentSchema.entities?.find((e) => e.id === contextMenu.entityId) || null
+			schemaForGraph.entities?.find(
+				(e: any) => e.id === contextMenu.entityId,
+			) || null
 		);
-	}, [contextMenu, currentSchema]);
+	}, [contextMenu, schemaForGraph]);
 
 	// Build lineage graph for upstream/downstream navigation
 	const lineageGraph = useMemo(
-		() => buildLineageGraph(currentSchema?.mappings || []),
-		[currentSchema?.mappings],
+		() => buildLineageGraph((schemaForGraph?.mappings || []) as any),
+		[schemaForGraph?.mappings],
 	);
 
 	// Get upstream/downstream entities for context menu entity
@@ -213,8 +341,8 @@ export const GraphPanel = memo(() => {
 		downstreamSet.delete(contextMenu.entityId);
 
 		const entityMap = new Map<string, DataLineageEntity>();
-		for (const e of currentSchema?.entities || []) {
-			entityMap.set(e.id, e);
+		for (const e of schemaForGraph?.entities || []) {
+			entityMap.set(e.id, e as any);
 		}
 
 		const upstream = Array.from(upstreamSet)
@@ -225,7 +353,7 @@ export const GraphPanel = memo(() => {
 			.filter((e): e is DataLineageEntity => !!e);
 
 		return { contextUpstream: upstream, contextDownstream: downstream };
-	}, [contextMenu?.entityId, lineageGraph, currentSchema?.entities]);
+	}, [contextMenu?.entityId, lineageGraph, schemaForGraph?.entities]);
 
 	// Context menu actions
 	const handleViewDetails = useCallback(() => {
@@ -311,16 +439,20 @@ export const GraphPanel = memo(() => {
 		handleCloseContextMenu();
 	}, [contextMenuEntity, entityConnections, handleCloseContextMenu]);
 
-	if (!currentSchema || !effectiveGraphId) {
+	if (isPanelLoading) {
+		return <LoadingSpinner size={32} />;
+	}
+
+	if (!schemaForGraph || entitiesSource.length === 0 || !graphId) {
 		return <EmptyState message="Нет данных для отображения графа" />;
 	}
 
 	return (
-		<Box sx={{ height: "100%", width: "100%" }}>
+		<Box sx={{ height: "100%", width: "100%", position: "relative" }}>
 			<ReactFlowProvider>
 				<GraphPanelInner
-					data={currentSchema}
-					graphId={effectiveGraphId}
+					data={schemaForGraph as any}
+					graphId={graphId}
 					selectedEntityId={selectedEntityId}
 					onSelectEntity={handleSelectEntity}
 					onNodeDoubleClick={handleNodeDoubleClick}
@@ -329,8 +461,25 @@ export const GraphPanel = memo(() => {
 					onUpstreamDownstreamChange={setUpstreamDownstream}
 					onEdgeClick={handleEdgeClick}
 					onNodeContextMenu={handleNodeContextMenu}
+					depthLimit={depthLimit}
+					onDepthChange={setDepthLimit}
 				/>
 			</ReactFlowProvider>
+			{isPanelLoading && (
+				<Box
+					sx={{
+						position: "absolute",
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						zIndex: 10,
+						bgcolor: "rgba(255, 255, 255, 0.6)",
+					}}
+				>
+					<LoadingSpinner size={32} />
+				</Box>
+			)}
 
 			{/* Node Context Menu */}
 			<Menu

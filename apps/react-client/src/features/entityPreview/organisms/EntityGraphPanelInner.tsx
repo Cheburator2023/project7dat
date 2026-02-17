@@ -16,7 +16,6 @@ import {
 	useNodesState,
 	useEdgesState,
 	MarkerType,
-	Panel,
 	useReactFlow,
 } from "@xyflow/react";
 import type {
@@ -25,7 +24,11 @@ import type {
 } from "@react-client/types/dataLineage";
 import { useEntitiesStore } from "../../entities/stores";
 import { graphNodeTypes } from "./EntityNodePreviewComponent";
-import { getLayoutedElements, buildLineageGraph } from "../../entities/utils";
+import {
+	getLayoutedElements,
+	buildLineageGraph,
+	getMaxDepthFromNode,
+} from "../../entities/utils";
 import {
 	TYPE_COLORS,
 	HIGHLIGHT_COLORS,
@@ -45,20 +48,23 @@ import {
 	Menu,
 	MenuItem,
 	useColorScheme,
-	Slider,
 } from "@mui/material";
 import {
 	CenterFocusStrong,
 	ContentCopy,
 	Info,
 	OpenInNew,
-	AccountTree,
 	SwapHoriz,
 	SwapVert,
 	ClearAll,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import { useShallow } from "zustand/react/shallow";
+import { useGraphDepthControl } from "@react-client/common/hooks/useGraphDepthControl";
+import {
+	DepthControlPanel,
+	DepthControlToggleButton,
+} from "@react-client/common/components/DepthControlPanel";
 
 const computeNodeDepths = (
 	rootId: string,
@@ -197,34 +203,6 @@ const getDownstreamNodesLimited = (
 	return { visited, boundary };
 };
 
-const getMaxDepthFromNode = (
-	nodeId: string,
-	adjacency: Map<string, Set<string>>,
-): number => {
-	const visited = new Set<string>();
-	const queue: Array<{ id: string; depth: number }> = [
-		{ id: nodeId, depth: 0 },
-	];
-	let maxDepth = 0;
-
-	while (queue.length > 0) {
-		const item = queue.shift();
-		if (!item) continue;
-		const { id, depth } = item;
-		if (visited.has(id)) continue;
-		visited.add(id);
-		maxDepth = Math.max(maxDepth, depth);
-
-		const neighbors = adjacency.get(id);
-		if (!neighbors) continue;
-		for (const nextId of neighbors) {
-			queue.push({ id: nextId, depth: depth + 1 });
-		}
-	}
-
-	return maxDepth;
-};
-
 // Helper function to get edge description based on entity types
 const getEdgeDescription = (
 	sourceEntity: DataLineageEntity,
@@ -263,6 +241,8 @@ interface GraphPanelInnerProps {
 	onEdgeClick?: (sourceId: string, targetId: string) => void;
 	onNodeContextMenu?: (event: NodeContextMenuEvent) => void;
 	onSelectNode?: (data: any) => void;
+	depthLimit?: number;
+	onDepthChange?: (depth: number) => void;
 }
 
 const EMPTY_STRING_SET = new Set<string>();
@@ -278,6 +258,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		onUpstreamDownstreamChange,
 		onEdgeClick,
 		onSelectNode,
+		depthLimit: externalDepthLimit,
+		onDepthChange,
 	}) => {
 		const navigate = useNavigate();
 		const [selectedNode, setSelectedNode] = useState<string>(
@@ -299,8 +281,6 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
 		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-		const [depthLimit, setDepthLimit] = useState(1);
-		const [isDepthPanelOpen, setIsDepthPanelOpen] = useState(true);
 
 		const { fitView, setCenter, getNode } = useReactFlow();
 		const {
@@ -371,27 +351,17 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			[data?.mappings],
 		);
 
-		const maxTraversalDepth = useMemo(() => {
-			if (!selectedNode) return 1;
-			const upstreamMax = getMaxDepthFromNode(
-				selectedNode,
-				lineageGraph.upstream,
-			);
-			const downstreamMax = getMaxDepthFromNode(
-				selectedNode,
-				lineageGraph.downstream,
-			);
-			return Math.max(1, upstreamMax, downstreamMax);
-		}, [lineageGraph, selectedNode]);
+		const maxDepth = useMemo(
+			() =>
+				selectedNode ? getMaxDepthFromNode(lineageGraph, selectedNode) : 1,
+			[lineageGraph, selectedNode],
+		);
 
-		useEffect(() => {
-			if (depthLimit > maxTraversalDepth) {
-				setDepthLimit(maxTraversalDepth);
-			}
-			if (depthLimit < 1) {
-				setDepthLimit(1);
-			}
-		}, [depthLimit, maxTraversalDepth]);
+		const depthControl = useGraphDepthControl({
+			maxDepth,
+			externalDepthLimit,
+			onDepthChange,
+		});
 
 		// Calculate upstream/downstream counts for each entity
 		const { upstreamCounts, downstreamCounts } = useMemo(() => {
@@ -410,39 +380,30 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			return { upstreamCounts: upCounts, downstreamCounts: downCounts };
 		}, [data?.entities, lineageGraph]);
 
-		// Calculate upstream/downstream for selected node
-		const {
-			upstreamNodes,
-			downstreamNodes,
-			upstreamBoundary,
-			downstreamBoundary,
-		} = useMemo(() => {
+		// Calculate upstream/downstream for selected node (limited by depthLimit)
+		const { upstreamNodes, downstreamNodes } = useMemo(() => {
 			if (!selectedNode)
 				return {
 					upstreamNodes: new Set<string>(),
 					downstreamNodes: new Set<string>(),
-					upstreamBoundary: new Set<string>(),
-					downstreamBoundary: new Set<string>(),
 				};
 			const upResult = getUpstreamNodesLimited(
 				selectedNode,
 				lineageGraph.upstream,
-				depthLimit,
+				depthControl.depthLimit,
 			);
 			const downResult = getDownstreamNodesLimited(
 				selectedNode,
 				lineageGraph.downstream,
-				depthLimit,
+				depthControl.depthLimit,
 			);
 			upResult.visited.delete(selectedNode);
 			downResult.visited.delete(selectedNode);
 			return {
 				upstreamNodes: upResult.visited,
 				downstreamNodes: downResult.visited,
-				upstreamBoundary: upResult.boundary,
-				downstreamBoundary: downResult.boundary,
 			};
-		}, [selectedNode, lineageGraph, depthLimit]);
+		}, [selectedNode, lineageGraph, depthControl.depthLimit]);
 
 		// Find related entities (upstream + downstream from main entity)
 		const relatedEntityIds = useMemo(() => {
@@ -602,10 +563,6 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			clearSelectedAttributes();
 		}, [clearSelectedAttributes]);
 
-		const handleGhostClick = useCallback(() => {
-			setDepthLimit((prev) => Math.min(prev + 1, maxTraversalDepth));
-		}, [maxTraversalDepth]);
-
 		const handleToggleExpand = useCallback((id: string) => {
 			setExpandedNodes((prev) => {
 				const next = new Set(prev);
@@ -725,13 +682,33 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		const topologySearchMatches = showFullGraphByDefault
 			? EMPTY_SEARCH_MATCHES
 			: searchMatchedEntities;
-		const topologyUpstreamBoundary = showFullGraphByDefault
-			? EMPTY_STRING_SET
-			: upstreamBoundary;
-		const topologyDownstreamBoundary = showFullGraphByDefault
-			? EMPTY_STRING_SET
-			: downstreamBoundary;
-		const topologyHandleGhostClick = handleGhostClick;
+		const topologyUpstreamBoundary = useMemo(() => {
+			if (showFullGraphByDefault || !selectedNode) return EMPTY_STRING_SET;
+			return getUpstreamNodesLimited(
+				selectedNode,
+				lineageGraph.upstream,
+				depthControl.depthLimit,
+			).boundary;
+		}, [
+			showFullGraphByDefault,
+			selectedNode,
+			lineageGraph.upstream,
+			depthControl.depthLimit,
+		]);
+		const topologyDownstreamBoundary = useMemo(() => {
+			if (showFullGraphByDefault || !selectedNode) return EMPTY_STRING_SET;
+			return getDownstreamNodesLimited(
+				selectedNode,
+				lineageGraph.downstream,
+				depthControl.depthLimit,
+			).boundary;
+		}, [
+			showFullGraphByDefault,
+			selectedNode,
+			lineageGraph.downstream,
+			depthControl.depthLimit,
+		]);
+		const topologyHandleGhostClick = depthControl.handleGhostClick;
 
 		// Create nodes and edges
 		const { nodes: topologyNodes, edges: topologyEdges } = useMemo(() => {
@@ -1756,30 +1733,12 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				>
 					<Background color="#e0e0e0" gap={20} />
 					<Controls>
-						<div data-name="open_depth_panel">
-							<button
-								onClick={() => setIsDepthPanelOpen(!isDepthPanelOpen)}
-								style={{
-									width: 26,
-									height: 26,
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									background: "#fff",
-									border: "none",
-									cursor:
-										selectedNode && maxTraversalDepth > 1
-											? "pointer"
-											: "not-allowed",
-									padding: 0,
-								}}
-								title="Глубина"
-								type="button"
-								disabled={!selectedNode || maxTraversalDepth <= 1}
-							>
-								<AccountTree style={{ fontSize: 16, color: "#666" }} />
-							</button>
-						</div>
+						<DepthControlToggleButton
+							onToggle={() =>
+								depthControl.setIsDepthPanelOpen(!depthControl.isDepthPanelOpen)
+							}
+							disabled={!selectedNode}
+						/>
 						<div data-name="toggle_layout_direction">
 							<button
 								onClick={() =>
@@ -1851,45 +1810,15 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 							borderRadius: 8,
 						}}
 					/>
-					{selectedNode && maxTraversalDepth > 1 && (
-						<Panel position="bottom-center">
-							{isDepthPanelOpen ? (
-								<div
-									style={{
-										background: "#fff",
-										padding: "8px 10px",
-										borderRadius: 10,
-										boxShadow: "0 2px 10px rgba(0,0,0,0.10)",
-										minWidth: 240,
-									}}
-								>
-									<div
-										style={{
-											display: "flex",
-											justifyContent: "center",
-											fontSize: 10,
-											color: "#666",
-											marginBottom: 4,
-										}}
-									>
-										<span>
-											Глубина: {depthLimit} / максимальная {maxTraversalDepth}
-										</span>
-									</div>
-									<Slider
-										id="depth-limit-slider"
-										min={1}
-										max={maxTraversalDepth}
-										value={depthLimit}
-										onChange={(_e, value) => {
-											setDepthLimit(value as number);
-										}}
-										size="small"
-										valueLabelDisplay="auto"
-									/>
-								</div>
-							) : null}
-						</Panel>
+					{selectedNode && (
+						<DepthControlPanel
+							depthLimit={depthControl.depthLimit}
+							canIncrease={depthControl.canIncrease}
+							canDecrease={depthControl.canDecrease}
+							isDepthPanelOpen={depthControl.isDepthPanelOpen}
+							onIncrease={depthControl.handleIncreaseDepth}
+							onDecrease={depthControl.handleDecreaseDepth}
+						/>
 					)}
 				</ReactFlow>
 

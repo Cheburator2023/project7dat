@@ -8,6 +8,7 @@ import {
 	Chip,
 	TextField,
 	InputAdornment,
+	CircularProgress,
 } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
@@ -17,7 +18,10 @@ import { EntityJsonEditor } from "./components/EntityJsonEditor";
 import { EntityDetailsView } from "./components/EntityDetailsView";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Flex } from "@react-client/common/primitives/Flex";
-import type { DataLineageEntity } from "@react-client/types/dataLineage";
+import type {
+	DataLineageEntity,
+	DataLineageMapping,
+} from "@react-client/types/dataLineage";
 
 import {
 	Storage as StorageIcon,
@@ -27,10 +31,11 @@ import {
 } from "@mui/icons-material";
 import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/ModelGraphPanel";
 import { SearchIcon } from "lucide-react";
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
+import { usePaginatedModelRelations } from "@react-client/api/hooks/usePaginatedModelRelations";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
+import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
 
-const TYPE_ICONS: Record<string, React.ReactNode> = {
+const _TYPE_ICONS: Record<string, React.ReactNode> = {
 	table: <TableChartIcon fontSize={"large"} />,
 	view: <ViewModuleIcon fontSize={"large"} />,
 	rdd: <StorageIcon fontSize={"large"} />,
@@ -128,7 +133,10 @@ const selectSetGlobalAttributeSearch = (state: {
 export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
-	const [currentEntityId, setCurrentEntityId] = useState();
+	const [currentEntityId, setCurrentEntityId] = useState<string | undefined>(
+		undefined,
+	);
+	const [depthLimit, setDepthLimit] = useState(1);
 	const [calculatedEntities, _setCalculatedEntities] = useState<
 		DataLineageEntity[]
 	>([]);
@@ -208,39 +216,61 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		})),
 	);
 
-	const selectedEntity = useMemo(() => {
-		if (!currentGraph?.entities) return null;
-
-		// Decode the URL entity ID to handle encoded slashes and special characters
+	const targetEntityId = useMemo(() => {
 		const decodedUrlEntityId = urlEntityId
 			? decodeURIComponent(urlEntityId)
 			: undefined;
+		return currentEntityId || propEntityId || decodedUrlEntityId || "";
+	}, [currentEntityId, propEntityId, urlEntityId]);
 
-		const targetEntityId = decodedUrlEntityId;
+	const { data: modelRelationsData, isLoading } = usePaginatedModelRelations({
+		modelId: targetEntityId,
+		page: 1,
+		limit: 10000,
+		enabled: !!targetEntityId,
+	});
 
-		if (targetEntityId) {
-			console.log(
-				currentGraph.entities.find((e) => e.id === targetEntityId) || null,
-			);
-			return currentGraph.entities.find((e) => e.id === targetEntityId) || null;
+	const selectedEntity = useMemo(() => {
+		if (modelRelationsData?.entity) {
+			return modelRelationsData.entity as DataLineageEntity;
 		}
-
-		// For now, let's select the first entity as an example if no entityId is provided
-		return currentGraph.entities.length > 0 ? currentGraph.entities[0] : null;
-	}, [currentGraph?.entities, propEntityId, urlEntityId, currentEntityId]);
+		return null;
+	}, [modelRelationsData]);
 
 	const relatedMappings = useMemo(() => {
-		const decodedUrlEntityId = urlEntityId
-			? decodeURIComponent(urlEntityId)
-			: undefined;
-		const targetEntityId = propEntityId || decodedUrlEntityId;
-		if (!currentGraph?.mappings || !targetEntityId) return [];
-		return currentGraph.mappings.filter(
-			(mapping) =>
-				mapping.entityId === targetEntityId ||
-				mapping.deps?.some((dep) => dep.entityId === targetEntityId),
-		);
-	}, [currentGraph?.mappings, propEntityId, urlEntityId]);
+		if (modelRelationsData?.mappings?.length) {
+			return modelRelationsData.mappings.map((mapping, index) => ({
+				...mapping,
+				id: mapping.entity_map_id ?? mapping.target_id ?? index,
+			})) as DataLineageMapping[];
+		}
+		return [];
+	}, [modelRelationsData]);
+
+	const graphData = useMemo(() => {
+		if (!selectedEntity) return undefined;
+
+		const allEntityIds = new Set<string>([selectedEntity.id]);
+		for (const mapping of relatedMappings) {
+			allEntityIds.add(mapping.entityId);
+			for (const dep of mapping.deps ?? []) {
+				allEntityIds.add(dep.entityId);
+			}
+		}
+
+		const entitiesFromEndpoint = modelRelationsData?.relatedEntities ?? [];
+
+		const entityMap = new Map<string, DataLineageEntity>();
+		entityMap.set(selectedEntity.id, selectedEntity);
+		for (const entity of entitiesFromEndpoint) {
+			entityMap.set(entity.id, entity as DataLineageEntity);
+		}
+
+		return {
+			entities: Array.from(entityMap.values()),
+			mappings: relatedMappings,
+		};
+	}, [selectedEntity, relatedMappings, modelRelationsData]);
 
 	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
 
@@ -282,16 +312,24 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						<ModelGraphPanel
 							onSelectNode={onSelectNode}
 							entity={selectedEntity}
+							isLoading={isLoading}
+							graphData={graphData}
+							depthLimit={depthLimit}
+							onDepthChange={setDepthLimit}
 						/>
 					);
 				default:
 					return <div>Unknown component: {component}</div>;
 			}
 		},
-		[selectedEntity, relatedMappings, calculatedEntities],
+		[
+			selectedEntity,
+			relatedMappings,
+			calculatedEntities,
+			graphData,
+			depthLimit,
+		],
 	);
-
-	useCurrentDataLineageGraph({ enabled: false });
 
 	const onAction = useCallback(
 		(action: Action) => {
@@ -316,28 +354,12 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		[model, isPersistEnabled],
 	);
 
-	if (!selectedEntity) {
-		return (
-			<div>
-				<Header>{/* <div>Сущность не найдена</div> */}</Header>
-				<Wrapper>
-					<div style={{ padding: "20px", textAlign: "center" }}>
-						Сущность с ID "
-						{propEntityId ||
-							(urlEntityId ? decodeURIComponent(urlEntityId) : "")}
-						" не найдена в текущем графе.
-					</div>
-				</Wrapper>
-			</div>
-		);
-	}
-
 	return (
 		<div>
 			<Header
 				title={
 					<Flex gap={10}>
-						{selectedEntity.namespace}
+						{selectedEntity?.namespace}
 
 						<Chip label="model" size="small" color="secondary" />
 					</Flex>
@@ -374,16 +396,20 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 				</Box>
 			</Header>
 
-			<Wrapper id="entity_preview_container">
-				<FlexLayoutContainer>
-					<Layout
-						model={model}
-						factory={factory}
-						onAction={onAction}
-						realtimeResize
-					/>
-				</FlexLayoutContainer>
-			</Wrapper>
+			{isLoading ? (
+				<FullScreenLoader />
+			) : (
+				<Wrapper id="entity_preview_container">
+					<FlexLayoutContainer>
+						<Layout
+							model={model}
+							factory={factory}
+							onAction={onAction}
+							realtimeResize
+						/>
+					</FlexLayoutContainer>
+				</Wrapper>
+			)}
 		</div>
 	);
 };

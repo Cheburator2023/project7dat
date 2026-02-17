@@ -1,37 +1,56 @@
-import { memo, useMemo } from "react";
-import { Box } from "@mui/material";
+import { memo } from "react";
+import { Alert, Box, Typography } from "@mui/material";
+import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
+import { useCurrentDataLineageSnapshot } from "@react-client/api/hooks/useCurrentDataLineageSnapshot";
 
-import { useCurrentSchema } from "../hooks/useCurrentSchema";
-import { inferJsonSchema, formatSchema } from "../utils";
+import { LoadingSpinner } from "../atoms/LoadingSpinner";
 
 export const SchemaPanel = memo(() => {
-	// Use currentSchema hook to get data synced with editor
-	const { currentSchema } = useCurrentSchema();
+	const {
+		data: currentGraph,
+		isLoading,
+		isFetching,
+		error,
+	} = useCurrentDataLineageSnapshot({ enabled: true });
 
-	const schema = useMemo(() => {
-		if (!currentSchema) return { type: "null" as const };
-		return inferJsonSchema(currentSchema, 6);
-	}, [currentSchema]);
+	if (isLoading || isFetching) {
+		return <LoadingSpinner size={24} />;
+	}
 
-	return (
-		<Box sx={{ p: 2, height: "100%", overflow: "auto", fontSize: 12 }}>
+	if (error) {
+		return (
+			<Box sx={{ p: 2 }}>
+				<Alert severity="error">
+					Не удалось загрузить полный граф из /dl: {error.message}
+				</Alert>
+			</Box>
+		);
+	}
+
+	if (!currentGraph) {
+		return (
 			<Box
-				component="pre"
 				sx={{
-					p: 1.5,
-					bgcolor: "grey.50",
-					borderRadius: 1,
-					fontSize: 10,
-					fontFamily: "monospace",
-					overflow: "auto",
-					border: "1px solid",
-					borderColor: "divider",
-					whiteSpace: "pre-wrap",
-					wordBreak: "break-word",
+					height: "100%",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					p: 2,
 				}}
 			>
-				{`{\n${formatSchema(schema, 1)}\n}`}
+				<Typography color="text.secondary">Полный граф недоступен</Typography>
 			</Box>
+		);
+	}
+
+	return (
+		<Box sx={{ height: "100%", width: "100%" }}>
+			<CodeJsonEditor
+				initialData={currentGraph}
+				editable={false}
+				syncWithDataLineageStore={false}
+				dataKey={currentGraph.desc?.change_date ?? "schema-panel-current-graph"}
+			/>
 		</Box>
 	);
 });
