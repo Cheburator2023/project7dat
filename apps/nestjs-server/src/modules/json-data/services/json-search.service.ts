@@ -71,6 +71,7 @@ export class JsonSearchService {
 		private readonly dataSource: DataSource,
 		private readonly configService: ConfigService,
 		readonly _cacheService: CacheService,
+		private readonly cacheTtl: number,
 	) {
 		this.cacheTtl = this.configService.get<number>("CACHE_TTL", 600);
 	}
