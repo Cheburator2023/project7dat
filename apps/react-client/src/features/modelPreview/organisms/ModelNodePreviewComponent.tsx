@@ -162,11 +162,14 @@ export const ModelNodePreviewComponent = memo(
 			return new Set(results.map((r) => r.obj.name));
 		}, [activeSearchQuery, attrs]);
 
-		// Show attributes based on search. By default: hide all attributes until search is active.
-		// If an attribute is selected (clicked), also show selected-related attrs to ensure
-		// the connected node renders the mapped attribute and the edge can attach to attr handles.
+		const isExpandedEffective =
+			selectedHighlightedAttrs.size > 0 || searchedAttrs !== null;
+
 		const visibleAttrs = useMemo(() => {
-			// If search is active (3+ chars), show only search results with mappings
+			if (!isExpandedEffective) {
+				return [];
+			}
+
 			if (searchedAttrs) {
 				return attrs.filter(
 					(attr) =>
@@ -180,7 +183,13 @@ export const ModelNodePreviewComponent = memo(
 			}
 
 			return [];
-		}, [attrs, relatedAttrNames, searchedAttrs, selectedHighlightedAttrs]);
+		}, [
+			attrs,
+			isExpandedEffective,
+			relatedAttrNames,
+			searchedAttrs,
+			selectedHighlightedAttrs,
+		]);
 
 		const isSearchMatchHighlight = highlightType === "searchMatch";
 		const borderColor =
@@ -354,49 +363,35 @@ export const ModelNodePreviewComponent = memo(
 					</div>
 				</div>
 
-				{/* {showAttrToggle && (
-					<div
-						className="nodrag nopan"
-						data-name="shownAttrToggle_collapse"
-						onPointerDown={handleStopPropagation}
-						onMouseDown={handleStopPropagation}
-						onClick={handleToggleClick}
-						style={TOGGLE_STYLE}
-						title={toggleTitle}
-					>
-						{toggleText}
-					</div>
-				)} */}
-
 				{/* Search input for attributes */}
-				{/*{!globalAttributeSearchQuery &&*/}
-				{/*	(data.entity.type as any) !== "Model" && (*/}
-				{/*		<div*/}
-				{/*			className="nodrag nopan"*/}
-				{/*			style={{*/}
-				{/*				padding: "8px 12px",*/}
-				{/*				borderBottom: "1px solid #e0e0e0",*/}
-				{/*			}}*/}
-				{/*			onPointerDown={handleStopPropagation}*/}
-				{/*			onMouseDown={handleStopPropagation}*/}
-				{/*		>*/}
-				{/*			<input*/}
-				{/*				type="text"*/}
-				{/*				placeholder="Поиск атрибутов (мин. 2 символа)..."*/}
-				{/*				value={localSearchQuery}*/}
-				{/*				onChange={(e) => setLocalSearchQuery(e.target.value)}*/}
-				{/*				onClick={handleStopPropagation}*/}
-				{/*				style={{*/}
-				{/*					width: "100%",*/}
-				{/*					padding: "4px 8px",*/}
-				{/*					fontSize: 10,*/}
-				{/*					border: "1px solid #ddd",*/}
-				{/*					borderRadius: 4,*/}
-				{/*					outline: "none",*/}
-				{/*				}}*/}
-				{/*			/>*/}
-				{/*		</div>*/}
-				{/*	)}*/}
+				{!globalAttributeSearchQuery &&
+					(data.entity.type as any) !== "model" && (
+						<div
+							className="nodrag nopan"
+							style={{
+								padding: "8px 12px",
+								borderBottom: "1px solid #e0e0e0",
+							}}
+							onPointerDown={handleStopPropagation}
+							onMouseDown={handleStopPropagation}
+						>
+							<input
+								type="text"
+								placeholder="Поиск атрибутов (мин. 2 символа)..."
+								value={localSearchQuery}
+								onChange={(e) => setLocalSearchQuery(e.target.value)}
+								onClick={handleStopPropagation}
+								style={{
+									width: "100%",
+									padding: "4px 8px",
+									fontSize: 10,
+									border: "1px solid #ddd",
+									borderRadius: 4,
+									outline: "none",
+								}}
+							/>
+						</div>
+					)}
 
 				{/* Related attributes */}
 				{visibleAttrs.length > 0 && (

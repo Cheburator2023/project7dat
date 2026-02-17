@@ -45,35 +45,71 @@ export const useDataLineageGraph = (
 	});
 };
 
-export const useCurrentDataLineageGraph = (options?: { enabled?: boolean }) => {
-	const { initializeGraph, setCurrentGraphId } = useDataLineageStore();
-
+export const useCurrentDataLineageGraph = (options?: {
+	enabled?: boolean;
+	search?: string;
+}) => {
+	const { initializeGraph, setCurrentGraphId, currentGraphId } =
+		useDataLineageStore();
 	return useQuery({
 		queryKey: DATA_LINEAGE_QUERY_KEYS.current(),
 
 		queryFn: async () => {
 			try {
-				const backendItem: any = await jsonDataService.getCurrent();
+				if (!options?.search) {
+					setTimeout(() => {
+						jsonDataService.getCurrent().then((backendItem) => {
+							console.log("CurrentDataLineageGraph >> ", backendItem);
 
-				if (!backendItem) {
-					return null;
+							if (!backendItem) {
+								return null;
+							}
+
+							const graph = {
+								id: "current_stable_version",
+								desc: {
+									change_date: backendItem.desc.change_date,
+									appId: "current_stable_version",
+									appName: "system",
+								},
+								failedMappings: [],
+								entities: backendItem.entities,
+								mappings: backendItem.mappings,
+							} as DataLineageGraph;
+
+							console.log(graph);
+
+							initializeGraph(graph);
+							setCurrentGraphId(graph.id);
+						});
+					}, 0);
 				}
+				if (options?.search && !currentGraphId) {
+					const backendItem = await jsonDataService.getSearchEntity(
+						options?.search.toUpperCase(),
+					);
 
-				const graph = {
-					id: "current_stable_version",
-					desc: {
-						change_date: backendItem.desc.change_date,
-						appId: "current_stable_version",
-						appName: "system",
-					},
-					failedMappings: [],
-					entities: backendItem.entities,
-					mappings: backendItem.mappings,
-				} as DataLineageGraph;
+					if (!backendItem) {
+						return null;
+					}
 
-				initializeGraph(graph);
-				setCurrentGraphId(graph.id as string);
-				return graph;
+					const graph = {
+						id: "current_stable_version",
+						desc: {
+							change_date: backendItem.desc.change_date,
+							appId: "current_stable_version",
+							appName: "system",
+						},
+						failedMappings: [],
+						entities: backendItem.entities,
+						mappings: backendItem.mappings,
+					} as DataLineageGraph;
+
+					console.log(graph);
+
+					initializeGraph(graph);
+					return graph;
+				}
 			} catch (error) {
 				console.warn("No current graph available:", error);
 				initializeGraph(null as any);

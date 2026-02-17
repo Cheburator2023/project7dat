@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState } from "react";
+import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import {
 	Box,
 	Typography,
@@ -33,10 +34,18 @@ import { fuzzySearchObjects, fuzzySearchLinks } from "../utils";
 import { EntityContextMenu, type EntityContextMenuState } from "../molecules";
 import type { ObjectRow, LinkRow, EntityConnection } from "../types";
 
+const OBJECTS_PAGE_SIZES = [25, 50, 100, 200];
+
 export const ObjectsPanel = memo(() => {
 	const { mode } = useColorScheme();
 	const isDark = mode === "dark";
 	const navigate = useNavigate();
+
+	// Client-side pagination
+	const [objectsPage, setObjectsPage] = useState(1);
+	const [objectsPageSize, setObjectsPageSize] = useState(50);
+	const [linksPage, setLinksPage] = useState(1);
+	const [linksPageSize, setLinksPageSize] = useState(50);
 
 	const {
 		selectedEntityId,
@@ -166,9 +175,16 @@ export const ObjectsPanel = memo(() => {
 	}, [fuzzyObjectResults]);
 
 	// Get filtered objects (sorted by fuzzy score)
-	const filteredObjects = useMemo(() => {
+	const allFilteredObjects = useMemo(() => {
 		return fuzzyObjectResults.map((r) => r.item);
 	}, [fuzzyObjectResults]);
+
+	const totalObjects = allFilteredObjects.length;
+	const totalObjectsPages = Math.ceil(totalObjects / objectsPageSize) || 1;
+	const filteredObjects = useMemo(() => {
+		const offset = (objectsPage - 1) * objectsPageSize;
+		return allFilteredObjects.slice(offset, offset + objectsPageSize);
+	}, [allFilteredObjects, objectsPage, objectsPageSize]);
 
 	// Filter links by selected entity first
 	const entityFilteredLinks = useMemo(() => {
@@ -199,9 +215,26 @@ export const ObjectsPanel = memo(() => {
 	}, [fuzzyLinkResults]);
 
 	// Get filtered links (sorted by fuzzy score)
-	const filteredLinks = useMemo(() => {
+	const allFilteredLinks = useMemo(() => {
 		return fuzzyLinkResults.map((r) => r.item);
 	}, [fuzzyLinkResults]);
+
+	const totalLinks = allFilteredLinks.length;
+	const totalLinksPages = Math.ceil(totalLinks / linksPageSize) || 1;
+	const filteredLinks = useMemo(() => {
+		const offset = (linksPage - 1) * linksPageSize;
+		return allFilteredLinks.slice(offset, offset + linksPageSize);
+	}, [allFilteredLinks, linksPage, linksPageSize]);
+
+	const handleObjectsPageSizeChange = useCallback((size: number) => {
+		setObjectsPageSize(size);
+		setObjectsPage(1);
+	}, []);
+
+	const handleLinksPageSizeChange = useCallback((size: number) => {
+		setLinksPageSize(size);
+		setLinksPage(1);
+	}, []);
 
 	// Navigate to object page based on type
 	const handleNavigateToObject = useCallback(
@@ -597,13 +630,13 @@ export const ObjectsPanel = memo(() => {
 					sx={{ ml: "auto" }}
 				>
 					{viewMode === "attributes"
-						? `${filteredObjects.length} объектов`
-						: `${filteredLinks.length} связей`}
+						? `${totalObjects} объектов`
+						: `${totalLinks} связей`}
 				</Typography>
 			</Box>
 
 			{/* Table content */}
-			<Box sx={{ flex: 1 }}>
+			<Box sx={{ flex: 1, minHeight: 0 }}>
 				{viewMode === "attributes" ? (
 					<AgGridReact
 						rowData={filteredObjects}
@@ -634,6 +667,30 @@ export const ObjectsPanel = memo(() => {
 					/>
 				)}
 			</Box>
+
+			{viewMode === "attributes" ? (
+				<PaginationToolbar
+					page={objectsPage}
+					totalPages={totalObjectsPages}
+					totalItems={totalObjects}
+					pageSize={objectsPageSize}
+					onPageChange={setObjectsPage}
+					onPageSizeChange={handleObjectsPageSizeChange}
+					itemLabel="объектов"
+					pageSizeOptions={OBJECTS_PAGE_SIZES}
+				/>
+			) : (
+				<PaginationToolbar
+					page={linksPage}
+					totalPages={totalLinksPages}
+					totalItems={totalLinks}
+					pageSize={linksPageSize}
+					onPageChange={setLinksPage}
+					onPageSizeChange={handleLinksPageSizeChange}
+					itemLabel="связей"
+					pageSizeOptions={OBJECTS_PAGE_SIZES}
+				/>
+			)}
 
 			<EntityContextMenu
 				contextMenu={contextMenu}

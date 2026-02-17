@@ -5,7 +5,7 @@ import { SwaggerPage } from "@react-client/features/swagger/SwaggerPage";
 import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPreviewPage";
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
 import { ObjectsPage } from "@react-client/features/objects/ObjectsPage";
-import { ModelsPage } from "@react-client/features/models/ModelsPage";
+import { ModelsPage } from "@react-client/features/models/pages/ModelsPage";
 import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { SettingsPage } from "@react-client/features/settings/SettingsPage";
 import { S2tCommitCreatePage } from "@react-client/features/s2tImport/S2tCommitCreatePage";

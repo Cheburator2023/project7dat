@@ -83,6 +83,12 @@ interface SelectionState {
 			targetAttr?: string;
 		} | null,
 	) => void;
+
+	// Backend pagination for entities panel
+	entitiesPage: number;
+	entitiesPageSize: number;
+	setEntitiesPage: (page: number) => void;
+	setEntitiesPageSize: (size: number) => void;
 }
 
 export const useDashboardStore = create<SelectionState>((set) => ({
@@ -157,7 +163,8 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 			downstreamEntities: new Set(),
 		}),
 
-	setGlobalSearch: (query) => set({ globalSearchQuery: query }),
+	setGlobalSearch: (query) =>
+		set({ globalSearchQuery: query, entitiesPage: 1 }),
 	setGlobalAttributeSearch: (query) =>
 		set({ globalAttributeSearchQuery: query }),
 	setLocalNodeAttributeSearch: (entityId, query) =>
@@ -188,4 +195,10 @@ export const useDashboardStore = create<SelectionState>((set) => ({
 
 	highlightedMapping: null,
 	setHighlightedMapping: (mapping) => set({ highlightedMapping: mapping }),
+
+	entitiesPage: 1,
+	entitiesPageSize: 50,
+	setEntitiesPage: (page) => set({ entitiesPage: page }),
+	setEntitiesPageSize: (size) =>
+		set({ entitiesPageSize: size, entitiesPage: 1 }),
 }));

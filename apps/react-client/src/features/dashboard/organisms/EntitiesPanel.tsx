@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/useIterableCallbackReturn: forEach with early returns */
-import { memo, useCallback, useMemo, useEffect, useState, useRef } from "react";
+import { memo, useCallback, useMemo, useState, useRef } from "react";
 import { Box } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
@@ -17,25 +17,21 @@ import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
-import type {
-	DataLineageEntity,
-	DataLineageMapping,
-} from "@react-client/types/dataLineage";
 import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
+import { usePaginatedEntities } from "@react-client/api/hooks";
+import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 
 import { useDashboardStore } from "../stores";
-import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { TypeChip } from "../atoms";
 import { HIGHLIGHT_COLORS } from "../constants";
 import { EntityContextMenu, type EntityContextMenuState } from "../molecules";
-import type { EntityRow, EntityConnection } from "../types";
-import { strictSearchEntities } from "../utils";
+import type { EntityRow } from "../types";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 export const EntitiesPanel = memo(
 	({
-		allowedEntityTypes,
+		allowedEntityTypes: _allowedEntityTypes,
 	}: {
 		allowedEntityTypes?: (
 			| "graph"
@@ -56,161 +52,47 @@ export const EntitiesPanel = memo(
 			downstreamEntities,
 			globalSearchQuery,
 			selectEntity,
-			filters,
-			setSearchMatchedEntities,
+			entitiesPage,
+			entitiesPageSize,
+			setEntitiesPage,
+			setEntitiesPageSize,
 		} = useDashboardStore();
 
-		// Use currentSchema hook to get data synced with editor
-		const { currentSchema, effectiveGraphId, isLoading, error } =
-			useCurrentSchema();
+		// Backend pagination
+		const {
+			data: paginatedData,
+			isLoading,
+			isFetching,
+		} = usePaginatedEntities({
+			page: entitiesPage,
+			limit: entitiesPageSize,
+			search: globalSearchQuery || undefined,
+		});
 
-		// Transform data to entity rows
+		const totalPages = paginatedData?.totalPages ?? 1;
+		const totalEntities = paginatedData?.total ?? 0;
+
+		// Transform backend entities to EntityRow[]
 		const entities: EntityRow[] = useMemo(() => {
-			if (!currentSchema) return [];
+			if (!paginatedData?.entities) return [];
 
-			const rows: EntityRow[] = [];
-			const upstreamMap = new Map<string, Set<string>>();
-			const downstreamMap = new Map<string, Set<string>>();
-
-			// Build connection maps from mappings
-			const mappings = currentSchema.mappings ?? [];
-			mappings.forEach((mapping: DataLineageMapping) => {
-				if (!mapping.entityId || !mapping.deps) return;
-				mapping.deps.forEach((dep) => {
-					if (!dep.entityId) return;
-					// target has source as upstream
-					if (!upstreamMap.has(mapping.entityId)) {
-						upstreamMap.set(mapping.entityId, new Set());
-					}
-					upstreamMap.get(mapping.entityId)!.add(dep.entityId);
-					// source has target as downstream
-					if (!downstreamMap.has(dep.entityId)) {
-						downstreamMap.set(dep.entityId, new Set());
-					}
-					downstreamMap.get(dep.entityId)!.add(mapping.entityId);
-				});
-			});
-
-			// Create rows from entities
-			const localEntities = currentSchema.entities ?? [];
-			localEntities.forEach((entity: DataLineageEntity) => {
-				const upCount = upstreamMap.get(entity.id)?.size ?? 0;
-				const downCount = downstreamMap.get(entity.id)?.size ?? 0;
-
-				rows.push({
-					id: entity.id,
-					graphId: effectiveGraphId || "",
-					system_code: entity.system_code,
-					name: entity.name ?? entity.id,
-					type: entity.type,
-					namespace: entity.namespace ?? "",
-					description: entity.description ?? "",
-					entity_change: entity.entity_change ?? "",
-					attributeCount: entity.attrSeq?.length ?? 0,
-					upstreamCount: upCount,
-					downstreamCount: downCount,
-					isDataMart: upCount > 0 && downCount === 0,
-					isSource: upCount === 0 && downCount > 0,
-					modified: entity.modified ?? false,
-				});
-			});
-
-			return rows;
-		}, [currentSchema, effectiveGraphId]);
-
-		// Strict search entities (full substring match)
-		const fuzzyResults = useMemo(() => {
-			return strictSearchEntities(entities, globalSearchQuery);
-		}, [entities, globalSearchQuery]);
-
-		// Create a map of entity id to highlights for rendering
-		const highlightsMap = useMemo(() => {
-			const map = new Map<string, Map<string, string>>();
-			for (const result of fuzzyResults) {
-				if (result.highlights.size > 0) {
-					map.set(result.item.id, result.highlights);
-				}
-			}
-			return map;
-		}, [fuzzyResults]);
-
-		// Update search matched entities in store for graph highlighting
-		useEffect(() => {
-			if (globalSearchQuery) {
-				const matchedEntities = new Map<string, number>();
-				for (const result of fuzzyResults) {
-					if (result.score > -10000) {
-						matchedEntities.set(result.item.id, result.score);
-					}
-				}
-				setSearchMatchedEntities(matchedEntities);
-			} else {
-				setSearchMatchedEntities(new Map());
-			}
-		}, [fuzzyResults, globalSearchQuery, setSearchMatchedEntities]);
-
-		// Filter entities based on search and advanced filters
-		const filteredEntities = useMemo(() => {
-			// Get items from fuzzy results (already sorted by score)
-			let result = fuzzyResults.map((r) => r.item);
-
-			const allowedSet = new Set(allowedEntityTypes ?? []);
-			if (allowedSet.size > 0) {
-				result = result.filter((e) => {
-					const normalizedType =
-						e.type === "json" ? "json" : ("table" as const);
-					return allowedSet.has(normalizedType);
-				});
-			}
-
-			// Entity type filter
-			if (filters.entityTypes.length > 0) {
-				result = result.filter((e) => filters.entityTypes.includes(e.type));
-			}
-
-			// Namespace filter
-			if (filters.namespaces.length > 0) {
-				result = result.filter((e) => filters.namespaces.includes(e.namespace));
-			}
-
-			// Modified only filter
-			if (filters.modifiedOnly) {
-				result = result.filter((e) => e.modified);
-			}
-
-			// Has upstream filter
-			if (filters.hasUpstream !== "any") {
-				result = result.filter((e) =>
-					filters.hasUpstream === "yes"
-						? e.upstreamCount > 0
-						: e.upstreamCount === 0,
-				);
-			}
-
-			// Has downstream filter
-			if (filters.hasDownstream !== "any") {
-				result = result.filter((e) =>
-					filters.hasDownstream === "yes"
-						? e.downstreamCount > 0
-						: e.downstreamCount === 0,
-				);
-			}
-
-			// Attribute count filter
-			if (filters.attrCountMin || filters.attrCountMax) {
-				const min = filters.attrCountMin
-					? Number.parseInt(filters.attrCountMin, 10)
-					: 0;
-				const max = filters.attrCountMax
-					? Number.parseInt(filters.attrCountMax, 10)
-					: Number.POSITIVE_INFINITY;
-				result = result.filter(
-					(e) => e.attributeCount >= min && e.attributeCount <= max,
-				);
-			}
-
-			return result;
-		}, [allowedEntityTypes, fuzzyResults, filters]);
+			return paginatedData.entities.map((entity) => ({
+				id: entity.id,
+				graphId: "",
+				system_code: entity.system_code,
+				name: entity.name ?? entity.id,
+				type: entity.type,
+				namespace: entity.namespace ?? "",
+				description: entity.description ?? "",
+				entity_change: entity.entity_change ?? "",
+				attributeCount: entity.attrSeq?.length ?? 0,
+				upstreamCount: 0,
+				downstreamCount: 0,
+				isDataMart: false,
+				isSource: false,
+				modified: entity.modified ?? false,
+			}));
+		}, [paginatedData]);
 
 		// Navigate to entity page
 		const handleNavigateToEntity = useCallback(
@@ -228,25 +110,6 @@ export const EntitiesPanel = memo(
 					field: "namespace",
 					headerName: "База данных",
 					flex: 1,
-					cellRenderer: ({
-						value,
-						data,
-					}: {
-						value: string;
-						data: EntityRow;
-					}) => {
-						const highlights = highlightsMap.get(data.id);
-						const highlightedNs = highlights?.get("namespace");
-						if (highlightedNs) {
-							return (
-								<span
-									dangerouslySetInnerHTML={{ __html: highlightedNs }}
-									style={{ display: "block" }}
-								/>
-							);
-						}
-						return value;
-					},
 				},
 				{
 					field: "system_code",
@@ -259,25 +122,6 @@ export const EntitiesPanel = memo(
 					headerName: "Наименование",
 					flex: 2,
 					minWidth: 180,
-					cellRenderer: ({
-						value,
-						data,
-					}: {
-						value: string;
-						data: EntityRow;
-					}) => {
-						const highlights = highlightsMap.get(data.id);
-						const highlightedName = highlights?.get("name");
-						if (highlightedName) {
-							return (
-								<span
-									dangerouslySetInnerHTML={{ __html: highlightedName }}
-									style={{ display: "block" }}
-								/>
-							);
-						}
-						return value;
-					},
 				},
 				{
 					field: "type",
@@ -287,77 +131,16 @@ export const EntitiesPanel = memo(
 						<TypeChip type={value} />
 					),
 				},
-				//
-				// {
-				// 	field: "attributeCount",
-				// 	headerName: "Атр.",
-				// 	width: 70,
-				// 	cellRenderer: ({ value }: { value: number }) => (
-				// 		<Chip
-				// 			sx={{
-				// 				fontSize: "11px",
-				// 			}}
-				// 			label={value}
-				// 			size="small"
-				// 			variant="outlined"
-				// 		/>
-				// 	),
-				// },
-				// {
-				// 	field: "upstreamCount",
-				// 	headerName: "Upstream",
-				// 	width: 60,
-				// 	cellRenderer: ({ value }: { value: number }) => (
-				// 		<ConnectionCount count={value} direction="upstream" />
-				// 	),
-				// },
-				// {
-				// 	field: "downstreamCount",
-				// 	headerName: "Downstream",
-				// 	width: 60,
-				// 	cellRenderer: ({ value }: { value: number }) => (
-				// 		<ConnectionCount count={value} direction="downstream" />
-				// 	),
-				// },
 				{
 					field: "description",
 					headerName: "Описание",
 					flex: 1,
-					cellRenderer: ({
-						value,
-						data,
-					}: {
-						value: string;
-						data: EntityRow;
-					}) => {
-						const highlights = highlightsMap.get(data.id);
-						const highlightedNs = highlights?.get("description");
-						if (highlightedNs) {
-							return (
-								<span
-									dangerouslySetInnerHTML={{ __html: highlightedNs }}
-									style={{ display: "block" }}
-								/>
-							);
-						}
-						return value;
-					},
 				},
 				{
 					field: "entity_change",
 					headerName: "Изменено",
 					flex: 1,
 					cellRenderer: ({ value }: { value: string }) => {
-						// const highlights = highlightsMap.get(data.id);
-						// const highlightedNs = highlights?.get("entity_change");
-						// if (highlightedNs) {
-						// 	return (
-						// 		<span
-						// 			dangerouslySetInnerHTML={{ __html: highlightedNs }}
-						// 			style={{ display: "block" }}
-						// 		/>
-						// 	);
-						// }
 						if (!value) return "";
 						try {
 							return format(parseISO(value), "dd.MM.yyyy, HH:mm");
@@ -367,7 +150,7 @@ export const EntitiesPanel = memo(
 					},
 				},
 			],
-			[highlightsMap],
+			[],
 		);
 
 		const handleRowClicked = useCallback(
@@ -413,81 +196,11 @@ export const EntitiesPanel = memo(
 			setContextMenu(null);
 		}, []);
 
-		// Get entity for context menu
-		const contextMenuEntity = useMemo(() => {
-			if (!contextMenu || !currentSchema) return null;
-			return (
-				currentSchema.entities?.find((e) => e.id === contextMenu.entityId) ||
-				null
-			);
-		}, [contextMenu, currentSchema]);
-
-		// Build connections for context menu
-		const entityConnections: EntityConnection[] = useMemo(() => {
-			if (!currentSchema) return [];
-			const connections: EntityConnection[] = [];
-			const entityMap = new Map<string, { name: string; id: string }>();
-			for (const e of currentSchema.entities || []) {
-				entityMap.set(e.id, { name: e.name || e.id, id: e.id });
-			}
-
-			for (const mapping of currentSchema.mappings || []) {
-				if (!mapping.deps) continue;
-				for (const dep of mapping.deps) {
-					const sourceEntity = entityMap.get(dep.entityId);
-					const targetEntity = entityMap.get(mapping.entityId);
-					if (!sourceEntity || !targetEntity) continue;
-
-					const processFallbackId = mapping.processId ?? mapping.id;
-					const normalizedProcessFallbackId =
-						processFallbackId != null &&
-						String(processFallbackId).trim() !== "" &&
-						String(processFallbackId).toLowerCase() !== "undefined" &&
-						String(processFallbackId).toLowerCase() !== "null"
-							? String(processFallbackId)
-							: null;
-					const processName =
-						mapping.process?.trim() ||
-						(normalizedProcessFallbackId
-							? `Процесс #${normalizedProcessFallbackId}`
-							: "Процесс не указан");
-					connections.push({
-						id: `${dep.entityId}->${mapping.entityId}::${mapping.id}`,
-						sourceId: dep.entityId,
-						targetId: mapping.entityId,
-						sourceName: sourceEntity.name,
-						targetName: targetEntity.name,
-						processName,
-						processId: mapping.processId,
-						processCode: mapping.system_code || dep.system_code,
-						attrMaps: dep.attrMaps || [],
-						description: "",
-					});
-				}
-			}
-			return connections;
-		}, [currentSchema]);
-
 		const gridApiRef = useRef<GridApi<EntityRow> | null>(null);
-		const hasScrolledToSelected = useRef(false);
 
-		const handleGridReady = useCallback(
-			(event: GridReadyEvent<EntityRow>) => {
-				gridApiRef.current = event.api;
-				if (selectedEntityId && !hasScrolledToSelected.current) {
-					hasScrolledToSelected.current = true;
-					const rowIndex = filteredEntities.findIndex(
-						(e) => e.id === selectedEntityId,
-					);
-					if (rowIndex >= 0) {
-						setTimeout(() => {
-							event.api.ensureIndexVisible(rowIndex, "middle");
-						}, 0);
-					}
-				}
-			},
-			[selectedEntityId, filteredEntities],
-		);
+		const handleGridReady = useCallback((event: GridReadyEvent<EntityRow>) => {
+			gridApiRef.current = event.api;
+		}, []);
 
 		const getRowStyle = useCallback(
 			(params: { data?: EntityRow }) => {
@@ -509,31 +222,55 @@ export const EntitiesPanel = memo(
 		);
 
 		return (
-			<Box sx={{ height: "100%", width: "100%", minHeight: 0 }}>
-				<AgGridReact
-					rowData={filteredEntities}
-					columnDefs={columnDefs}
-					theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-					onGridReady={handleGridReady}
-					onRowClicked={handleRowClicked}
-					onRowDoubleClicked={handleRowDoubleClicked}
-					onCellContextMenu={handleCellContextMenu}
-					preventDefaultOnContextMenu
-					getRowStyle={getRowStyle}
-					rowSelection="single"
-					suppressCellFocus
-					animateRows
-					rowHeight={28}
-					headerHeight={32}
-					loading={isLoading}
-					overlayNoRowsTemplate="Нет данных"
+			<Box
+				sx={{
+					height: "100%",
+					width: "100%",
+					minHeight: 0,
+					display: "flex",
+					flexDirection: "column",
+				}}
+			>
+				<Box sx={{ flex: 1, minHeight: 0 }}>
+					<AgGridReact
+						rowData={entities}
+						columnDefs={columnDefs}
+						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+						onGridReady={handleGridReady}
+						onRowClicked={handleRowClicked}
+						onRowDoubleClicked={handleRowDoubleClicked}
+						onCellContextMenu={handleCellContextMenu}
+						preventDefaultOnContextMenu
+						getRowStyle={getRowStyle}
+						rowSelection="single"
+						suppressCellFocus
+						animateRows
+						rowHeight={28}
+						headerHeight={32}
+						loading={isLoading}
+						overlayNoRowsTemplate="Нет данных"
+					/>
+				</Box>
+
+				<PaginationToolbar
+					page={entitiesPage}
+					totalPages={totalPages}
+					totalItems={totalEntities}
+					pageSize={entitiesPageSize}
+					onPageChange={setEntitiesPage}
+					onPageSizeChange={setEntitiesPageSize}
+					isFetching={isFetching}
+					itemLabel="сущностей"
+					extraInfo={
+						globalSearchQuery ? `(поиск: "${globalSearchQuery}")` : undefined
+					}
 				/>
 
 				<EntityContextMenu
 					contextMenu={contextMenu}
 					onClose={handleCloseContextMenu}
-					entity={contextMenuEntity}
-					connections={entityConnections}
+					entity={null}
+					connections={[]}
 				/>
 			</Box>
 		);

@@ -24,7 +24,11 @@ import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 export const DashboardPage = () => {
 	const [, setSearchParams] = useSearchParams();
+
+	// Загрузка полного графа для панелей Graph/CodeEditor/etc.
+	// Поиск по сущностям теперь идёт через бекенд-пагинацию в EntitiesPanel.
 	useCurrentDataLineageGraph({ enabled: true });
+
 	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore(
 		useShallow((state) => ({
 			selectEntityWithAttribute: state.selectEntityWithAttribute,

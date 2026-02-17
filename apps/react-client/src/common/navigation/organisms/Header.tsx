@@ -189,15 +189,6 @@ export function Header({
 
 							<Divider orientation="vertical" variant="middle" flexItem />
 
-							{/* {currentGraphId && (
-								<IconButton
-									onClick={() => setIsSnapshotDialogOpen(true)}
-									title="Создать снимок текущих данных"
-								>
-									<CameraAltIcon />
-								</IconButton>
-							)} */}
-
 							{hasMainDataLoadedOnce && isMainDataLoading && (
 								<CircularProgress
 									size={18}

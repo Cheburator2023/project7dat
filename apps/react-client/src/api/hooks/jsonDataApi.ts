@@ -12,6 +12,13 @@ export const jsonDataApi = axios.create({
 	},
 });
 
+export const jsonSearchApi = axios.create({
+	baseURL: `${API_BASE_URL}/api/json-search`,
+	headers: {
+		"Content-Type": "application/json",
+	},
+});
+
 export const jsonCommitApi = axios.create({
 	baseURL: `${API_BASE_URL}/api/json-commits`,
 	headers: {
@@ -149,6 +156,82 @@ export interface CommitQueueApiItem {
 	createdAt: string;
 }
 
+export interface PaginatedEntitiesResponse {
+	entities: Array<{
+		id: string;
+		modified: boolean;
+		type: string;
+		namespace: string;
+		name: string;
+		system_code?: string;
+		system_name?: string;
+		entity_change: string;
+		description?: string;
+		container_description?: string;
+		container_change: string;
+		attrSeq: Array<{
+			name: string;
+			type: string;
+			comment?: string;
+			attr_change: string;
+		}>;
+	}>;
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+	desc: { change_date: string };
+}
+
+export interface PaginatedMappingsResponse {
+	mappings: Array<{
+		entityId: string;
+		system_code?: string;
+		relation_change: string;
+		description?: string;
+		entity_map_id?: number;
+		target_id?: number;
+		deps: Array<{
+			entityId: string;
+			system_code?: string;
+			source_id?: number;
+			process_id?: number;
+			process?: string;
+			process_description?: string;
+			process_change?: string;
+			attrMaps: Array<{
+				src: string;
+				dst: string;
+				src_id?: number;
+				dst_id?: number;
+				relation_change: string;
+			}>;
+			atrDeps: Array<{
+				attr: string;
+				linkTypes: string[];
+				src_id?: number;
+				relation_change: string;
+			}>;
+		}>;
+	}>;
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+	desc: { change_date: string };
+}
+
+export interface PaginatedEntityRelationsResponse {
+	entity: PaginatedEntitiesResponse["entities"][0] | null;
+	mappings: PaginatedMappingsResponse["mappings"];
+	relatedEntities: PaginatedEntitiesResponse["entities"];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+	desc: { change_date: string };
+}
+
 export const jsonDataService = {
 	getAll: (): Promise<JsonDataItem[]> =>
 		jsonDataApi.get("/list").then((response) => response.data.data),
@@ -158,6 +241,9 @@ export const jsonDataService = {
 
 	getCurrent: (): Promise<JsonDataItem> =>
 		jsonDataApi.get("/dl").then((response) => response.data),
+
+	getSearchEntity: (search: string): Promise<JsonDataItem> =>
+		jsonSearchApi.post("/search", { search }).then((response) => response.data),
 
 	create: (data: CreateJsonDataRequest): Promise<JsonDataItem> =>
 		jsonDataApi.post("/create", data).then((response) => response.data),
@@ -262,6 +348,54 @@ export const jsonDataService = {
 		jsonCommitApi
 			.get(`/commits/${commitId}/cumulative`)
 			.then((response) => response.data),
+
+	getPaginatedEntities: (params: {
+		page?: number;
+		limit?: number;
+		search?: string;
+		type?: string;
+	}): Promise<PaginatedEntitiesResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params.page) searchParams.append("page", params.page.toString());
+		if (params.limit) searchParams.append("limit", params.limit.toString());
+		if (params.search) searchParams.append("search", params.search);
+		if (params.type) searchParams.append("type", params.type);
+
+		return jsonDataApi
+			.get(`/dl/paginated?${searchParams}`)
+			.then((response) => response.data);
+	},
+
+	getPaginatedMappings: (params: {
+		page?: number;
+		limit?: number;
+		search?: string;
+	}): Promise<PaginatedMappingsResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params.page) searchParams.append("page", params.page.toString());
+		if (params.limit) searchParams.append("limit", params.limit.toString());
+		if (params.search) searchParams.append("search", params.search);
+
+		return jsonDataApi
+			.get(`/dl/paginated/mappings?${searchParams}`)
+			.then((response) => response.data);
+	},
+
+	getPaginatedEntityRelations: (params: {
+		entityId: string;
+		page?: number;
+		limit?: number;
+	}): Promise<PaginatedEntityRelationsResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params.page) searchParams.append("page", params.page.toString());
+		if (params.limit) searchParams.append("limit", params.limit.toString());
+
+		return jsonDataApi
+			.get(
+				`/dl/entity-relations/${encodeURIComponent(params.entityId)}?${searchParams}`,
+			)
+			.then((response) => response.data);
+	},
 
 	resetDatabase: (): Promise<{
 		success: boolean;
