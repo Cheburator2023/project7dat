@@ -11,12 +11,12 @@ import {
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { LoadingSpinner } from "../atoms";
 
 export const CodeEditorPanel = memo(() => {
-	const { selectedEntityId } = useDashboardStore();
+	const { selectedEntityId } = useEntitiesStore();
 	const { currentSchema, isLoading } = useCurrentSchema();
 
 	// Get dataLineageStore actions

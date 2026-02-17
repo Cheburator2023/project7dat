@@ -18,7 +18,7 @@ import type {
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
 import { useShallow } from "zustand/react/shallow";
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import { graphNodeTypes } from "./EntityNodeComponent";
 import { getLayoutedElements, buildLineageGraph } from "../utils";
 import {
@@ -264,7 +264,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			globalSearchQuery,
 			zoomToNodeId,
 			setZoomToNode,
-		} = useDashboardStore(
+		} = useEntitiesStore(
 			useShallow((state) => ({
 				hoveredAttribute: state.hoveredAttribute,
 				setHoveredAttribute: state.setHoveredAttribute,

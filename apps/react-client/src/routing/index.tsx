@@ -6,7 +6,6 @@ import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPr
 import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
 import { ObjectsPage } from "@react-client/features/objects/ObjectsPage";
 import { ModelsPage } from "@react-client/features/models/pages/ModelsPage";
-import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { SettingsPage } from "@react-client/features/settings/SettingsPage";
 import { S2tCommitCreatePage } from "@react-client/features/s2tImport/S2tCommitCreatePage";
 import { S2tCommitDetailsPage } from "@react-client/features/s2tImport/S2tCommitDetailsPage";
@@ -16,6 +15,7 @@ import { S2tDataReportPage } from "@react-client/features/reports/S2tDataReportP
 
 import { Page404 } from "./Page404";
 import { routes } from "./routes";
+import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 
 export const Routing = () => (
 	<Routes>

@@ -18,7 +18,7 @@ import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { toast } from "sonner";
 import { useAuthStore } from "@react-client/common/store/authStore";
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import type { EntityConnection } from "../types";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
@@ -112,7 +112,7 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 	({ contextMenu, onClose, entity, connections = [] }) => {
 		const navigate = useNavigate();
 		const { setRevealPosition } = useDataLineageStore();
-		const { setZoomToNode, selectEntity } = useDashboardStore();
+		const { setZoomToNode, selectEntity } = useEntitiesStore();
 		const { accessToken } = useAuthStore();
 		const { currentGraph } = useDataLineageStore();
 

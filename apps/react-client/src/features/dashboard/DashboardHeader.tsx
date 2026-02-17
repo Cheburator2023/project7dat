@@ -1,6 +1,5 @@
-import { memo, useState, useCallback, useMemo } from "react";
-import { Button, IconButton, type SelectChangeEvent } from "@mui/material";
-import { useQueryClient } from "@tanstack/react-query";
+import { memo, useState, useCallback } from "react";
+import { IconButton, type SelectChangeEvent } from "@mui/material";
 import { useShallow } from "zustand/react/shallow";
 
 import { Header } from "@react-client/common/navigation/organisms/Header";
@@ -9,25 +8,13 @@ import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import {
 	useCurrentDataLineageGraph,
 	useCommitList,
-	DATA_LINEAGE_QUERY_KEYS,
 } from "@react-client/api/hooks";
-import { useJsonDataList } from "@react-client/api/hooks";
-import type { JsonDataItem } from "@react-client/api/hooks/jsonDataApi";
-import type {
-	DataLineageGraph,
-	DataLineageSchema,
-} from "@react-client/types/dataLineage";
+import type { DataLineageGraph } from "@react-client/types/dataLineage";
 import {
 	GlobalSearchField,
 	FilterButton,
 	SelectedEntityChip,
-} from "../molecules";
-import {
-	buildLineageGraph,
-	getUpstreamNodes,
-	getDownstreamNodes,
-} from "../utils";
-import type { EntityRow } from "../types";
+} from "../entities/molecules";
 import { S2tImportDialog } from "@react-client/features/s2tImport/S2tImportDialog";
 import { RefreshCwIcon } from "lucide-react";
 

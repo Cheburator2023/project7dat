@@ -91,7 +91,7 @@ interface SelectionState {
 	setEntitiesPageSize: (size: number) => void;
 }
 
-export const useDashboardStore = create<SelectionState>((set) => ({
+export const useEntitiesStore = create<SelectionState>((set) => ({
 	selectedEntityId: null,
 	selectedGraphId: null,
 	selectedAttributeName: null,

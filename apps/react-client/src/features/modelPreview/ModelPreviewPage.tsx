@@ -26,9 +26,9 @@ import {
 	ViewModule as ViewModuleIcon,
 } from "@mui/icons-material";
 import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/ModelGraphPanel";
-import { useDashboardStore } from "@react-client/features/dashboard";
 import { SearchIcon } from "lucide-react";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
 	table: <TableChartIcon fontSize={"large"} />,
@@ -116,7 +116,7 @@ interface EntityPreviewPageProps {
 	entityId?: string;
 }
 
-// Stable selectors for useDashboardStore
+// Stable selectors for useEntitiesStore
 const selectGlobalAttributeSearchQuery = (state: {
 	globalAttributeSearchQuery: string;
 }) => state.globalAttributeSearchQuery;
@@ -152,10 +152,10 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	}, [setSearchParams]);
 
 	// Global attribute search
-	const globalAttributeSearchQuery = useDashboardStore(
+	const globalAttributeSearchQuery = useEntitiesStore(
 		selectGlobalAttributeSearchQuery,
 	);
-	const setGlobalAttributeSearch = useDashboardStore(
+	const setGlobalAttributeSearch = useEntitiesStore(
 		selectSetGlobalAttributeSearch,
 	);
 

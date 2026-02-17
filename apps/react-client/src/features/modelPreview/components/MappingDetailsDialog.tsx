@@ -26,8 +26,8 @@ import {
 	OpenInNew as OpenInNewIcon,
 } from "@mui/icons-material";
 import { Spacer } from "@react-client/common/primitives/Spacer";
-import { useDashboardStore } from "@react-client/features/dashboard/stores";
-import type { EntityConnection } from "@react-client/features/dashboard/types";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
+import type { EntityConnection } from "@react-client/features/entities/types";
 
 interface MappingDetailsDialogProps {
 	open: boolean;
@@ -57,7 +57,7 @@ export const MappingDetailsDialog = ({
 		selectEntity,
 		selectEntityWithAttribute,
 		setHighlightedMapping,
-	} = useDashboardStore();
+	} = useEntitiesStore();
 
 	// Navigate to entity page with attribute highlight
 	const handleGoToEntityPage = useCallback(

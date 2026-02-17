@@ -20,19 +20,19 @@ import { MappingDetailsDialog } from "@react-client/features/entityPreview/compo
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 
-import { useDashboardStore } from "../../dashboard/stores";
-import { useCurrentSchema } from "../../dashboard//hooks/useCurrentSchema";
-import { LoadingSpinner } from "../../dashboard/atoms";
+import { useEntitiesStore } from "../../entities/stores";
+import { useCurrentSchema } from "../../entities/hooks/useCurrentSchema";
+import { LoadingSpinner } from "../../entities/atoms";
 import {
 	ModelGraphPanelInner,
 	type NodeContextMenuEvent,
 } from "./ModelGraphPanelInner";
-import type { EntityConnection } from "../../dashboard/types";
+import type { EntityConnection } from "../../entities/types";
 import {
 	getUpstreamNodes,
 	getDownstreamNodes,
 	buildLineageGraph,
-} from "../../dashboard/utils";
+} from "../../entities/utils";
 import { LinkIcon } from "lucide-react";
 
 export const ModelGraphPanel: React.FC<{
@@ -44,7 +44,7 @@ export const ModelGraphPanel: React.FC<{
 		selectEntity,
 		setUpstreamDownstream,
 		selectedAttributes,
-	} = useDashboardStore();
+	} = useEntitiesStore();
 
 	// Use currentSchema hook to get data synced with editor
 	const { currentSchema, effectiveGraphId, isLoading } = useCurrentSchema();

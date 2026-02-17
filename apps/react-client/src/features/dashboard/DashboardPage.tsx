@@ -15,11 +15,11 @@ import {
 	IssuesPanel,
 	SchemaPanel,
 	DashboardHeader,
-} from "./organisms";
-import { flexLayoutJson } from "./constants";
+} from "../entities/organisms";
+import { flexLayoutJson } from "../entities/constants";
 
-export { useDashboardStore } from "./stores";
-import { useDashboardStore } from "./stores";
+export { useEntitiesStore } from "../entities/stores";
+import { useEntitiesStore } from "../entities/stores";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 
 export const DashboardPage = () => {
@@ -29,7 +29,7 @@ export const DashboardPage = () => {
 	// Поиск по сущностям теперь идёт через бекенд-пагинацию в EntitiesPanel.
 	useCurrentDataLineageGraph({ enabled: true });
 
-	const { selectEntityWithAttribute, setZoomToNode } = useDashboardStore(
+	const { selectEntityWithAttribute, setZoomToNode } = useEntitiesStore(
 		useShallow((state) => ({
 			selectEntityWithAttribute: state.selectEntityWithAttribute,
 			setZoomToNode: state.setZoomToNode,

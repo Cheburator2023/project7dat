@@ -25,9 +25,9 @@ import {
 } from "@mui/icons-material";
 import { create as createDiff } from "jsondiffpatch";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
-import { useCurrentSchema } from "@react-client/features/dashboard";
 import { go as fuzzyGo, single as fuzzySingle } from "fuzzysort";
 import { Spacer } from "@react-client/common/primitives/Spacer";
+import { useCurrentSchema } from "@react-client/features/entities/hooks";
 
 const diffInstance = createDiff();
 const DIFF_DEBOUNCE_MS = 220;

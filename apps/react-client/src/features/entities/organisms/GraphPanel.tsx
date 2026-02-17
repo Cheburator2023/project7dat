@@ -21,7 +21,7 @@ import { EntityDetailsDialog } from "@react-client/features/entityPreview/compon
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { LoadingSpinner, EmptyState } from "../atoms";
 import { GraphPanelInner, type NodeContextMenuEvent } from "./GraphPanelInner";
@@ -39,7 +39,7 @@ export const GraphPanel = memo(() => {
 		selectEntity,
 		setUpstreamDownstream,
 		selectedAttributes,
-	} = useDashboardStore(
+	} = useEntitiesStore(
 		useShallow((state) => ({
 			selectedEntityId: state.selectedEntityId,
 			selectEntity: state.selectEntity,

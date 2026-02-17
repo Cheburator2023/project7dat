@@ -16,7 +16,7 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import { usePaginatedEntities } from "@react-client/api/hooks";
-import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { routes } from "@react-client/routing/routes";
 
 interface ModelRow {
@@ -32,7 +32,7 @@ export const ModelsPage = () => {
 	const [page, setPage] = useState(1);
 	const [pageSize, setPageSize] = useState(50);
 	const { mode } = useColorScheme();
-	const { selectEntity } = useDashboardStore();
+	const { selectEntity } = useEntitiesStore();
 	const navigate = useNavigate();
 
 	// Backend pagination — search is passed to backend

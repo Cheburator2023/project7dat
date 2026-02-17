@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Box, Typography, Chip, Divider } from "@mui/material";
 
-import { useDashboardStore } from "../stores";
+import { useEntitiesStore } from "../stores";
 import { HIGHLIGHT_COLORS } from "../constants";
 
 export const SelectionInfoPanel = memo(() => {
@@ -11,7 +11,7 @@ export const SelectionInfoPanel = memo(() => {
 		upstreamEntities,
 		downstreamEntities,
 		clearHighlights,
-	} = useDashboardStore();
+	} = useEntitiesStore();
 
 	return (
 		<Box sx={{ p: 2, height: "100%", overflow: "auto" }}>

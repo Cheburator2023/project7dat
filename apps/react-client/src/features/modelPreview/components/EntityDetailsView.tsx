@@ -5,28 +5,22 @@ import {
 	styled,
 	Box,
 	Typography,
-	Chip,
 	Table,
 	TableBody,
 	TableCell,
 	TableContainer,
-	TableHead,
 	TableRow,
 	Paper,
 	Accordion,
 	AccordionSummary,
 	AccordionDetails,
-	Link,
-	Tooltip,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import HomeIcon from "@mui/icons-material/Home";
 import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
-import { useDashboardStore } from "@react-client/features/dashboard/stores";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 
 interface EntityDetailsViewProps {
 	entity: DataLineageEntity | null;
@@ -45,7 +39,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 		selectEntity,
 		setHighlightedMapping,
 		selectEntityWithAttribute,
-	} = useDashboardStore();
+	} = useEntitiesStore();
 
 	const relatedMappings = useMemo(() => {
 		if (!entity) return [];
