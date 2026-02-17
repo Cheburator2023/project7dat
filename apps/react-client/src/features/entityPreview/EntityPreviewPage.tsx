@@ -1,7 +1,14 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Layout, Model, TabNode, Action } from "flexlayout-react";
 
-import { styled, Box, Alert, TextField, InputAdornment } from "@mui/material";
+import {
+	styled,
+	Box,
+	Alert,
+	TextField,
+	InputAdornment,
+	CircularProgress,
+} from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
@@ -13,7 +20,10 @@ import {
 	useCurrentDataLineageGraph,
 	usePaginatedEntityRelations,
 } from "@react-client/api/hooks";
-import type { DataLineageEntity } from "@react-client/types/dataLineage";
+import type {
+	DataLineageEntity,
+	DataLineageMapping,
+} from "@react-client/types/dataLineage";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 
 import {
@@ -24,6 +34,7 @@ import {
 	Search as SearchIcon,
 } from "@mui/icons-material";
 import { EntityGraphPanel } from "@react-client/features/entityPreview/organisms/EntityGraphPanel";
+import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
 
 const _TYPE_ICONS: Record<string, React.ReactNode> = {
 	table: <TableChartIcon fontSize={"large"} />,
@@ -124,6 +135,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
 	const [currentEntityId, setCurrentEntityId] = useState();
+	const [depthLimit, setDepthLimit] = useState(1);
 	const [calculatedEntities, _setCalculatedEntities] = useState<
 		DataLineageEntity[]
 	>([]);
@@ -200,6 +212,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	const { currentGraph } = useDataLineageStore(
 		useShallow((state) => ({
 			currentGraph: state.currentGraph,
+			isLoading: state.isLoading,
 		})),
 	);
 	// Фоновая загрузка полного графа для GraphPanel
@@ -213,38 +226,57 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		return currentEntityId || propEntityId || decodedUrlEntityId || "";
 	}, [currentEntityId, propEntityId, urlEntityId]);
 
-	// Быстрая загрузка из кэша через пагинированный endpoint
-	const { data: entityRelationsData } = usePaginatedEntityRelations({
+	// Загрузка полного графа связей из кэша (без depth — фильтрация на фронте)
+	const { data: entityRelationsData, isLoading } = usePaginatedEntityRelations({
 		entityId: targetEntityId,
 		page: 1,
-		limit: 100,
+		limit: 10000,
 		enabled: !!targetEntityId,
 	});
 
-	// Сущность: сначала из быстрого endpoint, потом из полного графа
+	// Сущность: только из backend depth-среза
 	const selectedEntity = useMemo(() => {
-		// Из пагинированного endpoint (быстро)
 		if (entityRelationsData?.entity) {
 			return entityRelationsData.entity as unknown as DataLineageEntity;
 		}
-		// Fallback на полный граф
-		if (!currentGraph?.entities || !targetEntityId) return null;
-		return currentGraph.entities.find((e) => e.id === targetEntityId) || null;
-	}, [entityRelationsData, currentGraph?.entities, targetEntityId]);
+		return null;
+	}, [entityRelationsData]);
 
-	// Маппинги: сначала из быстрого endpoint, потом из полного графа
+	// Маппинги: только из backend depth-среза
 	const relatedMappings = useMemo(() => {
 		if (entityRelationsData?.mappings?.length) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return entityRelationsData.mappings as any[];
+			return entityRelationsData.mappings.map((mapping, index) => ({
+				...mapping,
+				id: mapping.entity_map_id ?? mapping.target_id ?? index,
+			})) as DataLineageMapping[];
 		}
-		if (!currentGraph?.mappings || !targetEntityId) return [];
-		return currentGraph.mappings.filter(
-			(mapping) =>
-				mapping.entityId === targetEntityId ||
-				mapping.deps?.some((dep) => dep.entityId === targetEntityId),
-		);
-	}, [entityRelationsData, currentGraph?.mappings, targetEntityId]);
+		return [];
+	}, [entityRelationsData]);
+
+	const graphData = useMemo(() => {
+		if (!selectedEntity) return undefined;
+
+		const allEntityIds = new Set<string>([selectedEntity.id]);
+		for (const mapping of relatedMappings) {
+			allEntityIds.add(mapping.entityId);
+			for (const dep of mapping.deps ?? []) {
+				allEntityIds.add(dep.entityId);
+			}
+		}
+
+		const entitiesFromEndpoint = entityRelationsData?.relatedEntities ?? [];
+
+		const entityMap = new Map<string, DataLineageEntity>();
+		entityMap.set(selectedEntity.id, selectedEntity);
+		for (const entity of entitiesFromEndpoint) {
+			entityMap.set(entity.id, entity as DataLineageEntity);
+		}
+
+		return {
+			entities: Array.from(entityMap.values()),
+			mappings: relatedMappings,
+		};
+	}, [selectedEntity, relatedMappings, entityRelationsData]);
 
 	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
 
@@ -282,12 +314,26 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						</EntityContainer>
 					);
 				case "entity-graph":
-					return <EntityGraphPanel onSelectNode={onSelectNode} />;
+					return (
+						<EntityGraphPanel
+							onSelectNode={onSelectNode}
+							isLoading={isLoading}
+							graphData={graphData}
+							depthLimit={depthLimit}
+							onDepthChange={setDepthLimit}
+						/>
+					);
 				default:
 					return <div>Unknown component: {component}</div>;
 			}
 		},
-		[selectedEntity, relatedMappings, calculatedEntities],
+		[
+			selectedEntity,
+			relatedMappings,
+			calculatedEntities,
+			graphData,
+			depthLimit,
+		],
 	);
 
 	const onAction = useCallback(
@@ -321,22 +367,6 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		},
 		[model, isPersistEnabled],
 	);
-
-	if (!selectedEntity) {
-		return (
-			<div>
-				<Header>{/* <div>Сущность не найдена</div> */}</Header>
-				<Wrapper>
-					<div style={{ padding: "20px", textAlign: "center" }}>
-						Сущность с ID "
-						{propEntityId ||
-							(urlEntityId ? decodeURIComponent(urlEntityId) : "")}
-						" не найдена в текущем графе.
-					</div>
-				</Wrapper>
-			</div>
-		);
-	}
 
 	return (
 		<div>
@@ -377,15 +407,20 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 					display: "flex",
 					flexDirection: "column",
 					height: "100%",
+					position: "relative",
 				}}
 			>
 				<FlexLayoutContainer>
-					<Layout
-						model={model}
-						factory={factory}
-						onAction={onAction}
-						realtimeResize
-					/>
+					{isLoading ? (
+						<FullScreenLoader />
+					) : (
+						<Layout
+							model={model}
+							factory={factory}
+							onAction={onAction}
+							realtimeResize
+						/>
+					)}
 				</FlexLayoutContainer>
 			</Box>
 		</div>
@@ -495,15 +530,6 @@ const EntityContainer = styled("div")(
 	height: 100%;
 	width: 100%;
 	background-color: ${theme.vars?.palette?.background.paper};
-	color: ${theme.vars?.palette?.text.primary};
-`,
-);
-
-const Wrapper = styled("div")(
-	({ theme }) => `
-	height: calc(100vh - 64px);
-	position: relative;
-	background-color: transparent;
 	color: ${theme.vars?.palette?.text.primary};
 `,
 );

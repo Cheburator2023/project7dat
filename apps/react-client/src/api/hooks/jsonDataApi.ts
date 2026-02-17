@@ -183,6 +183,13 @@ export interface PaginatedEntitiesResponse {
 	desc: { change_date: string };
 }
 
+export interface CurrentDataLineageResponse {
+	desc: { change_date: string };
+	entities: PaginatedEntitiesResponse["entities"];
+	mappings: PaginatedMappingsResponse["mappings"];
+	failedMappings?: unknown[];
+}
+
 export interface PaginatedMappingsResponse {
 	mappings: Array<{
 		entityId: string;
@@ -400,6 +407,25 @@ export const jsonDataService = {
 			)
 			.then((response) => response.data);
 	},
+
+	getPaginatedModelRelations: (params: {
+		modelId: string;
+		page?: number;
+		limit?: number;
+	}): Promise<PaginatedEntityRelationsResponse> => {
+		const searchParams = new URLSearchParams();
+		if (params.page) searchParams.append("page", params.page.toString());
+		if (params.limit) searchParams.append("limit", params.limit.toString());
+
+		return jsonDataApi
+			.get(
+				`/dl/model-relations/${encodeURIComponent(params.modelId)}?${searchParams}`,
+			)
+			.then((response) => response.data);
+	},
+
+	getCurrentGraph: (): Promise<CurrentDataLineageResponse> =>
+		jsonDataApi.get("/dl").then((response) => response.data),
 
 	resetDatabase: (): Promise<{
 		success: boolean;

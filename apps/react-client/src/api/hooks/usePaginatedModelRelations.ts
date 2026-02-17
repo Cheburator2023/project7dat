@@ -4,31 +4,31 @@ import {
 	type PaginatedEntityRelationsResponse,
 } from "./jsonDataApi";
 
-export const PAGINATED_ENTITY_RELATIONS_QUERY_KEY = [
+export const PAGINATED_MODEL_RELATIONS_QUERY_KEY = [
 	"dataLineage",
-	"paginatedEntityRelations",
+	"paginatedModelRelations",
 ] as const;
 
-export const usePaginatedEntityRelations = (params: {
-	entityId: string;
+export const usePaginatedModelRelations = (params: {
+	modelId: string;
 	page: number;
 	limit: number;
 	enabled?: boolean;
 }) => {
 	return useQuery<PaginatedEntityRelationsResponse, Error>({
 		queryKey: [
-			...PAGINATED_ENTITY_RELATIONS_QUERY_KEY,
-			params.entityId,
+			...PAGINATED_MODEL_RELATIONS_QUERY_KEY,
+			params.modelId,
 			params.page,
 			params.limit,
 		],
 		queryFn: () =>
-			jsonDataService.getPaginatedEntityRelations({
-				entityId: params.entityId,
+			jsonDataService.getPaginatedModelRelations({
+				modelId: params.modelId,
 				page: params.page,
 				limit: params.limit,
 			}),
 		staleTime: 0,
-		enabled: (params.enabled ?? true) && !!params.entityId,
+		enabled: (params.enabled ?? true) && !!params.modelId,
 	});
 };

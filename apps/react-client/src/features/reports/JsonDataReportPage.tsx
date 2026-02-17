@@ -1,21 +1,18 @@
 import { useCallback, useMemo } from "react";
-import { Alert, Box, Button, Stack, Typography } from "@mui/material";
+import {
+	Alert,
+	Box,
+	Button,
+	CircularProgress,
+	Stack,
+	Typography,
+} from "@mui/material";
 import { format } from "date-fns/esm";
 import { toast } from "sonner";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
-import {
-	buildLineageGraph,
-	getUpstreamNodes,
-	getDownstreamNodes,
-} from "@react-client/features/entities/utils";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
-import type {
-	DataLineageEntity,
-	DataLineageGraph,
-	DataLineageMapping,
-} from "@react-client/types/dataLineage";
+import { usePaginatedEntityRelations } from "@react-client/api/hooks";
 
 const sanitizeFilePart = (value: string) =>
 	value.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -34,55 +31,6 @@ const buildDefaultFileName = (params: {
 	return `${base}${timestamp}.${params.extension}`;
 };
 
-const buildEntityReport = (params: {
-	graph: DataLineageGraph;
-	selectedEntityId: string;
-}): {
-	entity: DataLineageEntity | null;
-	mappings: DataLineageMapping[];
-	entities: DataLineageEntity[];
-	report: Record<string, unknown>;
-} => {
-	const entity =
-		params.graph.entities.find((e) => e.id === params.selectedEntityId) ?? null;
-
-	// BFS по графу lineage — собираем все связанные сущности (upstream + downstream)
-	const { upstream, downstream } = buildLineageGraph(params.graph.mappings);
-	const upstreamIds = getUpstreamNodes(params.selectedEntityId, upstream);
-	const downstreamIds = getDownstreamNodes(params.selectedEntityId, downstream);
-
-	const allRelatedIds = new Set<string>([...upstreamIds, ...downstreamIds]);
-
-	// Маппинги, у которых target или любой source входит в набор связанных сущностей
-	const mappings = params.graph.mappings.filter(
-		(m) =>
-			allRelatedIds.has(m.entityId) ||
-			(m.deps ?? []).some((d) => allRelatedIds.has(d.entityId)),
-	);
-
-	// Собираем все entityId из отобранных маппингов
-	const entityIds = new Set<string>(allRelatedIds);
-	for (const mapping of mappings) {
-		entityIds.add(mapping.entityId);
-		for (const dep of mapping.deps ?? []) {
-			entityIds.add(dep.entityId);
-		}
-	}
-
-	const entities = params.graph.entities.filter((e) => entityIds.has(e.id));
-
-	const report = {
-		generatedAt: new Date().toISOString(),
-		format: "DATA_LINEAGE_REPORT_JSON",
-		selectedEntityId: params.selectedEntityId,
-		desc: params.graph.desc,
-		entities,
-		mappings,
-	};
-
-	return { entity, mappings, entities, report };
-};
-
 const downloadJson = (params: { data: unknown; fileName: string }) => {
 	const dataStr = JSON.stringify(params.data, null, 2);
 	const dataBlob = new Blob([dataStr], { type: "application/json" });
@@ -99,10 +47,16 @@ const downloadJson = (params: { data: unknown; fileName: string }) => {
 
 export const JsonDataReportPage = () => {
 	const { selectedEntityId } = useEntitiesStore();
-	const { currentGraph } = useDataLineageStore();
+
+	const { data: relationsData, isLoading } = usePaginatedEntityRelations({
+		entityId: selectedEntityId ?? "",
+		page: 1,
+		limit: 500,
+		enabled: !!selectedEntityId,
+	});
 
 	const derived = useMemo(() => {
-		if (!currentGraph || !selectedEntityId) {
+		if (!relationsData || !selectedEntityId) {
 			return {
 				entity: null,
 				fileName: null,
@@ -111,10 +65,28 @@ export const JsonDataReportPage = () => {
 			};
 		}
 
-		const { entity, report } = buildEntityReport({
-			graph: currentGraph,
+		const entity = relationsData.entity ?? null;
+		const mappings = relationsData.mappings ?? [];
+		const relatedEntities = relationsData.relatedEntities ?? [];
+
+		const entityIds = new Set<string>([selectedEntityId]);
+		for (const mapping of mappings) {
+			entityIds.add(mapping.entityId);
+			for (const dep of mapping.deps ?? []) {
+				entityIds.add(dep.entityId);
+			}
+		}
+
+		const entities = entity ? [entity, ...relatedEntities] : relatedEntities;
+
+		const report = {
+			generatedAt: new Date().toISOString(),
+			format: "DATA_LINEAGE_REPORT_JSON",
 			selectedEntityId,
-		});
+			desc: relationsData.desc,
+			entities,
+			mappings,
+		};
 
 		const isAllowedEntityType =
 			entity?.type === "table" || entity?.type === "view";
@@ -127,13 +99,9 @@ export const JsonDataReportPage = () => {
 			: null;
 
 		return { entity, fileName, isAllowedEntityType, report };
-	}, [currentGraph, selectedEntityId]);
+	}, [relationsData, selectedEntityId]);
 
 	const handleDownload = useCallback(() => {
-		if (!currentGraph) {
-			toast.error("Нет текущих данных для формирования отчёта");
-			return;
-		}
 		if (!selectedEntityId) {
 			toast.error("Сначала выбери витрину (таблицу/view) на главной");
 			return;
@@ -148,7 +116,7 @@ export const JsonDataReportPage = () => {
 		}
 
 		downloadJson({ data: derived.report, fileName: derived.fileName });
-	}, [currentGraph, derived, selectedEntityId]);
+	}, [derived, selectedEntityId]);
 
 	return (
 		<Box>
@@ -166,10 +134,14 @@ export const JsonDataReportPage = () => {
 						</Alert>
 					)}
 
-					{selectedEntityId && !derived.entity && (
-						<Alert severity="error">
-							Не удалось найти выбранную сущность в текущем графе.
-						</Alert>
+					{selectedEntityId && isLoading && (
+						<Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+							<CircularProgress size={24} />
+						</Box>
+					)}
+
+					{selectedEntityId && !isLoading && !derived.entity && (
+						<Alert severity="error">Не удалось найти выбранную сущность.</Alert>
 					)}
 
 					{derived.entity && (
@@ -197,7 +169,9 @@ export const JsonDataReportPage = () => {
 					<Button
 						variant="contained"
 						onClick={handleDownload}
-						disabled={!derived.entity || !derived.isAllowedEntityType}
+						disabled={
+							!derived.entity || !derived.isAllowedEntityType || isLoading
+						}
 					>
 						Скачать отчёт (.json)
 					</Button>

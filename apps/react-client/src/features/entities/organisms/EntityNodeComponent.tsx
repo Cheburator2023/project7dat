@@ -548,6 +548,7 @@ export const EntityNodeComponent = memo(
 										background: "#f8f9fa",
 										textAlign: "center",
 									}}
+									data-name="more_attrs_node"
 								>
 									+{moreCount} ещё...
 								</div>

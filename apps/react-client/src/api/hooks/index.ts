@@ -48,6 +48,11 @@ export {
 	usePaginatedEntityRelations,
 	PAGINATED_ENTITY_RELATIONS_QUERY_KEY,
 } from "./usePaginatedEntityRelations";
+export { useMaxDepth, MAX_DEPTH_QUERY_KEY } from "./useMaxDepth";
+export {
+	useModelMaxDepth,
+	MODEL_MAX_DEPTH_QUERY_KEY,
+} from "./useModelMaxDepth";
 
 // Commit hooks
 export { useCommitList } from "./useCommitList";

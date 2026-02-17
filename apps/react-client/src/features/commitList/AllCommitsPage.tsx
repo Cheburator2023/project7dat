@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import type { FC } from "react";
 import {
@@ -45,7 +46,9 @@ import { toast } from "sonner";
 import {
 	useCurrentDataLineageGraph,
 	useS2tCommitList,
+	PAGINATED_ENTITY_RELATIONS_QUERY_KEY,
 } from "@react-client/api/hooks";
+import { PAGINATED_MODEL_RELATIONS_QUERY_KEY } from "@react-client/api/hooks/usePaginatedModelRelations";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { s2tCommitStoreService } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { Header } from "@react-client/common/navigation/organisms/Header";
@@ -80,6 +83,7 @@ const formatCommitOptionLabel = (commit: S2tCommitItem): string => {
 export const AllCommitsPage: FC = () => {
 	const { mode } = useColorScheme();
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [commitsPage, setCommitsPage] = useState(1);
 	const [commitsPageSize, setCommitsPageSize] = useState(20);
 	const [commitsSortBy, setCommitsSortBy] = useState<string | undefined>(
@@ -158,7 +162,12 @@ export const AllCommitsPage: FC = () => {
 
 	const handleDialogSaved = () => {
 		s2tCommitsQuery.refetch();
-		// here need to refetch all main dl data
+		queryClient.invalidateQueries({
+			queryKey: [...PAGINATED_ENTITY_RELATIONS_QUERY_KEY],
+		});
+		queryClient.invalidateQueries({
+			queryKey: [...PAGINATED_MODEL_RELATIONS_QUERY_KEY],
+		});
 	};
 
 	const handleDeleteConfirm = async () => {

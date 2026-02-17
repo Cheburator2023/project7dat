@@ -3,6 +3,7 @@ export {
 	buildLineageGraph,
 	getUpstreamNodes,
 	getDownstreamNodes,
+	getMaxDepthFromNode,
 	inferJsonSchema,
 	mergeSchemas,
 	formatSchema,

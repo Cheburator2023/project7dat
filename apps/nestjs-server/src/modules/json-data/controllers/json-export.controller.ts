@@ -17,6 +17,8 @@ import { JsonExportResponseDto } from "../dto";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
 
+const PAGINATION_LIMIT_MAX = 10000;
+
 @ApiBearerAuth("JWT-auth")
 @ApiTags("Экспорт JSON")
 @Controller("json-export")
@@ -59,7 +61,7 @@ export class JsonExportController {
 		name: "limit",
 		required: false,
 		type: Number,
-		description: "Количество сущностей на странице (1-500, по умолчанию 50)",
+		description: "Количество сущностей на странице (1-10000, по умолчанию 50)",
 		example: 50,
 	})
 	@ApiQuery({
@@ -116,8 +118,10 @@ export class JsonExportController {
 		if (Number.isNaN(page) || page < 1) {
 			throw new BadRequestException("page должен быть положительным числом");
 		}
-		if (Number.isNaN(limit) || limit < 1 || limit > 500) {
-			throw new BadRequestException("limit должен быть от 1 до 500");
+		if (Number.isNaN(limit) || limit < 1 || limit > PAGINATION_LIMIT_MAX) {
+			throw new BadRequestException(
+				`limit должен быть от 1 до ${PAGINATION_LIMIT_MAX}`,
+			);
 		}
 
 		return await this.jsonExportService.exportPaginated({
@@ -153,8 +157,10 @@ export class JsonExportController {
 		if (Number.isNaN(page) || page < 1) {
 			throw new BadRequestException("page должен быть положительным числом");
 		}
-		if (Number.isNaN(limit) || limit < 1 || limit > 500) {
-			throw new BadRequestException("limit должен быть от 1 до 500");
+		if (Number.isNaN(limit) || limit < 1 || limit > PAGINATION_LIMIT_MAX) {
+			throw new BadRequestException(
+				`limit должен быть от 1 до ${PAGINATION_LIMIT_MAX}`,
+			);
 		}
 
 		return await this.jsonExportService.exportPaginatedMappings({
@@ -167,10 +173,10 @@ export class JsonExportController {
 	@Get("dl/entity-relations/:entityId")
 	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
-		summary: "Пагинированные связи сущности из кэша",
+		summary: "Полный граф связей сущности из кэша",
 		description:
-			"Возвращает маппинги, связанные с конкретной сущностью, " +
-			"а также связанные сущности для текущей страницы.",
+			"Возвращает все маппинги и связанные сущности для данной сущности. " +
+			"Фильтрация по глубине выполняется на фронтенде.",
 	})
 	@ApiQuery({ name: "page", required: false, type: Number })
 	@ApiQuery({ name: "limit", required: false, type: Number })
@@ -185,12 +191,48 @@ export class JsonExportController {
 		if (Number.isNaN(page) || page < 1) {
 			throw new BadRequestException("page должен быть положительным числом");
 		}
-		if (Number.isNaN(limit) || limit < 1 || limit > 500) {
-			throw new BadRequestException("limit должен быть от 1 до 500");
+		if (Number.isNaN(limit) || limit < 1 || limit > PAGINATION_LIMIT_MAX) {
+			throw new BadRequestException(
+				`limit должен быть от 1 до ${PAGINATION_LIMIT_MAX}`,
+			);
 		}
 
 		return await this.jsonExportService.exportPaginatedEntityRelations({
 			entityId: decodeURIComponent(entityId),
+			page,
+			limit,
+		});
+	}
+
+	@Get("dl/model-relations/:modelId")
+	@RealmRole(Permission.DL_VIEW_JSON_DATA)
+	@ApiOperation({
+		summary: "Полный граф связей модели из кэша",
+		description:
+			"Возвращает модель, все связанные маппинги и сущности. " +
+			"Фильтрация по глубине выполняется на фронтенде.",
+	})
+	@ApiQuery({ name: "page", required: false, type: Number })
+	@ApiQuery({ name: "limit", required: false, type: Number })
+	async exportModelRelationsPaginated(
+		@Param("modelId") modelId: string,
+		@Query("page") pageRaw?: string,
+		@Query("limit") limitRaw?: string,
+	) {
+		const page = pageRaw ? Number.parseInt(pageRaw, 10) : 1;
+		const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 50;
+
+		if (Number.isNaN(page) || page < 1) {
+			throw new BadRequestException("page должен быть положительным числом");
+		}
+		if (Number.isNaN(limit) || limit < 1 || limit > PAGINATION_LIMIT_MAX) {
+			throw new BadRequestException(
+				`limit должен быть от 1 до ${PAGINATION_LIMIT_MAX}`,
+			);
+		}
+
+		return await this.jsonExportService.exportPaginatedModelRelations({
+			modelId: decodeURIComponent(modelId),
 			page,
 			limit,
 		});

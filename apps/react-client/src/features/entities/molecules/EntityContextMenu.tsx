@@ -5,6 +5,7 @@ import {
 	ListItemIcon,
 	ListItemText,
 	Divider,
+	CircularProgress,
 } from "@mui/material";
 import {
 	Code,
@@ -18,6 +19,7 @@ import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import { toast } from "sonner";
 import { useAuthStore } from "@react-client/common/store/authStore";
+import { usePaginatedEntityRelations } from "@react-client/api/hooks";
 import { useEntitiesStore } from "../stores";
 import type { EntityConnection } from "../types";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
@@ -109,12 +111,24 @@ interface EntityContextMenuProps {
 }
 
 export const EntityContextMenu = memo<EntityContextMenuProps>(
-	({ contextMenu, onClose, entity, connections = [] }) => {
+	({ contextMenu, onClose, entity: externalEntity, connections = [] }) => {
 		const navigate = useNavigate();
 		const { setRevealPosition } = useDataLineageStore();
 		const { setZoomToNode, selectEntity } = useEntitiesStore();
 		const { accessToken } = useAuthStore();
-		const { currentGraph } = useDataLineageStore();
+
+		const { data: relationsData, isLoading: isRelationsLoading } =
+			usePaginatedEntityRelations({
+				entityId: contextMenu?.entityId ?? "",
+				page: 1,
+				limit: 500,
+				enabled: !!contextMenu?.entityId,
+			});
+
+		const entity =
+			externalEntity ??
+			(relationsData?.entity as DataLineageEntity | null) ??
+			null;
 
 		// Dialog state
 		const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);
@@ -201,17 +215,13 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 		}, [entity?.type]);
 
 		const relatedMappingsCount = useMemo(() => {
-			if (!currentGraph || !contextMenu?.entityId) return 0;
-			const selectedEntityId = contextMenu.entityId;
-			return (currentGraph.mappings ?? []).filter(
-				(m) =>
-					m.entityId === selectedEntityId ||
-					(m.deps ?? []).some((d) => d.entityId === selectedEntityId),
-			).length;
-		}, [contextMenu?.entityId, currentGraph]);
+			if (!relationsData || !contextMenu?.entityId) return 0;
+			return (relationsData.mappings ?? []).length;
+		}, [contextMenu?.entityId, relationsData]);
 
 		const reportMenuDisabledReason = useMemo(() => {
 			if (!contextMenu?.entityId) return "Сущность не выбрана";
+			if (isRelationsLoading) return "Загрузка...";
 			if (!entity) return "Не удалось определить сущность";
 			if (!isAllowedReportEntityType)
 				return "Отчёт доступен только для сущностей типа table или view";
@@ -222,12 +232,13 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 			contextMenu?.entityId,
 			entity,
 			isAllowedReportEntityType,
+			isRelationsLoading,
 			relatedMappingsCount,
 		]);
 
 		const handleDownloadJsonReport = useCallback(async () => {
 			if (!contextMenu?.entityId) return;
-			if (!currentGraph) {
+			if (!relationsData) {
 				toast.error("Нет текущих данных для формирования отчёта");
 				return;
 			}
@@ -245,26 +256,15 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 			}
 
 			const selectedEntityId = contextMenu.entityId;
-			const mappings = (currentGraph.mappings ?? []).filter(
-				(m) =>
-					m.entityId === selectedEntityId ||
-					(m.deps ?? []).some((d) => d.entityId === selectedEntityId),
-			);
-			const entityIds = new Set<string>([selectedEntityId]);
-			for (const mapping of mappings) {
-				entityIds.add(mapping.entityId);
-				for (const dep of mapping.deps ?? []) {
-					entityIds.add(dep.entityId);
-				}
-			}
-			const entities = (currentGraph.entities ?? []).filter((e) =>
-				entityIds.has(e.id),
-			);
+			const mappings = relationsData.mappings ?? [];
+			const relatedEntities = relationsData.relatedEntities ?? [];
+			const entities = entity ? [entity, ...relatedEntities] : relatedEntities;
+
 			const report = {
 				generatedAt: new Date().toISOString(),
 				format: "DATA_LINEAGE_REPORT_JSON",
 				selectedEntityId,
-				desc: currentGraph.desc,
+				desc: relationsData.desc,
 				entities,
 				mappings,
 			};
@@ -277,9 +277,10 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 			downloadJson({ data: report, fileName });
 		}, [
 			contextMenu?.entityId,
-			currentGraph,
+			relationsData,
 			entity,
 			isAllowedReportEntityType,
+			relatedMappingsCount,
 		]);
 
 		const handleDownloadS2tReport = useCallback(async () => {
@@ -379,7 +380,11 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 							disabled={Boolean(reportMenuDisabledReason)}
 						>
 							<ListItemIcon>
-								<Code fontSize="small" />
+								{isRelationsLoading ? (
+									<CircularProgress size={16} />
+								) : (
+									<Code fontSize="small" />
+								)}
 							</ListItemIcon>
 							<ListItemText primary="Выгрузить JSON отчёт" />
 						</MenuItem>
@@ -393,7 +398,11 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 							disabled={Boolean(reportMenuDisabledReason)}
 						>
 							<ListItemIcon>
-								<LinkIcon fontSize="small" />
+								{isRelationsLoading ? (
+									<CircularProgress size={16} />
+								) : (
+									<LinkIcon fontSize="small" />
+								)}
 							</ListItemIcon>
 							<ListItemText primary="Скачать S2T отчёт (.xlsx)" />
 						</MenuItem>
