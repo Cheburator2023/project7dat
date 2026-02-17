@@ -136,7 +136,7 @@ export const ModelsPage = () => {
 				sx={{
 					display: "flex",
 					flexDirection: "column",
-					height: "calc(100vh - 130px)",
+					height: "100%",
 				}}
 			>
 				<Box sx={{ flex: 1, minHeight: 0 }}>

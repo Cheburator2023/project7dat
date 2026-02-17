@@ -372,7 +372,13 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 				</Box>
 			</Header>
 
-			<Wrapper id="entity_preview_container">
+			<Box
+				sx={{
+					display: "flex",
+					flexDirection: "column",
+					height: "100%",
+				}}
+			>
 				<FlexLayoutContainer>
 					<Layout
 						model={model}
@@ -381,7 +387,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 						realtimeResize
 					/>
 				</FlexLayoutContainer>
-			</Wrapper>
+			</Box>
 		</div>
 	);
 };

@@ -7,13 +7,11 @@ import {
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Header } from "@react-client/common/navigation/organisms/Header";
-import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
 import {
 	useInitializeJsonGraph,
 	useResetDatabase,
 } from "@react-client/api/hooks";
-import { dataLineageExampleData } from "@react-client/examples/dataLineageExampleData";
 import type { DataLineageGraph } from "@react-client/types/dataLineage";
 
 const _data: any = [
@@ -38,7 +36,7 @@ export const PlaygroundPage = () => {
 		setIsInitializing(true);
 		try {
 			const result = await initializeGraphMutation.mutateAsync({
-				data: dataLineageExampleData,
+				data: {} as any,
 			});
 			initializeGraph(result.data as DataLineageGraph);
 			setCurrentGraphId(result.id);

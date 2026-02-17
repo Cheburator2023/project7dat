@@ -71,9 +71,9 @@ export class JsonExportService {
 		private readonly dataSource: DataSource,
 		private readonly configService: ConfigService,
 		private readonly cacheService: CacheService,
-		private readonly cacheTtl: number,
+		// private readonly cacheTtl: number,
 	) {
-		this.cacheTtl = this.configService.get<number>("CACHE_TTL", 600);
+		(this as any).cacheTtl = this.configService.get<number>("CACHE_TTL", 600);
 	}
 
 	/**
