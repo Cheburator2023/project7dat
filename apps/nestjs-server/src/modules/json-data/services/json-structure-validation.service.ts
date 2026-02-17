@@ -429,12 +429,6 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 			return;
 		}
 
-		if (entity.attrSeq.length > this.maxAttributes) {
-			errors.push(
-				`Сущность ${entity.id}: превышено максимальное количество атрибутов: ${entity.attrSeq.length} > ${this.maxAttributes}`,
-			);
-		}
-
 		entity.attrSeq.forEach((attr: any, attrIndex: number) => {
 			this.validateSingleAttribute(
 				attr,

@@ -11,7 +11,7 @@ export class JsonBusinessRulesValidationService extends JsonBusinessRulesValidat
 		super();
 		this.maxEntities = this.configService.get<number>(
 			"MAX_ENTITIES_PER_IMPORT",
-			1000,
+			10000,
 		);
 	}
 
