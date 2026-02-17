@@ -9,7 +9,10 @@ import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "./components/EntityJsonEditor";
 import { EntityDetailsView } from "./components/EntityDetailsView";
 import { useParams, useSearchParams } from "react-router-dom";
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
+import {
+	useCurrentDataLineageGraph,
+	usePaginatedEntityRelations,
+} from "@react-client/api/hooks";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { useDashboardStore } from "@react-client/features/dashboard/stores";
 
@@ -199,42 +202,49 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 			currentGraph: state.currentGraph,
 		})),
 	);
+	// Фоновая загрузка полного графа для GraphPanel
 	useCurrentDataLineageGraph({ enabled: !currentGraph?.entities });
 
+	// Определяем целевой entityId
+	const targetEntityId = useMemo(() => {
+		const decodedUrlEntityId = urlEntityId
+			? decodeURIComponent(urlEntityId)
+			: undefined;
+		return currentEntityId || propEntityId || decodedUrlEntityId || "";
+	}, [currentEntityId, propEntityId, urlEntityId]);
+
+	// Быстрая загрузка из кэша через пагинированный endpoint
+	const { data: entityRelationsData } = usePaginatedEntityRelations({
+		entityId: targetEntityId,
+		page: 1,
+		limit: 100,
+		enabled: !!targetEntityId,
+	});
+
+	// Сущность: сначала из быстрого endpoint, потом из полного графа
 	const selectedEntity = useMemo(() => {
-		if (!currentGraph?.entities) return null;
-
-		// Decode the URL entity ID to handle encoded slashes and special characters
-		const decodedUrlEntityId = urlEntityId
-			? decodeURIComponent(urlEntityId)
-			: undefined;
-
-		const targetEntityId =
-			currentEntityId || propEntityId || decodedUrlEntityId;
-
-		if (targetEntityId) {
-			console.log(
-				currentGraph.entities.find((e) => e.id === targetEntityId) || null,
-			);
-			return currentGraph.entities.find((e) => e.id === targetEntityId) || null;
+		// Из пагинированного endpoint (быстро)
+		if (entityRelationsData?.entity) {
+			return entityRelationsData.entity as unknown as DataLineageEntity;
 		}
+		// Fallback на полный граф
+		if (!currentGraph?.entities || !targetEntityId) return null;
+		return currentGraph.entities.find((e) => e.id === targetEntityId) || null;
+	}, [entityRelationsData, currentGraph?.entities, targetEntityId]);
 
-		// For now, let's select the first entity as an example if no entityId is provided
-		return currentGraph.entities.length > 0 ? currentGraph.entities[0] : null;
-	}, [currentGraph?.entities, propEntityId, urlEntityId, currentEntityId]);
-
+	// Маппинги: сначала из быстрого endpoint, потом из полного графа
 	const relatedMappings = useMemo(() => {
-		const decodedUrlEntityId = urlEntityId
-			? decodeURIComponent(urlEntityId)
-			: undefined;
-		const targetEntityId = propEntityId || decodedUrlEntityId;
+		if (entityRelationsData?.mappings?.length) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			return entityRelationsData.mappings as any[];
+		}
 		if (!currentGraph?.mappings || !targetEntityId) return [];
 		return currentGraph.mappings.filter(
 			(mapping) =>
 				mapping.entityId === targetEntityId ||
 				mapping.deps?.some((dep) => dep.entityId === targetEntityId),
 		);
-	}, [currentGraph?.mappings, propEntityId, urlEntityId]);
+	}, [entityRelationsData, currentGraph?.mappings, targetEntityId]);
 
 	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
 

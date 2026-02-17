@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from "react";
+import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import type { FC } from "react";
 import {
 	Alert,
@@ -84,6 +85,22 @@ export const AllCommitsPage: FC = () => {
 	const [compareBaseId, setCompareBaseId] = useState<string>("");
 	const [compareTargetId, setCompareTargetId] = useState<string>("");
 	const gridRef = useRef<AgGridReact<S2tCommitItem> | null>(null);
+
+	// Client-side pagination state
+	const [commitsPage, setCommitsPage] = useState(1);
+	const [commitsPageSize, setCommitsPageSize] = useState(20);
+
+	const totalCommits = s2tCommits.length;
+	const totalCommitsPages = Math.ceil(totalCommits / commitsPageSize) || 1;
+	const pagedCommits = useMemo(() => {
+		const offset = (commitsPage - 1) * commitsPageSize;
+		return s2tCommits.slice(offset, offset + commitsPageSize);
+	}, [s2tCommits, commitsPage, commitsPageSize]);
+
+	const handleCommitsPageSizeChange = useCallback((size: number) => {
+		setCommitsPageSize(size);
+		setCommitsPage(1);
+	}, []);
 
 	useEffect(() => {
 		s2tCommitsQuery.refetch();
@@ -411,14 +428,11 @@ export const AllCommitsPage: FC = () => {
 				<GridWrapper height="100%">
 					<AgGridReact<S2tCommitItem>
 						ref={gridRef}
-						rowData={s2tCommits}
+						rowData={pagedCommits}
 						columnDefs={s2tColumnDefs}
 						defaultColDef={defaultColDef}
 						onRowDoubleClicked={handleS2tRowDoubleClick}
 						onSelectionChanged={handleSelectionChanged}
-						pagination={true}
-						paginationPageSize={20}
-						paginationPageSizeSelector={[10, 20, 50, 100]}
 						loading={s2tCommitsQuery.isLoading}
 						theme={
 							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
@@ -430,6 +444,18 @@ export const AllCommitsPage: FC = () => {
 						rowSelection={"multiple"}
 					/>
 				</GridWrapper>
+
+				<PaginationToolbar
+					page={commitsPage}
+					totalPages={totalCommitsPages}
+					totalItems={totalCommits}
+					pageSize={commitsPageSize}
+					onPageChange={setCommitsPage}
+					onPageSizeChange={handleCommitsPageSizeChange}
+					isFetching={s2tCommitsQuery.isFetching}
+					itemLabel="коммитов"
+					pageSizeOptions={[10, 20, 50, 100]}
+				/>
 			</Box>
 			<EditMetadataDialog
 				open={!!editMetaCommit}

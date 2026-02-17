@@ -63,6 +63,7 @@ export function MainLayout({
 		useMainDataLoadingStore();
 	const { mode } = useColorScheme();
 	const {
+		data: currentDataLineageGraph,
 		isPending: isCurrentGraphPending,
 		isFetching: isCurrentGraphFetching,
 		isLoading: isCurrentGraphLoading,

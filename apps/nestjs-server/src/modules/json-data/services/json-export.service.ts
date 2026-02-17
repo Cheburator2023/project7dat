@@ -62,13 +62,12 @@ interface MappingWithDetails {
 @Injectable()
 export class JsonExportService {
 	private readonly logger = new Logger(JsonExportService.name);
-	private readonly cacheTtl: number;
 
 	constructor(
 		@InjectRepository(ChangeEntity)
 		private readonly changeRepository: Repository<ChangeEntity>,
 		@InjectRepository(EntityEntity)
-		private readonly entityRepository: Repository<EntityEntity>,
+		readonly _entityRepository: Repository<EntityEntity>,
 		private readonly dataSource: DataSource,
 		private readonly configService: ConfigService,
 		private readonly cacheService: CacheService,
@@ -1178,6 +1177,211 @@ export class JsonExportService {
 			},
 			entities: entitiesDto,
 			mappings: mappingsDto,
+		};
+	}
+
+	/**
+	 * Пагинированный экспорт сущностей из кэша.
+	 * Быстро отдаёт первую страницу, поиск по name/id/namespace/description.
+	 * Если кэш пуст — вызывает полный exportToJson() для прогрева.
+	 */
+	async exportPaginated(params: {
+		page: number;
+		limit: number;
+		search?: string;
+		type?: string;
+	}): Promise<{
+		entities: JsonExportResponseDto["entities"];
+		total: number;
+		page: number;
+		limit: number;
+		totalPages: number;
+		desc: JsonExportResponseDto["desc"];
+	}> {
+		const { page, limit, search, type } = params;
+		const startTime = Date.now();
+
+		// Получаем полный граф из кэша (или прогреваем)
+		let cached = await this.cacheService.getCachedExportAll();
+		if (!cached) {
+			this.logger.log("Кэш пуст, прогрев через полный exportToJson()");
+			cached = await this.exportToJson();
+		}
+
+		let entities = cached.entities ?? [];
+
+		// Фильтр по типу сущности
+		if (type) {
+			entities = entities.filter((e) => e.type === type);
+		}
+
+		// Поиск по нескольким полям (case-insensitive substring)
+		if (search && search.trim().length >= 2) {
+			const q = search.trim().toUpperCase();
+			entities = entities.filter(
+				(e) =>
+					(e.id && e.id.toUpperCase().includes(q)) ||
+					(e.name && e.name.toUpperCase().includes(q)) ||
+					(e.namespace && e.namespace.toUpperCase().includes(q)) ||
+					(e.description && e.description.toUpperCase().includes(q)) ||
+					(e.system_code && e.system_code.toUpperCase().includes(q)),
+			);
+		}
+
+		const total = entities.length;
+		const totalPages = Math.ceil(total / limit) || 1;
+		const safePage = Math.min(Math.max(page, 1), totalPages);
+		const offset = (safePage - 1) * limit;
+		const pageEntities = entities.slice(offset, offset + limit);
+
+		const duration = Date.now() - startTime;
+		this.logger.debug(
+			`exportPaginated: page=${safePage}, limit=${limit}, search="${search || ""}", ` +
+				`total=${total}, returned=${pageEntities.length}, ${duration}ms`,
+		);
+
+		return {
+			entities: pageEntities,
+			total,
+			page: safePage,
+			limit,
+			totalPages,
+			desc: cached.desc,
+		};
+	}
+
+	/**
+	 * Пагинированный экспорт маппингов из кэша.
+	 * Поиск по entityId (target) и deps[].entityId (source).
+	 */
+	async exportPaginatedMappings(params: {
+		page: number;
+		limit: number;
+		search?: string;
+	}): Promise<{
+		mappings: JsonExportResponseDto["mappings"];
+		total: number;
+		page: number;
+		limit: number;
+		totalPages: number;
+		desc: JsonExportResponseDto["desc"];
+	}> {
+		const { page, limit, search } = params;
+		const startTime = Date.now();
+
+		let cached = await this.cacheService.getCachedExportAll();
+		if (!cached) {
+			cached = await this.exportToJson();
+		}
+
+		let mappings = cached.mappings ?? [];
+
+		if (search && search.trim().length >= 2) {
+			const q = search.trim().toUpperCase();
+			mappings = mappings.filter(
+				(m) =>
+					(m.entityId && m.entityId.toUpperCase().includes(q)) ||
+					(m.description && m.description.toUpperCase().includes(q)) ||
+					(m.system_code && m.system_code.toUpperCase().includes(q)) ||
+					m.deps?.some(
+						(d) =>
+							(d.entityId && d.entityId.toUpperCase().includes(q)) ||
+							(d.process && d.process.toUpperCase().includes(q)),
+					),
+			);
+		}
+
+		const total = mappings.length;
+		const totalPages = Math.ceil(total / limit) || 1;
+		const safePage = Math.min(Math.max(page, 1), totalPages);
+		const offset = (safePage - 1) * limit;
+		const pageMappings = mappings.slice(offset, offset + limit);
+
+		const duration = Date.now() - startTime;
+		this.logger.debug(
+			`exportPaginatedMappings: page=${safePage}, limit=${limit}, search="${search || ""}", ` +
+				`total=${total}, returned=${pageMappings.length}, ${duration}ms`,
+		);
+
+		return {
+			mappings: pageMappings,
+			total,
+			page: safePage,
+			limit,
+			totalPages,
+			desc: cached.desc,
+		};
+	}
+
+	/**
+	 * Пагинированные связи конкретной сущности из кэша.
+	 * Возвращает маппинги, где entityId (target) или deps[].entityId (source) совпадает.
+	 */
+	async exportPaginatedEntityRelations(params: {
+		entityId: string;
+		page: number;
+		limit: number;
+	}): Promise<{
+		entity: JsonExportResponseDto["entities"][0] | null;
+		mappings: JsonExportResponseDto["mappings"];
+		relatedEntities: JsonExportResponseDto["entities"];
+		total: number;
+		page: number;
+		limit: number;
+		totalPages: number;
+		desc: JsonExportResponseDto["desc"];
+	}> {
+		const { entityId, page, limit } = params;
+		const startTime = Date.now();
+
+		let cached = await this.cacheService.getCachedExportAll();
+		if (!cached) {
+			cached = await this.exportToJson();
+		}
+
+		const entity = cached.entities?.find((e) => e.id === entityId) ?? null;
+
+		// Все маппинги, где эта сущность — target или source
+		const allRelatedMappings = (cached.mappings ?? []).filter(
+			(m) =>
+				m.entityId === entityId || m.deps?.some((d) => d.entityId === entityId),
+		);
+
+		const total = allRelatedMappings.length;
+		const totalPages = Math.ceil(total / limit) || 1;
+		const safePage = Math.min(Math.max(page, 1), totalPages);
+		const offset = (safePage - 1) * limit;
+		const pageMappings = allRelatedMappings.slice(offset, offset + limit);
+
+		// Собираем связанные сущности для текущей страницы маппингов
+		const relatedEntityIds = new Set<string>();
+		for (const m of pageMappings) {
+			relatedEntityIds.add(m.entityId);
+			for (const d of m.deps ?? []) {
+				relatedEntityIds.add(d.entityId);
+			}
+		}
+		relatedEntityIds.delete(entityId);
+
+		const relatedEntities = (cached.entities ?? []).filter((e) =>
+			relatedEntityIds.has(e.id),
+		);
+
+		const duration = Date.now() - startTime;
+		this.logger.debug(
+			`exportPaginatedEntityRelations: entityId="${entityId}", page=${safePage}, ` +
+				`total=${total}, returned=${pageMappings.length}, ${duration}ms`,
+		);
+
+		return {
+			entity,
+			mappings: pageMappings,
+			relatedEntities,
+			total,
+			page: safePage,
+			limit,
+			totalPages,
+			desc: cached.desc,
 		};
 	}
 
