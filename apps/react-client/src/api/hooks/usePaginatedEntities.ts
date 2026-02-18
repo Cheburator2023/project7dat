@@ -35,7 +35,7 @@ export const usePaginatedEntities = (params: {
 				sortOrder: params.sortOrder,
 			}),
 		placeholderData: keepPreviousData,
-		staleTime: 30 * 1000,
+		staleTime: 0,
 		enabled: params.enabled ?? true,
 	});
 };

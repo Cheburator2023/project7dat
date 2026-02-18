@@ -4,8 +4,10 @@
 	"sourceRoot": "src",
 	"compilerOptions": {
 		"deleteOutDir": true,
-		"assets": [],
-		"watchAssets": false,
+		"assets": [
+			{ "include": "**/bfs.worker.js" }
+		],
+		"watchAssets": true,
 		"tsConfigPath": "tsconfig.build.json"
 	}
 }

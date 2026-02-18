@@ -26,7 +26,7 @@ export const usePaginatedMappings = (params: {
 				search: params.search,
 			}),
 		placeholderData: keepPreviousData,
-		staleTime: 30 * 1000,
+		staleTime: 0,
 		enabled: params.enabled ?? true,
 	});
 };

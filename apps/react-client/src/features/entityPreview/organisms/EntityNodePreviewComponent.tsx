@@ -1,4 +1,5 @@
 import React, { memo, useMemo, useState, useCallback } from "react";
+import * as fuzzysort from "fuzzysort";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { EntityNodeData } from "../../entities/types";
 import {
@@ -167,17 +168,13 @@ export const EntityNodePreviewComponent = memo(
 		]);
 
 		const searchedAttrs = useMemo(() => {
-			const q = activeSearchQuery.trim().toLowerCase();
+			const q = activeSearchQuery.trim();
 			if (!q || q.length < 2) return null;
-			const matched = new Set<string>();
-			for (const attr of attrs) {
-				const name = attr.name?.toLowerCase() ?? "";
-				const type = attr.type?.toLowerCase() ?? "";
-				if (name.includes(q) || type.includes(q)) {
-					matched.add(attr.name);
-				}
-			}
-			return matched;
+			const results = fuzzysort.go(q, attrs, {
+				keys: ["name", "type"],
+				threshold: -10000,
+			});
+			return new Set(results.map((r) => r.obj.name));
 		}, [activeSearchQuery, attrs]);
 
 		const isExpandedEffective =
@@ -191,7 +188,7 @@ export const EntityNodePreviewComponent = memo(
 			if (searchedAttrs) {
 				const filtered = attrs.filter(
 					(attr) =>
-						(searchedAttrs.has(attr.name) && relatedAttrNames.has(attr.name)) ||
+						searchedAttrs.has(attr.name) ||
 						selectedHighlightedAttrs.has(attr.name),
 				);
 				return { visibleAttrs: filtered, moreCount: 0 };

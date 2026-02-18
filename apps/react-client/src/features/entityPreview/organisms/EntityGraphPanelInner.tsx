@@ -630,37 +630,24 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [hoveredAttribute, attrConnectionMap]);
 
 		// Compute selected/clicked-highlighted attributes for each entity
-		// BFS traversal from all selected attributes
+		// Single-hop only: selected attr + its direct connections (no transitive BFS)
 		const selectedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
 			if (selectedAttributes.length === 0) return result;
 
-			const visited = new Set<string>();
-			const queue: string[] = [];
+			const add = (entityId: string, attrName: string) => {
+				if (!result.has(entityId)) result.set(entityId, new Set());
+				result.get(entityId)!.add(attrName);
+			};
 
 			for (const attr of selectedAttributes) {
+				add(attr.entityId, attr.attrName);
 				const key = `${attr.entityId}::${attr.attrName}`;
-				if (!visited.has(key)) {
-					visited.add(key);
-					queue.push(key);
-				}
-			}
-
-			while (queue.length > 0) {
-				const current = queue.shift()!;
-				const [entityId, attrName] = current.split("::");
-				if (!result.has(entityId)) {
-					result.set(entityId, new Set());
-				}
-				result.get(entityId)!.add(attrName);
-
-				const neighbors = attrConnectionMap.get(current);
+				const neighbors = attrConnectionMap.get(key);
 				if (neighbors) {
 					for (const neighbor of neighbors) {
-						if (!visited.has(neighbor)) {
-							visited.add(neighbor);
-							queue.push(neighbor);
-						}
+						const [entityId, attrName] = neighbor.split("::");
+						if (entityId && attrName) add(entityId, attrName);
 					}
 				}
 			}

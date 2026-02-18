@@ -15,6 +15,7 @@ import { ProcessHandlingService } from "./process-handling.service";
 import { EntityProcessingService } from "./entity-processing.service";
 import { MappingProcessingService } from "./mapping-processing.service";
 import { CacheService } from "./cache.service";
+import { GraphIndexService } from "./graph-index.service";
 
 interface ImportResult {
 	success: boolean;
@@ -43,6 +44,7 @@ export class JsonImportService {
 		private readonly entityProcessingService: EntityProcessingService,
 		private readonly mappingProcessingService: MappingProcessingService,
 		private readonly cacheService: CacheService,
+		private readonly graphIndexService: GraphIndexService,
 	) {}
 
 	async importJsonData(
@@ -250,6 +252,7 @@ export class JsonImportService {
 			this.logger.debug("Начало очистки кэшей после импорта");
 
 			await this.cacheService.invalidateAllCaches();
+			this.graphIndexService.invalidate();
 
 			const cacheDuration = Date.now() - cacheStartTime;
 			this.logger.debug("Кэши успешно очищены", {

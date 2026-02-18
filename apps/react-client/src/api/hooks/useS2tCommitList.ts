@@ -20,7 +20,7 @@ export const useS2tCommitList = (params?: {
 	return useQuery({
 		queryKey: [...S2T_COMMIT_LIST_QUERY_KEY, requestParams],
 		queryFn: () => s2tCommitStoreService.list(requestParams),
-		staleTime: 30_000,
+		staleTime: 0,
 		enabled,
 	});
 };
