@@ -1,5 +1,23 @@
 # Semantic Versioning Changelog
 
+# [1.3.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.2.0...v1.3.0) (2026-02-18)
+
+
+### Bug Fixes
+
+* fetch error fix ([cbf2cc2](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/cbf2cc2493032a8100ab4de3166a5cf94701a734))
+* fetch error fix ([7e93635](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/7e93635afb217952a0d5811f647ac763a32117aa))
+* wip ([1bde17b](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/1bde17bfc8f77910e5c221ecc267a5b9a728391f))
+
+
+### Features
+
+* Добавил S2T, мердж и дифф ([36febeb](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/36febeba092bab7a23223d3bd41dfef86d5be0e0))
+* добавлен API для получения release notes и отображение версии в настройках ([6b5792a](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/6b5792a9f70e5ccd0757e94e72c2af7986107871))
+* добавлен индикатор загрузки основных данных в Header и улучшена логика отображения загрузки в MainLayout ([bcc0fa1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/bcc0fa161b2b54b32332e91bda662963c11d5e61))
+* Поправил S2T, дифф ([18d4d1a](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/18d4d1a8484de9eb2585b0aff1071d3bd42ed0ea))
+* фоновая загрузка всего json и поиск по сущностям ([c8f67b7](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/c8f67b76ebe51a429c138bb447ea7ed58602edc2))
+
 # [1.2.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.1.2...v1.2.0) (2026-02-12)
 
 
