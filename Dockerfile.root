@@ -6,12 +6,5 @@ ARG NPM_AUTH
 
 WORKDIR /app
 COPY . /app/
-RUN rm package-lock.json
 
-RUN npm config set email ${EMAIL} && \
-    npm config set //${NPM_REGISTRY}:_auth ${NPM_AUTH} && \
-    npm config set audit false && \
-    npm i --force --only-production --registry=https://${NPM_REGISTRY}
-
-RUN rm ~/.npmrc && \
-    rm -rf /app/apps
+RUN npm i --force
