@@ -6,6 +6,7 @@ import { ChangeEntity } from "../entities/change.entity";
 import { EntityEntity } from "../entities/entity.entity";
 import { ConfigService } from "@nestjs/config";
 import { CacheService } from "./cache.service";
+import { GraphIndexService } from "./graph-index.service";
 
 interface EntityWithDetails {
 	entity_id: number;
@@ -71,6 +72,7 @@ export class JsonExportService {
 		private readonly dataSource: DataSource,
 		private readonly configService: ConfigService,
 		private readonly cacheService: CacheService,
+		private readonly graphIndexService: GraphIndexService,
 		// private readonly cacheTtl: number,
 	) {
 		(this as any).cacheTtl = this.configService.get<number>("CACHE_TTL", 600);
@@ -133,9 +135,10 @@ export class JsonExportService {
 				mappings,
 			};
 
-			// Сохраняем в кэш
+			// Сохраняем в кэш и инвалидируем граф-индекс
 			this.logger.debug("Сохранение данных экспорта в кэш (новая структура)");
 			await this.cacheService.setCachedExportAll(result);
+			this.graphIndexService.invalidate();
 
 			const duration = Date.now() - startTime;
 			this.logger.log("Экспорт с новой структурой завершен и закэширован", {
@@ -1358,6 +1361,7 @@ export class JsonExportService {
 	 * Полный граф связей конкретной сущности из кэша.
 	 * Возвращает ВСЕ маппинги и связанные сущности (полный BFS без ограничения глубины).
 	 * Фильтрация по глубине выполняется на фронтенде.
+	 * BFS выполняется в отдельном worker thread (Piscina) с предпостроенным adjacency-индексом.
 	 */
 	async exportPaginatedEntityRelations(params: {
 		entityId: string;
@@ -1381,55 +1385,18 @@ export class JsonExportService {
 			cached = await this.exportToJson();
 		}
 
-		const entity = cached.entities?.find((e) => e.id === entityId) ?? null;
-
 		const mappings = cached.mappings ?? [];
 
-		// Build adjacency index for full BFS
-		const mappingsByTarget = new Map<
-			string,
-			JsonExportResponseDto["mappings"]
-		>();
-		const mappingsBySource = new Map<
-			string,
-			JsonExportResponseDto["mappings"]
-		>();
-
-		for (const mapping of mappings) {
-			const targetMappings = mappingsByTarget.get(mapping.entityId) ?? [];
-			targetMappings.push(mapping);
-			mappingsByTarget.set(mapping.entityId, targetMappings);
-
-			for (const dep of mapping.deps ?? []) {
-				const sourceMappings = mappingsBySource.get(dep.entityId) ?? [];
-				sourceMappings.push(mapping);
-				mappingsBySource.set(dep.entityId, sourceMappings);
-			}
+		// Build or reuse the in-memory adjacency index (rebuilt only when cache is refreshed)
+		let index = this.graphIndexService.getIndex();
+		if (!index) {
+			index = this.graphIndexService.buildIndex(mappings);
 		}
 
-		// Full BFS — no depth limit
-		const visitedEntities = new Set<string>([entityId]);
-		const queue = [entityId];
+		const entity = cached.entities?.find((e) => e.id === entityId) ?? null;
 
-		while (queue.length > 0) {
-			const currentEntityId = queue.shift()!;
-
-			for (const mapping of mappingsByTarget.get(currentEntityId) ?? []) {
-				for (const dep of mapping.deps ?? []) {
-					if (!visitedEntities.has(dep.entityId)) {
-						visitedEntities.add(dep.entityId);
-						queue.push(dep.entityId);
-					}
-				}
-			}
-
-			for (const mapping of mappingsBySource.get(currentEntityId) ?? []) {
-				if (!visitedEntities.has(mapping.entityId)) {
-					visitedEntities.add(mapping.entityId);
-					queue.push(mapping.entityId);
-				}
-			}
-		}
+		// Run BFS in a Piscina worker thread — non-blocking, O(V+E) with typed arrays
+		const visitedEntities = await this.graphIndexService.bfs(entityId, index);
 
 		const allRelatedMappings = mappings.filter((mapping) => {
 			if (!visitedEntities.has(mapping.entityId)) return false;
@@ -1525,6 +1492,7 @@ export class JsonExportService {
 			VIEW_HIVE: "view",
 			JSON: "json",
 			INPUT_VECTOR: "input_vector",
+			OUTPUT_VECTOR: "unresolved",
 			UNRESOLVED: "unresolved",
 			RDD: "rdd",
 			TABLE: "table",

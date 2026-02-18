@@ -430,7 +430,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					return;
 				}
 				onSelectEntity(id);
-				const encodedId = encodeURIComponent(id);
+				const _encodedId = encodeURIComponent(id);
 				navigate(`/entity/${id}`);
 			},
 			[data, onSelectEntity, onSelectNode],
@@ -462,7 +462,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			[setHoveredAttribute],
 		);
 
-		const handleClearSelectedAttribute = useCallback(() => {
+		const _handleClearSelectedAttribute = useCallback(() => {
 			clearSelectedAttributes();
 		}, [clearSelectedAttributes]);
 
@@ -556,37 +556,24 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		}, [hoveredAttribute, attrConnectionMap]);
 
 		// Compute selected/clicked-highlighted attributes for each entity
-		// BFS traversal from all selected attributes
+		// Single-hop only: selected attr + its direct connections (no transitive BFS)
 		const selectedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
 			if (selectedAttributes.length === 0) return result;
 
-			const visited = new Set<string>();
-			const queue: string[] = [];
+			const add = (entityId: string, attrName: string) => {
+				if (!result.has(entityId)) result.set(entityId, new Set());
+				result.get(entityId)!.add(attrName);
+			};
 
 			for (const attr of selectedAttributes) {
+				add(attr.entityId, attr.attrName);
 				const key = `${attr.entityId}::${attr.attrName}`;
-				if (!visited.has(key)) {
-					visited.add(key);
-					queue.push(key);
-				}
-			}
-
-			while (queue.length > 0) {
-				const current = queue.shift()!;
-				const [entityId, attrName] = current.split("::");
-				if (!result.has(entityId)) {
-					result.set(entityId, new Set());
-				}
-				result.get(entityId)!.add(attrName);
-
-				const neighbors = attrConnectionMap.get(current);
+				const neighbors = attrConnectionMap.get(key);
 				if (neighbors) {
 					for (const neighbor of neighbors) {
-						if (!visited.has(neighbor)) {
-							visited.add(neighbor);
-							queue.push(neighbor);
-						}
+						const [entityId, attrName] = neighbor.split("::");
+						if (entityId && attrName) add(entityId, attrName);
 					}
 				}
 			}
@@ -1268,7 +1255,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			setContextMenu(null);
 		}, [contextMenu]);
 
-		const handleContextMenuShowInEditor = useCallback(() => {
+		const _handleContextMenuShowInEditor = useCallback(() => {
 			if (contextMenu) {
 				setRevealPosition({ nodeId: contextMenu.entityId, from: "graph" });
 			}
@@ -1311,7 +1298,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			setCenter(x, y, { duration: 500, zoom: 1 });
 		}, [getNode, rootEntityId, setCenter]);
 
-		const handleDepthLegendClick = useCallback(
+		const _handleDepthLegendClick = useCallback(
 			(depth: number) => {
 				const targetId = depth === 0 ? selectedNode : `__depth_group_${depth}`;
 				if (!targetId) return;

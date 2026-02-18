@@ -329,7 +329,7 @@ export const AllCommitsPage: FC = () => {
 		[navigate],
 	);
 
-	const handleSelectionChanged = useCallback(
+	const _handleSelectionChanged = useCallback(
 		(event: SelectionChangedEvent<S2tCommitItem>) => {
 			const selectedRows = (event.api.getSelectedRows() ?? []).filter(
 				(row): row is S2tCommitItem => Boolean(row?.id),
@@ -339,7 +339,7 @@ export const AllCommitsPage: FC = () => {
 		[],
 	);
 
-	const handleOpenCompareSelected = useCallback(() => {
+	const _handleOpenCompareSelected = useCallback(() => {
 		if (selectedCommits.length < 2) {
 			toast.warning("Выберите минимум 2 коммита для сравнения");
 			return;
@@ -594,7 +594,7 @@ export const AllCommitsPage: FC = () => {
 				onClose={() => setMergeCommit(null)}
 				onApplied={() => {
 					handleDialogSaved();
-					refetchCurrentGraph();
+					s2tCommitsQuery.refetch();
 				}}
 			/>
 			<Dialog open={!!deleteCommit} onClose={() => setDeleteCommit(null)}>

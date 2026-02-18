@@ -16,15 +16,15 @@ export class EntityProcessingService {
 
 	constructor(
 		@InjectRepository(EntityEntity)
-		private readonly entityRepository: Repository<EntityEntity>,
+		readonly _entityRepository: Repository<EntityEntity>,
 		@InjectRepository(AttributeEntity)
-		private readonly attributeRepository: Repository<AttributeEntity>,
+		readonly _attributeRepository: Repository<AttributeEntity>,
 		@InjectRepository(EntityMapEntity)
-		private readonly entityMapRepository: Repository<EntityMapEntity>,
+		readonly _entityMapRepository: Repository<EntityMapEntity>,
 		@InjectRepository(EntityContainerEntity)
-		private readonly entityContainerRepository: Repository<EntityContainerEntity>,
+		readonly _entityContainerRepository: Repository<EntityContainerEntity>,
 		@InjectRepository(SystemsEntity)
-		private readonly systemsRepository: Repository<SystemsEntity>,
+		readonly _systemsRepository: Repository<SystemsEntity>,
 		private readonly entityTypeService: EntityTypeService,
 		private readonly attributeTypeService: AttributeTypeService,
 	) {}
@@ -211,14 +211,14 @@ export class EntityProcessingService {
 
 	private async determineContainerType(entityType: string): Promise<number> {
 		const typeMapping: { [key: string]: number } = {
-			table: 1, // DB_HIVE
-			view: 1, // DB_HIVE
-			json: 2, // MODEL
-			input_vector: 2, // MODEL
-			unresolved: 1, // DAPP
-			rdd: 1, // DAPP
+			table: 2, // DB_HIVE
+			view: 2, // DB_HIVE
+			json: 4, // MOD_PIM
+			input_vector: 4, // MOD_PIM
+			unresolved: 2, // DB_HIVE (fallback)
+			rdd: 2, // DB_HIVE (fallback)
 		};
-		return typeMapping[entityType] || 1;
+		return typeMapping[entityType] || 2;
 	}
 
 	private async handleEntityMappings(

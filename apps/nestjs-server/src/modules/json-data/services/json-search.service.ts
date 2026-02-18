@@ -681,6 +681,7 @@ export class JsonSearchService {
 			VIEW_HIVE: "view",
 			JSON: "json",
 			INPUT_VECTOR: "input_vector",
+			OUTPUT_VECTOR: "unresolved",
 			UNRESOLVED: "unresolved",
 			RDD: "rdd",
 			TABLE: "table",

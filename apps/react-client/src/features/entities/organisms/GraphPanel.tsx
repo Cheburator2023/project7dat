@@ -75,13 +75,13 @@ export const GraphPanel = memo(() => {
 		usePaginatedEntities({
 			page: 1,
 			limit: 500,
-			enabled: !currentSchema,
+			enabled: false,
 		});
 	const { data: paginatedMappingsData, isLoading: isPaginatedMappingsLoading } =
 		usePaginatedMappings({
 			page: 1,
-			limit: 500,
-			enabled: !currentSchema,
+			limit: 52,
+			enabled: false,
 		});
 
 	const graphId = effectiveGraphId ?? "current_stable_version";
@@ -394,7 +394,7 @@ export const GraphPanel = memo(() => {
 		[contextMenu?.entityId, navigate, handleCloseContextMenu],
 	);
 
-	const handleShowInEditor = useCallback(() => {
+	const _handleShowInEditor = useCallback(() => {
 		if (contextMenu?.entityId) {
 			setRevealPosition({ nodeId: contextMenu.entityId, from: "graph" });
 		}

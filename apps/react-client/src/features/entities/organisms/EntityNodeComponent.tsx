@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as fuzzysort from "fuzzysort";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import { TYPE_COLORS, HIGHLIGHT_COLORS, MAX_VISIBLE_ATTRS } from "../constants";
 import { useEntitiesStore } from "../stores";
@@ -91,17 +92,13 @@ export const EntityNodeComponent = memo(
 		]);
 
 		const searchedAttrs = useMemo(() => {
-			const q = activeSearchQuery.trim().toLowerCase();
+			const q = activeSearchQuery.trim();
 			if (!q || q.length < 2) return null;
-			const matched = new Set<string>();
-			for (const attr of attrs) {
-				const name = attr.name?.toLowerCase() ?? "";
-				const type = attr.type?.toLowerCase() ?? "";
-				if (name.includes(q) || type.includes(q)) {
-					matched.add(attr.name);
-				}
-			}
-			return matched;
+			const results = fuzzysort.go(q, attrs, {
+				keys: ["name", "type"],
+				threshold: -10000,
+			});
+			return new Set(results.map((r) => r.obj.name));
 		}, [activeSearchQuery, attrs]);
 
 		const isExpandedEffective =
@@ -115,7 +112,7 @@ export const EntityNodeComponent = memo(
 			if (searchedAttrs) {
 				const filtered = attrs.filter(
 					(attr) =>
-						(searchedAttrs.has(attr.name) && relatedAttrNames.has(attr.name)) ||
+						searchedAttrs.has(attr.name) ||
 						selectedHighlightedAttrs.has(attr.name),
 				);
 				return { visibleAttrs: filtered, moreCount: 0 };
@@ -146,8 +143,8 @@ export const EntityNodeComponent = memo(
 			showAllAttrs,
 		]);
 
-		const isDataMart = upstreamCount > 0 && downstreamCount === 0;
-		const isSource = upstreamCount === 0 && downstreamCount > 0;
+		const _isDataMart = upstreamCount > 0 && downstreamCount === 0;
+		const _isSource = upstreamCount === 0 && downstreamCount > 0;
 
 		const isSearchMatchHighlight = highlightType === "searchMatch";
 		const borderColor =

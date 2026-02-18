@@ -173,7 +173,7 @@ export const ModelNodePreviewComponent = memo(
 			if (searchedAttrs) {
 				return attrs.filter(
 					(attr) =>
-						(searchedAttrs.has(attr.name) && relatedAttrNames.has(attr.name)) ||
+						searchedAttrs.has(attr.name) ||
 						selectedHighlightedAttrs.has(attr.name),
 				);
 			}

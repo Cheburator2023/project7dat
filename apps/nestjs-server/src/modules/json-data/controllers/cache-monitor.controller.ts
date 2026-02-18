@@ -6,6 +6,7 @@ import {
 	ApiBearerAuth,
 } from "@nestjs/swagger";
 import { CacheService } from "../services/cache.service";
+import { GraphIndexService } from "../services/graph-index.service";
 import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
 
@@ -15,7 +16,10 @@ import { Permission } from "src/core/auth/permissions";
 export class CacheMonitorController {
 	private readonly logger = new Logger(CacheMonitorController.name);
 
-	constructor(private readonly cacheService: CacheService) {}
+	constructor(
+		private readonly cacheService: CacheService,
+		private readonly graphIndexService: GraphIndexService,
+	) {}
 
 	@Get("metrics")
 	@RealmRole(Permission.DL_VIEW_JSON_DATA)
@@ -117,6 +121,7 @@ export class CacheMonitorController {
 		this.logger.debug("Запрос на принудительную очистку всех кэшей");
 
 		await this.cacheService.invalidateAllCaches();
+		this.graphIndexService.invalidate();
 
 		this.logger.log("Все кэши принудительно очищены");
 

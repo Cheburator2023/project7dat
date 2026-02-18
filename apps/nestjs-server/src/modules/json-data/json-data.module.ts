@@ -55,6 +55,7 @@ import { S2tExportService } from "./services/s2t-export.service";
 import { S2tToCommitJsonService } from "src/modules/json-data/services/s2t-to-commit-json.service";
 import { S2tCommitStoreService } from "./services/s2t-commit-store.service";
 import { ProcessesService } from "./services/processes.service";
+import { GraphIndexService } from "./services/graph-index.service";
 
 // Abstract classes
 import {
@@ -140,6 +141,7 @@ export class JsonDataModule {
 			S2tToCommitJsonService,
 			S2tCommitStoreService,
 			ProcessesService,
+			GraphIndexService,
 
 			// Conflict and Migration services
 			JsonConflictService,
@@ -226,6 +228,7 @@ export class JsonDataModule {
 			CacheService,
 			S2tConversionService,
 			S2tToCommitJsonService,
+			GraphIndexService,
 
 			// Abstract classes
 			JsonStructureValidator,
