@@ -4,12 +4,10 @@ import { S2TRow } from '../interfaces/s2t-row.interface';
 import { S2TFileType } from '../interfaces/s2t-file-type.enum';
 import {
     S2tCommitJsonDto,
-    S2tCommitJsonDescDto,
     S2tCommitJsonEntityDto,
     S2tCommitJsonEntityAttrDto,
     S2tCommitJsonMappingDto,
     S2tCommitJsonDependencyDto,
-    S2tCommitJsonAttrMapDto,
 } from '../dto/s2t-commit-json.dto';
 
 /**

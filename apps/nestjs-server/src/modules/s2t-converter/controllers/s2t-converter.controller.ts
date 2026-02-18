@@ -1,13 +1,10 @@
 import {
     Controller,
     Post,
-    UploadedFile,
-    UseInterceptors,
     Body,
     BadRequestException,
     Logger,
     Res,
-    UsePipes,
     Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
@@ -61,7 +58,7 @@ export class S2tConverterController {
                 throw new BadRequestException('Размер файла превышает 1 МБ');
             }
 
-            // Корректное извлечение processName и processDescription (могут быть объектами Field)
+            // Извлечение processName и processDescription
             const processName = body.processName?.value ?? body.processName ?? '';
             const processDescription = body.processDescription?.value ?? body.processDescription ?? '';
 
@@ -71,7 +68,7 @@ export class S2tConverterController {
                 processDescription,
             });
 
-            // Безопасная сериализация (циклические ссылки исключены после исправления)
+            // Безопасная сериализация
             res.header('Content-Type', 'application/json');
             res.send(JSON.stringify(result));
         } catch (error) {
