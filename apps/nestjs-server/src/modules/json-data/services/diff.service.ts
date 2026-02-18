@@ -11,7 +11,6 @@ export interface DiffChange {
 export class DiffService {
     /**
      * Сравнивает два JSON объекта и возвращает список изменений.
-     * Поддерживает массивы и объекты.
      */
     computeDiff(oldObj: any, newObj: any, basePath: string = ''): DiffChange[] {
         const changes: DiffChange[] = [];
