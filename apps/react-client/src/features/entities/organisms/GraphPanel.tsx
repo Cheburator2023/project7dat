@@ -81,7 +81,7 @@ export const GraphPanel = memo(() => {
 		usePaginatedMappings({
 			page: 1,
 			limit: 52,
-			enabled: false,
+			enabled: true,
 		});
 
 	const graphId = effectiveGraphId ?? "current_stable_version";
@@ -441,10 +441,6 @@ export const GraphPanel = memo(() => {
 
 	if (isPanelLoading) {
 		return <LoadingSpinner size={32} />;
-	}
-
-	if (!schemaForGraph || entitiesSource.length === 0 || !graphId) {
-		return <EmptyState message="Нет данных для отображения графа" />;
 	}
 
 	return (

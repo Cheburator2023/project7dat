@@ -80,7 +80,7 @@ export const ObjectsPanel = memo(() => {
 		usePaginatedMappings({
 			page: 1,
 			limit: 51,
-			enabled: false,
+			enabled: true,
 		});
 
 	const entitiesSource = useMemo<EntityLike[]>(() => {
