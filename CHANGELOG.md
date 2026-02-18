@@ -1,5 +1,43 @@
 # Semantic Versioning Changelog
 
+# [1.2.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.1.2...v1.2.0) (2026-02-12)
+
+
+### Bug Fixes
+
+* add ARG for base image ([ece255b](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/ece255b32c57e698870f32b738372b0d3abcb4e1))
+* добавил дефолтную систему и сделал system_id обязательным полем ([a7c2a41](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/a7c2a413088a258c6e709645da49fccba940eaf1))
+* Добавил кэш для экспорта ([1340e80](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/1340e80b5b8a5c977959d26e9a8b4020cd0e19a5))
+* добавил логи и метрики для кэша ([86b2051](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/86b2051cd497c9a7cf5e0c7642b2e0538bc78771))
+* Добавил получение зависимостей ([6801732](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/6801732172650137f8d2127f604cd4e9db5c83b0))
+* добавил ресурсы ([71bf170](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/71bf170845d2674ae2e3ffde8c139cb56e165b5e))
+* исправлена логика работы с настройками панелей в panelSettingsStore ([60bfb84](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/60bfb844c4221d0d906df49f7a799de3d5632631))
+* Мерж-коммит изменений из dev ([b3a43c4](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/b3a43c4ff02bd0d43a14e2d9e4fbbb13bf55f94c))
+* Поправил deps ([6d4a10b](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/6d4a10b2d15683e4dc24bcb06d6b6d3f012d8115))
+* поправил работу ноды модели на графе ([21792f9](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/21792f996bebf4538c22d1f34b603c826a605951))
+* поправил реализацию валидации ([742b377](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/742b377f00ea8d456fa15949afdb91757b338e1a))
+* Поправил экспорт ([66d2dd5](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/66d2dd5efd5600f9dba4a2447f76188702fbd21b))
+* установка дефолтного system_id для существующих записей перед добавлением NOT NULL constraint ([c8401b4](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/c8401b4e3a8223731ba52fbbba14f189953b7c79))
+
+
+### Features
+
+* добавил view и поля в json ([ebabbd1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/ebabbd1ee992f1c17df866a83c9b8c886214fa17))
+* добавил коммиты и system_code ([f3361b9](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/f3361b9477c052908007c79107d6e196f16141e1))
+* добавил миграцию ([02ed059](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/02ed059d5918b97c05dc3ab6b60bfc3cbe132b0a))
+* добавлен API для процессов и S2T коммитов с интеграцией в UI ([da87af6](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/da87af64ecd07a56d44a780474a6d44ddb478ec0))
+* добавлен UI для отслеживания и применения S2T коммитов в Header и Dashboard ([d0c4431](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/d0c4431d32bb307abe3aebe67c69e2987ee0e0de))
+* добавлена конвертация S2T файлов в JSON и commit JSON, UI ([f6ee181](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/f6ee18147d2fd63ecdc095e89afc784a0b62674a))
+* добавлена таблица s2t_commits для хранения коммитов S2T и API для работы с ними ([17e1dcc](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/17e1dccf3afa3f33496b4d639e0600c9bd6d3294))
+* добавлено отображение короткого хеша коммита в боковом меню ([e96056f](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/e96056f983a0c25ef57d9a563b9ec370143060e3))
+* использование данных с рбд ([b8a183f](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/b8a183f50968eca00ee0e80ecd08cacd369d1ebc))
+* использование данных с рбд ([b2e64d8](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/b2e64d815547ee2c57701032e2feab3e4371ff96))
+
+
+### Reverts
+
+* отмена обязательности поля system_id в entity_container ([a85e0d8](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/a85e0d8c370c290f3d2f6447d0eee62bb2797bf8))
+
 ## [1.1.2](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.1.1...v1.1.2) (2025-12-29)
 
 

@@ -37,7 +37,14 @@ export const EntitiesPanel = memo(
 	({
 		allowedEntityTypes,
 	}: {
-		allowedEntityTypes?: ("graph" | "table" | "json")[];
+		allowedEntityTypes?: (
+			| "graph"
+			| "table"
+			| "json"
+			| "unresolved"
+			| "input_vector"
+			| "rdd"
+		)[];
 	}) => {
 		const { mode } = useColorScheme();
 		const isDark = mode === "dark";
