@@ -104,7 +104,7 @@ export class S2tToJsonConverterService {
         // Формируем entities
         const entities: S2tCommitJsonEntityDto[] = [];
 
-        // Сначала цели (modified = true)
+        // Цели (modified = true)
         targets.forEach((t, fullName) => {
             const entity = this.buildEntity(fullName, t, t.rows, true, 'table');
             if (entity.attrSeq.length > 0) {
@@ -112,7 +112,7 @@ export class S2tToJsonConverterService {
             }
         });
 
-        // Затем источники (modified = false)
+        // Источники (modified = false)
         sources.forEach((s, fullName) => {
             const entity = this.buildEntity(fullName, s, s.rows, false, 'table');
             if (entity.attrSeq.length > 0) {
@@ -280,6 +280,13 @@ export class S2tToJsonConverterService {
      * @param modified - true для целевой сущности, false для источника
      * @param entityType - тип сущности (table, json, input_vector и т.д.)
      */
+    private buildEntityId(container: { schema: string; table: string; system: string }): string {
+        if (container.schema) {
+            return `${container.schema}.${container.table}.${container.system}`;
+        }
+        return `${container.table}.${container.system}`;
+    }
+
     private buildEntity(
         fullName: string,
         container: { schema: string; table: string; system: string },
@@ -312,8 +319,7 @@ export class S2tToJsonConverterService {
             ? rows[0]?.targetTableDescription
             : rows[0]?.sourceTableDescription;
 
-        // Определяем id: если fullName уже содержит точку, используем его, иначе формируем из schema + table
-        const id = fullName.includes('.') ? fullName : (container.schema ? `${container.schema}.${container.table}` : container.table);
+        const id = this.buildEntityId(container);
 
         // Собираем атрибуты в массив
         const attrSeq: S2tCommitJsonEntityAttrDto[] = Array.from(attrMap.values()).map(a => ({
@@ -359,16 +365,23 @@ export class S2tToJsonConverterService {
             if (row.sourceSchema && row.sourceTable && row.sourceAttributeCode && row.targetAttributeCode) {
                 const sourceKey = `${row.sourceSchema}.${row.sourceTable}`;
                 const source = sourcesMap.get(sourceKey);
-                if (!source) return; // если источник не найден (не должен быть)
+                if (!source) return;
+
+                // Формируем id источника с system_code
+                const sourceEntityId = this.buildEntityId({
+                    schema: row.sourceSchema,
+                    table: row.sourceTable,
+                    system: row.sourceBaseSystem || source.system || '1642',
+                });
 
                 if (!depsMap.has(sourceKey)) {
                     depsMap.set(sourceKey, {
-                        entityId: sourceKey,
+                        entityId: sourceEntityId,
                         system_code: row.sourceBaseSystem || source.system || '1642',
                         process: options?.processName,
                         process_description: options?.processDescription,
                         attrMaps: [],
-                        atrDeps: [], // не заполняется из S2T
+                        atrDeps: [],
                     });
                 }
 
@@ -381,8 +394,15 @@ export class S2tToJsonConverterService {
             }
         });
 
+        // Формируем id целевой сущности с system_code
+        const targetEntityId = this.buildEntityId({
+            schema: targetRows[0]?.targetSchema || '',
+            table: targetRows[0]?.targetTable || '',
+            system: targetSystem,
+        });
+
         return {
-            entityId: targetFullName,
+            entityId: targetEntityId,
             system_code: targetSystem,
             relation_change: this.RELATION_CHANGE_VALUE,
             deps: Array.from(depsMap.values()),

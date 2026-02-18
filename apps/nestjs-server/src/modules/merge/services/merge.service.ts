@@ -6,7 +6,7 @@ import {
     InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { JsonCommitEntity } from '../../json-data/entities/json-commit.entity';
 import { JsonExportService } from '../../json-data/services/json-export.service';
@@ -61,13 +61,16 @@ export class MergeService {
         // 2. Получаем текущую модель данных из РБД
         const currentModel = await this.jsonExportService.exportToJson();
 
-        // 3. Выполняем слияние
-        const mergedModel = this.performMerge(currentModel, commit.commit);
+        // 3. Определяем тип коммита
+        const commitType = commit.commit.desc?.commit_type || commit.type;
 
-        // 4. Вычисляем diff
+        // 4. Выполняем слияние
+        const mergedModel = this.performMerge(currentModel, commit.commit, commitType);
+
+        // 5. Вычисляем diff
         const diff = this.diffService.computeDiff(currentModel, mergedModel);
 
-        // 5. Создаем сессию
+        // 6. Создаем сессию
         const mergeSessionId = uuidv4();
         this.mergeSessions.set(mergeSessionId, {
             commitId,
@@ -77,7 +80,7 @@ export class MergeService {
             timestamp: new Date(),
         });
 
-        // 6. Подсчет статистики
+        // 7. Подсчет статистики
         const stats = this.calculateChangeStats(diff);
 
         this.logger.log(`Слияние применено, сессия: ${mergeSessionId}`);
@@ -93,8 +96,125 @@ export class MergeService {
     }
 
     /**
-     * Подтверждение слияния – сохранение изменений в РБД и создание снепшота
+     * Основная логика слияния.
      */
+    private performMerge(
+        currentModel: JsonExportResponseDto,
+        commitJson: any,
+        commitType: string,
+    ): JsonExportResponseDto {
+        const merged = JSON.parse(JSON.stringify(currentModel));
+
+        // 1. Обработка сущностей (для всех типов коммитов)
+        this.mergeEntities(merged, commitJson.entities || []);
+
+        // 2. Обработка маппингов (только для table и model)
+        if (commitType === 'table' || commitType === 'model') {
+            this.mergeMappings(merged, commitJson.mappings || []);
+        }
+        // Для json-коммита маппинги игнорируются
+
+        // 3. Обновляем дату изменения
+        merged.desc.change_date = new Date().toISOString();
+
+        return merged;
+    }
+
+    /**
+     * Слияние сущностей:
+     * - Для каждой сущности из коммита ищем в основе по id (включает system_code)
+     * - Если найдена: добавляем только новые атрибуты из коммита в attrSeq
+     * - Если не найдена: добавляем всю сущность из коммита
+     */
+    private mergeEntities(merged: JsonExportResponseDto, commitEntities: any[]): void {
+        for (const commitEntity of commitEntities) {
+            const existingIndex = merged.entities.findIndex(e => e.id === commitEntity.id);
+
+            if (existingIndex >= 0) {
+                // Сущность уже есть – добавляем новые атрибуты
+                const existingAttrs = new Set(merged.entities[existingIndex].attrSeq.map(a => a.name));
+                const newAttrs = (commitEntity.attrSeq || []).filter(a => !existingAttrs.has(a.name));
+
+                if (newAttrs.length > 0) {
+                    merged.entities[existingIndex].attrSeq.push(...newAttrs);
+                    this.logger.debug(`Добавлено ${newAttrs.length} новых атрибутов к сущности ${commitEntity.id}`);
+                }
+            } else {
+                // Новой сущности нет – добавляем полностью
+                merged.entities.push(commitEntity);
+                this.logger.debug(`Добавлена новая сущность ${commitEntity.id}`);
+            }
+        }
+    }
+
+    /**
+     * Слияние маппингов:
+     * - Для каждого mapping из коммита ищем в основе по entityId
+     * - Если не найден – добавляем весь mapping
+     * - Если найден:
+     *   - Для каждого deps из коммита ищем в основе deps с таким же source_entity_id и process_id
+     *   - Если найден – заменяем этот deps (attrMaps и atrDeps) новым из коммита
+     *   - Если не найден – добавляем новый deps
+     */
+    private mergeMappings(merged: JsonExportResponseDto, commitMappings: any[]): void {
+        for (const commitMapping of commitMappings) {
+            const existingMappingIndex = merged.mappings.findIndex(m => m.entityId === commitMapping.entityId);
+
+            if (existingMappingIndex === -1) {
+                // Маппинг для данной цели отсутствует – добавляем целиком
+                merged.mappings.push(commitMapping);
+                continue;
+            }
+
+            const existingMapping = merged.mappings[existingMappingIndex];
+
+            // Для каждого deps из коммита
+            for (const commitDep of commitMapping.deps || []) {
+                // Ищем в основе deps с таким же source_entity_id и process_id
+                const existingDepIndex = existingMapping.deps.findIndex(d =>
+                    d.entityId === commitDep.entityId && d.process_id === commitDep.process_id
+                );
+
+                if (existingDepIndex >= 0) {
+                    // Заменяем существующий deps новым из коммита
+                    existingMapping.deps[existingDepIndex] = commitDep;
+                } else {
+                    // Добавляем новый deps
+                    existingMapping.deps.push(commitDep);
+                }
+            }
+
+            // Сортируем deps по process_id (как требуется в документации)
+            existingMapping.deps.sort((a, b) => {
+                const pidA = a.process_id ?? 0;
+                const pidB = b.process_id ?? 0;
+                return pidA - pidB;
+            });
+        }
+    }
+
+    private calculateChangeStats(diff: MergeDiffDto[]): {
+        entities: number;
+        attributes: number;
+        mappings: number;
+    } {
+        let entities = 0;
+        let attributes = 0;
+        let mappings = 0;
+
+        for (const change of diff) {
+            if (change.path.startsWith('/entities')) {
+                entities++;
+            } else if (change.path.startsWith('/attributes')) {
+                attributes++;
+            } else if (change.path.startsWith('/mappings')) {
+                mappings++;
+            }
+        }
+
+        return { entities, attributes, mappings };
+    }
+
     async confirmMerge(commitId: string, user?: string): Promise<{ success: boolean; snapshotId: string; message: string }> {
         this.logger.log(`Подтверждение слияния для коммита: ${commitId}`);
 
@@ -128,7 +248,7 @@ export class MergeService {
                 data: session.mergedJson,
                 user: finalUser,
                 changeName: `Merge commit ${commit.commit_name || commitId}`,
-                validated: true, // мы уже проверили
+                validated: true,
                 sourceType: undefined,
                 schemaVersion: session.mergedJson.desc?.schemaVersion,
             });
@@ -188,88 +308,6 @@ export class MergeService {
             success: true,
             message: 'Слияние отменено, временные данные удалены',
         };
-    }
-
-    /**
-     * Основная логика слияния: накладывает изменения из коммита на текущую модель.
-     * Правила слияния согласно документации:
-     * - Сущности с modified = true заменяют существующие (или добавляются)
-     * - Сущности с modified = false игнорируются (они источники)
-     * - Маппинги полностью заменяются на переданные (для целевых сущностей)
-     */
-    private performMerge(
-        currentModel: JsonExportResponseDto,
-        commitJson: any,
-    ): JsonExportResponseDto {
-        // Глубокое копирование
-        const merged = JSON.parse(JSON.stringify(currentModel));
-
-        // Если в коммите нет entities или mappings – возвращаем как есть
-        if (!commitJson.entities || !Array.isArray(commitJson.entities)) {
-            return merged;
-        }
-        if (!commitJson.mappings || !Array.isArray(commitJson.mappings)) {
-            return merged;
-        }
-
-        // 1. Обработка сущностей: заменяем или добавляем только modified = true
-        const targetEntities = commitJson.entities.filter((e: any) => e.modified === true);
-        for (const targetEntity of targetEntities) {
-            const index = merged.entities.findIndex((e: any) => e.id === targetEntity.id);
-            if (index !== -1) {
-                // Заменяем существующую
-                merged.entities[index] = { ...merged.entities[index], ...targetEntity };
-            } else {
-                // Добавляем новую
-                merged.entities.push(targetEntity);
-            }
-        }
-
-        // 2. Обработка маппингов: для каждой entityId из коммита удаляем старые маппинги и добавляем новые
-        const commitMappingMap = new Map<string, any>();
-        for (const mapping of commitJson.mappings) {
-            commitMappingMap.set(mapping.entityId, mapping);
-        }
-
-        // Удаляем маппинги, для которых есть новые в коммите
-        merged.mappings = merged.mappings.filter(
-            (mapping: any) => !commitMappingMap.has(mapping.entityId),
-        );
-
-        // Добавляем новые маппинги из коммита
-        for (const mapping of commitJson.mappings) {
-            merged.mappings.push(mapping);
-        }
-
-        // 3. Обновляем дату изменения
-        merged.desc.change_date = new Date().toISOString();
-
-        return merged;
-    }
-
-    /**
-     * Подсчет статистики изменений на основе diff
-     */
-    private calculateChangeStats(diff: MergeDiffDto[]): {
-        entities: number;
-        attributes: number;
-        mappings: number;
-    } {
-        let entities = 0;
-        let attributes = 0;
-        let mappings = 0;
-
-        for (const change of diff) {
-            if (change.path.startsWith('/entities')) {
-                entities++;
-            } else if (change.path.startsWith('/attributes')) {
-                attributes++;
-            } else if (change.path.startsWith('/mappings')) {
-                mappings++;
-            }
-        }
-
-        return { entities, attributes, mappings };
     }
 
     /**
