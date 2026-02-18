@@ -180,6 +180,7 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	);
 	const [model, _setModel] = useState(() => {
 		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
+
 		if (isPanelPersistEnabled("entity-preview")) {
 			try {
 				const savedLayout = localStorage.getItem("entity-preview-layout");
@@ -283,7 +284,16 @@ export const EntityPreviewPage: React.FC<EntityPreviewPageProps> = ({
 		(action: Action) => {
 			const result = action;
 
+			console.log(
+				"🐸 Pepe said >> EntityPreviewPage >> isPersistEnabled:",
+				isPersistEnabled,
+			);
+
 			if (isPersistEnabled) {
+				console.log(
+					"🐸 Pepe said >> EntityPreviewPage >> isPersistEnabled:",
+					isPersistEnabled,
+				);
 				setTimeout(() => {
 					try {
 						const layoutJson = model.toJson();

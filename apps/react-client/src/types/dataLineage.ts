@@ -31,8 +31,9 @@ export interface DataLineageEntity {
 	id: string;
 	system_id?: string;
 	system_code?: string;
+	system_name?: string;
 	modified: boolean;
-	type: "table" | "view" | "rdd" | "unresolved" | "input_vector";
+	type: "table" | "view" | "rdd" | "unresolved" | "input_vector" | "json";
 	namespace?: string;
 	name: string | null;
 	description?: string;
