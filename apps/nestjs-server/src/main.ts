@@ -7,6 +7,7 @@ import {
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app/app.module";
 import { HttpExceptionFilter } from "./core/api/filters/http-exception.filter";
+import fastifyMultipart from '@fastify/multipart';
 
 async function bootstrap() {
 	const app = await NestFactory.create<NestFastifyApplication>(
@@ -17,7 +18,16 @@ async function bootstrap() {
 		}),
 	);
 
-	app.enableCors({
+    // Регистрация плагина multipart для S2T
+    await app.register(fastifyMultipart, {
+        limits: {
+            fileSize: 1024 * 1024, // 1 МБ
+        },
+        attachFieldsToBody: true,
+    });
+
+
+    app.enableCors({
 		origin: "*",
 		credentials: true,
 		methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
@@ -30,6 +40,7 @@ async function bootstrap() {
 			forbidNonWhitelisted: true,
 			transformOptions: {
 				enableImplicitConversion: true,
+                enableCircularCheck: true,
 			},
 			disableErrorMessages: false,
 			validationError: {
