@@ -61,4 +61,13 @@ export class JsonImportRequestDto {
 	@IsOptional()
 	@IsString()
 	schemaVersion?: string;
+
+	@ApiProperty({
+		description: "Разрешить импорт при наличии уже существующих циклических зависимостей",
+		example: true,
+		required: false,
+	})
+	@IsOptional()
+	@IsBoolean()
+	allowExistingCycles?: boolean;
 }

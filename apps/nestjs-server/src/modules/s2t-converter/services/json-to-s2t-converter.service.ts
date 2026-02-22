@@ -180,10 +180,26 @@ export class JsonToS2tConverterService {
     // -------------------------------------------------------------
     // Вспомогательные
     // -------------------------------------------------------------
+    /**
+     * Разделяет идентификатор сущности на схему и имя таблицы.
+     * Поддерживает форматы:
+     *   - "schema.table"              -> ["schema", "table"]
+     *   - "schema.table.system_code"   -> ["schema", "table"]
+     *   - "table"                      -> ["default", "table"]
+     */
     private splitId(entityId: string): [string, string] {
         const parts = entityId.split('.');
-        return parts.length === 2 ? [parts[0], parts[1]] : ['default', entityId];
+        if (parts.length >= 2) {
+            // Первые две части всегда схема и таблица
+            return [parts[0], parts[1]];
+        } else if (parts.length === 1) {
+            // Только имя таблицы, схема по умолчанию
+            return ['default', parts[0]];
+        }
+        // Пустой идентификатор (крайний случай)
+        return ['default', entityId];
     }
+
 
     private findAttr(entities: any[], entityId: string, attrName: string): any {
         const e = entities.find((e: any) => e.id === entityId);

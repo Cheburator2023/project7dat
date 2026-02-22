@@ -48,8 +48,13 @@ export class JsonImportService {
 	async importJsonData(
 		importRequest: JsonImportRequestDto,
 	): Promise<ImportResult> {
-		const { data, user, changeName, validated = true } = importRequest;
-
+		const {
+			data,
+			user,
+			changeName,
+			validated = true,
+			allowExistingCycles
+		} = importRequest;
 		const importId = randomUUID();
 
 		this.logger.log(`Импорт JSON данных пользователем: ${user}`, {
@@ -58,10 +63,15 @@ export class JsonImportService {
 			validated,
 			dataSize: JSON.stringify(data).length,
 			importId,
+			allowExistingCycles: allowExistingCycles,
 		});
 
 		// Валидация и предобработка данных
-		const processedData = await this.validateAndPreprocessData(data, validated);
+		const processedData = await this.validateAndPreprocessData(
+			data,
+			validated,
+			{ allowExistingCycles }
+		);
 
 		// Проверка конфликтов
 		await this.checkForConflicts(processedData);
@@ -78,6 +88,7 @@ export class JsonImportService {
 	private async validateAndPreprocessData(
 		data: any,
 		validated: boolean,
+		options?: { allowExistingCycles?: boolean }
 	): Promise<any> {
 		if (!validated) {
 			throw new ConflictException(
@@ -89,7 +100,7 @@ export class JsonImportService {
 		const validationResult = await this.validationOrchestrator.validate(data);
 
 		// Разрешаем импорт если есть только предупреждения (но нет критических ошибок)
-		if (this.hasCriticalErrors(validationResult)) {
+		if (this.hasCriticalErrors(validationResult, options)) {
 			throw new BadRequestException({
 				message: "Валидация JSON не пройдена",
 				details: validationResult,
@@ -114,11 +125,15 @@ export class JsonImportService {
 	/**
 	 * Определяет наличие КРИТИЧЕСКИХ ошибок, которые блокируют импорт
 	 */
-	private hasCriticalErrors(validationResult: any): boolean {
+	private hasCriticalErrors(
+		validationResult: any,
+		options?: { allowExistingCycles?: boolean } // ДОБАВЛЕНО
+	): boolean {
 		// Критические ошибки структуры
 		if (validationResult.validation.errors.length > 0) {
 			this.logger.warn(
 				`Критические ошибки структуры: ${validationResult.validation.errors.length}`,
+				{ errors: validationResult.validation.errors.slice(0, 20) }
 			);
 			return true;
 		}
@@ -134,6 +149,7 @@ export class JsonImportService {
 		if (criticalIntegrityIssues.length > 0) {
 			this.logger.warn(
 				`Критические ошибки целостности: ${criticalIntegrityIssues.length}`,
+				{ issues: criticalIntegrityIssues.slice(0, 20) }
 			);
 			return true;
 		}
@@ -141,15 +157,25 @@ export class JsonImportService {
 		// Неподдерживаемая версия схемы - критическая ошибка
 		if (!validationResult.schemaVersion.supported) {
 			this.logger.warn(
-				`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
+				`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`
 			);
 			return true;
 		}
 
-		// Рекурсия - критическая ошибка
+		// Рекурсия - критическая ошибка, если allowExistingCycles = false
 		if (validationResult.recursionCheck.hasRecursion) {
-			this.logger.warn("Обнаружена рекурсия в зависимостях");
-			return true;
+			if (options?.allowExistingCycles) {
+				this.logger.warn(
+					`Обнаружена рекурсия в зависимостях, но она существовала ранее и разрешена. Циклы: ${validationResult.recursionCheck.cycles.length}`
+				);
+				// Не возвращаем true – продолжаем
+			} else {
+				this.logger.warn(
+					"Обнаружена рекурсия в зависимостях",
+					{ cycles: validationResult.recursionCheck.cycles }
+				);
+				return true;
+			}
 		}
 
 		// Дубликаты - критическая ошибка

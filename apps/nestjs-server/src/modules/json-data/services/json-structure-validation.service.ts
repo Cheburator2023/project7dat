@@ -339,13 +339,6 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 	): void {
 		if (!data.desc) {
 			errors.push("Отсутствует объект desc");
-		} else {
-			if (!data.desc.appName) {
-				errors.push("Отсутствует desc.appName");
-			}
-			if (!data.desc.appId) {
-				warnings.push("Отсутствует desc.appId");
-			}
 		}
 
 		if (!data.entities || !Array.isArray(data.entities)) {

@@ -14,6 +14,7 @@ import { JsonImportService } from '../../json-data/services/json-import.service'
 import { JsonCommitService } from '../../json-data/services/json-commit.service';
 import { SnapshotService } from '../../snapshots/services/snapshot.service';
 import { DiffService } from '../../json-data/services/diff.service';
+import { JsonStructureValidator } from '../../json-data/services/interfaces/validation.interfaces';
 import { JsonExportResponseDto } from '../../json-data/dto';
 import { ApplyMergeResponseDto, MergeDiffDto } from '../dto/merge-response.dto';
 
@@ -26,6 +27,7 @@ export class MergeService {
         mergedJson: JsonExportResponseDto;
         diff: MergeDiffDto[];
         timestamp: Date;
+        hadExistingCycles: boolean;
     }>();
 
     constructor(
@@ -37,6 +39,7 @@ export class MergeService {
         private readonly snapshotService: SnapshotService,
         private readonly diffService: DiffService,
         private readonly dataSource: DataSource,
+        private readonly structureValidator: JsonStructureValidator,
     ) {}
 
     /**
@@ -61,16 +64,64 @@ export class MergeService {
         // 2. Получаем текущую модель данных из РБД
         const currentModel = await this.jsonExportService.exportToJson();
 
-        // 3. Определяем тип коммита
+        // 3. Проверяем рекурсию в текущей модели
+        const recursionCurrent = this.structureValidator.checkForRecursion(
+            currentModel.entities,
+            currentModel.mappings,
+        );
+        const hadExistingCycles = recursionCurrent.hasRecursion;   // ЗАПОМИНАЕМ
+
+        if (hadExistingCycles) {
+            this.logger.warn(
+                `Текущая модель уже содержит ${recursionCurrent.cycles.length} циклических зависимостей. ` +
+                `Слияние будет выполнено, но после него циклы могут остаться.`,
+            );
+        }
+
+        // 4. Определяем тип коммита
         const commitType = commit.commit.desc?.commit_type || commit.type;
 
-        // 4. Выполняем слияние
+        // 5. Выполняем слияние
         const mergedModel = this.performMerge(currentModel, commit.commit, commitType);
 
-        // 5. Вычисляем diff
+        // 6. Проверяем рекурсию в результирующей модели
+        const recursionMerged = this.structureValidator.checkForRecursion(
+            mergedModel.entities,
+            mergedModel.mappings,
+        );
+
+        // 7. Анализируем появление новых циклов
+        if (recursionMerged.hasRecursion) {
+            if (!recursionCurrent.hasRecursion) {
+                // В текущей модели циклов не было, а после слияния они появились → ошибка
+                this.logger.error(
+                    `Обнаружены новые циклические зависимости, созданные коммитом: ${recursionMerged.cycles.length} циклов`,
+                );
+                throw new BadRequestException(
+                    'Смерженная модель содержит рекурсивные зависимости, созданные данным коммитом. Операция отклонена.',
+                );
+            } else {
+                // Циклы уже существовали – разрешаем, но предупреждаем
+                this.logger.warn(
+                    `В результирующей модели всё ещё присутствуют циклические зависимости (${recursionMerged.cycles.length} циклов). ` +
+                    `Это не связано с данным коммитом.`,
+                );
+            }
+        }
+
+        // 8. Дополнительная проверка целостности смерженного JSON (необязательно)
+        const integrityWarnings = this.validateMergedJsonIntegrity(mergedModel);
+        if (integrityWarnings.length > 0) {
+            this.logger.warn(
+                `Обнаружены проблемы целостности в смерженном JSON: ${integrityWarnings.length}`,
+                { warnings: integrityWarnings.slice(0, 10) }
+            );
+        }
+
+        // 9. Вычисляем diff
         const diff = this.diffService.computeDiff(currentModel, mergedModel);
 
-        // 6. Создаем сессию
+        // 10. Создаём сессию
         const mergeSessionId = uuidv4();
         this.mergeSessions.set(mergeSessionId, {
             commitId,
@@ -78,9 +129,10 @@ export class MergeService {
             mergedJson: mergedModel,
             diff,
             timestamp: new Date(),
+            hadExistingCycles,
         });
 
-        // 7. Подсчет статистики
+        // 11. Подсчёт статистики
         const stats = this.calculateChangeStats(diff);
 
         this.logger.log(`Слияние применено, сессия: ${mergeSessionId}`);
@@ -132,8 +184,12 @@ export class MergeService {
 
             if (existingIndex >= 0) {
                 // Сущность уже есть – добавляем новые атрибуты
-                const existingAttrs = new Set(merged.entities[existingIndex].attrSeq.map(a => a.name));
-                const newAttrs = (commitEntity.attrSeq || []).filter(a => !existingAttrs.has(a.name));
+                const existingAttrs = new Set(
+                    merged.entities[existingIndex].attrSeq.map(a => a.name.toLowerCase())
+                );
+                const newAttrs = (commitEntity.attrSeq || []).filter(a =>
+                    !existingAttrs.has(a.name.toLowerCase())
+                );
 
                 if (newAttrs.length > 0) {
                     merged.entities[existingIndex].attrSeq.push(...newAttrs);
@@ -177,20 +233,44 @@ export class MergeService {
 
                 if (existingDepIndex >= 0) {
                     // Заменяем существующий deps новым из коммита
-                    existingMapping.deps[existingDepIndex] = commitDep;
+                    existingMapping.deps[existingDepIndex] = { ...commitDep };
                 } else {
                     // Добавляем новый deps
-                    existingMapping.deps.push(commitDep);
+                    existingMapping.deps.push({ ...commitDep });
                 }
             }
-
-            // Сортируем deps по process_id (как требуется в документации)
-            existingMapping.deps.sort((a, b) => {
-                const pidA = a.process_id ?? 0;
-                const pidB = b.process_id ?? 0;
-                return pidA - pidB;
-            });
+            // Сортируем deps по process_id
+            existingMapping.deps.sort((a, b) => (a.process_id ?? 0) - (b.process_id ?? 0));
         }
+    }
+
+    private validateMergedJsonIntegrity(mergedJson: JsonExportResponseDto): string[] {
+        const warnings: string[] = [];
+        const entityMap = new Map(mergedJson.entities.map(e => [e.id, e]));
+
+        for (const mapping of mergedJson.mappings || []) {
+            for (const dep of mapping.deps || []) {
+                const sourceEntity = entityMap.get(dep.entityId);
+                if (!sourceEntity) {
+                    warnings.push(`Source entity not found: ${dep.entityId}`);
+                    continue;
+                }
+                const sourceAttrsLower = new Map(
+                    sourceEntity.attrSeq.map(a => [a.name.toLowerCase(), a])
+                );
+                for (const attrMap of dep.attrMaps || []) {
+                    if (!sourceAttrsLower.has(attrMap.src.toLowerCase())) {
+                        warnings.push(`Source attribute '${attrMap.src}' not found in entity ${dep.entityId}`);
+                    }
+                }
+                for (const attrDep of dep.atrDeps || []) {
+                    if (!sourceAttrsLower.has(attrDep.attr.toLowerCase())) {
+                        warnings.push(`Attribute dependency '${attrDep.attr}' not found in entity ${dep.entityId}`);
+                    }
+                }
+            }
+        }
+        return warnings;
     }
 
     private calculateChangeStats(diff: MergeDiffDto[]): {
@@ -243,7 +323,7 @@ export class MergeService {
             const commit = await this.jsonCommitService.getCommitById(commitId);
             const finalUser = user || commit.user || 'system';
 
-            // Импортируем смерженную модель
+            // Выполняем импорт смерженной модели в РБД с опцией allowExistingCycles
             const importResult = await this.jsonImportService.importJsonData({
                 data: session.mergedJson,
                 user: finalUser,
@@ -251,16 +331,13 @@ export class MergeService {
                 validated: true,
                 sourceType: undefined,
                 schemaVersion: session.mergedJson.desc?.schemaVersion,
+                allowExistingCycles: session.hadExistingCycles,
             });
 
             // Создаем снепшот
-            const snapshot = await this.snapshotService.createSnapshot(
-                finalUser,
-                session.mergedJson,
-            );
-
+            const snapshot = await this.snapshotService.createSnapshot(finalUser, session.mergedJson);
             // Меняем статус коммита на 'done'
-            await this.jsonCommitService.updateCommitStatus(); // обновляет все processing → done
+            await this.jsonCommitService.updateCommitStatus();
 
             await queryRunner.commitTransaction();
 
