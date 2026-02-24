@@ -24,6 +24,7 @@ import { DiffService } from "../json-data/services/diff.service";
 import { MergeController } from "./controllers/merge.controller";
 import { MergeService } from "./services/merge.service";
 import { ConfigModule } from "@nestjs/config";
+import {DependencyCheckService} from "../json-data/services/dependency-check.service";
 
 @Module({
 	imports: [
@@ -55,6 +56,7 @@ import { ConfigModule } from "@nestjs/config";
 		JsonImportService,
 		JsonCommitService,
 		SnapshotService,
+        DependencyCheckService,
 	],
 	exports: [MergeService],
 })
