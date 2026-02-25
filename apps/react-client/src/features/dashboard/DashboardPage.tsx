@@ -22,7 +22,10 @@ import { dockviewLayoutJson } from "../entities/constants";
 
 export { useEntitiesStore } from "../entities/stores";
 import { useEntitiesStore } from "../entities/stores";
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
+import {
+	useCurrentDataLineageGraph,
+	usePaginatedMappings,
+} from "@react-client/api/hooks";
 import {
 	DockviewReadyEvent,
 	IDockviewPanelProps,
@@ -53,6 +56,12 @@ export const DashboardPage = () => {
 	// Загрузка полного графа для панелей Graph/CodeEditor/etc.
 	// Поиск по сущностям теперь идёт через бекенд-пагинацию в EntitiesPanel.
 	useCurrentDataLineageGraph({ enabled: false });
+
+	usePaginatedMappings({
+		page: 1,
+		limit: 5000,
+		enabled: true,
+	});
 
 	const { selectEntityWithAttribute, setZoomToNode } = useEntitiesStore(
 		useShallow((state) => ({

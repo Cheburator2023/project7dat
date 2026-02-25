@@ -73,8 +73,8 @@ export const ObjectsPanel = memo(() => {
 	const { data: paginatedMappingsData, isLoading: isLoadingPaginatedMappings } =
 		usePaginatedMappings({
 			page: 1,
-			limit: 51,
-			enabled: true,
+			limit: 50,
+			enabled: false,
 		});
 
 	const entitiesSource = useMemo<EntityLike[]>(() => {

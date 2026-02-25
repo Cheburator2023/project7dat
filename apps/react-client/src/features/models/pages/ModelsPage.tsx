@@ -184,6 +184,7 @@ export const ModelsPage = () => {
 						}}
 						domLayout="normal"
 						loading={isLoading}
+						overlayLoadingTemplate="Загрузка"
 						overlayNoRowsTemplate="Нет данных"
 					/>
 				</Box>
