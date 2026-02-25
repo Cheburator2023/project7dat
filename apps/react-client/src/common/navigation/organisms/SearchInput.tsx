@@ -1,6 +1,6 @@
 import SearchIcon from "@mui/icons-material/Search";
 import { InputAdornment, TextField } from "@mui/material";
-import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
+import { useGlobalSettingsStore } from "@react-client/common/stores/globalSettingsStore";
 
 const filterInputId = "grid_quick_filter_text_box_home";
 

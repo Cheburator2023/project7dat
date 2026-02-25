@@ -22,7 +22,7 @@ import type {
 	DataLineageSchema,
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
-import { useGraphSettingsStore } from "@react-client/common/store/graphSettingsStore";
+import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 import { useEntitiesStore } from "../../entities/stores";
 import { graphNodeTypes } from "./ModelNodePreviewComponent";
 import { buildLineageGraph, getMaxDepthFromNode } from "../../entities/utils";
@@ -51,13 +51,13 @@ import {
 	SwapVert,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { getLayoutedElements } from "@react-client/features/modelPreview/utils/dagreLayout";
 import { useGraphDepthControl } from "@react-client/common/hooks/useGraphDepthControl";
 import {
 	DepthControlPanel,
 	DepthControlToggleButton,
-} from "@react-client/common/components/DepthControlPanel";
+} from "@react-client/common/primitives/DepthControlPanel";
 
 const getUpstreamNodes = (
 	nodeId: string,

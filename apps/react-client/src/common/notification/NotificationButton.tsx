@@ -1,6 +1,6 @@
 import { IconButton, Badge } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/NotificationsNone";
-import { useNotificationStore } from "../../stores/notificationStore";
+import { useNotificationStore } from "../stores/notificationStore";
 
 export const NotificationButton = ({ isLoading }: { isLoading: boolean }) => {
 	const { unreadCount, setDrawerOpen } = useNotificationStore();

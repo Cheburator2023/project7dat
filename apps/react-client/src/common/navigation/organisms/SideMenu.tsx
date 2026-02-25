@@ -7,7 +7,7 @@ import { styled, useColorScheme } from "@mui/material/styles";
 import { MenuContent } from "../molecules/MenuContent";
 import { OptionsMenu } from "../molecules/OptionsMenu";
 import { LogoDataLineage } from "@react-client/common/primitives/LogoDataLineage";
-import { useUserStore } from "@react-client/common/store/userStore";
+import { useUserStore } from "@react-client/common/stores/userStore";
 
 const drawerWidth = 260;
 

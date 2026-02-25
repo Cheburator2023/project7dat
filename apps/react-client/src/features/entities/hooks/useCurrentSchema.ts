@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import type { DataLineageSchema } from "@react-client/types/dataLineage";
 
 import { useEntitiesStore } from "../stores";

@@ -16,7 +16,7 @@ import type {
 } from "@react-client/types/dataLineage";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 
 import { useEntitiesStore } from "../../entities/stores";
 import { useCurrentSchema } from "../../entities/hooks/useCurrentSchema";

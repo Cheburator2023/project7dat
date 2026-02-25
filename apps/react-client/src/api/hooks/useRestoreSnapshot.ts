@@ -6,7 +6,7 @@ import {
 import { snapshotService } from "./snapshotApi";
 import { CURRENT_JSON_DATA_QUERY_KEY } from "./useCurrentJsonData";
 import { JSON_DATA_LIST_QUERY_KEY } from "./useJsonDataList";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 
 export const useRestoreSnapshot = (): UseMutationResult<
 	void,

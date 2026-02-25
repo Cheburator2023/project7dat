@@ -44,7 +44,7 @@ import { useGraphDepthControl } from "@react-client/common/hooks/useGraphDepthCo
 import {
 	DepthControlPanel,
 	DepthControlToggleButton,
-} from "@react-client/common/components/DepthControlPanel";
+} from "@react-client/common/primitives/DepthControlPanel";
 
 const showFullGraphByDefault = false;
 

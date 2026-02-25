@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Alert, Box, Typography } from "@mui/material";
-import { CodeJsonEditor } from "@react-client/features/codeEditor/CodeJsonEditor";
+import { CodeJsonEditor } from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
 import { useCurrentDataLineageSnapshot } from "@react-client/api/hooks/useCurrentDataLineageSnapshot";
 
 import { LoadingSpinner } from "../atoms/LoadingSpinner";
