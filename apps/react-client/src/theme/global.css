@@ -579,10 +579,6 @@ div.MuiPopper-root::before {
 	background-color: transparent;
 }
 
-div.flexlayout__tabset_tabbar_outer.flexlayout__tabset-selected {
-	background-color: #72bdff1c;
-}
-
 .ag-cell {
 	font-size: 11px;
 }
@@ -601,7 +597,32 @@ mark {
 	color: #000;
 }
 
-div.flexlayout__tab_button.flexlayout__tab_button--selected
-	.flexlayout__tab_button_content {
-	background-color: #72bdff69;
+div.dockview-theme-light-spaced,
+div.dockview-theme-dark-spaced {
+	padding: 0;
+	background-color: transparent;
+}
+
+div.dv-dockview {
+	background-color: transparent;
+}
+
+div.dockview-theme-light-spaced .dv-groupview,
+div.dockview-theme-dark-spaced .dv-groupview {
+	border-radius: 8px;
+}
+
+div.dv-tabs-and-actions-container {
+	padding: 0;
+}
+
+div.dv-react-part {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+div.dockview-theme-light-spaced .dv-groupview .dv-tabs-and-actions-container,
+div.dockview-theme-dark-spaced .dv-groupview .dv-tabs-and-actions-container {
+	padding: 0px 4px;
 }

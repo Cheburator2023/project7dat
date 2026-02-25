@@ -1,8 +1,10 @@
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, type FunctionComponent } from "react";
 import { useSearchParams, useLocation } from "react-router";
-import { Box } from "@mui/material";
+import { Box, useColorScheme } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { Layout, Model, TabNode, Action } from "flexlayout-react";
+
+import { DockviewNoCloseTab } from "@react-client/common/dockview/DockviewNoCloseTab";
+import { DockviewGroupMaximizeActions } from "@react-client/common/dockview/DockviewGroupMaximizeActions";
 import { usePanelSettingsStore } from "@react-client/common/store/panelSettingsStore";
 import { useShallow } from "zustand/react/shallow";
 
@@ -16,14 +18,37 @@ import {
 	SchemaPanel,
 	DashboardHeader,
 } from "../entities/organisms";
-import { flexLayoutJson } from "../entities/constants";
+import { dockviewLayoutJson } from "../entities/constants";
 
 export { useEntitiesStore } from "../entities/stores";
 import { useEntitiesStore } from "../entities/stores";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
+import {
+	DockviewReadyEvent,
+	IDockviewPanelProps,
+	themeAbyssSpaced,
+	themeLightSpaced,
+} from "@react-client/features/dockview/core";
+import { DockviewReact } from "@react-client/features/dockview/src";
+
+const STORAGE_KEY = "dashboard2-dockview-layout";
+
+const panelComponents: Record<
+	string,
+	FunctionComponent<IDockviewPanelProps>
+> = {
+	entities: () => <EntitiesPanel />,
+	objects: () => <ObjectsPanel />,
+	graph: () => <GraphPanel />,
+	"selection-info": () => <SelectionInfoPanel />,
+	"code-editor": () => <CodeEditorPanel />,
+	issues: () => <IssuesPanel />,
+	schema: () => <SchemaPanel />,
+};
 
 export const DashboardPage = () => {
 	const [, setSearchParams] = useSearchParams();
+	const { mode } = useColorScheme();
 
 	// Загрузка полного графа для панелей Graph/CodeEditor/etc.
 	// Поиск по сущностям теперь идёт через бекенд-пагинацию в EntitiesPanel.
@@ -63,147 +88,101 @@ export const DashboardPage = () => {
 		setZoomToNode,
 	]);
 
-	const [model] = useState(() => {
-		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
-		if (isPanelPersistEnabled("dashboard")) {
+	const isPersistEnabledRef = useRef(isPersistEnabled);
+	isPersistEnabledRef.current = isPersistEnabled;
+
+	const onReady = useCallback((event: DockviewReadyEvent) => {
+		const { api } = event;
+
+		if (isPersistEnabledRef.current) {
 			try {
-				const savedLayout = localStorage.getItem("dashboard2-flex-layout");
-				if (savedLayout) {
-					return Model.fromJson(JSON.parse(savedLayout));
+				const saved = localStorage.getItem(STORAGE_KEY);
+				if (saved) {
+					api.fromJSON(JSON.parse(saved));
+					api.onDidLayoutChange(() => {
+						try {
+							localStorage.setItem(STORAGE_KEY, JSON.stringify(api.toJSON()));
+						} catch (err) {
+							console.warn("Failed to save dockview layout:", err);
+						}
+					});
+					return;
 				}
-			} catch (error) {
-				console.warn("Failed to load layout from localStorage:", error);
+			} catch (err) {
+				console.warn("Failed to load dockview layout from localStorage:", err);
 			}
 		}
-		return Model.fromJson(flexLayoutJson);
-	});
 
-	const factory = useCallback((node: TabNode) => {
-		const component = node.getComponent();
+		api.fromJSON(dockviewLayoutJson);
 
-		switch (component) {
-			case "entities":
-				return <EntitiesPanel />;
-			case "objects":
-				return <ObjectsPanel />;
-			case "graph":
-				return <GraphPanel />;
-			case "selection-info":
-				return <SelectionInfoPanel />;
-			case "code-editor":
-				return <CodeEditorPanel />;
-			case "issues":
-				return <IssuesPanel />;
-			case "schema":
-				return <SchemaPanel />;
-			default:
-				return <div>Unknown component: {component}</div>;
+		if (isPersistEnabledRef.current) {
+			api.onDidLayoutChange(() => {
+				try {
+					localStorage.setItem(STORAGE_KEY, JSON.stringify(api.toJSON()));
+				} catch (err) {
+					console.warn("Failed to save dockview layout:", err);
+				}
+			});
 		}
 	}, []);
-
-	const onAction = useCallback(
-		(action: Action) => {
-			if (isPersistEnabled) {
-				setTimeout(() => {
-					try {
-						const layoutJson = model.toJson();
-						localStorage.setItem(
-							"dashboard2-flex-layout",
-							JSON.stringify(layoutJson),
-						);
-					} catch (error) {
-						console.warn("Failed to save layout to localStorage:", error);
-					}
-				}, 0);
-			}
-
-			return action;
-		},
-		[model, isPersistEnabled],
-	);
 
 	return (
 		<Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
 			<DashboardHeader />
 
-			<FlexLayoutWrapper>
-				<Layout
-					model={model}
-					factory={factory}
-					onAction={onAction}
-					realtimeResize
+			<DockviewWrapper>
+				<DockviewReact
+					components={panelComponents}
+					onReady={onReady}
+					defaultTabComponent={DockviewNoCloseTab}
+					rightHeaderActionsComponent={DockviewGroupMaximizeActions}
+					theme={mode === "dark" ? themeAbyssSpaced : themeLightSpaced}
 				/>
-			</FlexLayoutWrapper>
+			</DockviewWrapper>
 		</Box>
 	);
 };
 
-const FlexLayoutWrapper = styled("div")(({ theme }) => ({
+const DockviewWrapper = styled("div")(({ theme }) => ({
 	flex: 1,
 	position: "relative",
-	"& .flexlayout__layout": {
-		backgroundColor: "transparent",
-	},
-	"& .flexlayout__tab": {
-		backgroundColor: theme.vars?.palette?.background.paper,
-		color: theme.vars?.palette?.text.primary,
-		borderColor: theme.vars?.palette?.divider,
-		borderRadius: "8px",
-	},
-	"& .flexlayout__tabset_header": {
-		backgroundColor: theme.vars?.palette?.background.paper,
-		borderColor: theme.vars?.palette?.divider,
-	},
-	"& .flexlayout__tab_button": {
-		backgroundColor: "transparent",
-		color: theme.vars?.palette?.text.secondary,
-		border: "none",
-		padding: "5px 0",
-		"&:hover": {
-			backgroundColor: theme.vars?.palette?.action.hover,
-			color: theme.vars?.palette?.text.primary,
-		},
-	},
-	"& .flexlayout__tabset_tabbar_outer": {
-		backgroundColor: theme.vars?.palette?.background.paper,
-		borderBottom: "1px solid rgb(83 83 83 / 30%)",
-	},
-	"& .flexlayout__tab_button_selected": {
-		backgroundColor: theme.vars?.palette?.action.selected,
-		color: theme.vars?.palette?.primary.main,
-		fontWeight: 600,
-	},
-	"& .flexlayout__tabset_content": {
-		backgroundColor: theme.vars?.palette?.background.default,
-	},
-	"& .flexlayout__tabset": {
-		borderRadius: "8px",
-		border: "1px solid #a5aaba90",
-		backgroundColor: theme.vars?.palette?.background.paper,
-	},
-	"& .flexlayout__splitter": {
-		backgroundColor: "transparent",
-		borderRadius: "8px",
-		width: "4px !important",
-		minWidth: "4px !important",
-	},
-	"& .flexlayout__splitter.flexlayout__splitter_vert": {
-		backgroundColor: "transparent",
-		height: "4px !important",
-		minHeight: "4px !important",
-		width: "inherit !important",
-		minWidth: "inherit !important",
-	},
-	"& .flexlayout__splitter_vert": {
-		margin: "0 2px",
-	},
-	"& .flexlayout__splitter_horz": {
-		margin: "2px 0",
-	},
-	"& .flexlayout__tab_button_content": {
-		padding: "4px 9px",
-		borderRadius: "8px",
-		fontSize: "10px",
-		backgroundColor: "#488ecb1a",
-	},
+	overflow: "hidden",
+	// "& .dockview-react": {
+	// 	height: "100%",
+	// 	width: "100%",
+	// },
+	// "& .dv-tab": {
+	// 	backgroundColor: "transparent",
+	// 	color: theme.vars?.palette?.text.secondary,
+	// 	fontSize: "10px",
+	// 	"&:hover": {
+	// 		backgroundColor: theme.vars?.palette?.action.hover,
+	// 		color: theme.vars?.palette?.text.primary,
+	// 	},
+	// },
+	// "& .dv-tab.active-tab": {
+	// 	backgroundColor: theme.vars?.palette?.action.selected,
+	// 	color: theme.vars?.palette?.primary.main,
+	// 	fontWeight: 600,
+	// },
+	// "& .dv-tab-content": {
+	// 	padding: "4px 9px",
+	// 	borderRadius: "8px",
+	// 	backgroundColor: "#488ecb1a",
+	// },
+	// "& .dv-groupview": {
+	// 	borderRadius: "8px",
+	// 	border: "1px solid #a5aaba90",
+	// 	backgroundColor: theme.vars?.palette?.background.paper,
+	// },
+	// "& .dv-tabs-and-actions-container": {
+	// 	backgroundColor: theme.vars?.palette?.background.paper,
+	// 	borderBottom: "1px solid rgb(83 83 83 / 30%)",
+	// },
+	// "& .dv-content-container": {
+	// 	backgroundColor: theme.vars?.palette?.background.default,
+	// },
+	// "& .dv-sash-container .dv-sash": {
+	// 	backgroundColor: "transparent",
+	// },
 }));

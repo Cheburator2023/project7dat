@@ -1,5 +1,13 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { Layout, Model, TabNode, Action } from "flexlayout-react";
+import {
+	useState,
+	useCallback,
+	useMemo,
+	useEffect,
+	useRef,
+	type ChangeEvent,
+	type FunctionComponent,
+	type ReactNode,
+} from "react";
 
 import {
 	styled,
@@ -8,7 +16,7 @@ import {
 	Chip,
 	TextField,
 	InputAdornment,
-	CircularProgress,
+	useColorScheme,
 } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
@@ -35,7 +43,19 @@ import { usePaginatedModelRelations } from "@react-client/api/hooks/usePaginated
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
 
-const _TYPE_ICONS: Record<string, React.ReactNode> = {
+import {
+	DockviewReadyEvent,
+	IDockviewPanelProps,
+	Orientation,
+	SerializedDockview,
+	themeAbyssSpaced,
+	themeLightSpaced,
+} from "@react-client/features/dockview/core";
+import { DockviewReact } from "@react-client/features/dockview/src";
+import { DockviewNoCloseTab } from "@react-client/common/dockview/DockviewNoCloseTab";
+import { DockviewGroupMaximizeActions } from "@react-client/common/dockview/DockviewGroupMaximizeActions";
+
+const _TYPE_ICONS: Record<string, ReactNode> = {
 	table: <TableChartIcon fontSize={"large"} />,
 	view: <ViewModuleIcon fontSize={"large"} />,
 	rdd: <StorageIcon fontSize={"large"} />,
@@ -49,72 +69,39 @@ const _TYPE_LABELS: Record<string, string> = {
 	unresolved: "Неизвестно",
 };
 
-const flexLayoutJson = {
-	global: {
-		tabEnableClose: false,
-		tabEnableRename: false,
-		tabSetEnableTabStrip: true,
-		tabSetEnableDrop: true,
-		tabSetEnableDrag: true,
-		tabSetEnableClose: false,
-		tabSetEnableMaximize: true,
-	},
-	borders: [],
-	layout: {
-		type: "row",
-		weight: 100,
-		children: [
-			// {
-			// 	type: "tabset",
-			// 	weight: 50,
-			// 	children: [
-			// 		{
-			// 			type: "tab",
-			// 			name: "Граф",
-			// 			component: "entity-node",
-			// 			id: "entity-node-tab",
-			// 		},
-			// 	],
-			// },
-			{
-				type: "tabset",
-				weight: 50,
-				children: [
-					{
-						type: "tab",
-						name: "Детали",
-						component: "entity-details",
-						id: "entity-details-tab",
+const dockviewLayoutJson: SerializedDockview = {
+	grid: {
+		root: {
+			type: "branch",
+			data: [
+				{
+					type: "leaf",
+					data: {
+						id: "group-main",
+						activeView: "entity-details-tab",
+						views: ["entity-details-tab", "entity-graph-tab"],
 					},
-					{
-						type: "tab",
-						name: "Граф",
-						component: "entity-graph",
-						id: "entity-graph-tab",
-					},
-				],
-			},
-			// {
-			// 	type: "tabset",
-			// 	weight: 30,
-			// 	children: [
-			//
-			// 	],
-			// },
-			// {
-			// 	type: "tabset",
-			// 	weight: 20,
-			// 	children: [
-			// 		{
-			// 			type: "tab",
-			// 			name: "JSON",
-			// 			component: "entity-json",
-			// 			id: "entity-json-tab",
-			// 		},
-			// 	],
-			// },
-		],
+				},
+			],
+			size: 100,
+		},
+		height: 800,
+		width: 1200,
+		orientation: Orientation.HORIZONTAL,
 	},
+	panels: {
+		"entity-details-tab": {
+			id: "entity-details-tab",
+			contentComponent: "entity-details",
+			title: "Детали",
+		},
+		"entity-graph-tab": {
+			id: "entity-graph-tab",
+			contentComponent: "entity-graph",
+			title: "Граф",
+		},
+	},
+	activeGroup: "group-main",
 };
 
 interface EntityPreviewPageProps {
@@ -130,7 +117,7 @@ const selectSetGlobalAttributeSearch = (state: {
 	setGlobalAttributeSearch: (query: string) => void;
 }) => state.setGlobalAttributeSearch;
 
-export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
+export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
 	const [currentEntityId, setCurrentEntityId] = useState<string | undefined>(
@@ -142,7 +129,7 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	>([]);
 
 	const isPersistEnabled = usePanelSettingsStore((state) =>
-		state.isPanelPersistEnabled("entity-preview"),
+		state.isPanelPersistEnabled("model-preview"),
 	);
 
 	const { entityId: urlEntityId } = useParams<{ entityId: string }>();
@@ -189,26 +176,20 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	]);
 
 	const handleAttributeSearchChange = useCallback(
-		(event: React.ChangeEvent<HTMLInputElement>) => {
+		(event: ChangeEvent<HTMLInputElement>) => {
 			setAttributeSearchInputValue(event.target.value);
 		},
 		[],
 	);
 
-	const [model, _setModel] = useState(() => {
-		const { isPanelPersistEnabled } = usePanelSettingsStore.getState();
-		if (isPanelPersistEnabled("model-preview")) {
-			try {
-				const savedLayout = localStorage.getItem("model-preview-layout");
-				if (savedLayout) {
-					return Model.fromJson(JSON.parse(savedLayout));
-				}
-			} catch (error) {
-				console.warn("Failed to load layout from localStorage:", error);
-			}
-		}
-		return Model.fromJson(flexLayoutJson);
-	});
+	const storage = useMemo(() => {
+		const state = usePanelSettingsStore.getState();
+		const panel = state.panels.find((p) => p.id === "model-preview");
+		return {
+			key: panel?.localStorageKey ?? "model-preview-dockview-layout",
+			legacyKeys: panel?.legacyLocalStorageKeys ?? ["model-preview-layout"],
+		};
+	}, []);
 
 	const { currentGraph } = useDataLineageStore(
 		useShallow((state) => ({
@@ -273,85 +254,109 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 	}, [selectedEntity, relatedMappings, modelRelationsData]);
 
 	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
+	const { mode } = useColorScheme();
 
-	const factory = useCallback(
-		(node: TabNode) => {
-			const component = node.getComponent();
-
-			switch (component) {
-				// case "entity-node":
-				// 	return (
-				// 		<EntityContainer>
-				// 			<EntityNodeView
-				// 				entity={selectedEntity}
-				// 				mappings={relatedMappings}
-				// 				onEntitiesCalculated={setCalculatedEntities}
-				// 				highlightedAttr={highlightedAttr}
-				// 				onSelectNode={onSelectNode}
-				// 			/>
-				// 		</EntityContainer>
-				// 	);
-				case "entity-details":
-					return (
-						<EntityContainer>
-							<EntityDetailsView
-								entity={selectedEntity}
-								mappings={relatedMappings}
-								allEntities={calculatedEntities}
-							/>
-						</EntityContainer>
-					);
-				case "entity-json":
-					return (
-						<EntityContainer>
-							<EntityJsonEditor entity={selectedEntity} />
-						</EntityContainer>
-					);
-				case "entity-graph":
-					return (
-						<ModelGraphPanel
-							onSelectNode={onSelectNode}
-							entity={selectedEntity}
-							isLoading={isLoading}
-							graphData={graphData}
-							depthLimit={depthLimit}
-							onDepthChange={setDepthLimit}
-						/>
-					);
-				default:
-					return <div>Unknown component: {component}</div>;
-			}
-		},
+	const panelComponents: Record<
+		string,
+		FunctionComponent<IDockviewPanelProps>
+	> = useMemo(
+		() => ({
+			"entity-details": () => (
+				<EntityContainer>
+					<EntityDetailsView
+						entity={selectedEntity}
+						mappings={relatedMappings}
+						allEntities={calculatedEntities}
+					/>
+				</EntityContainer>
+			),
+			"entity-json": () => (
+				<EntityContainer>
+					<EntityJsonEditor entity={selectedEntity} />
+				</EntityContainer>
+			),
+			"entity-graph": () => (
+				<ModelGraphPanel
+					onSelectNode={onSelectNode}
+					entity={selectedEntity}
+					isLoading={isLoading}
+					graphData={graphData}
+					depthLimit={depthLimit}
+					onDepthChange={setDepthLimit}
+				/>
+			),
+		}),
 		[
 			selectedEntity,
 			relatedMappings,
 			calculatedEntities,
 			graphData,
 			depthLimit,
+			onSelectNode,
+			isLoading,
 		],
 	);
 
-	const onAction = useCallback(
-		(action: Action) => {
-			const result = action;
+	const isPersistEnabledRef = useRef(isPersistEnabled);
+	isPersistEnabledRef.current = isPersistEnabled;
 
-			if (isPersistEnabled) {
-				setTimeout(() => {
-					try {
-						const layoutJson = model.toJson();
-						localStorage.setItem(
-							"model-preview-layout",
-							JSON.stringify(layoutJson),
-						);
-					} catch (error) {
-						console.warn("Failed to save layout to localStorage:", error);
+	const onReady = useCallback(
+		(event: DockviewReadyEvent) => {
+			const { api } = event;
+
+			if (isPersistEnabledRef.current) {
+				try {
+					const saved = localStorage.getItem(storage.key);
+					if (saved) {
+						api.fromJSON(JSON.parse(saved));
+						api.onDidLayoutChange(() => {
+							try {
+								localStorage.setItem(storage.key, JSON.stringify(api.toJSON()));
+							} catch (err) {
+								console.warn("Failed to save dockview layout:", err);
+							}
+						});
+						return;
 					}
-				}, 0);
+
+					for (const legacyKey of storage.legacyKeys) {
+						const legacySaved = localStorage.getItem(legacyKey);
+						if (legacySaved) {
+							api.fromJSON(JSON.parse(legacySaved));
+							api.onDidLayoutChange(() => {
+								try {
+									localStorage.setItem(
+										storage.key,
+										JSON.stringify(api.toJSON()),
+									);
+								} catch (err) {
+									console.warn("Failed to save dockview layout:", err);
+								}
+							});
+							return;
+						}
+					}
+				} catch (err) {
+					console.warn(
+						"Failed to load dockview layout from localStorage:",
+						err,
+					);
+				}
 			}
 
-			return result;
+			api.fromJSON(dockviewLayoutJson);
+
+			if (isPersistEnabledRef.current) {
+				api.onDidLayoutChange(() => {
+					try {
+						localStorage.setItem(storage.key, JSON.stringify(api.toJSON()));
+					} catch (err) {
+						console.warn("Failed to save dockview layout:", err);
+					}
+				});
+			}
 		},
-		[model, isPersistEnabled],
+		[storage.key, storage.legacyKeys],
 	);
 
 	return (
@@ -400,21 +405,22 @@ export const ModelPreviewPage: React.FC<EntityPreviewPageProps> = ({
 				<FullScreenLoader />
 			) : (
 				<Wrapper id="entity_preview_container">
-					<FlexLayoutContainer>
-						<Layout
-							model={model}
-							factory={factory}
-							onAction={onAction}
-							realtimeResize
+					<DockviewContainer>
+						<DockviewReact
+							components={panelComponents}
+							onReady={onReady}
+							defaultTabComponent={DockviewNoCloseTab}
+							rightHeaderActionsComponent={DockviewGroupMaximizeActions}
+							theme={mode === "dark" ? themeAbyssSpaced : themeLightSpaced}
 						/>
-					</FlexLayoutContainer>
+					</DockviewContainer>
 				</Wrapper>
 			)}
 		</div>
 	);
 };
 
-const FlexLayoutContainer = styled("div")(({ theme }) => {
+const DockviewContainer = styled("div")(({ theme }) => {
 	return {
 		position: "absolute",
 		width: "100%",
@@ -425,86 +431,36 @@ const FlexLayoutContainer = styled("div")(({ theme }) => {
 		pointerEvents: "auto",
 		backgroundColor: "transparent",
 		color: theme.vars?.palette?.text.primary,
-		"& .flexlayout__layout": {
-			backgroundColor: "transparent",
+		"& .dockview-react": {
+			height: "100%",
+			width: "100%",
 		},
-		"& .flexlayout__tab": {
-			backgroundColor: theme.vars?.palette?.background.paper,
-			color: theme.vars?.palette?.text.primary,
-			borderColor: theme.vars?.palette?.divider,
+		"& .dv-groupview": {
 			borderRadius: "8px",
-		},
-		"& .flexlayout__tab_selected": {
-			backgroundColor: theme.vars?.palette?.background.default,
-			color: theme.vars?.palette?.text.primary,
-		},
-		"& .flexlayout__tabset-selected": {
-			backgroundColor: theme.vars?.palette?.action.selected,
-			borderColor: theme.vars?.palette?.primary.main,
-		},
-		"& .flexlayout__tabset_header": {
+			border: "1px solid #a5aaba90",
 			backgroundColor: theme.vars?.palette?.background.paper,
-			borderColor: theme.vars?.palette?.divider,
 		},
-		"& .flexlayout__tab_button": {
+		"& .dv-tabs-and-actions-container": {
+			backgroundColor: theme.vars?.palette?.background.paper,
+			borderBottom: "1px solid rgb(83 83 83 / 30%)",
+		},
+		"& .dv-content-container": {
+			backgroundColor: theme.vars?.palette?.background.default,
+		},
+		"& .dv-tab": {
 			backgroundColor: "transparent",
 			color: theme.vars?.palette?.text.secondary,
-			border: "none",
-			padding: "5px 0",
 			"&:hover": {
 				backgroundColor: theme.vars?.palette?.action.hover,
 				color: theme.vars?.palette?.text.primary,
 			},
 		},
-		"& .flexlayout__tabset_tabbar_outer": {
-			backgroundColor: theme.vars?.palette?.background.paper,
-			borderBottom: "1px solid rgb(83 83 83 / 30%)",
-		},
-		"& .flexlayout__tab_button_selected": {
+		"& .dv-tab.active-tab": {
 			backgroundColor: theme.vars?.palette?.action.selected,
 			color: theme.vars?.palette?.primary.main,
 			fontWeight: 600,
 		},
-		"& .flexlayout__tabset_content": {
-			backgroundColor: theme.vars?.palette?.background.default,
-		},
-		"& .flexlayout__border": {
-			backgroundColor: theme.vars?.palette?.background.paper,
-			borderColor: theme.vars?.palette?.divider,
-		},
-		"& .flexlayout__outline_rect": {
-			borderColor: theme.vars?.palette?.primary.main,
-		},
-		"& .flexlayout__tabset": {
-			// @ts-expect-error
-			fontFamily: theme.vars?.font.inherit,
-			borderRadius: "8px",
-			border: "1px solid #a5aaba90",
-			margin: "4px",
-			zoom: 0.8,
-			backgroundColor: theme.vars?.palette?.background.paper,
-		},
-		"& .flexlayout__splitter": {
-			backgroundColor: theme.vars?.palette?.divider,
-			borderRadius: "8px",
-			width: "4px !important",
-			minWidth: "4px !important",
-		},
-		"& .flexlayout__splitter.flexlayout__splitter_vert": {
-			backgroundColor: theme.vars?.palette?.divider,
-			borderRadius: "8px",
-			height: "4px !important",
-			minHeight: "4px !important",
-			width: "inherit !important",
-			minWidth: "inherit !important",
-		},
-		"& .flexlayout__splitter_vert": {
-			margin: "0 2px",
-		},
-		"& .flexlayout__splitter_horz": {
-			margin: "2px 0",
-		},
-		"& .flexlayout__tab_button_content": {
+		"& .dv-tab-content": {
 			padding: "4px 9px",
 			borderRadius: "8px",
 			backgroundColor: "#488ecb1a",

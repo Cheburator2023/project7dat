@@ -1,5 +1,5 @@
 import "./theme/global.css";
-import "flexlayout-react/style/light.css";
+import "@react-client/features/dockview/styles/dockview.css";
 import "@xyflow/react/dist/style.css";
 import "@fontsource/inter";
 
@@ -19,6 +19,7 @@ import { NotificationDrawer } from "./common/notification/NotificationDrawer";
 import { setupApiInterceptors } from "./api/apiInterceptor";
 
 import { Routing } from "./routing";
+import { RoutingErrorBoundary } from "@react-client/common/errorBoundary/templates/RoutingErrorBoundary";
 import { AppTheme } from "./theme/AppTheme";
 import {
 	chartsCustomizations,
@@ -88,10 +89,12 @@ export function App({ bridged, user, onLogout, keycloak }: AppProps) {
 					<AppTheme themeComponents={xThemeComponents as any}>
 						<CssBaseline enableColorScheme />
 						<Toaster position="bottom-right" richColors closeButton />
-						<Suspense fallback={<CircularProgress />}>
+						<Suspense fallback={<CircularProgress title="Suspense loading" />}>
 							<LocalizationProvider dateAdapter={AdapterDateFns}>
 								<MainLayout onLogout={_onLogoutHandler}>
-									<Routing />
+									<RoutingErrorBoundary>
+										<Routing />
+									</RoutingErrorBoundary>
 								</MainLayout>
 								<NotificationDrawer />
 							</LocalizationProvider>

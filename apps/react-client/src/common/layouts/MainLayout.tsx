@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
-import { LoadingOverlay } from "@react-client/common/muiCustom/LoadingOverlay";
 import { useMainDataLoadingStore } from "@react-client/common/store/mainDataLoadingStore";
 import { SideMenu } from "../navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
@@ -23,6 +22,7 @@ const MainWrapper = styled("div", {
 }>(({ theme, mode }) => ({
 	flexGrow: 1,
 	minHeight: "100vh",
+	width: "100vw",
 	padding: "8px",
 	position: "relative",
 	transition: theme.transitions.create("margin", {

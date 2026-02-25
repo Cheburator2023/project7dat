@@ -1,12 +1,6 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
-import {
-	Box,
-	Typography,
-	Chip,
-	FormControlLabel,
-	Checkbox,
-} from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
@@ -95,7 +89,7 @@ export const ObjectsPanel = memo(() => {
 		isLoadingPaginatedEntities || isLoadingPaginatedMappings;
 
 	// View mode toggle: "attributes" or "links"
-	const [viewMode, setViewMode] = useState<"attributes" | "links">(
+	const [viewMode, _setViewMode] = useState<"attributes" | "links">(
 		"attributes",
 	);
 
@@ -689,51 +683,6 @@ export const ObjectsPanel = memo(() => {
 				flexDirection: "column",
 			}}
 		>
-			{/* Header with toggle and info */}
-			<Box
-				sx={{
-					p: 1,
-					bgcolor: "action.hover",
-					borderBottom: 1,
-					borderColor: "divider",
-					display: "flex",
-					alignItems: "center",
-					gap: 2,
-				}}
-			>
-				<FormControlLabel
-					control={
-						<Checkbox
-							size="small"
-							checked={viewMode === "links"}
-							onChange={(e) =>
-								setViewMode(e.target.checked ? "links" : "attributes")
-							}
-						/>
-					}
-					label={
-						<Typography variant="caption">
-							{viewMode === "links" ? "Связи" : "Атрибуты"}
-						</Typography>
-					}
-					sx={{ m: 0 }}
-				/>
-				{selectedEntityId && (
-					<Typography variant="caption" color="text.secondary">
-						Фильтр: <strong>{selectedEntityId}</strong>
-					</Typography>
-				)}
-				<Typography
-					variant="caption"
-					color="text.secondary"
-					sx={{ ml: "auto" }}
-				>
-					{viewMode === "attributes"
-						? `${totalObjects} объектов`
-						: `${totalLinks} связей`}
-				</Typography>
-			</Box>
-
 			{/* Table content */}
 			<Box sx={{ flex: 1, minHeight: 0 }}>
 				{viewMode === "attributes" ? (

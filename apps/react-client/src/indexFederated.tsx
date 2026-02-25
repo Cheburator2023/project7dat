@@ -2,6 +2,7 @@ import { createBridgeComponent } from "@module-federation/bridge-react/v19";
 import { CircularProgress } from "@mui/material";
 import { App } from "@react-client/App";
 import { AuthProvider } from "@react-client/common/AuthProvider";
+import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
 import { useUserStore } from "@react-client/common/store/userStore";
 import { useDeepEffect } from "@react-client/hooks";
 import { globalStyles } from "@react-client/theme/GlobalStyle";
@@ -66,7 +67,7 @@ const MfeRoot = (props: Props) => {
 			{props?.urlConfig && props?.keycloak ? (
 				<App {...props} bridged />
 			) : (
-				<CircularProgress />
+				<FullScreenLoader />
 			)}
 		</AuthProvider>
 	);
