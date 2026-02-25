@@ -12,6 +12,7 @@ import { S2tCommitDetailsPage } from "@react-client/features/s2tImport/pages/S2t
 import { ModelPreviewPage } from "@react-client/features/modelPreview/pages/ModelPreviewPage";
 import { JsonDataReportPage } from "@react-client/features/reports/pages/JsonDataReportPage";
 import { S2tDataReportPage } from "@react-client/features/reports/pages/S2tDataReportPage";
+import { CommitMergePreviewPage } from "@react-client/features/commits/pages/CommitMergePreviewPage";
 
 import { Page404 } from "./Page404";
 import { routes } from "./routes";
@@ -48,6 +49,10 @@ export const Routing = () => (
 			element={<EntityPreviewPage />}
 		/>
 		<Route path={routes.settings.rootPath} element={<SettingsPage />} />
+		<Route
+			path={routes.commitMergePreview.rootPath}
+			element={<CommitMergePreviewPage />}
+		/>
 		<Route path="*" element={<Page404 />} />
 	</Routes>
 );

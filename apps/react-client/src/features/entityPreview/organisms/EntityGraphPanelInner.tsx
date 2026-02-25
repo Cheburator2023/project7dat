@@ -58,6 +58,7 @@ import {
 	SwapVert,
 	ClearAll,
 } from "@mui/icons-material";
+import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 import { useNavigate } from "react-router";
 import { useShallow } from "zustand/react/shallow";
 import { useGraphDepthControl } from "@react-client/common/hooks/useGraphDepthControl";
@@ -279,7 +280,15 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			setSelectedNode(decodedSelectedEntityId || decodedUrlEntityId || "");
 		}, [selectedEntityId, urlEntityId]);
 
-		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
+		const graphKey = graphId ?? "default";
+		const layoutDirection = useGraphSettingsStore((state) =>
+			state.usePerGraphLayout
+				? (state.perGraphLayoutDirections[graphKey] ?? state.layoutDirection)
+				: state.layoutDirection,
+		);
+		const toggleGraphLayoutDirection = useGraphSettingsStore(
+			(state) => state.toggleGraphLayoutDirection,
+		);
 		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
 		const { fitView, setCenter, getNode } = useReactFlow();
@@ -1728,9 +1737,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 						/>
 						<div data-name="toggle_layout_direction">
 							<button
-								onClick={() =>
-									setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
-								}
+								onClick={() => toggleGraphLayoutDirection(graphId ?? "default")}
 								style={{
 									width: 26,
 									height: 26,

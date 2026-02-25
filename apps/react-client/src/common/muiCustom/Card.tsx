@@ -30,6 +30,7 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 		nonClickable,
 		zoom,
 		uuid,
+		innerWrapperHeight,
 		...paperProps
 	} = props;
 	const [visible, _setVisible] = useState(true);
@@ -120,8 +121,8 @@ const CardWithZoom = (props: CardWithZoomProps) => {
 					height: header
 						? overflow
 							? `calc(100% - ${headerH + 45}px)`
-							: "inherit"
-						: "inherit",
+							: innerWrapperHeight || "inherit"
+						: innerWrapperHeight || "inherit",
 					width: "inherit",
 					zoom: _zoom,
 				}}
@@ -152,6 +153,7 @@ const CardWithoutZoom = (props: BaseCardProps) => {
 		height,
 		width,
 		nonClickable,
+		innerWrapperHeight,
 		...paperProps
 	} = props;
 	const [visible, _setVisible] = useState(true);
@@ -197,8 +199,8 @@ const CardWithoutZoom = (props: BaseCardProps) => {
 					height: header
 						? overflow
 							? `calc(100% - ${headerH + 45}px)`
-							: "inherit"
-						: "inherit",
+							: innerWrapperHeight || "inherit"
+						: innerWrapperHeight || "inherit",
 					width: "inherit",
 				}}
 			>
@@ -218,6 +220,7 @@ type BaseCardProps = PaperProps & {
 	overflow?: string | null;
 	nonClickable?: boolean;
 	showZoomControl?: boolean;
+	innerWrapperHeight?: string;
 };
 
 type CardWithZoomProps = BaseCardProps & {

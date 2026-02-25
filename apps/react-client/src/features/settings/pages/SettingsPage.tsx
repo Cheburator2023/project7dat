@@ -3,8 +3,12 @@ import {
 	Card,
 	CardContent,
 	CircularProgress,
+	FormControl,
 	FormControlLabel,
 	IconButton,
+	InputLabel,
+	MenuItem,
+	Select,
 	Switch,
 	Table,
 	TableBody,
@@ -47,8 +51,12 @@ export const SettingsPage = () => {
 		panels,
 	} = usePanelSettingsStore();
 
-	const { showFullGraphByDefault, setShowFullGraphByDefault } =
-		useGraphSettingsStore();
+	const {
+		layoutDirection,
+		setLayoutDirection,
+		usePerGraphLayout,
+		setUsePerGraphLayout,
+	} = useGraphSettingsStore();
 
 	const latestChangelogVersion = useMemo(
 		() => extractLatestVersion(releaseNotes),
@@ -181,6 +189,44 @@ export const SettingsPage = () => {
 								отдельными панелями.
 							</Typography>
 						)}
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardContent>
+						<Typography variant="h6" gutterBottom>
+							Настройки графа
+						</Typography>
+
+						<FormControlLabel
+							control={
+								<Switch
+									checked={usePerGraphLayout}
+									onChange={(e) => setUsePerGraphLayout(e.target.checked)}
+								/>
+							}
+							label="Индивидуальная ориентация для каждого графа"
+							sx={{ mb: 2 }}
+						/>
+						<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+							{usePerGraphLayout
+								? "Каждый граф сохраняет свою ориентацию отдельно. Глобальная настройка используется как значение по умолчанию."
+								: "Все графы используют одну общую ориентацию."}
+						</Typography>
+
+						<FormControl fullWidth size="small">
+							<InputLabel>Ориентация по умолчанию</InputLabel>
+							<Select
+								label="Ориентация по умолчанию"
+								value={layoutDirection}
+								onChange={(e) =>
+									setLayoutDirection(e.target.value as "LR" | "TB")
+								}
+							>
+								<MenuItem value="LR">Горизонтальный (LR)</MenuItem>
+								<MenuItem value="TB">Вертикальный (TB)</MenuItem>
+							</Select>
+						</FormControl>
 					</CardContent>
 				</Card>
 

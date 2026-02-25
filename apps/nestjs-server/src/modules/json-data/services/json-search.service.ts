@@ -512,10 +512,36 @@ export class JsonSearchService {
 				[Array.from(allRelatedNames)],
 			);
 
-			for (const row of entityRows) {
-				row.attributes = await this.getEnhancedAttributesForEntity(
-					row.entity_id,
+			const entityIds = entityRows.map((r: any) => r.entity_id);
+			if (entityIds.length > 0) {
+				const allAttrs = await this.dataSource.query(
+					`SELECT
+						a.entity_id,
+						a.attribute_id,
+						a.name,
+						a.description,
+						a.type_id,
+						at.name as type_name,
+						c.change_date as attribute_change_date
+					FROM attribute a
+					LEFT JOIN attribute_type at ON a.type_id = at.type_id
+					LEFT JOIN changes c ON a.change_id = c.change_id
+					WHERE a.entity_id = ANY($1)
+					ORDER BY a.entity_id, a.name`,
+					[entityIds],
 				);
+				const attrsByEntityId = new Map<number, any[]>();
+				for (const attr of allAttrs) {
+					const list = attrsByEntityId.get(attr.entity_id) ?? [];
+					list.push(attr);
+					attrsByEntityId.set(attr.entity_id, list);
+				}
+				for (const row of entityRows) {
+					row.attributes = attrsByEntityId.get(row.entity_id) ?? [];
+				}
+			}
+			for (const row of entityRows) {
+				if (!row.attributes) row.attributes = [];
 				allEntityDetails.set(row.full_name, row);
 			}
 		}

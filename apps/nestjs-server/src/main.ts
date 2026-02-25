@@ -21,7 +21,7 @@ async function bootstrap() {
 	// Регистрация плагина multipart для S2T
 	await app.register(fastifyMultipart, {
 		limits: {
-			fileSize: 1024 * 1024, // 1 МБ
+			fileSize: 5 * 1024 * 1024, // 5 МБ
 		},
 		attachFieldsToBody: true,
 	});

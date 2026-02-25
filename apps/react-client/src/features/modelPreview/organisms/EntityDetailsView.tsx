@@ -5,15 +5,19 @@ import {
 	styled,
 	Box,
 	Typography,
+	Chip,
 	Table,
 	TableBody,
 	TableCell,
 	TableContainer,
+	TableHead,
 	TableRow,
 	Paper,
 	Accordion,
 	AccordionSummary,
 	AccordionDetails,
+	Tooltip,
+	Link,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type {
@@ -50,6 +54,28 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 		);
 	}, [entity, mappings]);
 
+	const incomingDeps = useMemo(() => {
+		if (!entity) return [];
+		const incoming: Array<{
+			sourceEntityId: string;
+			sourceName: string;
+			process?: string;
+			attrMapsCount: number;
+		}> = [];
+		for (const mapping of relatedMappings) {
+			if (mapping.entityId !== entity.id) continue;
+			for (const dep of mapping.deps ?? []) {
+				incoming.push({
+					sourceEntityId: dep.entityId,
+					sourceName: dep.entityId,
+					process: mapping.process,
+					attrMapsCount: dep.attrMaps?.length ?? 0,
+				});
+			}
+		}
+		return incoming;
+	}, [entity, relatedMappings]);
+
 	// Navigate to entity page with optional attribute highlight
 	const handleOpenEntityPage = useCallback(
 		(entityId: string, attrName?: string) => {
@@ -63,7 +89,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 	);
 
 	// Navigate to dashboard with entity and attribute highlight
-	const handleOpenInDashboard = useCallback(
+	const _handleOpenInDashboard = useCallback(
 		(entityId: string, attrName?: string) => {
 			if (attrName) {
 				selectEntityWithAttribute(entityId, attrName);
@@ -77,7 +103,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 	);
 
 	// Navigate with mapping highlight
-	const handleOpenMappingInDashboard = useCallback(
+	const _handleOpenMappingInDashboard = useCallback(
 		(
 			sourceEntityId: string,
 			targetEntityId: string,
@@ -162,6 +188,62 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 						</TableContainer>
 					</CompactAccordionDetails>
 				</CompactAccordion>
+
+				{/* Incoming Vector */}
+				{incomingDeps.length > 0 && (
+					<CompactAccordion>
+						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
+							<AccordionTitle>
+								Входящий вектор ({incomingDeps.length})
+							</AccordionTitle>
+						</CompactAccordionSummary>
+						<CompactAccordionDetails>
+							<TableContainer component={Paper} variant="outlined">
+								<Table size="small">
+									<TableHead>
+										<TableRow>
+											<TableCell sx={{ fontWeight: 600 }}>Источник</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>Процесс</TableCell>
+											<TableCell sx={{ fontWeight: 600 }}>
+												Атр. маппинги
+											</TableCell>
+										</TableRow>
+									</TableHead>
+									<TableBody>
+										{incomingDeps.map((dep, idx) => (
+											<TableRow key={idx}>
+												<TableCell
+													sx={{ fontFamily: "monospace", fontSize: 11 }}
+												>
+													<Tooltip title="Открыть страницу сущности">
+														<Link
+															component="button"
+															variant="body2"
+															sx={{ fontSize: 11 }}
+															onClick={() =>
+																handleOpenEntityPage(dep.sourceEntityId)
+															}
+														>
+															{dep.sourceName}
+														</Link>
+													</Tooltip>
+												</TableCell>
+												<TableCell>{dep.process || "—"}</TableCell>
+												<TableCell>
+													<Chip
+														label={dep.attrMapsCount}
+														size="small"
+														variant="outlined"
+													/>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</TableContainer>
+						</CompactAccordionDetails>
+					</CompactAccordion>
+				)}
 			</ContentContainer>
 		</Container>
 	);
