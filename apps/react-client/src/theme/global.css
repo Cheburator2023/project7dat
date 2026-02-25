@@ -605,7 +605,7 @@ div.dockview-theme-dark-spaced {
 
 div.dv-dockview {
 	background-color: transparent;
-	width: -webkit-fill-available !important;
+	width: -webkit-fill-available;
 }
 
 div.dockview-theme-light-spaced .dv-groupview,
@@ -626,4 +626,9 @@ div.dv-react-part {
 div.dockview-theme-light-spaced .dv-groupview .dv-tabs-and-actions-container,
 div.dockview-theme-dark-spaced .dv-groupview .dv-tabs-and-actions-container {
 	padding: 0px 4px;
+}
+
+div.dv-split-view-container .dv-sash-container .dv-sash:not(.disabled):active,
+div.dv-split-view-container .dv-sash-container .dv-sash:not(.disabled):hover {
+	background-color: #6380c1;
 }

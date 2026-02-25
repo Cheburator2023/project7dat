@@ -1,11 +1,10 @@
-import { memo } from "react";
 import { Alert, Box, Typography } from "@mui/material";
 import { CodeJsonEditor } from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
 import { useCurrentDataLineageSnapshot } from "@react-client/api/hooks/useCurrentDataLineageSnapshot";
 
 import { LoadingSpinner } from "../atoms/LoadingSpinner";
 
-export const SchemaPanel = memo(() => {
+export const SchemaPanel = () => {
 	const {
 		data: currentGraph,
 		isLoading,
@@ -16,6 +15,8 @@ export const SchemaPanel = memo(() => {
 	if (isLoading || isFetching) {
 		return <LoadingSpinner size={24} />;
 	}
+
+	console.log("🐸 Pepe said >> currentGraph:", currentGraph);
 
 	if (error) {
 		return (
@@ -53,6 +54,4 @@ export const SchemaPanel = memo(() => {
 			/>
 		</Box>
 	);
-});
-
-SchemaPanel.displayName = "SchemaPanel";
+};

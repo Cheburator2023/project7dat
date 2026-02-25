@@ -28,7 +28,13 @@ interface FilterButtonProps {
 
 export const FilterButton = memo(() => {
 	const [open, setOpen] = useState(false);
-	const { filters, updateFilter, resetFilters } = useEntitiesStore();
+	const {
+		filters,
+		updateFilter,
+		resetFilters,
+		hideTempTables,
+		toggleHideTempTables,
+	} = useEntitiesStore();
 
 	const activeFilterCount = useMemo(() => {
 		let count = 0;
@@ -174,6 +180,21 @@ export const FilterButton = memo(() => {
 							/>
 						}
 						label={<Typography variant="body2">Только изменённые</Typography>}
+						sx={{ mb: 1 }}
+					/>
+
+					{/* Hide temp/tmp tables */}
+					<FormControlLabel
+						control={
+							<Checkbox
+								size="small"
+								checked={hideTempTables}
+								onChange={toggleHideTempTables}
+							/>
+						}
+						label={
+							<Typography variant="body2">Скрыть temp/tmp таблицы</Typography>
+						}
 						sx={{ mb: 1 }}
 					/>
 

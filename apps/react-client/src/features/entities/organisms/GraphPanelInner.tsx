@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { memo, useCallback, useMemo, useEffect, useRef } from "react";
 import {
 	ReactFlow,
 	type Node,
@@ -31,6 +31,7 @@ import {
 	MAX_VISIBLE_ATTRS,
 	ATTR_EDGE_COLORS,
 	NODE_WIDTH,
+	isTempTable,
 } from "../constants";
 import type { EntityNodeData } from "../types";
 import { useColorScheme } from "@mui/material";
@@ -45,6 +46,7 @@ import {
 	DepthControlPanel,
 	DepthControlToggleButton,
 } from "@react-client/common/primitives/DepthControlPanel";
+import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 
 const showFullGraphByDefault = false;
 
@@ -230,8 +232,14 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		depthLimit: externalDepthLimit,
 		onDepthChange,
 	}) => {
-		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
-		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+		const layoutDirection = useGraphSettingsStore((state) =>
+			state.usePerGraphLayout
+				? (state.perGraphLayoutDirections[graphId] ?? state.layoutDirection)
+				: state.layoutDirection,
+		);
+		const toggleGraphLayoutDirection = useGraphSettingsStore(
+			(state) => state.toggleGraphLayoutDirection,
+		);
 		const { fitView, setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
@@ -245,6 +253,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			globalSearchQuery,
 			zoomToNodeId,
 			setZoomToNode,
+			hideTempTables,
 		} = useEntitiesStore(
 			useShallow((state) => ({
 				hoveredAttribute: state.hoveredAttribute,
@@ -258,6 +267,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				globalSearchQuery: state.globalSearchQuery,
 				zoomToNodeId: state.zoomToNodeId,
 				setZoomToNode: state.setZoomToNode,
+				hideTempTables: state.hideTempTables,
 			})),
 		);
 
@@ -425,16 +435,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleGhostClick = depthControl.handleGhostClick;
 
-		const handleToggleExpand = useCallback((id: string) => {
-			setExpandedNodes((prev) => {
-				const next = new Set(prev);
-				if (next.has(id)) {
-					next.delete(id);
-				} else {
-					next.add(id);
-				}
-				return next;
-			});
+		const handleToggleExpand = useCallback((_id: string) => {
+			// Not implemented
 		}, []);
 
 		// Build attribute connection map for hover highlighting
@@ -688,6 +690,11 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 
+			// Filter out temp/tmp tables if toggled
+			if (hideTempTables) {
+				uniqueEntities = uniqueEntities.filter((e) => !isTempTable(e));
+			}
+
 			const entityMap = new Map<string, DataLineageEntity>();
 			for (const entity of uniqueEntities) entityMap.set(entity.id, entity);
 
@@ -841,6 +848,81 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 
+			// Bypass hidden temp tables: create direct edges A→B when A→temp→B
+			if (hideTempTables) {
+				const hiddenTempIds = new Set<string>();
+				for (const entity of allUniqueEntities) {
+					if (isTempTable(entity) && !entityMap.has(entity.id)) {
+						hiddenTempIds.add(entity.id);
+					}
+				}
+				if (hiddenTempIds.size > 0) {
+					// Build adjacency: temp targets and temp sources
+					const tempUpstream = new Map<string, Set<string>>(); // temp → set of sources
+					const tempDownstream = new Map<string, Set<string>>(); // temp → set of targets
+					for (const mapping of data.mappings || []) {
+						if (!mapping.deps) continue;
+						for (const dep of mapping.deps) {
+							if (hiddenTempIds.has(dep.entityId)) {
+								// dep.entityId is a hidden temp, mapping.entityId is its target
+								if (!tempDownstream.has(dep.entityId)) {
+									tempDownstream.set(dep.entityId, new Set());
+								}
+								tempDownstream.get(dep.entityId)!.add(mapping.entityId);
+							}
+							if (hiddenTempIds.has(mapping.entityId)) {
+								// mapping.entityId is a hidden temp, dep.entityId is its source
+								if (!tempUpstream.has(mapping.entityId)) {
+									tempUpstream.set(mapping.entityId, new Set());
+								}
+								tempUpstream.get(mapping.entityId)!.add(dep.entityId);
+							}
+						}
+					}
+					// Create bypass edges: source → target through hidden temp
+					for (const tempId of hiddenTempIds) {
+						const sources = tempUpstream.get(tempId) ?? new Set();
+						const targets = tempDownstream.get(tempId) ?? new Set();
+						for (const src of sources) {
+							for (const tgt of targets) {
+								if (!entityMap.has(src) || !entityMap.has(tgt)) continue;
+								if (src === tgt) continue;
+								const bypassEdgeId = `bypass-${src}->${tgt}`;
+								if (edgeSet.has(bypassEdgeId)) continue;
+								const directId = `${src}->${tgt}`;
+								if (edgeSet.has(directId)) continue;
+								edgeSet.add(bypassEdgeId);
+								edges.push({
+									id: bypassEdgeId,
+									source: src,
+									target: tgt,
+									sourceHandle: "entity-source",
+									targetHandle: "entity-target",
+									type: "smoothstep",
+									animated: false,
+									style: {
+										stroke: "#ff8f00",
+										strokeWidth: 1,
+										strokeDasharray: "4,3",
+									},
+									data: {
+										baseStroke: "#ff8f00",
+										baseStrokeWidth: 1,
+									},
+									markerEnd: {
+										type: MarkerType.ArrowClosed,
+										color: "#ff8f00",
+									},
+									label: "через temp",
+									labelStyle: { fontSize: 8, fill: "#ff8f00" },
+									labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
+								});
+							}
+						}
+					}
+				}
+			}
+
 			// Add ghost nodes for boundary entities that have more data beyond depthLimit
 			const ghostNodes: Node[] = [];
 			for (const boundaryId of topologyUpstreamBoundary) {
@@ -917,6 +999,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			topologyUpstreamBoundary,
 			topologyDownstreamBoundary,
 			topologyHandleGhostClick,
+			hideTempTables,
 		]);
 
 		// Apply layout (only based on topology)
@@ -1254,7 +1337,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						hoverHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
 					const nextSelectedAttrs =
 						selectedHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
-					const nextIsExpanded = expandedNodes.has(node.id);
+					const nextIsExpanded = false; // Not implemented
 
 					const d = node.data as EntityNodeData;
 					// Skip creating a new object if nothing changed for this node
@@ -1302,7 +1385,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			searchMatchedEntities,
 			hoverHighlightedByEntity,
 			selectedHighlightedByEntity,
-			expandedNodes,
 			setNodes,
 			handleNodeClick,
 			handleNodeDblClick,
@@ -1337,9 +1419,12 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						if (
 							!visibleEntityIds.has(dep.entityId) ||
 							!visibleEntityIds.has(mapping.entityId)
-						)
+						) {
+							// Entity referenced in mapping but not in entities list
 							continue;
+						}
 
+						// Entity-level edge only (attribute edges added in decoration effect)
 						const sourceActiveAttrs =
 							selectedOrSearchedAttrsByEntity.get(dep.entityId) ||
 							EMPTY_STRING_SET;
@@ -1572,9 +1657,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 					/>
 					<div data-name="toggle_layout_direction">
 						<button
-							onClick={() =>
-								setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
-							}
+							onClick={() => toggleGraphLayoutDirection(graphId)}
 							style={{
 								width: 26,
 								height: 26,

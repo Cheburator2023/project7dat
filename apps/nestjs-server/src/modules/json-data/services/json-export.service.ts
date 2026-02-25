@@ -194,14 +194,42 @@ export class JsonExportService {
 
 		const entities = await this.dataSource.query(query);
 
-		// Загружаем атрибуты для каждой сущности
+		// Загружаем ВСЕ атрибуты одним запросом (вместо N+1)
+		const allAttributes = await this.getAllAttributesBatch();
+		const attributesByEntityId = new Map<number, any[]>();
+		for (const attr of allAttributes) {
+			const list = attributesByEntityId.get(attr.entity_id) ?? [];
+			list.push(attr);
+			attributesByEntityId.set(attr.entity_id, list);
+		}
+
 		for (const entity of entities) {
-			entity.attributes = await this.getEnhancedAttributesForEntity(
-				entity.entity_id,
-			);
+			entity.attributes = attributesByEntityId.get(entity.entity_id) ?? [];
 		}
 
 		return entities;
+	}
+
+	/**
+	 * Батч-загрузка всех атрибутов (решает N+1 проблему)
+	 */
+	private async getAllAttributesBatch(): Promise<any[]> {
+		const query = `
+            SELECT
+                a.entity_id,
+                a.attribute_id,
+                a.name,
+                a.description,
+                a.type_id,
+                at.name as type_name,
+                c.change_date as attribute_change_date
+            FROM attribute a
+                     LEFT JOIN attribute_type at ON a.type_id = at.type_id
+                LEFT JOIN changes c ON a.change_id = c.change_id
+            ORDER BY a.entity_id, a.name
+        `;
+
+		return await this.dataSource.query(query);
 	}
 
 	/**

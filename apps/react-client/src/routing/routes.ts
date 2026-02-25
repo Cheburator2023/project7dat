@@ -15,14 +15,14 @@ export const routes = {
 	s2tDataReport: {
 		name: "Формат S2T",
 		rootPath: "/reports/s2t-data",
-		disabled: false,
-		showInNavbar: true,
+		disabled: true,
+		showInNavbar: false,
 	},
 	jsonDataReport: {
 		name: "Формат JSON",
 		rootPath: "/reports/json-data",
-		disabled: false,
-		showInNavbar: true,
+		disabled: true,
+		showInNavbar: false,
 	},
 	s2tCommitCreate: {
 		name: "Создание S2T коммита",
@@ -65,6 +65,12 @@ export const routes = {
 	s2tCommitDetails: {
 		name: "S2T коммит",
 		rootPath: "/s2t-commits/:id",
+		disabled: false,
+		showInNavbar: false,
+	},
+	commitMergePreview: {
+		name: "Предпросмотр коммита",
+		rootPath: "/commits/:id/merge",
 		disabled: false,
 		showInNavbar: false,
 	},

@@ -34,6 +34,35 @@ export const HIGHLIGHT_COLORS = {
 	searchMatch: "#ff5722", // Orange for search matches
 } as const;
 
+export const TEMP_TABLE_COLORS = {
+	bg: "#fff8e1",
+	border: "#ff8f00",
+	text: "#e65100",
+	badge: "#ff6f00",
+} as const;
+
+export const isTempTable = (entity: {
+	id?: string;
+	name?: string | null;
+}): boolean => {
+	const id = entity.id?.toLowerCase() ?? "";
+	const name = entity.name?.toLowerCase() ?? "";
+	return (
+		id.startsWith("temp_") ||
+		id.startsWith("tmp_") ||
+		id.includes(".temp_") ||
+		id.includes(".tmp_") ||
+		name.startsWith("temp_") ||
+		name.startsWith("tmp_") ||
+		name.includes(".temp_") ||
+		name.includes(".tmp_") ||
+		name.includes("TEMP_") ||
+		name.includes("TMP_") ||
+		name.includes("TEMP") ||
+		name.includes("TMP")
+	);
+};
+
 export const DEPTH_LEVEL_COLORS = [
 	{
 		bg: "rgba(255, 193, 7, 0.08)",

@@ -118,7 +118,6 @@ export const useCurrentDataLineageGraph = (options?: {
 			}
 		},
 		staleTime: 100,
-		retry: false,
 		enabled: options?.enabled,
 	});
 };

@@ -97,6 +97,10 @@ interface SelectionState {
 		sortBy: string | undefined,
 		sortOrder: "asc" | "desc" | undefined,
 	) => void;
+
+	// Temp/tmp table visibility
+	hideTempTables: boolean;
+	toggleHideTempTables: () => void;
 }
 
 export const useEntitiesStore = create<SelectionState>((set) => ({
@@ -218,4 +222,8 @@ export const useEntitiesStore = create<SelectionState>((set) => ({
 			entitiesSortOrder: sortOrder,
 			entitiesPage: 1,
 		}),
+
+	hideTempTables: true,
+	toggleHideTempTables: () =>
+		set((state) => ({ hideTempTables: !state.hideTempTables })),
 }));

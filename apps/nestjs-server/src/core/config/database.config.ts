@@ -13,6 +13,8 @@ export interface PostgresDatabaseConfig {
 	logging: boolean;
 	migrations: string[];
 	migrationsRun: boolean;
+	poolSize?: number;
+	extra?: Record<string, unknown>;
 }
 
 export const databaseValidationSchema = Joi.object({
@@ -68,6 +70,11 @@ export const databaseConfig = registerAs(
 				: process.env.DEV_DB_NAME || "data_lineage",
 		};
 
+		const poolSize = Number.parseInt(
+			process.env.DB_POOL_SIZE || (isProduction ? "10" : "5"),
+			10,
+		);
+
 		// Полная конфигурация
 		const fullConfig: PostgresDatabaseConfig = {
 			...baseConfig,
@@ -76,6 +83,13 @@ export const databaseConfig = registerAs(
 			logging: process.env.DB_LOGGING === "true" || !isProduction,
 			migrations: [__dirname + "/../../migrations/*{.ts,.js}"],
 			migrationsRun: process.env.DB_MIGRATIONS_RUN === "true",
+			poolSize,
+			extra: {
+				max: poolSize,
+				connectionTimeoutMillis: 10000,
+				idleTimeoutMillis: 30000,
+				statement_timeout: 60000,
+			},
 		};
 
 		return fullConfig;

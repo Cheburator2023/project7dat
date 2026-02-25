@@ -18,7 +18,7 @@ import {
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import { useAuthStore } from "@react-client/common/stores/authStore";
-import { useProcesses } from "@react-client/api/hooks";
+import { useProcesses, useS2tCommitList } from "@react-client/api/hooks";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 
@@ -113,6 +113,17 @@ export const S2tCommitEditor = ({
 	const [prefilledCommitType, setPrefilledCommitType] = useState<
 		"table" | "json" | "model" | null
 	>(null);
+
+	const s2tCommitsQuery = useS2tCommitList({
+		enabled: active && !prefillCommitId,
+		limit: 100,
+	});
+	const hasProcessingCommit = useMemo(
+		() =>
+			!prefillCommitId &&
+			(s2tCommitsQuery.data?.items ?? []).some((c) => c.state === "processing"),
+		[prefillCommitId, s2tCommitsQuery.data?.items],
+	);
 
 	const showProcessFields = useMemo(() => {
 		const fileName = selectedFile?.name?.toLowerCase() ?? "";
@@ -220,13 +231,22 @@ export const S2tCommitEditor = ({
 		};
 	}, [active, prefillCommitId]);
 
-	const validateFile = useCallback((file: File): string | null => {
-		const name = file.name.toLowerCase();
-		if (!name.endsWith(".xlsx")) {
-			return "Файл должен быть в формате XLSX";
-		}
-		return null;
-	}, []);
+	const MAX_FILE_SIZE_MB = 5;
+	const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+	const validateFile = useCallback(
+		(file: File): string | null => {
+			const name = file.name.toLowerCase();
+			if (!name.endsWith(".xlsx")) {
+				return "Тип файла не является корректным, загрузите новый файл";
+			}
+			if (file.size > MAX_FILE_SIZE_BYTES) {
+				return "Превышен максимальный размер файла, загрузите новый файл";
+			}
+			return null;
+		},
+		[MAX_FILE_SIZE_BYTES],
+	);
 
 	const handleFileSelect = useCallback(
 		(file: File) => {
@@ -559,7 +579,11 @@ export const S2tCommitEditor = ({
 										helperText={fieldErrors.processName}
 									/>
 									<Spacer />
-									<Card height="200px" overflow="auto">
+									<Card
+										height="200px"
+										overflow="auto"
+										innerWrapperHeight="-webkit-fill-available"
+									>
 										{processOptions
 											.filter((process) => process.includes(processName))
 											.map((process) => {
@@ -607,16 +631,32 @@ export const S2tCommitEditor = ({
 
 				<Divider />
 
+				{hasProcessingCommit && (
+					<Alert severity="warning">
+						Загрузка нового коммита невозможна: есть несмерженный коммит в
+						обработке. Дождитесь завершения или удалите его.
+					</Alert>
+				)}
+
 				<Box>
 					<Typography variant="subtitle1" gutterBottom>
 						Файл S2T
 					</Typography>
 					<UploadBox
 						className={dragOver ? "dragover" : ""}
-						onDrop={handleDrop}
-						onDragOver={handleDragOver}
-						onDragLeave={handleDragLeave}
-						onClick={() => document.getElementById("s2t-file-input")?.click()}
+						onDrop={hasProcessingCommit ? undefined : handleDrop}
+						onDragOver={hasProcessingCommit ? undefined : handleDragOver}
+						onDragLeave={hasProcessingCommit ? undefined : handleDragLeave}
+						onClick={
+							hasProcessingCommit
+								? undefined
+								: () => document.getElementById("s2t-file-input")?.click()
+						}
+						sx={
+							hasProcessingCommit
+								? { opacity: 0.5, pointerEvents: "none" }
+								: undefined
+						}
 					>
 						<CloudUploadIcon sx={{ fontSize: 32, color: "text.secondary" }} />
 						<Typography variant="h6" gutterBottom>
@@ -753,7 +793,7 @@ export const S2tCommitEditor = ({
 					}
 					data-name="s2t_save_button"
 					variant="contained"
-					disabled={isSaving || !selectedFile}
+					disabled={isSaving || !selectedFile || hasProcessingCommit}
 					title={
 						!selectedFile
 							? "Сначала приложите файл S2T (.xlsx)."

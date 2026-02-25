@@ -21,6 +21,10 @@ export {
 	useS2tCommitList,
 	S2T_COMMIT_LIST_QUERY_KEY,
 } from "./useS2tCommitList";
+export {
+	useS2tCommitById,
+	S2T_COMMIT_BY_ID_QUERY_KEY,
+} from "./useS2tCommitById";
 export { useSetCurrentJsonData } from "./useSetCurrentJsonData";
 export { useSetCurrentFromSnapshot } from "./useSetCurrentFromSnapshot";
 

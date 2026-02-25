@@ -28,7 +28,6 @@ import {
 	Delete as DeleteIcon,
 	Edit as EditIcon,
 	MoreVert as MoreVertIcon,
-	OpenInNew as OpenInNewIcon,
 	Visibility as VisibilityIcon,
 } from "@mui/icons-material";
 import {
@@ -61,8 +60,6 @@ import { DiffJsonDialog } from "../organisms/DiffJsonDialog";
 import { EditJsonDialog } from "../organisms/EditJsonDialog";
 import { EditMetadataDialog } from "../organisms/EditMetadataDialog";
 import { MergeIcon } from "lucide-react";
-import { MergeCommitDialog } from "@react-client/features/commits/organisms/MergeCommitDialog";
-import { useAuthStore } from "@react-client/common/stores/authStore";
 
 const defaultColDef = {
 	resizable: true,
@@ -114,7 +111,6 @@ export const AllCommitsPage: FC = () => {
 	const [editJsonCommit, setEditJsonCommit] = useState<S2tCommitItem | null>(
 		null,
 	);
-	const [mergeCommit, setMergeCommit] = useState<S2tCommitItem | null>(null);
 
 	// Context menu state
 	const [contextMenuAnchor, setContextMenuAnchor] = useState<{
@@ -133,9 +129,7 @@ export const AllCommitsPage: FC = () => {
 	const [compareTargetId, setCompareTargetId] = useState<string>("");
 	const gridRef = useRef<AgGridReact<S2tCommitItem> | null>(null);
 
-	const authStore = useAuthStore();
-	const username = authStore.userInfo?.username ?? "system";
-	const { refetch: refetchCurrentGraph } = useCurrentDataLineageGraph({
+	useCurrentDataLineageGraph({
 		enabled: false,
 	});
 
@@ -494,19 +488,6 @@ export const AllCommitsPage: FC = () => {
 						<ListItemText>Редактировать метаданные</ListItemText>
 					</MenuItem>,
 					<MenuItem
-						key="open-page"
-						disabled={contextMenuCommit.state !== "processing"}
-						onClick={() => {
-							navigate(`/s2t-commits/${contextMenuCommit.id}`);
-							handleCloseContextMenu();
-						}}
-					>
-						<ListItemIcon>
-							<OpenInNewIcon fontSize="small" />
-						</ListItemIcon>
-						<ListItemText>Открыть коммит</ListItemText>
-					</MenuItem>,
-					<MenuItem
 						key="edit-json"
 						onClick={() => {
 							setEditJsonCommit(contextMenuCommit);
@@ -541,9 +522,12 @@ export const AllCommitsPage: FC = () => {
 					<Divider key="divider" />,
 					<MenuItem
 						key="merge"
-						disabled={contextMenuCommit.state === "done"}
+						disabled={
+							contextMenuCommit.state === "done" ||
+							contextMenuCommit.state === "failed"
+						}
 						onClick={() => {
-							setMergeCommit(contextMenuCommit);
+							navigate(`/commits/${contextMenuCommit.id}/merge`);
 							handleCloseContextMenu();
 						}}
 					>
@@ -586,16 +570,6 @@ export const AllCommitsPage: FC = () => {
 				open={!!diffCommit}
 				commit={diffCommit}
 				onClose={() => setDiffCommit(null)}
-			/>
-			<MergeCommitDialog
-				open={!!mergeCommit}
-				commit={mergeCommit}
-				username={username}
-				onClose={() => setMergeCommit(null)}
-				onApplied={() => {
-					handleDialogSaved();
-					s2tCommitsQuery.refetch();
-				}}
 			/>
 			<Dialog open={!!deleteCommit} onClose={() => setDeleteCommit(null)}>
 				<DialogTitle>Удалить коммит?</DialogTitle>

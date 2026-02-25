@@ -261,8 +261,16 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		useEffect(() => {
 			setSelectedNode(selectedEntityId || rootEntityId || "");
 		}, [selectedEntityId, rootEntityId]);
-		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
-		const { fitView, setCenter, getNode } = useReactFlow();
+		const graphKey = rootEntityId || "default";
+		const layoutDirection = useGraphSettingsStore((state) =>
+			state.usePerGraphLayout
+				? (state.perGraphLayoutDirections[graphKey] ?? state.layoutDirection)
+				: state.layoutDirection,
+		);
+		const toggleGraphLayoutDirection = useGraphSettingsStore(
+			(state) => state.toggleGraphLayoutDirection,
+		);
+		const { setCenter, getNode } = useReactFlow();
 		const hasFocusedRootInitiallyRef = useRef(false);
 		const prevDepthLimitRef = useRef(externalDepthLimit ?? 1);
 		const {
@@ -1379,14 +1387,6 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			return () => window.clearTimeout(handle);
 		}, [depthControl.depthLimit, focusRootEntityNode, nodes, rootEntityId]);
 
-		useEffect(() => {
-			const timer = setTimeout(
-				() => fitView({ padding: 0.1, duration: 300 }),
-				100,
-			);
-			return () => clearTimeout(timer);
-		}, [layoutDirection, fitView, data]);
-
 		// Handle zoom to node request from context menu
 		useEffect(() => {
 			if (zoomToNodeId) {
@@ -1413,7 +1413,6 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					onPaneClick={handlePaneClick}
 					nodeTypes={graphNodeTypes}
 					nodesDraggable
-					fitView
 					minZoom={0.01}
 					maxZoom={1}
 					defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
@@ -1452,7 +1451,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 						<div data-name="toggle_layout_direction">
 							<button
 								onClick={() =>
-									setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
+									toggleGraphLayoutDirection(rootEntityId || "default")
 								}
 								style={{
 									width: 26,

@@ -1,7 +1,13 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as fuzzysort from "fuzzysort";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import { TYPE_COLORS, HIGHLIGHT_COLORS, MAX_VISIBLE_ATTRS } from "../constants";
+import {
+	TYPE_COLORS,
+	HIGHLIGHT_COLORS,
+	MAX_VISIBLE_ATTRS,
+	TEMP_TABLE_COLORS,
+	isTempTable,
+} from "../constants";
 import { useEntitiesStore } from "../stores";
 import type { EntityNodeData } from "../types";
 
@@ -35,7 +41,14 @@ export const EntityNodeComponent = memo(
 			showAllAttrs = false,
 			isExpanded = false,
 		} = data;
-		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
+		const isTemp = isTempTable(entity);
+		const colors = isTemp
+			? {
+					bg: TEMP_TABLE_COLORS.bg,
+					border: TEMP_TABLE_COLORS.border,
+					text: TEMP_TABLE_COLORS.text,
+				}
+			: TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 		const attrs = entity.attrSeq || [];
 
 		const [localSearchQuery, setLocalSearchQuery] = useState("");
