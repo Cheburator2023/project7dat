@@ -28,21 +28,82 @@ export class S2tToJsonConverterService {
 	private readonly RELATION_CHANGE_VALUE = "new";
 
 	/**
-	 * Основной метод конвертации.
-	 * @param parsedData - распарсенные данные из S2T-файла
-	 * @param options - опции (наименование и описание процесса, вводимые пользователем)
+	 * Извлекает числовой код системы из сырой строки.
+	 * Примеры:
+	 *   "1642_19, Озеро данных" → "1642_19"
+	 *   "1655" → "1655"
+	 *   "1642" → "1642"
 	 */
+	private extractSystemCode(raw: string | undefined | null): string | null {
+		if (!raw) return null;
+		const trimmed = raw.trim();
+		// Ищем первую часть до запятой или пробела, которая может содержать цифры и подчёркивания
+		const parts = trimmed.split(/[,;\s]+/);
+		const firstPart = parts[0].trim();
+		// Проверяем, что строка состоит только из цифр и подчёркиваний
+		if (/^[\d_]+$/.test(firstPart)) {
+			return firstPart;
+		}
+		// Если не подходит – пытаемся просто взять начальные цифры и подчёркивания
+		const match = trimmed.match(/^[\d_]+/);
+		return match ? match[0] : null;
+	}
+
+	/**
+	 * Возвращает очищенный system_code для сущности с учётом типа файла.
+	 * Если код не удалось извлечь – используется значение по умолчанию.
+	 */
+	private getCleanedSystemCode(
+		raw: string | undefined | null,
+		fileType: S2TFileType,
+		context: string,
+	): string {
+		const extracted = this.extractSystemCode(raw);
+		if (extracted) {
+			if (extracted !== raw) {
+				this.logger.log(
+					`[${context}] system_code очищен: "${raw}" → "${extracted}"`,
+				);
+			}
+			return extracted;
+		}
+
+		// Если не удалось извлечь – берём значение по умолчанию в зависимости от типа
+		let defaultValue: string;
+		switch (fileType) {
+			case S2TFileType.MART:
+				defaultValue = this.DEFAULT_SYSTEM_CODE_MART;
+				break;
+			case S2TFileType.MODEL:
+				defaultValue = this.DEFAULT_SYSTEM_CODE_MODEL;
+				break;
+			case S2TFileType.JSON:
+				defaultValue = this.DEFAULT_SYSTEM_CODE_JSON;
+				break;
+			default:
+				defaultValue = this.DEFAULT_SYSTEM_CODE_MART;
+		}
+
+		if (raw) {
+			this.logger.warn(
+				`[${context}] Не удалось извлечь числовой код из "${raw}", используется значение по умолчанию: ${defaultValue}`,
+			);
+		}
+		return defaultValue;
+	}
+
+	// ------------------------------------------------------------------------
+	// Основной метод конвертации
+	// ------------------------------------------------------------------------
 	convertToJson(
 		parsedData: ParsedS2TData,
 		options?: { processName?: string; processDescription?: string },
 	): S2tCommitJsonDto {
-		this.logger.log(
-			`Конвертация S2T -> JSON, тип: ${parsedData.fileType}, файл: ${parsedData.fileName}`,
-		);
+		this.logger.log(`Конвертация S2T -> JSON, тип: ${parsedData.fileType}, файл: ${parsedData.fileName}`);
 
 		// Валидация входных данных
 		if (!parsedData.rows || parsedData.rows.length === 0) {
-			throw new BadRequestException("Нет данных для конвертации");
+			throw new BadRequestException('Нет данных для конвертации');
 		}
 
 		switch (parsedData.fileType) {
@@ -65,26 +126,23 @@ export class S2tToJsonConverterService {
 		options?: { processName?: string; processDescription?: string },
 	): S2tCommitJsonDto {
 		const rows = parsedData.rows;
+		const sources = new Map<string, { schema: string; table: string; system: string; rows: S2TRow[] }>();
+		const targets = new Map<string, { schema: string; table: string; system: string; rows: S2TRow[] }>();
 
-		// Собираем уникальные сущности источников и целей
-		const sources = new Map<
-			string,
-			{ schema: string; table: string; system: string; rows: S2TRow[] }
-		>();
-		const targets = new Map<
-			string,
-			{ schema: string; table: string; system: string; rows: S2TRow[] }
-		>();
-
-		rows.forEach((row) => {
+		rows.forEach(row => {
 			// Источник
 			if (row.sourceSchema && row.sourceTable) {
+				const cleanedSystem = this.getCleanedSystemCode(
+					row.sourceBaseSystem,
+					parsedData.fileType,
+					`source: ${row.sourceSchema}.${row.sourceTable}`,
+				);
 				const key = `${row.sourceSchema}.${row.sourceTable}`;
 				if (!sources.has(key)) {
 					sources.set(key, {
 						schema: row.sourceSchema!,
 						table: row.sourceTable!,
-						system: row.sourceBaseSystem || this.DEFAULT_SYSTEM_CODE_MART,
+						system: cleanedSystem,
 						rows: [],
 					});
 				}
@@ -92,12 +150,17 @@ export class S2tToJsonConverterService {
 			}
 			// Цель
 			if (row.targetSchema && row.targetTable) {
+				const cleanedSystem = this.getCleanedSystemCode(
+					row.targetBaseSystem,
+					parsedData.fileType,
+					`target: ${row.targetSchema}.${row.targetTable}`,
+				);
 				const key = `${row.targetSchema}.${row.targetTable}`;
 				if (!targets.has(key)) {
 					targets.set(key, {
 						schema: row.targetSchema!,
 						table: row.targetTable!,
-						system: row.targetBaseSystem || this.DEFAULT_SYSTEM_CODE_MART,
+						system: cleanedSystem,
 						rows: [],
 					});
 				}
@@ -112,17 +175,17 @@ export class S2tToJsonConverterService {
 		// Формируем entities
 		const entities: S2tCommitJsonEntityDto[] = [];
 
-		// Сначала цели (modified = true)
+		// Цели (modified = true)
 		targets.forEach((t, fullName) => {
-			const entity = this.buildEntity(fullName, t, t.rows, true, "table");
+			const entity = this.buildEntity(fullName, t, t.rows, true, "table", parsedData.fileType);
 			if (entity.attrSeq.length > 0) {
 				entities.push(entity);
 			}
 		});
 
-		// Затем источники (modified = false)
+		// Источники (modified = false)
 		sources.forEach((s, fullName) => {
-			const entity = this.buildEntity(fullName, s, s.rows, false, "table");
+			const entity = this.buildEntity(fullName, s, s.rows, false, "table", parsedData.fileType);
 			if (entity.attrSeq.length > 0) {
 				entities.push(entity);
 			}
@@ -131,13 +194,7 @@ export class S2tToJsonConverterService {
 		// Формируем mappings
 		const mappings: S2tCommitJsonMappingDto[] = [];
 		for (const [targetFullName, target] of targets.entries()) {
-			const mapping = this.buildMapping(
-				targetFullName,
-				target.system,
-				target.rows,
-				sources,
-				options,
-			);
+			const mapping = this.buildMapping(targetFullName, target.system, target.rows, sources, options, parsedData.fileType);
 			if (mapping.deps.length > 0) {
 				mappings.push(mapping);
 			}
@@ -159,24 +216,21 @@ export class S2tToJsonConverterService {
 	// ------------------------------------------------------------------------
 	private convertJsonFile(parsedData: ParsedS2TData): S2tCommitJsonDto {
 		const rows = parsedData.rows;
+		const targets = new Map<string, { schema: string; table: string; system: string; rows: S2TRow[] }>();
 
-		// Собираем целевые сущности (JSON-файлы)
-		const targets = new Map<
-			string,
-			{ schema: string; table: string; system: string; rows: S2TRow[] }
-		>();
-
-		rows.forEach((row) => {
+		rows.forEach(row => {
 			if (row.targetTable) {
-				// Для JSON схема может отсутствовать – ключ может быть просто table
-				const key = row.targetSchema
-					? `${row.targetSchema}.${row.targetTable}`
-					: row.targetTable;
+				const cleanedSystem = this.getCleanedSystemCode(
+					row.targetBaseSystem,
+					parsedData.fileType,
+					`target: ${row.targetSchema || ''}.${row.targetTable}`,
+				);
+				const key = row.targetSchema ? `${row.targetSchema}.${row.targetTable}` : row.targetTable;
 				if (!targets.has(key)) {
 					targets.set(key, {
-						schema: row.targetSchema || "",
+						schema: row.targetSchema || '',
 						table: row.targetTable,
-						system: row.targetBaseSystem || this.DEFAULT_SYSTEM_CODE_JSON,
+						system: cleanedSystem,
 						rows: [],
 					});
 				}
@@ -190,7 +244,7 @@ export class S2tToJsonConverterService {
 
 		const entities: S2tCommitJsonEntityDto[] = [];
 		targets.forEach((t, fullName) => {
-			const entity = this.buildEntity(fullName, t, t.rows, true, "json");
+			const entity = this.buildEntity(fullName, t, t.rows, true, "json", parsedData.fileType);
 			if (entity.attrSeq.length > 0) {
 				entities.push(entity);
 			}
@@ -199,7 +253,7 @@ export class S2tToJsonConverterService {
 		return {
 			desc: { commit_type: "json" },
 			entities,
-			mappings: [], // Для JSON-файла маппинги не заполняются
+			mappings: [],
 		};
 	}
 
@@ -211,25 +265,23 @@ export class S2tToJsonConverterService {
 		options?: { processName?: string; processDescription?: string },
 	): S2tCommitJsonDto {
 		const rows = parsedData.rows;
+		const sources = new Map<string, { schema: string; table: string; system: string; rows: S2TRow[] }>();
+		const targets = new Map<string, { schema: string; table: string; system: string; rows: S2TRow[] }>();
 
-		const sources = new Map<
-			string,
-			{ schema: string; table: string; system: string; rows: S2TRow[] }
-		>();
-		const targets = new Map<
-			string,
-			{ schema: string; table: string; system: string; rows: S2TRow[] }
-		>();
-
-		rows.forEach((row) => {
+		rows.forEach(row => {
 			// Источник
 			if (row.sourceSchema && row.sourceTable) {
+				const cleanedSystem = this.getCleanedSystemCode(
+					row.sourceBaseSystem,
+					parsedData.fileType,
+					`source: ${row.sourceSchema}.${row.sourceTable}`,
+				);
 				const key = `${row.sourceSchema}.${row.sourceTable}`;
 				if (!sources.has(key)) {
 					sources.set(key, {
 						schema: row.sourceSchema!,
 						table: row.sourceTable!,
-						system: row.sourceBaseSystem || this.DEFAULT_SYSTEM_CODE_MODEL,
+						system: cleanedSystem,
 						rows: [],
 					});
 				}
@@ -237,12 +289,17 @@ export class S2tToJsonConverterService {
 			}
 			// Цель (входящий вектор)
 			if (row.targetSchema && row.targetTable) {
+				const cleanedSystem = this.getCleanedSystemCode(
+					row.targetBaseSystem,
+					parsedData.fileType,
+					`target: ${row.targetSchema}.${row.targetTable}`,
+				);
 				const key = `${row.targetSchema}.${row.targetTable}`;
 				if (!targets.has(key)) {
 					targets.set(key, {
 						schema: row.targetSchema!,
 						table: row.targetTable!,
-						system: row.targetBaseSystem || this.DEFAULT_SYSTEM_CODE_MODEL,
+						system: cleanedSystem,
 						rows: [],
 					});
 				}
@@ -260,22 +317,16 @@ export class S2tToJsonConverterService {
 
 		// Цели (modified = true, тип input_vector)
 		targets.forEach((t, fullName) => {
-			const entity = this.buildEntity(
-				fullName,
-				t,
-				t.rows,
-				true,
-				"input_vector",
-			);
+			const entity = this.buildEntity(fullName, t, t.rows, true, "input_vector", parsedData.fileType);
 			if (entity.attrSeq.length > 0) {
 				entities.push(entity);
 			}
 		});
 
-		// Источники (modified = false, тип определяется по имени таблицы)
+		// Источники (modified = false)
 		sources.forEach((s, fullName) => {
 			const type = s.table.toUpperCase().startsWith("JSON_") ? "json" : "table";
-			const entity = this.buildEntity(fullName, s, s.rows, false, type);
+			const entity = this.buildEntity(fullName, s, s.rows, false, type, parsedData.fileType);
 			if (entity.attrSeq.length > 0) {
 				entities.push(entity);
 			}
@@ -284,13 +335,7 @@ export class S2tToJsonConverterService {
 		// Mappings
 		const mappings: S2tCommitJsonMappingDto[] = [];
 		for (const [targetFullName, target] of targets.entries()) {
-			const mapping = this.buildMapping(
-				targetFullName,
-				target.system,
-				target.rows,
-				sources,
-				options,
-			);
+			const mapping = this.buildMapping(targetFullName, target.system, target.rows, sources, options, parsedData.fileType);
 			if (mapping.deps.length > 0) {
 				mappings.push(mapping);
 			}
@@ -308,8 +353,14 @@ export class S2tToJsonConverterService {
 	}
 
 	// ------------------------------------------------------------------------
-	// Вспомогательные методы для построения структур JSON коммита
+	// Вспомогательные методы
 	// ------------------------------------------------------------------------
+	private buildEntityId(container: { schema: string; table: string; system: string }): string {
+		if (container.schema) {
+			return `${container.schema}.${container.table}.${container.system}`;
+		}
+		return `${container.table}.${container.system}`;
+	}
 
 	/**
 	 * Построение объекта сущности (entity) из строк S2T.
@@ -318,6 +369,7 @@ export class S2tToJsonConverterService {
 	 * @param rows - строки S2T, относящиеся к этой сущности
 	 * @param modified - true для целевой сущности, false для источника
 	 * @param entityType - тип сущности (table, json, input_vector и т.д.)
+	 * @param fileType - тип файла
 	 */
 	private buildEntity(
 		fullName: string,
@@ -325,21 +377,14 @@ export class S2tToJsonConverterService {
 		rows: S2TRow[],
 		modified: boolean,
 		entityType: string,
+		fileType: S2TFileType,
 	): S2tCommitJsonEntityDto {
-		// Собираем уникальные атрибуты
-		const attrMap = new Map<
-			string,
-			{ name: string; type: string; comment?: string }
-		>();
+		const attrMap = new Map<string, { name: string; type: string; comment?: string }>();
 
-		rows.forEach((row) => {
-			const attrName = modified
-				? row.targetAttributeCode
-				: row.sourceAttributeCode;
+		rows.forEach(row => {
+			const attrName = modified ? row.targetAttributeCode : row.sourceAttributeCode;
 			const attrType = modified ? row.targetDataType : row.sourceDataType;
-			const attrDesc = modified
-				? row.targetAttributeDescription
-				: row.sourceAttributeDescription;
+			const attrDesc = modified ? row.targetAttributeDescription : row.sourceAttributeDescription;
 
 			if (attrName && attrName.trim() !== "") {
 				// Если атрибут с таким именем уже есть, используем первое вхождение
@@ -359,16 +404,10 @@ export class S2tToJsonConverterService {
 			: rows[0]?.sourceTableDescription;
 
 		// Определяем id: если fullName уже содержит точку, используем его, иначе формируем из schema + table
-		const id = fullName.includes(".")
-			? fullName
-			: container.schema
-				? `${container.schema}.${container.table}`
-				: container.table;
+		const id = this.buildEntityId(container);
 
 		// Собираем атрибуты в массив
-		const attrSeq: S2tCommitJsonEntityAttrDto[] = Array.from(
-			attrMap.values(),
-		).map((a) => ({
+		const attrSeq: S2tCommitJsonEntityAttrDto[] = Array.from(attrMap.values()).map(a => ({
 			name: a.name,
 			type: a.type.toUpperCase(),
 			comment: a.comment,
@@ -397,6 +436,7 @@ export class S2tToJsonConverterService {
 	 * @param targetRows - строки S2T, относящиеся к целевой сущности
 	 * @param sourcesMap - карта всех источников (для поиска)
 	 * @param options - опции процесса
+	 * @param fileType - тип файла
 	 */
 	private buildMapping(
 		targetFullName: string,
@@ -404,24 +444,33 @@ export class S2tToJsonConverterService {
 		targetRows: S2TRow[],
 		sourcesMap: Map<string, any>,
 		options?: { processName?: string; processDescription?: string },
+		fileType?: S2TFileType,
 	): S2tCommitJsonMappingDto {
 		const depsMap = new Map<string, S2tCommitJsonDependencyDto>();
 
-		targetRows.forEach((row) => {
-			if (
-				row.sourceSchema &&
-				row.sourceTable &&
-				row.sourceAttributeCode &&
-				row.targetAttributeCode
-			) {
+		targetRows.forEach(row => {
+			if (row.sourceSchema && row.sourceTable && row.sourceAttributeCode && row.targetAttributeCode) {
 				const sourceKey = `${row.sourceSchema}.${row.sourceTable}`;
 				const source = sourcesMap.get(sourceKey);
 				if (!source) return; // если источник не найден (не должен быть)
 
+				// Очищаем system_code для источника (на случай, если в attrMaps используется сырое значение)
+				const sourceSystem = this.getCleanedSystemCode(
+					row.sourceBaseSystem || source.system,
+					fileType || S2TFileType.MART,
+					`mapping source: ${sourceKey}`,
+				);
+
+				const sourceEntityId = this.buildEntityId({
+					schema: row.sourceSchema,
+					table: row.sourceTable,
+					system: sourceSystem,
+				});
+
 				if (!depsMap.has(sourceKey)) {
 					depsMap.set(sourceKey, {
-						entityId: sourceKey,
-						system_code: row.sourceBaseSystem || source.system || "1642",
+						entityId: sourceEntityId,
+						system_code: sourceSystem,
 						process: options?.processName,
 						process_description: options?.processDescription,
 						attrMaps: [],
@@ -438,8 +487,14 @@ export class S2tToJsonConverterService {
 			}
 		});
 
+		const targetEntityId = this.buildEntityId({
+			schema: targetRows[0]?.targetSchema || '',
+			table: targetRows[0]?.targetTable || '',
+			system: targetSystem,
+		});
+
 		return {
-			entityId: targetFullName,
+			entityId: targetEntityId,
 			system_code: targetSystem,
 			relation_change: this.RELATION_CHANGE_VALUE,
 			deps: Array.from(depsMap.values()),
@@ -455,15 +510,8 @@ export class S2tToJsonConverterService {
 		const t = dataType.toLowerCase().trim();
 
 		if (t.includes("number") || t.includes("int")) return "integer";
-		if (
-			t.includes("decimal") ||
-			t.includes("numeric") ||
-			t.includes("float") ||
-			t.includes("double")
-		)
-			return "decimal";
-		if (t.includes("timestamp") || t.includes("date") || t.includes("datetime"))
-			return "timestamp";
+		if (t.includes("decimal") || t.includes("numeric") || t.includes("float") || t.includes("double")) return "decimal";
+		if (t.includes("timestamp") || t.includes("date") || t.includes("datetime")) return "timestamp";
 		if (t.includes("bool")) return "boolean";
 		return "string";
 	}

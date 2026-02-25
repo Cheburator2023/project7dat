@@ -62,12 +62,21 @@ export class JsonImportRequestDto {
 	@IsString()
 	schemaVersion?: string;
 
-    @ApiProperty({
-        description: "Разрешить импорт при наличии уже существующих циклических зависимостей",
-        example: true,
-        required: false,
-    })
-    @IsOptional()
-    @IsBoolean()
-    allowExistingCycles?: boolean;
+	@ApiProperty({
+		description: "Разрешить импорт при наличии циклических зависимостей, которые существовали ранее",
+		required: false,
+		default: false,
+	})
+	@IsOptional()
+	@IsBoolean()
+	allowExistingCycles?: boolean;
+
+	@ApiProperty({
+		description: "Пропустить проверку на дубликаты (для случаев, когда дубликаты уже есть в БД и их импорт разрешён)",
+		required: false,
+		default: false,
+	})
+	@IsOptional()
+	@IsBoolean()
+	skipDuplicateCheck?: boolean;
 }

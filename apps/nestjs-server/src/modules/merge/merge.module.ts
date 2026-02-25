@@ -25,6 +25,10 @@ import { MergeController } from "./controllers/merge.controller";
 import { MergeService } from "./services/merge.service";
 import { ConfigModule } from "@nestjs/config";
 import {DependencyCheckService} from "../json-data/services/dependency-check.service";
+import { JsonStructureValidator } from '../json-data/services/interfaces/validation.interfaces';
+import { JsonStructureValidationService } from "../json-data/services/json-structure-validation.service";
+import { JsonDataModule } from "../json-data/json-data.module";
+
 
 @Module({
 	imports: [
@@ -45,6 +49,7 @@ import {DependencyCheckService} from "../json-data/services/dependency-check.ser
 			ProcessEntity,
 			ProcessTypeEntity,
 			ProcessGroupEntity,
+			JsonDataModule,
 		]),
 		ConfigModule,
 	],
@@ -57,6 +62,10 @@ import {DependencyCheckService} from "../json-data/services/dependency-check.ser
 		JsonCommitService,
 		SnapshotService,
         DependencyCheckService,
+		{
+			provide: JsonStructureValidator,
+			useClass: JsonStructureValidationService,
+		},
 	],
 	exports: [MergeService],
 })

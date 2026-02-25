@@ -31,51 +31,69 @@ export class ProcessHandlingService {
 
 	async handleProcess(
 		desc: any,
-		_entities: any[],
+		entities: any[],
 		mappings: any[],
 		changeId: number,
 		queryRunner: QueryRunner,
 	): Promise<ProcessEntity> {
-		if (!desc || !desc.appName) {
-			throw new Error("Неверная структура desc: отсутствует appName");
+		this.logger.debug(`handleProcess called with desc: ${JSON.stringify(desc)}`);
+
+		// 1. Получаем имя процесса: приоритет у desc.process, затем desc.appName
+		let processName: string;
+		if (desc?.process) {
+			processName = desc.process;
+			this.logger.log(`Имя процесса взято из desc.process: "${processName}"`);
+		} else if (desc?.appName) {
+			processName = desc.appName;
+			this.logger.warn(`Имя процесса взято из устаревшего поля desc.appName: "${processName}"`);
+		} else {
+			const errorMsg = 'Не удалось определить имя процесса: отсутствуют поля process и appName в desc';
+			this.logger.error(errorMsg);
+			throw new Error(errorMsg);
 		}
 
-		const processName = this.extractProcessName(desc.appName);
+		// Очищаем имя
+		const cleanProcessName = this.extractProcessName(processName);   // processName точно string
 
-		// Поиск существующего процесса
+		// 2. Определяем тип процесса на основе commit_type
+		const commitType = desc?.commit_type;
+		let processTypeName: string;
+		if (commitType === 'table') {
+			processTypeName = 'DAG_AIRFLOW';
+		} else if (commitType === 'model') {
+			processTypeName = 'PIM';
+		} else {
+			processTypeName = this.getProcessTypeName(processName);      // processName точно string
+			this.logger.warn(`Тип процесса определён по старой логике как "${processTypeName}" для commit_type="${commitType}"`);
+		}
+
+		this.logger.log(`Для процесса "${cleanProcessName}" будет использован тип "${processTypeName}"`);
+
+		// 3. Поиск существующего процесса
 		let process = await this.processRepository.findOne({
-			where: { name: processName },
+			where: { name: cleanProcessName },
 		});
 
 		if (process) {
-			this.logger.log(
-				`Найден существующий процесс: ${processName} (ID: ${process.process_id})`,
-			);
-
-			// Для существующего процесса обновляем change_id
+			this.logger.log(`Найден существующий процесс: ${cleanProcessName} (ID: ${process.process_id})`);
+			// Обновляем change_id и описание
 			process.change_id = changeId;
-			process.description = desc.appName;
+			process.description = desc.description || processName; // сохраняем оригинальное описание
 			process = await queryRunner.manager.save(ProcessEntity, process);
 
 			// Удаляем только связи для совпадающих источников и витрин
-			await this.cleanupMatchingMappings(
-				process.process_id,
-				mappings,
-				queryRunner,
-			);
+			await this.cleanupMatchingMappings(process.process_id, mappings, queryRunner);
 		} else {
-			this.logger.log(`Создание нового процесса: ${processName}`);
+			this.logger.log(`Создание нового процесса: ${cleanProcessName}`);
 
-			// Создание нового процесса
+			// Получаем или создаём тип процесса
+			const processTypeId = await this.resolveProcessTypeId(processTypeName, changeId, queryRunner);
+
 			process = new ProcessEntity();
-			process.name = processName;
+			process.name = cleanProcessName;
 			process.change_id = changeId;
-			process.process_type = await this.resolveProcessTypeId(
-				desc.appName,
-				changeId,
-				queryRunner,
-			);
-			process.description = desc.appName;
+			process.process_type = processTypeId;
+			process.description = desc.description || processName;
 			process.group_id = null;
 
 			process = await queryRunner.manager.save(ProcessEntity, process);
@@ -84,10 +102,16 @@ export class ProcessHandlingService {
 		return process;
 	}
 
+	/**
+	 * Извлекает базовое имя процесса (например, отсекает часть после точки)
+	 */
 	private extractProcessName(appName: string): string {
-		return appName.split(".")[0];
+		return appName.split('.')[0];
 	}
 
+	/**
+	 * Устаревший метод определения типа процесса по имени (оставлен для обратной совместимости)
+	 */
 	private getProcessTypeName(appName: string): string {
 		if (appName.includes("DAG")) {
 			return "DAG_AIRFLOW";
@@ -99,12 +123,10 @@ export class ProcessHandlingService {
 	}
 
 	private async resolveProcessTypeId(
-		appName: string,
+		typeName: string,
 		changeId: number,
 		queryRunner: QueryRunner,
 	): Promise<number> {
-		const typeName = this.getProcessTypeName(appName);
-
 		const existing = await queryRunner.manager.findOne(ProcessTypeEntity, {
 			where: { name: typeName },
 		});
