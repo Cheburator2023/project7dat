@@ -7,7 +7,8 @@
 		"paths": {
 			"@react-client/*": ["./src/*"],
 			"@data-lineage/shared-schemas": ["../../packages/shared-schemas/src/index.ts"],
-			"@data-lineage/shared-schemas/*": ["../../packages/shared-schemas/src/*"]
+			"@data-lineage/shared-schemas/*": ["../../packages/shared-schemas/src/*"],
+			
 		},
 		"allowJs": true,
 		"skipLibCheck": true,
