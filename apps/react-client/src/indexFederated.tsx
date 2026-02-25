@@ -23,6 +23,8 @@ export type Props = {
 };
 
 const MfeRoot = (props: Props) => {
+	console.log("🐸 Pepe said >> MfeRoot >> props:", props);
+
 	useDeepEffect(() => {
 		if (props?.urlConfig && props?.token) {
 			window.urlConfig = props.urlConfig;
