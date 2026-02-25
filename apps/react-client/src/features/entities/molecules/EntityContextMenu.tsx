@@ -16,9 +16,9 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { toast } from "sonner";
-import { useAuthStore } from "@react-client/common/store/authStore";
+import { useAuthStore } from "@react-client/common/stores/authStore";
 import { usePaginatedEntityRelations } from "@react-client/api/hooks";
 import { useEntitiesStore } from "../stores";
 import type { EntityConnection } from "../types";

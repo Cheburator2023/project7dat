@@ -7,4 +7,4 @@ export { CodeEditorPanel } from "./CodeEditorPanel";
 export { SelectionInfoPanel } from "./SelectionInfoPanel";
 export { IssuesPanel } from "./IssuesPanel";
 export { SchemaPanel } from "./SchemaPanel";
-export { DashboardHeader } from "../../dashboard/DashboardHeader";
+export { DashboardHeader } from "../../dashboard/organisms/DashboardHeader";

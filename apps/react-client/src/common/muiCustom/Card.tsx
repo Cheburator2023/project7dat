@@ -12,7 +12,7 @@ import {
 
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Spacer } from "@react-client/common/primitives/Spacer";
-import { usePageLocalStorage } from "@react-client/hooks/usePageLocalStorage";
+import { usePageLocalStorage } from "@react-client/common/hooks/usePageLocalStorage";
 import { useState } from "react";
 
 const headerH = 20;

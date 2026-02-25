@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { styled, useColorScheme } from "@mui/material/styles";
-import { useGlobalSettingsStore } from "@react-client/common/store/globalSettingsStore";
+import { useGlobalSettingsStore } from "@react-client/common/stores/globalSettingsStore";
 import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
-import { useMainDataLoadingStore } from "@react-client/common/store/mainDataLoadingStore";
+import { useMainDataLoadingStore } from "@react-client/common/stores/mainDataLoadingStore";
 import { SideMenu } from "../navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
 
