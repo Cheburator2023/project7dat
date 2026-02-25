@@ -605,6 +605,7 @@ div.dockview-theme-dark-spaced {
 
 div.dv-dockview {
 	background-color: transparent;
+	width: -webkit-fill-available !important;
 }
 
 div.dockview-theme-light-spaced .dv-groupview,

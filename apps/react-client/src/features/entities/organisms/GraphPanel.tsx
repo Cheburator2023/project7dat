@@ -80,8 +80,8 @@ export const GraphPanel = memo(() => {
 	const { data: paginatedMappingsData, isLoading: isPaginatedMappingsLoading } =
 		usePaginatedMappings({
 			page: 1,
-			limit: 52,
-			enabled: true,
+			limit: 50,
+			enabled: false,
 		});
 
 	const graphId = effectiveGraphId ?? "current_stable_version";

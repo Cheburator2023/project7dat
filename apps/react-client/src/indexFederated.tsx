@@ -26,7 +26,7 @@ const MfeRoot = (props: Props) => {
 	console.log("🐸 Pepe said >> MfeRoot >> props:", props);
 
 	useDeepEffect(() => {
-		if (props?.urlConfig && props?.token) {
+		if (props?.urlConfig) {
 			window.urlConfig = props.urlConfig;
 			window.keycloak = props.keycloak;
 			window.user = props.user;
@@ -63,7 +63,7 @@ const MfeRoot = (props: Props) => {
 	}, [user?.roles, user?.realm_access]);
 
 	return (
-		<AuthProvider token={props.token}>
+		<AuthProvider>
 			{globalStyles}
 
 			{props?.urlConfig && props?.keycloak ? (
