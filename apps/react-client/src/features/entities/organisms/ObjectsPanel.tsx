@@ -32,6 +32,7 @@ import {
 import type { ObjectRow, LinkRow, EntityConnection } from "../types";
 import { usePaginatedEntities } from "@react-client/api/hooks/usePaginatedEntities";
 import { usePaginatedMappings } from "@react-client/api/hooks/usePaginatedMappings";
+import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import type {
 	PaginatedEntitiesResponse,
 	PaginatedMappingsResponse,
@@ -60,6 +61,7 @@ export const ObjectsPanel = memo(() => {
 		selectedAttributeName,
 		selectAttribute,
 		globalSearchQuery,
+		hideTempTables,
 	} = useEntitiesStore();
 
 	const { effectiveGraphId } = useCurrentSchema();
@@ -68,6 +70,10 @@ export const ObjectsPanel = memo(() => {
 		usePaginatedEntities({
 			page: 1,
 			limit: 50,
+			search: buildEntitiesSearch({
+				uiSearch: globalSearchQuery || undefined,
+				hideTempTables,
+			}),
 			enabled: false,
 		});
 	const { data: paginatedMappingsData, isLoading: isLoadingPaginatedMappings } =

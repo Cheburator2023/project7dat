@@ -78,9 +78,11 @@ export { useCreateSnapshot } from "./useCreateSnapshot";
 export { useUpdateSnapshot } from "./useUpdateSnapshot";
 export { useDeleteSnapshot } from "./useDeleteSnapshot";
 export { useRestoreSnapshot } from "./useRestoreSnapshot";
-
-// Changelog hooks
 export { useChangelog } from "./useChangelog";
+export {
+	buildEntitiesSearch,
+	HIDE_TEMP_TABLES_TOKEN,
+} from "./buildEntitiesSearch";
 
 // Database management hooks
 export { useResetDatabase } from "./useResetDatabase";

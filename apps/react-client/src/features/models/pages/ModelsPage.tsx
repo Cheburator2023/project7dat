@@ -16,6 +16,7 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import { usePaginatedEntities } from "@react-client/api/hooks";
+import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { routes } from "@react-client/routing/routes";
 
@@ -36,7 +37,7 @@ export const ModelsPage = () => {
 		undefined,
 	);
 	const { mode } = useColorScheme();
-	const { selectEntity } = useEntitiesStore();
+	const { selectEntity, hideTempTables } = useEntitiesStore();
 	const navigate = useNavigate();
 
 	// Backend pagination — search is passed to backend
@@ -47,7 +48,10 @@ export const ModelsPage = () => {
 	} = usePaginatedEntities({
 		page,
 		limit: pageSize,
-		search: searchQuery || undefined,
+		search: buildEntitiesSearch({
+			uiSearch: searchQuery || undefined,
+			hideTempTables,
+		}),
 		type: "input_vector",
 		sortBy,
 		sortOrder,

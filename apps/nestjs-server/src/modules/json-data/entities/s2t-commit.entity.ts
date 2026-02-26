@@ -41,6 +41,9 @@ export class S2tCommitEntity {
 	@Column({ type: "jsonb" })
 	payload: Record<string, any>;
 
+	@Column({ type: "jsonb", nullable: true })
+	original_payload: Record<string, any> | null;
+
 	@Column({ type: "integer", nullable: true })
 	change_id: number | null;
 

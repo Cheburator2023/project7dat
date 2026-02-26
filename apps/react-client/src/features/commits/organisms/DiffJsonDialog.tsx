@@ -215,14 +215,14 @@ const getStableArrayItemKey = (item: unknown): string | null => {
 
 	if (typeof idValue === "string" || typeof idValue === "number") {
 		const id = String(idValue);
-		return systemCode ? `id:${id}::sys:${systemCode}` : `id:${id}`;
+		return systemCode ? `id: ${id} система: ${systemCode}` : `id: ${id}`;
 	}
 
 	if (typeof entityIdValue === "string" || typeof entityIdValue === "number") {
 		const entityId = String(entityIdValue);
 		return systemCode
-			? `entityId:${entityId}::sys:${systemCode}`
-			: `entityId:${entityId}`;
+			? `entityId: ${entityId} система: ${systemCode}`
+			: `entityId: ${entityId}`;
 	}
 
 	if (typeof nameValue === "string" && nameValue.trim().length > 0) {
@@ -233,7 +233,7 @@ const getStableArrayItemKey = (item: unknown): string | null => {
 		(typeof srcValue === "string" || typeof srcValue === "number") &&
 		(typeof dstValue === "string" || typeof dstValue === "number")
 	) {
-		return `src:${String(srcValue)}::dst:${String(dstValue)}`;
+		return `src: ${String(srcValue)} dst: ${String(dstValue)}`;
 	}
 
 	return null;

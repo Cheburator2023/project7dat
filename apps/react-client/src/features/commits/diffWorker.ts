@@ -66,25 +66,236 @@ export const buildEntityGroups = (
 	});
 };
 
-export const toPreview = (value: unknown): string => {
+const formatStableKeyLabel = (stableKey: string): string => {
+	const [base, ...rest] = stableKey.split("::sys:");
+	const sys = rest.length > 0 ? rest.join("::sys:") : "";
+	const sysPart = sys ? ", sys=" + sys : "";
+
+	if (base.startsWith("id:")) {
+		return "id=" + base.slice(3) + sysPart;
+	}
+	if (base.startsWith("entityId:")) {
+		return "entityId=" + base.slice(9) + sysPart;
+	}
+	if (base.startsWith("name:")) {
+		return "name=" + base.slice(5) + sysPart;
+	}
+	if (base.startsWith("src:") && base.includes("::dst:")) {
+		const [srcPart, dstPart] = base.split("::dst:");
+		return "src=" + srcPart.slice(4) + ", dst=" + dstPart + sysPart;
+	}
+	return base + sysPart;
+};
+
+export const formatDiffPathForDisplay = (path: string): string => {
+	if (!path) return "<root>";
+	const parts = path.split(".");
+	const formattedParts = parts.map((part) => {
+		if (!part.startsWith("id:")) {
+			return part;
+		}
+		const raw = part.slice(3);
+		try {
+			const decoded = decodeURIComponent(raw);
+			return "id:" + formatStableKeyLabel(decoded);
+		} catch {
+			return part;
+		}
+	});
+	return formattedParts.join(".");
+};
+
+export const formatEntityLabelForDisplay = (label: string): string => {
+	const match = label.match(/\[id=([^\]]+)\]/);
+	if (!match) {
+		return label;
+	}
+	const stableKey = match[1] ?? "";
+	if (!stableKey) {
+		return label;
+	}
+	return label.replace(match[0], "[" + formatStableKeyLabel(stableKey) + "]");
+};
+
+export const convertDiffPathToRealPath = (
+	path: string,
+	data: unknown,
+): string | null => {
+	if (!path) return "";
+
+	const parts = path.split(".");
+	const realParts: string[] = [];
+	let current = data;
+
+	for (const part of parts) {
+		if (!part.startsWith("id:")) {
+			realParts.push(part);
+			if (current && typeof current === "object" && !Array.isArray(current)) {
+				current = (current as Record<string, unknown>)[part];
+			}
+			continue;
+		}
+
+		if (!Array.isArray(current)) {
+			return null;
+		}
+
+		const encodedKey = part.slice(3);
+		let decodedKey: string;
+		try {
+			decodedKey = decodeURIComponent(encodedKey);
+		} catch {
+			return null;
+		}
+
+		const arrayItems = current as unknown[];
+		let foundIndex = -1;
+
+		for (let i = 0; i < arrayItems.length; i++) {
+			const item = arrayItems[i];
+			if (!item || typeof item !== "object" || Array.isArray(item)) {
+				continue;
+			}
+
+			const obj = item as Record<string, unknown>;
+			const idValue = obj.id;
+			const entityIdValue = obj.entityId;
+			const systemCodeValue = obj.system_code;
+			const nameValue = obj.name;
+			const srcValue = obj.src;
+			const dstValue = obj.dst;
+
+			const systemCode =
+				typeof systemCodeValue === "string" && systemCodeValue.trim().length > 0
+					? systemCodeValue.trim()
+					: "";
+
+			let itemStableKey = "";
+
+			if (typeof idValue === "string" || typeof idValue === "number") {
+				const id = String(idValue);
+				itemStableKey = systemCode ? `id:${id}::sys:${systemCode}` : `id:${id}`;
+			} else if (
+				typeof entityIdValue === "string" ||
+				typeof entityIdValue === "number"
+			) {
+				const entityId = String(entityIdValue);
+				itemStableKey = systemCode
+					? `entityId:${entityId}::sys:${systemCode}`
+					: `entityId:${entityId}`;
+			} else if (typeof nameValue === "string" && nameValue.trim().length > 0) {
+				itemStableKey = `name:${nameValue.trim()}`;
+			} else if (
+				(typeof srcValue === "string" || typeof srcValue === "number") &&
+				(typeof dstValue === "string" || typeof dstValue === "number")
+			) {
+				itemStableKey = `src:${String(srcValue)}::dst:${String(dstValue)}`;
+			}
+
+			if (itemStableKey === decodedKey) {
+				foundIndex = i;
+				break;
+			}
+		}
+
+		if (foundIndex < 0) {
+			return null;
+		}
+
+		realParts.push(String(foundIndex));
+		current = arrayItems[foundIndex];
+	}
+
+	return realParts.join(".");
+};
+
+export const toPreview = (value: unknown, depth = 0): string => {
 	if (value === undefined) return "undefined";
 	if (value === null) return "null";
 	if (typeof value === "string") {
-		return value.length > 180 ? `${value.slice(0, 180)}…` : value;
+		return value.length > 200 ? `${value.slice(0, 200)}…` : value;
 	}
 	if (typeof value === "number" || typeof value === "boolean") {
 		return String(value);
 	}
 	if (Array.isArray(value)) {
-		return `[array(${value.length})]`;
+		if (depth >= 2 || value.length === 0) {
+			return `[${value.length} items]`;
+		}
+		const items = value
+			.slice(0, 3)
+			.map((item) => toPreview(item, depth + 1))
+			.join(", ");
+		return value.length > 3
+			? `[${items}, …+${value.length - 3}]`
+			: `[${items}]`;
 	}
 	if (typeof value === "object") {
-		const keys = Object.keys(value as Record<string, unknown>);
-		return keys.length === 0
-			? "{object}"
-			: `{object keys: ${keys.slice(0, 4).join(", ")}${keys.length > 4 ? "…" : ""}}`;
+		const obj = value as Record<string, unknown>;
+		const keys = Object.keys(obj);
+		if (keys.length === 0) return "{}";
+		if (depth >= 2) {
+			return `{${keys.slice(0, 3).join(", ")}${keys.length > 3 ? "…" : ""}}`;
+		}
+		const entries = keys
+			.slice(0, 4)
+			.map((k) => `${k}: ${toPreview(obj[k], depth + 1)}`)
+			.join(", ");
+		return keys.length > 4
+			? `{${entries}, …+${keys.length - 4}}`
+			: `{${entries}}`;
 	}
 	return String(value);
+};
+
+export const getInlineStringDiff = (
+	before: string,
+	after: string,
+): Array<{ text: string; type: "same" | "removed" | "added" }> => {
+	if (before === after) return [{ text: before, type: "same" }];
+	const words1 = before.split(/(\s+)/);
+	const words2 = after.split(/(\s+)/);
+	const n = words1.length;
+	const m = words2.length;
+	if (n + m > 400) {
+		return [
+			{ text: before, type: "removed" },
+			{ text: after, type: "added" },
+		];
+	}
+	const dp: number[][] = Array.from({ length: n + 1 }, () =>
+		new Array(m + 1).fill(0),
+	);
+	for (let i = n - 1; i >= 0; i--) {
+		for (let j = m - 1; j >= 0; j--) {
+			if (words1[i] === words2[j]) {
+				dp[i][j] = dp[i + 1][j + 1] + 1;
+			} else {
+				dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+			}
+		}
+	}
+	const result: Array<{ text: string; type: "same" | "removed" | "added" }> =
+		[];
+	let i = 0;
+	let j = 0;
+	while (i < n || j < m) {
+		if (i < n && j < m && words1[i] === words2[j]) {
+			result.push({ text: words1[i], type: "same" });
+			i++;
+			j++;
+		} else if (
+			j < m &&
+			(i >= n || (dp[i + 1]?.[j] ?? 0) <= (dp[i]?.[j + 1] ?? 0))
+		) {
+			result.push({ text: words2[j], type: "added" });
+			j++;
+		} else {
+			result.push({ text: words1[i], type: "removed" });
+			i++;
+		}
+	}
+	return result;
 };
 
 export const createDiffWorkerScript = (): string => {
@@ -239,6 +450,31 @@ const getEntityMetaFromPath = (path) => {
 	if (!path) {
 		return { entityKey: "<root>", entityLabel: "<root>" };
 	}
+
+	const formatStableKeyLabel = (stableKey) => {
+		if (typeof stableKey !== "string" || stableKey.length === 0) {
+			return stableKey;
+		}
+		const [base, ...rest] = stableKey.split("::sys:");
+		const sys = rest.length > 0 ? rest.join("::sys:") : "";
+		const sysPart = sys ? ", sys=" + sys : "";
+
+		if (base.startsWith("id:")) {
+			return "id=" + base.slice(3) + sysPart;
+		}
+		if (base.startsWith("entityId:")) {
+			return "entityId=" + base.slice(9) + sysPart;
+		}
+		if (base.startsWith("name:")) {
+			return "name=" + base.slice(5) + sysPart;
+		}
+		if (base.startsWith("src:") && base.includes("::dst:")) {
+			const [srcPart, dstPart] = base.split("::dst:");
+			return "src=" + srcPart.slice(4) + ", dst=" + dstPart + sysPart;
+		}
+		return base + sysPart;
+	};
+
 	const parts = path.split(".");
 	if (parts.length > 1 && /^\\d+$/.test(parts[1])) {
 		return {
@@ -249,9 +485,10 @@ const getEntityMetaFromPath = (path) => {
 	if (parts.length > 1 && parts[1].startsWith("id:")) {
 		const rawKey = parts[1].slice(3);
 		const decodedKey = decodeURIComponent(rawKey);
+		const prettyKey = formatStableKeyLabel(decodedKey);
 		return {
 			entityKey: parts[0] + "." + parts[1],
-			entityLabel: parts[0] + "[id=" + decodedKey + "]",
+			entityLabel: parts[0] + "[" + prettyKey + "]",
 		};
 	}
 	return { entityKey: parts[0], entityLabel: parts[0] };

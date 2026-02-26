@@ -23,6 +23,7 @@ import { useShallow } from "zustand/react/shallow";
 import { usePaginatedEntities } from "@react-client/api/hooks/usePaginatedEntities";
 import { usePaginatedMappings } from "@react-client/api/hooks/usePaginatedMappings";
 import { usePaginatedEntityRelations } from "@react-client/api/hooks/usePaginatedEntityRelations";
+import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import type {
 	PaginatedEntitiesResponse,
 	PaginatedMappingsResponse,
@@ -56,12 +57,16 @@ export const GraphPanel = memo(() => {
 		selectEntity,
 		setUpstreamDownstream,
 		selectedAttributes,
+		globalSearchQuery,
+		hideTempTables,
 	} = useEntitiesStore(
 		useShallow((state) => ({
 			selectedEntityId: state.selectedEntityId,
 			selectEntity: state.selectEntity,
 			setUpstreamDownstream: state.setUpstreamDownstream,
 			selectedAttributes: state.selectedAttributes,
+			globalSearchQuery: state.globalSearchQuery,
+			hideTempTables: state.hideTempTables,
 		})),
 	);
 
@@ -74,6 +79,10 @@ export const GraphPanel = memo(() => {
 		usePaginatedEntities({
 			page: 1,
 			limit: 500,
+			search: buildEntitiesSearch({
+				uiSearch: globalSearchQuery || undefined,
+				hideTempTables,
+			}),
 			enabled: false,
 		});
 	const { data: paginatedMappingsData, isLoading: isPaginatedMappingsLoading } =

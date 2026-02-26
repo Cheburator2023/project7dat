@@ -44,22 +44,19 @@ export const TEMP_TABLE_COLORS = {
 export const isTempTable = (entity: {
 	id?: string;
 	name?: string | null;
+	namespace?: string | null;
 }): boolean => {
-	const id = entity.id?.toLowerCase() ?? "";
-	const name = entity.name?.toLowerCase() ?? "";
+	const id = entity.id ?? "";
+	const name = entity.name ?? "";
+	const namespace = entity.namespace ?? "";
+
 	return (
-		id.startsWith("temp_") ||
-		id.startsWith("tmp_") ||
-		id.includes(".temp_") ||
-		id.includes(".tmp_") ||
-		name.startsWith("temp_") ||
-		name.startsWith("tmp_") ||
-		name.includes(".temp_") ||
-		name.includes(".tmp_") ||
-		name.includes("TEMP_") ||
-		name.includes("TMP_") ||
+		id.includes("TEMP") ||
+		id.includes("TMP") ||
 		name.includes("TEMP") ||
-		name.includes("TMP")
+		name.includes("TMP") ||
+		namespace.includes("TMP") ||
+		namespace.includes("TEMP")
 	);
 };
 

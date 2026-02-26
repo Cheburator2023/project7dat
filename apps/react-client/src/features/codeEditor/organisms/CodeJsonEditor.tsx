@@ -1423,6 +1423,23 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 	}, [searchResults, currentSearchIndex, flatNodes]);
 
 	useEffect(() => {
+		if (!focusedPath) return;
+		const searchPath = focusedPath.startsWith(".")
+			? focusedPath.slice(1)
+			: focusedPath;
+		let nodeIndex = flatNodes.findIndex((node) => node.path === searchPath);
+		if (nodeIndex < 0) {
+			const childPath = `${searchPath}.`;
+			nodeIndex = flatNodes.findIndex((node) =>
+				node.path.startsWith(childPath),
+			);
+		}
+		if (nodeIndex >= 0) {
+			listRef.current?.scrollToItem(nodeIndex, "start");
+		}
+	}, [focusedPath, flatNodes]);
+
+	useEffect(() => {
 		if (!initialData) {
 			return;
 		}

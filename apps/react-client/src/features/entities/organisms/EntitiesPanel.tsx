@@ -21,6 +21,7 @@ import {
 import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import { usePaginatedEntities } from "@react-client/api/hooks";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
+import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 
 import { useEntitiesStore } from "../stores";
 import { TypeChip } from "../atoms";
@@ -52,6 +53,7 @@ export const EntitiesPanel = memo(
 			upstreamEntities,
 			downstreamEntities,
 			globalSearchQuery,
+			hideTempTables,
 			selectEntity,
 			entitiesPage,
 			entitiesPageSize,
@@ -70,7 +72,10 @@ export const EntitiesPanel = memo(
 		} = usePaginatedEntities({
 			page: entitiesPage,
 			limit: entitiesPageSize,
-			search: globalSearchQuery || undefined,
+			search: buildEntitiesSearch({
+				uiSearch: globalSearchQuery || undefined,
+				hideTempTables,
+			}),
 			sortBy: entitiesSortBy,
 			sortOrder: entitiesSortOrder,
 		});
