@@ -4,6 +4,8 @@ import {
 	useMemo,
 	useEffect,
 	useRef,
+	useContext,
+	createContext,
 	type ChangeEvent,
 	type FunctionComponent,
 	type ReactNode,
@@ -19,9 +21,7 @@ import {
 	useColorScheme,
 } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
-import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/stores/panelSettingsStore";
-import { useShallow } from "zustand/react/shallow";
 import { EntityJsonEditor } from "../organisms/EntityJsonEditor";
 import { EntityDetailsView } from "../organisms/EntityDetailsView";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -41,7 +41,9 @@ import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/M
 import { SearchIcon } from "lucide-react";
 import { usePaginatedModelRelations } from "@react-client/api/hooks/usePaginatedModelRelations";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
-import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
+import { SkeletonFade } from "@react-client/common/skeleton/atoms/SkeletonFade";
+import { SkeletonBlock } from "@react-client/common/skeleton/atoms/SkeletonBlock";
+import { SkeletonList } from "@react-client/common/skeleton/molecules/SkeletonList";
 
 import {
 	DockviewReadyEvent,
@@ -108,6 +110,37 @@ interface EntityPreviewPageProps {
 	entityId?: string;
 }
 
+type ModelPreviewDockviewContextValue = {
+	isLoading: boolean;
+	selectedEntity: DataLineageEntity | null;
+	relatedMappings: DataLineageMapping[];
+	calculatedEntities: DataLineageEntity[];
+	graphData:
+		| {
+				entities: DataLineageEntity[];
+				mappings: DataLineageMapping[];
+		  }
+		| undefined;
+	depthLimit: number;
+	onDepthChange: (next: number) => void;
+	onSelectNode: (data: any) => void;
+};
+
+const ModelPreviewDockviewContext =
+	createContext<ModelPreviewDockviewContextValue>({
+		isLoading: false,
+		selectedEntity: null,
+		relatedMappings: [],
+		calculatedEntities: [],
+		graphData: undefined,
+		depthLimit: 1,
+		onDepthChange: () => {},
+		onSelectNode: () => {},
+	});
+
+const useModelPreviewDockviewContext = (): ModelPreviewDockviewContextValue =>
+	useContext(ModelPreviewDockviewContext);
+
 // Stable selectors for useEntitiesStore
 const selectGlobalAttributeSearchQuery = (state: {
 	globalAttributeSearchQuery: string;
@@ -124,9 +157,6 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		undefined,
 	);
 	const [depthLimit, setDepthLimit] = useState(1);
-	const [calculatedEntities, _setCalculatedEntities] = useState<
-		DataLineageEntity[]
-	>([]);
 
 	const isPersistEnabled = usePanelSettingsStore((state) =>
 		state.isPanelPersistEnabled("model-preview"),
@@ -191,18 +221,16 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		};
 	}, []);
 
-	const { currentGraph } = useDataLineageStore(
-		useShallow((state) => ({
-			currentGraph: state.currentGraph,
-		})),
-	);
-
 	const targetEntityId = useMemo(() => {
 		const decodedUrlEntityId = urlEntityId
 			? decodeURIComponent(urlEntityId)
 			: undefined;
 		return currentEntityId || propEntityId || decodedUrlEntityId || "";
 	}, [currentEntityId, propEntityId, urlEntityId]);
+	console.log(
+		"🐸 Pepe said >> ModelPreviewPage >> targetEntityId:",
+		targetEntityId,
+	);
 
 	const { data: modelRelationsData, isLoading } = usePaginatedModelRelations({
 		modelId: targetEntityId,
@@ -210,6 +238,7 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		limit: 10000,
 		enabled: !!targetEntityId,
 	});
+	console.log("🐸 Pepe said >> ModelPreviewPage >> isLoading:", isLoading);
 
 	const selectedEntity = useMemo(() => {
 		if (modelRelationsData?.entity) {
@@ -253,6 +282,11 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		};
 	}, [selectedEntity, relatedMappings, modelRelationsData]);
 
+	const calculatedEntities = useMemo(
+		() => graphData?.entities ?? [],
+		[graphData?.entities],
+	);
+
 	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
 	const { mode } = useColorScheme();
 
@@ -261,40 +295,11 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		FunctionComponent<IDockviewPanelProps>
 	> = useMemo(
 		() => ({
-			"entity-details": () => (
-				<EntityContainer>
-					<EntityDetailsView
-						entity={selectedEntity}
-						mappings={relatedMappings}
-						allEntities={calculatedEntities}
-					/>
-				</EntityContainer>
-			),
-			"entity-json": () => (
-				<EntityContainer>
-					<EntityJsonEditor entity={selectedEntity} />
-				</EntityContainer>
-			),
-			"entity-graph": () => (
-				<ModelGraphPanel
-					onSelectNode={onSelectNode}
-					entity={selectedEntity}
-					isLoading={isLoading}
-					graphData={graphData}
-					depthLimit={depthLimit}
-					onDepthChange={setDepthLimit}
-				/>
-			),
+			"entity-details": EntityDetailsPanel,
+			"entity-json": EntityJsonPanel,
+			"entity-graph": EntityGraphDockviewPanel,
 		}),
-		[
-			selectedEntity,
-			relatedMappings,
-			calculatedEntities,
-			graphData,
-			depthLimit,
-			onSelectNode,
-			isLoading,
-		],
+		[],
 	);
 
 	const isPersistEnabledRef = useRef(isPersistEnabled);
@@ -401,11 +406,20 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 				</Box>
 			</Header>
 
-			{isLoading ? (
-				<FullScreenLoader />
-			) : (
-				<Wrapper id="entity_preview_container">
-					<DockviewContainer>
+			<Wrapper id="entity_preview_container">
+				<DockviewContainer>
+					<ModelPreviewDockviewContext.Provider
+						value={{
+							isLoading,
+							selectedEntity,
+							relatedMappings,
+							calculatedEntities,
+							graphData,
+							depthLimit,
+							onDepthChange: setDepthLimit,
+							onSelectNode,
+						}}
+					>
 						<DockviewReact
 							components={panelComponents}
 							onReady={onReady}
@@ -413,10 +427,88 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 							rightHeaderActionsComponent={DockviewGroupMaximizeActions}
 							theme={mode === "dark" ? themeAbyssSpaced : themeLightSpaced}
 						/>
-					</DockviewContainer>
-				</Wrapper>
-			)}
+					</ModelPreviewDockviewContext.Provider>
+				</DockviewContainer>
+			</Wrapper>
 		</div>
+	);
+};
+
+const EntityDetailsPanel: FunctionComponent<IDockviewPanelProps> = () => {
+	const { isLoading, selectedEntity, relatedMappings, calculatedEntities } =
+		useModelPreviewDockviewContext();
+
+	return (
+		<EntityContainer>
+			<SkeletonFade
+				loading={isLoading}
+				skeleton={<SkeletonList rows={12} rowHeight={16} />}
+			>
+				<EntityDetailsView
+					entity={selectedEntity}
+					mappings={relatedMappings}
+					allEntities={calculatedEntities}
+				/>
+			</SkeletonFade>
+		</EntityContainer>
+	);
+};
+
+const EntityJsonPanel: FunctionComponent<IDockviewPanelProps> = () => {
+	const { isLoading, selectedEntity } = useModelPreviewDockviewContext();
+
+	return (
+		<EntityContainer>
+			<SkeletonFade
+				loading={isLoading}
+				skeleton={
+					<Box
+						sx={{
+							display: "flex",
+							flexDirection: "column",
+							gap: 1,
+							minHeight: 0,
+						}}
+					>
+						<SkeletonBlock height={18} width="38%" borderRadius={10} />
+						<SkeletonBlock height={14} width="92%" tint="subtle" />
+						<SkeletonBlock height={14} width="88%" tint="subtle" />
+						<SkeletonBlock height={14} width="74%" tint="subtle" />
+						<SkeletonBlock height={14} width="86%" tint="subtle" />
+						<SkeletonBlock height={14} width="68%" tint="subtle" />
+					</Box>
+				}
+			>
+				<EntityJsonEditor entity={selectedEntity} />
+			</SkeletonFade>
+		</EntityContainer>
+	);
+};
+
+const EntityGraphDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
+	const {
+		isLoading,
+		selectedEntity,
+		graphData,
+		depthLimit,
+		onDepthChange,
+		onSelectNode,
+	} = useModelPreviewDockviewContext();
+
+	return (
+		<SkeletonFade
+			loading={isLoading}
+			skeleton={<SkeletonBlock height="100%" borderRadius={12} />}
+		>
+			<ModelGraphPanel
+				onSelectNode={onSelectNode}
+				entity={selectedEntity}
+				isLoading={isLoading}
+				graphData={graphData}
+				depthLimit={depthLimit}
+				onDepthChange={onDepthChange}
+			/>
+		</SkeletonFade>
 	);
 };
 

@@ -7,6 +7,7 @@ import { SideMenu } from "../navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
 
 const MAIN_LAYOUT_LOADING_STATE_STORAGE_KEY = "main-layout-loading-state";
+const DEFAULT_SIDEBAR_WIDTH = 260;
 
 type MainLayoutLoadingState = {
 	progress: number;
@@ -19,10 +20,11 @@ const MainWrapper = styled("div", {
 })<{
 	open?: boolean;
 	mode?: string;
-}>(({ theme, mode }) => ({
+}>(({ theme, mode, open }) => ({
 	flexGrow: 1,
 	minHeight: "100vh",
-	width: "100vw",
+	width: `calc(100vw - ${open ? DEFAULT_SIDEBAR_WIDTH : 0}px)`,
+	marginLeft: !open ? `-${DEFAULT_SIDEBAR_WIDTH}px !important` : 0,
 	padding: "8px",
 	position: "relative",
 	transition: theme.transitions.create("margin", {
@@ -34,8 +36,7 @@ const MainWrapper = styled("div", {
 		display: "flex",
 		flexDirection: "column",
 	},
-	marginLeft: `-${260}px`,
-	backgroundColor: "#9fa6c326",
+	// backgroundColor: "#9fa6c326",
 	variants: [
 		{
 			props: ({ open }) => open,
