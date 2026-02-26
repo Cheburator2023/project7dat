@@ -42,6 +42,8 @@ export const EntityNodeComponent = memo(
 			isExpanded = false,
 		} = data;
 		const isTemp = isTempTable(entity);
+		console.log("🐸 Pepe said >> entity:", entity);
+
 		const colors = isTemp
 			? {
 					bg: TEMP_TABLE_COLORS.bg,

@@ -21,14 +21,18 @@ import { ExpandMore as ExpandMoreIcon } from "@mui/icons-material";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { s2tCommitStoreService } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { CodeJsonEditor } from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
+import { useJsonEditorStore } from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
+import { useShallow } from "zustand/react/shallow";
 import {
 	createDiffWorkerScript,
 	buildEntityGroups,
-	toPreview,
+	formatEntityLabelForDisplay,
+	convertDiffPathToRealPath,
 	type DiffComputationResult,
 	type DiffSummary,
 	type DiffChangeItem,
 } from "../diffWorker";
+import { DiffChangeRow } from "./DiffChangeRow";
 
 interface EditJsonDialogProps {
 	open: boolean;
@@ -77,6 +81,8 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 	onClose,
 	onSaved,
 }) => {
+	// originalPayload — берётся из commit.original_payload (хранится на бэке)
+	// editedPayload — текущий payload коммита
 	const [originalPayload, setOriginalPayload] = useState<Record<
 		string,
 		unknown
@@ -99,18 +105,33 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 	const [expandedEntityKeys, setExpandedEntityKeys] = useState<string[]>([]);
 	const workerRef = useRef<Worker | null>(null);
 	const workerUrlRef = useRef<string | null>(null);
+	const { setFocus, addHighlight, clearHighlights, setExpanded } =
+		useJsonEditorStore(
+			useShallow((state) => ({
+				setFocus: state.setFocus,
+				addHighlight: state.addHighlight,
+				clearHighlights: state.clearHighlights,
+				setExpanded: state.setExpanded,
+			})),
+		);
 
+	// При открытии диалога — заполняем из commit без API-запроса
 	useEffect(() => {
-		if (commit) {
-			const payload = commit.payload as Record<string, unknown>;
-			setOriginalPayload(structuredClone(payload));
-			setEditedPayload(payload);
-			setError(null);
-			setActiveTab(0);
-			setDiffResult(null);
-			setExpandedEntityKeys([]);
-		}
-	}, [commit]);
+		if (!open || !commit) return;
+
+		setError(null);
+		setDiffResult(null);
+		setExpandedEntityKeys([]);
+		// original_payload хранится на бэке и не меняется при update
+		const orig = (commit.original_payload ?? commit.payload) as Record<
+			string,
+			unknown
+		>;
+		setOriginalPayload(structuredClone(orig));
+		setEditedPayload(
+			structuredClone(commit.payload as Record<string, unknown>),
+		);
+	}, [open, commit]);
 
 	useEffect(() => {
 		if (!open || !commit) {
@@ -144,11 +165,10 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 		}
 	}, [open]);
 
-	// Compute diff when switching to diff tab
+	// Вычислять diff при открытии модалки и при изменении данных
 	useEffect(() => {
-		if (activeTab !== 1 || !originalPayload || !editedPayload) return;
+		if (!open || !originalPayload || !editedPayload) return;
 
-		// Terminate previous worker
 		if (workerRef.current) {
 			workerRef.current.terminate();
 			workerRef.current = null;
@@ -187,25 +207,25 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 				worker.onmessage = (event: MessageEvent) => {
 					if (cancelled) return;
 
-					const data = event.data;
-					if (!data || typeof data !== "object") return;
+					const msg = event.data;
+					if (!msg || typeof msg !== "object") return;
 
-					if (data.type === "progress") {
+					if (msg.type === "progress") {
 						setDiffProgressText(
-							`Обрабатываем изменения… ${data.processed ?? 0} узлов`,
+							`Обрабатываем изменения… ${msg.processed ?? 0} узлов`,
 						);
 						return;
 					}
 
-					if (data.type === "done") {
+					if (msg.type === "done") {
 						setDiffResult({
-							summary: (data.summary ?? {
+							summary: (msg.summary ?? {
 								added: 0,
 								modified: 0,
 								skippedDeletions: 0,
 							}) as DiffSummary,
-							changes: (data.changes ?? []) as DiffChangeItem[],
-							truncated: Boolean(data.truncated),
+							changes: (msg.changes ?? []) as DiffChangeItem[],
+							truncated: Boolean(msg.truncated),
 						});
 						setIsDiffComputing(false);
 						worker.terminate();
@@ -216,8 +236,8 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 						}
 					}
 
-					if (data.type === "error") {
-						setDiffProgressText(data.message ?? "Не удалось построить diff");
+					if (msg.type === "error") {
+						setDiffProgressText(msg.message ?? "Не удалось построить diff");
 						setIsDiffComputing(false);
 						worker.terminate();
 						workerRef.current = null;
@@ -265,7 +285,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 				workerUrlRef.current = null;
 			}
 		};
-	}, [activeTab, originalPayload, editedPayload]);
+	}, [open, originalPayload, editedPayload]);
 
 	const diffGroups = useMemo(() => {
 		if (!diffResult) return [];
@@ -288,8 +308,36 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 		});
 	}, []);
 
+	const handleJumpToJsonPath = useCallback(
+		(path: string) => {
+			setActiveTab(0);
+
+			const realPath = convertDiffPathToRealPath(path, editedPayload);
+			if (!realPath && realPath !== "") {
+				return;
+			}
+
+			clearHighlights();
+			addHighlight(realPath);
+
+			const parts = realPath.split(".").filter(Boolean);
+			let currentPath = "";
+			for (const part of parts) {
+				currentPath = currentPath ? `${currentPath}.${part}` : part;
+				setExpanded(currentPath, true);
+			}
+
+			window.requestAnimationFrame(() => {
+				setFocus(realPath);
+			});
+		},
+		[addHighlight, clearHighlights, setExpanded, setFocus, editedPayload],
+	);
+
 	const handleEditorChange = useCallback((data: any) => {
 		setEditedPayload(data as Record<string, unknown>);
+		// Сбрасываем diff при изменении — пересчитается при переходе на вкладку
+		setDiffResult(null);
 	}, []);
 
 	const handleSave = async () => {
@@ -335,11 +383,26 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 
 				<Tabs
 					value={activeTab}
-					onChange={(_, v) => setActiveTab(v)}
+					onChange={(_, v) => setActiveTab(v as number)}
 					sx={{ px: 2, borderBottom: 1, borderColor: "divider" }}
 				>
 					<Tab label={editable ? "Редактор" : "Просмотр"} />
-					<Tab label="Diff изменений" />
+					<Tab
+						label={
+							<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+								Diff изменений
+								{isDiffComputing && <CircularProgress size={14} />}
+								{diffResult && diffResult.changes.length > 0 && (
+									<Chip
+										label={diffResult.changes.length}
+										size="small"
+										color="warning"
+										sx={{ height: 18, fontSize: "0.65rem" }}
+									/>
+								)}
+							</Box>
+						}
+					/>
 				</Tabs>
 
 				{/* Editor tab */}
@@ -478,17 +541,22 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 											disableGutters
 											sx={{ mb: 1 }}
 										>
-											<AccordionSummary expandIcon={<ExpandMoreIcon />}>
-												<Box
-													sx={{
-														display: "flex",
+											<AccordionSummary
+												expandIcon={<ExpandMoreIcon />}
+												sx={{
+													borderBottom: "1px solid",
+													borderColor: "divider",
+													"& .MuiAccordionSummary-content": {
 														alignItems: "center",
 														gap: 1,
-														flexWrap: "wrap",
-													}}
+													},
+												}}
+											>
+												<Box
+													sx={{ display: "flex", alignItems: "center", gap: 1 }}
 												>
 													<Typography variant="body2" sx={{ fontWeight: 600 }}>
-														{group.entityLabel}
+														{formatEntityLabelForDisplay(group.entityLabel)}
 													</Typography>
 													{group.added > 0 && (
 														<Chip
@@ -517,36 +585,11 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 													}}
 												>
 													{group.changes.map((change) => (
-														<Box
+														<DiffChangeRow
 															key={`${change.type}:${change.path}`}
-															sx={{
-																border: "1px solid",
-																borderColor: "divider",
-																borderRadius: 1,
-																p: 1,
-																backgroundColor:
-																	change.type === "added"
-																		? "rgba(76, 175, 80, 0.08)"
-																		: "rgba(255, 152, 0, 0.08)",
-															}}
-														>
-															<Typography
-																variant="caption"
-																color="text.secondary"
-															>
-																{change.path || "<root>"}
-															</Typography>
-															{change.type === "added" ? (
-																<Typography variant="body2" sx={{ mt: 0.5 }}>
-																	Новое: <b>{toPreview(change.after)}</b>
-																</Typography>
-															) : (
-																<Typography variant="body2" sx={{ mt: 0.5 }}>
-																	Было: <b>{toPreview(change.before)}</b> →
-																	Стало: <b>{toPreview(change.after)}</b>
-																</Typography>
-															)}
-														</Box>
+															change={change}
+															onJumpToPath={handleJumpToJsonPath}
+														/>
 													))}
 												</Box>
 											</AccordionDetails>
@@ -567,7 +610,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 							}}
 						>
 							<Typography variant="body2" color="text.secondary">
-								Переключитесь на вкладку для вычисления diff
+								Внесите изменения в редакторе и переключитесь на эту вкладку
 							</Typography>
 						</Box>
 					)}

@@ -1251,6 +1251,32 @@ export class JsonExportService {
 		desc: JsonExportResponseDto["desc"];
 	}> {
 		const { page, limit, search, type, sortBy, sortOrder } = params;
+
+		const HIDE_TEMP_TABLES_TOKEN = "__HIDE_TEMP_TABLES__";
+		const isTempEntity = (entity: {
+			id?: string;
+			name?: string | null;
+			namespace?: string | null;
+		}) => {
+			const id = entity.id ?? "";
+			const name = entity.name ?? "";
+			const namespace = entity.namespace ?? "";
+			return (
+				id.includes("TEMP") ||
+				id.includes("TMP") ||
+				name.includes("TEMP") ||
+				name.includes("TMP") ||
+				namespace.includes("TMP") ||
+				namespace.includes("TEMP")
+			);
+		};
+
+		const rawSearch = search ?? "";
+		const shouldHideTempTables = rawSearch.includes(HIDE_TEMP_TABLES_TOKEN);
+		const effectiveSearch = rawSearch
+			.split(HIDE_TEMP_TABLES_TOKEN)
+			.join(" ")
+			.trim();
 		const startTime = Date.now();
 
 		// Получаем полный граф из кэша (или прогреваем)
@@ -1267,9 +1293,13 @@ export class JsonExportService {
 			entities = entities.filter((e) => e.type === type);
 		}
 
+		if (shouldHideTempTables) {
+			entities = entities.filter((e) => !isTempEntity(e));
+		}
+
 		// Поиск по нескольким полям (case-insensitive substring)
-		if (search && search.trim().length >= 2) {
-			const q = search.trim().toUpperCase();
+		if (effectiveSearch && effectiveSearch.trim().length >= 2) {
+			const q = effectiveSearch.trim().toUpperCase();
 			entities = entities.filter(
 				(e) =>
 					(e.id && e.id.toUpperCase().includes(q)) ||
@@ -1301,7 +1331,7 @@ export class JsonExportService {
 
 		const duration = Date.now() - startTime;
 		this.logger.debug(
-			`exportPaginated: page=${safePage}, limit=${limit}, search="${search || ""}", ` +
+			`exportPaginated: page=${safePage}, limit=${limit}, search="${effectiveSearch || ""}", ` +
 				`total=${total}, returned=${pageEntities.length}, ${duration}ms`,
 		);
 
