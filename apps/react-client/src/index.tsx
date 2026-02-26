@@ -23,7 +23,7 @@ const RenderApp = () => {
 	}, []);
 
 	return urlConfig?.SUM_FRONTEND ? (
-		<AuthProvider token={"test-token"}>
+		<AuthProvider>
 			{globalStyles}
 			<App />
 		</AuthProvider>

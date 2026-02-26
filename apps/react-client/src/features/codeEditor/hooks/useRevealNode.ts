@@ -1,4 +1,4 @@
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { findNodePositionInJson } from "../utils/jsonPosition";
 import { useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";

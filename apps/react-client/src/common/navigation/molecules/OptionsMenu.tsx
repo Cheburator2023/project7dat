@@ -8,7 +8,7 @@ import Menu from "@mui/material/Menu";
 import MuiMenuItem from "@mui/material/MenuItem";
 import { paperClasses } from "@mui/material/Paper";
 import { styled } from "@mui/material/styles";
-import { useAuthStore } from "@react-client/common/store/authStore";
+import { useAuthStore } from "@react-client/common/stores/authStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 

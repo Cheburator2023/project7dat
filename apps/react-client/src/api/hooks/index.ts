@@ -21,6 +21,10 @@ export {
 	useS2tCommitList,
 	S2T_COMMIT_LIST_QUERY_KEY,
 } from "./useS2tCommitList";
+export {
+	useS2tCommitById,
+	S2T_COMMIT_BY_ID_QUERY_KEY,
+} from "./useS2tCommitById";
 export { useSetCurrentJsonData } from "./useSetCurrentJsonData";
 export { useSetCurrentFromSnapshot } from "./useSetCurrentFromSnapshot";
 
@@ -74,9 +78,11 @@ export { useCreateSnapshot } from "./useCreateSnapshot";
 export { useUpdateSnapshot } from "./useUpdateSnapshot";
 export { useDeleteSnapshot } from "./useDeleteSnapshot";
 export { useRestoreSnapshot } from "./useRestoreSnapshot";
-
-// Changelog hooks
 export { useChangelog } from "./useChangelog";
+export {
+	buildEntitiesSearch,
+	HIDE_TEMP_TABLES_TOKEN,
+} from "./buildEntitiesSearch";
 
 // Database management hooks
 export { useResetDatabase } from "./useResetDatabase";

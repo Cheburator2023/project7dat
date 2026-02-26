@@ -1,21 +1,22 @@
 import { Route, Routes } from "react-router";
 import { PlaygroundPage } from "@react-client/playground/PlaygroundPage";
-import { SwaggerPage } from "@react-client/features/swagger/SwaggerPage";
+import { SwaggerPage } from "@react-client/features/swagger/pages/SwaggerPage";
 
-import { EntityPreviewPage } from "@react-client/features/entityPreview/EntityPreviewPage";
-import { AllCommitsPage } from "@react-client/features/commitList/AllCommitsPage";
-import { ObjectsPage } from "@react-client/features/objects/ObjectsPage";
+import { EntityPreviewPage } from "@react-client/features/entityPreview/pages/EntityPreviewPage";
+import { AllCommitsPage } from "@react-client/features/commits/pages/AllCommitsPage";
+import { ObjectsPage } from "@react-client/features/objects/pages/ObjectsPage";
 import { ModelsPage } from "@react-client/features/models/pages/ModelsPage";
-import { SettingsPage } from "@react-client/features/settings/SettingsPage";
-import { S2tCommitCreatePage } from "@react-client/features/s2tImport/S2tCommitCreatePage";
-import { S2tCommitDetailsPage } from "@react-client/features/s2tImport/S2tCommitDetailsPage";
-import { ModelPreviewPage } from "@react-client/features/modelPreview/ModelPreviewPage";
-import { JsonDataReportPage } from "@react-client/features/reports/JsonDataReportPage";
-import { S2tDataReportPage } from "@react-client/features/reports/S2tDataReportPage";
+import { SettingsPage } from "@react-client/features/settings/pages/SettingsPage";
+import { S2tCommitCreatePage } from "@react-client/features/s2tImport/pages/S2tCommitCreatePage";
+import { S2tCommitDetailsPage } from "@react-client/features/s2tImport/pages/S2tCommitDetailsPage";
+import { ModelPreviewPage } from "@react-client/features/modelPreview/pages/ModelPreviewPage";
+import { JsonDataReportPage } from "@react-client/features/reports/pages/JsonDataReportPage";
+import { S2tDataReportPage } from "@react-client/features/reports/pages/S2tDataReportPage";
+import { CommitMergePreviewPage } from "@react-client/features/commits/pages/CommitMergePreviewPage";
 
 import { Page404 } from "./Page404";
 import { routes } from "./routes";
-import { DashboardPage } from "@react-client/features/dashboard/DashboardPage";
+import { DashboardPage } from "@react-client/features/dashboard/pages/DashboardPage";
 
 export const Routing = () => (
 	<Routes>
@@ -48,6 +49,10 @@ export const Routing = () => (
 			element={<EntityPreviewPage />}
 		/>
 		<Route path={routes.settings.rootPath} element={<SettingsPage />} />
+		<Route
+			path={routes.commitMergePreview.rootPath}
+			element={<CommitMergePreviewPage />}
+		/>
 		<Route path="*" element={<Page404 />} />
 	</Routes>
 );

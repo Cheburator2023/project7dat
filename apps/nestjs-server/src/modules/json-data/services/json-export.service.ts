@@ -194,14 +194,42 @@ export class JsonExportService {
 
 		const entities = await this.dataSource.query(query);
 
-		// Загружаем атрибуты для каждой сущности
+		// Загружаем ВСЕ атрибуты одним запросом (вместо N+1)
+		const allAttributes = await this.getAllAttributesBatch();
+		const attributesByEntityId = new Map<number, any[]>();
+		for (const attr of allAttributes) {
+			const list = attributesByEntityId.get(attr.entity_id) ?? [];
+			list.push(attr);
+			attributesByEntityId.set(attr.entity_id, list);
+		}
+
 		for (const entity of entities) {
-			entity.attributes = await this.getEnhancedAttributesForEntity(
-				entity.entity_id,
-			);
+			entity.attributes = attributesByEntityId.get(entity.entity_id) ?? [];
 		}
 
 		return entities;
+	}
+
+	/**
+	 * Батч-загрузка всех атрибутов (решает N+1 проблему)
+	 */
+	private async getAllAttributesBatch(): Promise<any[]> {
+		const query = `
+            SELECT
+                a.entity_id,
+                a.attribute_id,
+                a.name,
+                a.description,
+                a.type_id,
+                at.name as type_name,
+                c.change_date as attribute_change_date
+            FROM attribute a
+                     LEFT JOIN attribute_type at ON a.type_id = at.type_id
+                LEFT JOIN changes c ON a.change_id = c.change_id
+            ORDER BY a.entity_id, a.name
+        `;
+
+		return await this.dataSource.query(query);
 	}
 
 	/**
@@ -1185,6 +1213,7 @@ export class JsonExportService {
 		modelId: string;
 		page: number;
 		limit: number;
+		hideTempTables?: boolean;
 	}): Promise<{
 		entity: JsonExportResponseDto["entities"][0] | null;
 		mappings: JsonExportResponseDto["mappings"];
@@ -1199,6 +1228,7 @@ export class JsonExportService {
 			entityId: params.modelId,
 			page: params.page,
 			limit: params.limit,
+			hideTempTables: params.hideTempTables,
 		});
 	}
 
@@ -1223,6 +1253,32 @@ export class JsonExportService {
 		desc: JsonExportResponseDto["desc"];
 	}> {
 		const { page, limit, search, type, sortBy, sortOrder } = params;
+
+		const HIDE_TEMP_TABLES_TOKEN = "__HIDE_TEMP_TABLES__";
+		const isTempEntity = (entity: {
+			id?: string;
+			name?: string | null;
+			namespace?: string | null;
+		}) => {
+			const id = entity.id ?? "";
+			const name = entity.name ?? "";
+			const namespace = entity.namespace ?? "";
+			return (
+				id.includes("TEMP") ||
+				id.includes("TMP") ||
+				name.includes("TEMP") ||
+				name.includes("TMP") ||
+				namespace.includes("TMP") ||
+				namespace.includes("TEMP")
+			);
+		};
+
+		const rawSearch = search ?? "";
+		const shouldHideTempTables = rawSearch.includes(HIDE_TEMP_TABLES_TOKEN);
+		const effectiveSearch = rawSearch
+			.split(HIDE_TEMP_TABLES_TOKEN)
+			.join(" ")
+			.trim();
 		const startTime = Date.now();
 
 		// Получаем полный граф из кэша (или прогреваем)
@@ -1239,9 +1295,13 @@ export class JsonExportService {
 			entities = entities.filter((e) => e.type === type);
 		}
 
+		if (shouldHideTempTables) {
+			entities = entities.filter((e) => !isTempEntity(e));
+		}
+
 		// Поиск по нескольким полям (case-insensitive substring)
-		if (search && search.trim().length >= 2) {
-			const q = search.trim().toUpperCase();
+		if (effectiveSearch && effectiveSearch.trim().length >= 2) {
+			const q = effectiveSearch.trim().toUpperCase();
 			entities = entities.filter(
 				(e) =>
 					(e.id && e.id.toUpperCase().includes(q)) ||
@@ -1273,7 +1333,7 @@ export class JsonExportService {
 
 		const duration = Date.now() - startTime;
 		this.logger.debug(
-			`exportPaginated: page=${safePage}, limit=${limit}, search="${search || ""}", ` +
+			`exportPaginated: page=${safePage}, limit=${limit}, search="${effectiveSearch || ""}", ` +
 				`total=${total}, returned=${pageEntities.length}, ${duration}ms`,
 		);
 
@@ -1360,6 +1420,7 @@ export class JsonExportService {
 		entityId: string;
 		page: number;
 		limit: number;
+		hideTempTables?: boolean;
 	}): Promise<{
 		entity: JsonExportResponseDto["entities"][0] | null;
 		mappings: JsonExportResponseDto["mappings"];
@@ -1372,6 +1433,25 @@ export class JsonExportService {
 	}> {
 		const { entityId } = params;
 		const startTime = Date.now();
+		const hideTempTables = params.hideTempTables ?? true;
+
+		const isTempEntity = (entity: {
+			id?: string;
+			name?: string | null;
+			namespace?: string | null;
+		}) => {
+			const id = entity.id ?? "";
+			const name = entity.name ?? "";
+			const namespace = entity.namespace ?? "";
+			return (
+				id.includes("TEMP") ||
+				id.includes("TMP") ||
+				name.includes("TEMP") ||
+				name.includes("TMP") ||
+				namespace.includes("TMP") ||
+				namespace.includes("TEMP")
+			);
+		};
 
 		let cached = await this.cacheService.getCachedExportAll();
 		if (!cached) {
@@ -1386,26 +1466,49 @@ export class JsonExportService {
 			index = this.graphIndexService.buildIndex(mappings);
 		}
 
-		const entity = cached.entities?.find((e) => e.id === entityId) ?? null;
+		const entityRaw = cached.entities?.find((e) => e.id === entityId) ?? null;
+		const entity =
+			hideTempTables && entityRaw && isTempEntity(entityRaw) ? null : entityRaw;
 
 		// Run BFS in a Piscina worker thread — non-blocking, O(V+E) with typed arrays
-		const visitedEntities = await this.graphIndexService.bfs(entityId, index);
-
-		const allRelatedMappings = mappings.filter((mapping) => {
-			if (!visitedEntities.has(mapping.entityId)) return false;
-			return (mapping.deps ?? []).some((dep) =>
-				visitedEntities.has(dep.entityId),
+		let visitedEntities = await this.graphIndexService.bfs(entityId, index);
+		if (hideTempTables) {
+			visitedEntities = new Set(
+				[...visitedEntities].filter((id) => {
+					const e = cached.entities?.find((x) => x.id === id);
+					if (!e) return true;
+					return !isTempEntity(e);
+				}),
 			);
-		});
+		}
+
+		const allRelatedMappings = mappings
+			.filter((mapping) => {
+				if (!visitedEntities.has(mapping.entityId)) return false;
+				return (mapping.deps ?? []).some((dep) =>
+					visitedEntities.has(dep.entityId),
+				);
+			})
+			.map((mapping) => {
+				if (!hideTempTables) return mapping;
+				return {
+					...mapping,
+					deps: (mapping.deps ?? []).filter((dep) =>
+						visitedEntities.has(dep.entityId),
+					),
+				};
+			});
 
 		const total = allRelatedMappings.length;
 
 		const relatedEntityIds = new Set<string>(visitedEntities);
 		relatedEntityIds.delete(entityId);
 
-		const relatedEntities = (cached.entities ?? []).filter((e) =>
-			relatedEntityIds.has(e.id),
-		);
+		const relatedEntities = (cached.entities ?? []).filter((e) => {
+			if (!relatedEntityIds.has(e.id)) return false;
+			if (!hideTempTables) return true;
+			return !isTempEntity(e);
+		});
 
 		const duration = Date.now() - startTime;
 		this.logger.debug(

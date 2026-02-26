@@ -18,11 +18,12 @@ import { useNavigate } from "react-router-dom";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { usePaginatedEntities } from "@react-client/api/hooks/usePaginatedEntities";
 import { usePaginatedMappings } from "@react-client/api/hooks/usePaginatedMappings";
 import { usePaginatedEntityRelations } from "@react-client/api/hooks/usePaginatedEntityRelations";
+import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import type {
 	PaginatedEntitiesResponse,
 	PaginatedMappingsResponse,
@@ -31,7 +32,6 @@ import type { DataLineageMapping } from "@react-client/types/dataLineage";
 
 import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
-import { EmptyState } from "../atoms";
 import { LoadingSpinner } from "../atoms/LoadingSpinner";
 import { GraphPanelInner, type NodeContextMenuEvent } from "./GraphPanelInner";
 import type { EntityConnection } from "../types";
@@ -57,12 +57,16 @@ export const GraphPanel = memo(() => {
 		selectEntity,
 		setUpstreamDownstream,
 		selectedAttributes,
+		globalSearchQuery,
+		hideTempTables,
 	} = useEntitiesStore(
 		useShallow((state) => ({
 			selectedEntityId: state.selectedEntityId,
 			selectEntity: state.selectEntity,
 			setUpstreamDownstream: state.setUpstreamDownstream,
 			selectedAttributes: state.selectedAttributes,
+			globalSearchQuery: state.globalSearchQuery,
+			hideTempTables: state.hideTempTables,
 		})),
 	);
 
@@ -75,13 +79,17 @@ export const GraphPanel = memo(() => {
 		usePaginatedEntities({
 			page: 1,
 			limit: 500,
+			search: buildEntitiesSearch({
+				uiSearch: globalSearchQuery || undefined,
+				hideTempTables,
+			}),
 			enabled: false,
 		});
 	const { data: paginatedMappingsData, isLoading: isPaginatedMappingsLoading } =
 		usePaginatedMappings({
 			page: 1,
-			limit: 52,
-			enabled: true,
+			limit: 50,
+			enabled: false,
 		});
 
 	const graphId = effectiveGraphId ?? "current_stable_version";

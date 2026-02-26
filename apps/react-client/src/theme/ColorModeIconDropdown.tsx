@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { useColorScheme } from "@mui/material/styles";
-import { useEffectOnce } from "@react-client/hooks/useEffectOnce";
+import { useEffectOnce } from "@react-client/common/hooks/useEffectOnce";
 import React from "react";
 
 export function ColorModeIconDropdown() {

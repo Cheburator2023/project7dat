@@ -297,7 +297,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 
 				{/* Attributes */}
 				{entity.attrSeq && entity.attrSeq.length > 0 && (
-					<CompactAccordion defaultExpanded>
+					<CompactAccordion>
 						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
 							<AccordionTitle>
 								Атрибуты ({entity.attrSeq.length})
@@ -433,7 +433,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 
 				{/* Dependencies Details */}
 				{relatedMappings.some((m) => m.deps && m.deps.length > 0) && (
-					<CompactAccordion defaultExpanded>
+					<CompactAccordion>
 						<CompactAccordionSummary expandIcon={<ExpandMoreIcon />}>
 							<AccordionTitle>Детали зависимостей</AccordionTitle>
 						</CompactAccordionSummary>

@@ -1,16 +1,11 @@
 import { useEffect } from "react";
-import { useAuthStore } from "./store/authStore";
-import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
+import { useAuthStore } from "./stores/authStore";
 
 interface AuthProviderProps {
-	token?: string;
 	children: React.ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({
-	token,
-	children,
-}) => {
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	const initializeGodMode = useAuthStore((s) => s.initializeGodMode);
 
 	const GOD_MODE = process?.env?.NO_ROLES === "true";
