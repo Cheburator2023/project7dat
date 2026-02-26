@@ -10,12 +10,7 @@ import { useLocation, useNavigate } from "react-router";
 import { routes } from "@react-client/routing/routes";
 
 // Классификация роутов по категориям меню (статический контекст)
-const MOCKED_NEW_ROUTE_KEYS = [
-	// "objects",
-	// "models",
-	"processes",
-	"changelogTable",
-] as const;
+const MOCKED_NEW_ROUTE_KEYS = ["processes", "changelogTable"] as const;
 
 const nonDevEntries = Object.entries(routes).filter(
 	([, route]) => route.showInNavbar && !(route as any).devOnly,
@@ -167,7 +162,7 @@ export function MenuContent() {
 					</List>
 				</Box>
 
-				<Box
+				{/* <Box
 					sx={{ display: "block", mb: 0.2 }}
 					data-test-id="menu-content--ListItem-backend"
 				>
@@ -236,7 +231,7 @@ export function MenuContent() {
 							</ListItemButton>
 						</ListItem>
 					</List>
-				</Box>
+				</Box> */}
 
 				<Box
 					sx={{ display: "block", mb: 0.2 }}

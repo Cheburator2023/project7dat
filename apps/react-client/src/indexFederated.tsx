@@ -1,9 +1,9 @@
 import { createBridgeComponent } from "@module-federation/bridge-react/v19";
-import { CircularProgress } from "@mui/material";
 import { App } from "@react-client/App";
 import { AuthProvider } from "@react-client/common/AuthProvider";
-import { useUserStore } from "@react-client/common/store/userStore";
-import { useDeepEffect } from "@react-client/hooks";
+import { useDeepEffect } from "@react-client/common/hooks/useDeepEffect";
+import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
+import { useUserStore } from "@react-client/common/stores/userStore";
 import { globalStyles } from "@react-client/theme/GlobalStyle";
 import { T_CONFIG_MAP, T_KEYCLOAK_USER } from "@react-client/types";
 import { Permission, Role } from "@react-client/types/roles";
@@ -22,8 +22,10 @@ export type Props = {
 };
 
 const MfeRoot = (props: Props) => {
+	console.log("MfeRoot >> props:", props);
+
 	useDeepEffect(() => {
-		if (props?.urlConfig && props?.token) {
+		if (props?.urlConfig) {
 			window.urlConfig = props.urlConfig;
 			window.keycloak = props.keycloak;
 			window.user = props.user;
@@ -60,13 +62,13 @@ const MfeRoot = (props: Props) => {
 	}, [user?.roles, user?.realm_access]);
 
 	return (
-		<AuthProvider token={props.token}>
+		<AuthProvider>
 			{globalStyles}
 
 			{props?.urlConfig && props?.keycloak ? (
 				<App {...props} bridged />
 			) : (
-				<CircularProgress />
+				<FullScreenLoader />
 			)}
 		</AuthProvider>
 	);

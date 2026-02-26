@@ -1,8 +1,11 @@
-import type { IJsonModel } from "flexlayout-react";
-
 // ============================================================================
 // Graph Constants
 // ============================================================================
+
+import {
+	Orientation,
+	SerializedDockview,
+} from "@react-client/features/dockview/core";
 
 export const NODE_WIDTH = 320;
 export const NODE_HEADER_HEIGHT = 60;
@@ -30,6 +33,32 @@ export const HIGHLIGHT_COLORS = {
 	downstream: "#2196f3",
 	searchMatch: "#ff5722", // Orange for search matches
 } as const;
+
+export const TEMP_TABLE_COLORS = {
+	bg: "#fff8e1",
+	border: "#ff8f00",
+	text: "#e65100",
+	badge: "#ff6f00",
+} as const;
+
+export const isTempTable = (entity: {
+	id?: string;
+	name?: string | null;
+	namespace?: string | null;
+}): boolean => {
+	const id = entity.id ?? "";
+	const name = entity.name ?? "";
+	const namespace = entity.namespace ?? "";
+
+	return (
+		id.includes("TEMP") ||
+		id.includes("TMP") ||
+		name.includes("TEMP") ||
+		name.includes("TMP") ||
+		namespace.includes("TMP") ||
+		namespace.includes("TEMP")
+	);
+};
 
 export const DEPTH_LEVEL_COLORS = [
 	{
@@ -84,130 +113,88 @@ export const ATTR_EDGE_COLORS = [
 ];
 
 // ============================================================================
-// FlexLayout Configuration
+// Dockview Layout Configuration
 // ============================================================================
 
-export const flexLayoutJson: IJsonModel = {
-	global: {
-		tabEnableClose: false,
-		tabEnableRename: false,
-		tabSetEnableTabStrip: true,
-		tabSetEnableDrop: true,
-		tabSetEnableDrag: true,
-		tabSetEnableClose: false,
-		tabSetEnableMaximize: true,
+export const dockviewLayoutJson: SerializedDockview = {
+	grid: {
+		root: {
+			type: "branch",
+			data: [
+				// Left column (35%): Entities + Objects
+				{
+					type: "branch",
+					size: 35,
+					data: [
+						// Top-left: Entities + Selection Info
+						{
+							type: "leaf",
+							size: 50,
+							data: {
+								id: "group-left-top",
+								activeView: "entities-tab",
+								views: ["entities-tab", "selection-info-tab"],
+							},
+						},
+						// Bottom-left: Objects
+						{
+							type: "leaf",
+							size: 50,
+							data: {
+								id: "group-left-bottom",
+								activeView: "objects-tab",
+								views: ["objects-tab"],
+							},
+						},
+					],
+				},
+				// Middle column (65%): Graph + Issues + Schema
+				{
+					type: "leaf",
+					size: 65,
+					data: {
+						id: "group-center",
+						activeView: "graph-tab",
+						views: ["graph-tab", "issues-tab", "schema-tab"],
+					},
+				},
+			],
+		},
+		height: 800,
+		width: 1200,
+		orientation: Orientation.HORIZONTAL,
 	},
-	borders: [],
-	layout: {
-		type: "row",
-		weight: 100,
-		children: [
-			// Left column: Tables
-			{
-				type: "row",
-				weight: 35,
-				children: [
-					{
-						type: "tabset",
-						weight: 50,
-						children: [
-							{
-								type: "tab",
-								name: "📊 Сущности",
-								component: "entities",
-								id: "entities-tab",
-							},
-							{
-								type: "tab",
-								name: "ℹ️ Информация",
-								component: "selection-info",
-								id: "selection-info-tab",
-							},
-						],
-					},
-					{
-						type: "tabset",
-						weight: 50,
-						children: [
-							{
-								type: "tab",
-								name: "📋 Объекты",
-								component: "objects",
-								id: "objects-tab",
-							},
-						],
-					},
-				],
-			},
-			// Middle column: Graph
-			{
-				type: "tabset",
-				weight: 40,
-				children: [
-					{
-						type: "tab",
-						name: "🔗 Граф",
-						component: "graph",
-						id: "graph-tab",
-					},
-					{
-						type: "tab",
-						name: "⚠️ Ошибки",
-						component: "issues",
-						id: "issues-tab",
-					},
-					{
-						type: "tab",
-						name: "📋 Схема",
-						component: "schema",
-						id: "schema-tab",
-					},
-				],
-			},
-			// Right column: Code Editor, Commit History, Info
-			{
-				type: "row",
-				weight: 25,
-				children: [
-					{
-						type: "tabset",
-						weight: 50,
-						children: [
-							// {
-							// 	type: "tab",
-							// 	name: "✏️ Редактор",
-							// 	component: "code-editor",
-							// 	id: "code-editor-tab",
-							// },
-							//
-							// {
-							// 	type: "tab",
-							// 	name: "⚠️ Ошибки",
-							// 	component: "issues",
-							// 	id: "issues-tab",
-							// },
-							// {
-							// 	type: "tab",
-							// 	name: "📋 Схема",
-							// 	component: "schema",
-							// 	id: "schema-tab",
-							// },
-						],
-					},
-					// {
-					// 	type: "tabset",
-					// 	weight: 50,
-					// 	children: [
-					// 		{
-					// 			type: "tab",
-					// 			name: "📜 История",
-					// 			component: "commit-history",
-					// 			id: "commit-history-tab",
-					// 		},
-					// 	],
-					// },
-				],
-			},
-		],
+	panels: {
+		"entities-tab": {
+			id: "entities-tab",
+			contentComponent: "entities",
+			title: "📊 Сущности",
+		},
+		"selection-info-tab": {
+			id: "selection-info-tab",
+			contentComponent: "selection-info",
+			title: "ℹ️ Информация",
+		},
+		"objects-tab": {
+			id: "objects-tab",
+			contentComponent: "objects",
+			title: "📋 Объекты",
+		},
+		"graph-tab": {
+			id: "graph-tab",
+			contentComponent: "graph",
+			title: "🔗 Граф",
+		},
+		"issues-tab": {
+			id: "issues-tab",
+			contentComponent: "issues",
+			title: "⚠️ Ошибки",
+		},
+		"schema-tab": {
+			id: "schema-tab",
+			contentComponent: "schema",
+			title: "📋 Схема",
+		},
 	},
+	activeGroup: "group-center",
 };

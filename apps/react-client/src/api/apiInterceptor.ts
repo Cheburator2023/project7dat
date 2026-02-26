@@ -4,8 +4,8 @@ import axios, {
 	type AxiosInstance,
 } from "axios";
 import { toast } from "sonner";
-import { useNotificationStore } from "../stores/notificationStore";
-import { useAuthStore } from "../common/store/authStore";
+import { useNotificationStore } from "../common/stores/notificationStore";
+import { useAuthStore } from "../common/stores/authStore";
 import { jsonDataApi } from "./hooks/jsonDataApi";
 import { jsonCommitApi } from "./hooks/jsonCommitApi";
 import { jsonDataListApi } from "@react-client/api/hooks/jsonDataListApi";

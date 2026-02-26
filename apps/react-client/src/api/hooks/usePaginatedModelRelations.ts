@@ -14,6 +14,7 @@ export const usePaginatedModelRelations = (params: {
 	page: number;
 	limit: number;
 	enabled?: boolean;
+	hideTempTables?: boolean;
 }) => {
 	return useQuery<PaginatedEntityRelationsResponse, Error>({
 		queryKey: [
@@ -21,12 +22,14 @@ export const usePaginatedModelRelations = (params: {
 			params.modelId,
 			params.page,
 			params.limit,
+			params.hideTempTables ?? true,
 		],
 		queryFn: () =>
 			jsonDataService.getPaginatedModelRelations({
 				modelId: params.modelId,
 				page: params.page,
 				limit: params.limit,
+				hideTempTables: params.hideTempTables ?? true,
 			}),
 		staleTime: 0,
 		enabled: (params.enabled ?? true) && !!params.modelId,

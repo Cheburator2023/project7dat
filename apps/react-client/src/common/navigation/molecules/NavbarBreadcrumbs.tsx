@@ -5,7 +5,7 @@ import { styled } from "@mui/material/styles";
 import { camelCase } from "lodash-es";
 import { useLocation } from "react-router";
 import { routes } from "../../../routing/routes";
-import { useDataLineageStore } from "../../../stores/dataLineageStore";
+import { useDataLineageStore } from "../../stores/dataLineageStore";
 import { useMemo } from "react";
 
 const StyledBreadcrumbs = styled(Breadcrumbs)(({ theme }) => ({

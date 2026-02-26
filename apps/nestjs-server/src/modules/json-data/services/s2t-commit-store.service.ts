@@ -51,6 +51,7 @@ export class S2tCommitStoreService {
 			existing.commit_name = dto.commit_name;
 			existing.commit_description = dto.commit_description ?? null;
 			existing.payload = dto.payload;
+			// original_payload не меняется при update — только при первом создании
 			// type сохраняем только при первом сохранении оригинала, но при update не меняем
 			// если надо сменить тип - это новая запись
 			existing.user = dto.user ?? existing.user;
@@ -69,6 +70,7 @@ export class S2tCommitStoreService {
 			state: "processing",
 			user: dto.user ?? null,
 			payload: dto.payload,
+			original_payload: dto.payload,
 			change_id: null,
 			error: null,
 		});

@@ -14,6 +14,7 @@ export interface S2tCommitItem {
 	state: S2tCommitState;
 	user: string | null;
 	payload: Record<string, unknown>;
+	original_payload: Record<string, unknown> | null;
 	change_id: number | null;
 	error: string | null;
 	created_at: string;

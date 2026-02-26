@@ -7,13 +7,12 @@ import type {
 import {
 	CodeJsonEditor,
 	useJsonEditorStore,
-} from "@react-client/features/codeEditor/CodeJsonEditor";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+} from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 
 import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
-import { LoadingSpinner } from "../atoms";
 
 export const CodeEditorPanel = memo(() => {
 	const { selectedEntityId } = useEntitiesStore();

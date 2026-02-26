@@ -35,6 +35,7 @@ import {
 	ATTR_EDGE_COLORS,
 	DEPTH_LEVEL_COLORS,
 	NODE_WIDTH,
+	isTempTable,
 } from "../../entities/constants";
 import type { EntityConnection, EntityNodeData } from "../../entities/types";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -58,13 +59,14 @@ import {
 	SwapVert,
 	ClearAll,
 } from "@mui/icons-material";
+import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 import { useNavigate } from "react-router";
 import { useShallow } from "zustand/react/shallow";
 import { useGraphDepthControl } from "@react-client/common/hooks/useGraphDepthControl";
 import {
 	DepthControlPanel,
 	DepthControlToggleButton,
-} from "@react-client/common/components/DepthControlPanel";
+} from "@react-client/common/primitives/DepthControlPanel";
 
 const computeNodeDepths = (
 	rootId: string,
@@ -279,10 +281,18 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			setSelectedNode(decodedSelectedEntityId || decodedUrlEntityId || "");
 		}, [selectedEntityId, urlEntityId]);
 
-		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("TB");
+		const graphKey = graphId ?? "default";
+		const layoutDirection = useGraphSettingsStore((state) =>
+			state.usePerGraphLayout
+				? (state.perGraphLayoutDirections[graphKey] ?? state.layoutDirection)
+				: state.layoutDirection,
+		);
+		const toggleGraphLayoutDirection = useGraphSettingsStore(
+			(state) => state.toggleGraphLayoutDirection,
+		);
 		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
-		const { fitView, setCenter, getNode } = useReactFlow();
+		const { setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
@@ -789,6 +799,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				!!topologyGlobalSearchQuery && topologySearchMatches.size > 0;
 
 			const nodes: any[] = uniqueEntities.flatMap((entity) => {
+				const isDisabled = isTempTable(entity);
 				let highlightType: EntityNodeData["highlightType"] = "none";
 				const searchScore = topologySearchMatches.get(entity.id);
 				const isSearchMatch =
@@ -805,8 +816,11 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					id: entity.id,
 					type: "entityNode",
 					position: { x: 0, y: 0 },
+					selectable: !isDisabled,
+					draggable: !isDisabled,
 					data: {
 						entity,
+						isDisabled,
 						highlightType,
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,
@@ -1728,9 +1742,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 						/>
 						<div data-name="toggle_layout_direction">
 							<button
-								onClick={() =>
-									setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
-								}
+								onClick={() => toggleGraphLayoutDirection(graphId ?? "default")}
 								style={{
 									width: 26,
 									height: 26,

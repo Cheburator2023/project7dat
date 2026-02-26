@@ -182,13 +182,22 @@ export class JsonExportController {
 	})
 	@ApiQuery({ name: "page", required: false, type: Number })
 	@ApiQuery({ name: "limit", required: false, type: Number })
+	@ApiQuery({
+		name: "hideTempTables",
+		required: false,
+		type: Boolean,
+		description: "Скрывать TMP/TEMP сущности (по умолчанию true)",
+	})
 	async exportCachedEntityRelations(
 		@Param("entityId") entityId: string,
 		@Query("page") pageRaw?: string,
 		@Query("limit") limitRaw?: string,
+		@Query("hideTempTables") hideTempTablesRaw?: string,
 	) {
 		const page = pageRaw ? Number.parseInt(pageRaw, 10) : 1;
 		const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 50;
+		const hideTempTables =
+			hideTempTablesRaw === undefined ? true : hideTempTablesRaw !== "false";
 
 		if (Number.isNaN(page) || page < 1) {
 			throw new BadRequestException("page должен быть положительным числом");
@@ -203,6 +212,7 @@ export class JsonExportController {
 			entityId: decodeURIComponent(entityId),
 			page,
 			limit,
+			hideTempTables,
 		});
 	}
 
@@ -216,13 +226,22 @@ export class JsonExportController {
 	})
 	@ApiQuery({ name: "page", required: false, type: Number })
 	@ApiQuery({ name: "limit", required: false, type: Number })
+	@ApiQuery({
+		name: "hideTempTables",
+		required: false,
+		type: Boolean,
+		description: "Скрывать TMP/TEMP сущности (по умолчанию true)",
+	})
 	async exportModelRelationsPaginated(
 		@Param("modelId") modelId: string,
 		@Query("page") pageRaw?: string,
 		@Query("limit") limitRaw?: string,
+		@Query("hideTempTables") hideTempTablesRaw?: string,
 	) {
 		const page = pageRaw ? Number.parseInt(pageRaw, 10) : 1;
 		const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 50;
+		const hideTempTables =
+			hideTempTablesRaw === undefined ? true : hideTempTablesRaw !== "false";
 
 		if (Number.isNaN(page) || page < 1) {
 			throw new BadRequestException("page должен быть положительным числом");
@@ -237,6 +256,7 @@ export class JsonExportController {
 			modelId: decodeURIComponent(modelId),
 			page,
 			limit,
+			hideTempTables,
 		});
 	}
 

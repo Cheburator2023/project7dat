@@ -6,7 +6,7 @@ import {
 	type UseQueryResult,
 } from "@tanstack/react-query";
 import { jsonDataService, type JsonDataItem } from "./jsonDataApi";
-import { useDataLineageStore } from "../../stores/dataLineageStore";
+import { useDataLineageStore } from "../../common/stores/dataLineageStore";
 import type { DataLineageGraph } from "../../types/dataLineage";
 
 export const DATA_LINEAGE_QUERY_KEYS = {
@@ -118,7 +118,6 @@ export const useCurrentDataLineageGraph = (options?: {
 			}
 		},
 		staleTime: 100,
-		retry: false,
 		enabled: options?.enabled,
 	});
 };

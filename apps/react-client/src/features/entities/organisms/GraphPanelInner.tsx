@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { memo, useCallback, useMemo, useEffect, useRef } from "react";
 import {
 	ReactFlow,
 	type Node,
@@ -31,6 +31,7 @@ import {
 	MAX_VISIBLE_ATTRS,
 	ATTR_EDGE_COLORS,
 	NODE_WIDTH,
+	isTempTable,
 } from "../constants";
 import type { EntityNodeData } from "../types";
 import { useColorScheme } from "@mui/material";
@@ -44,7 +45,8 @@ import { useGraphDepthControl } from "@react-client/common/hooks/useGraphDepthCo
 import {
 	DepthControlPanel,
 	DepthControlToggleButton,
-} from "@react-client/common/components/DepthControlPanel";
+} from "@react-client/common/primitives/DepthControlPanel";
+import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 
 const showFullGraphByDefault = false;
 
@@ -230,8 +232,14 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		depthLimit: externalDepthLimit,
 		onDepthChange,
 	}) => {
-		const [layoutDirection, setLayoutDirection] = useState<"LR" | "TB">("LR");
-		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+		const layoutDirection = useGraphSettingsStore((state) =>
+			state.usePerGraphLayout
+				? (state.perGraphLayoutDirections[graphId] ?? state.layoutDirection)
+				: state.layoutDirection,
+		);
+		const toggleGraphLayoutDirection = useGraphSettingsStore(
+			(state) => state.toggleGraphLayoutDirection,
+		);
 		const { fitView, setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
@@ -425,16 +433,8 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleGhostClick = depthControl.handleGhostClick;
 
-		const handleToggleExpand = useCallback((id: string) => {
-			setExpandedNodes((prev) => {
-				const next = new Set(prev);
-				if (next.has(id)) {
-					next.delete(id);
-				} else {
-					next.add(id);
-				}
-				return next;
-			});
+		const handleToggleExpand = useCallback((_id: string) => {
+			// Not implemented
 		}, []);
 
 		// Build attribute connection map for hover highlighting
@@ -718,12 +718,16 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 
 			const nodes: EntityNode[] = uniqueEntities.map((entity) => {
+				const isDisabled = isTempTable(entity);
 				return {
 					id: entity.id,
 					type: "entityNode",
 					position: { x: 0, y: 0 },
+					selectable: !isDisabled,
+					draggable: !isDisabled,
 					data: {
 						entity,
+						isDisabled,
 						highlightType: "none",
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,
@@ -1254,7 +1258,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						hoverHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
 					const nextSelectedAttrs =
 						selectedHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
-					const nextIsExpanded = expandedNodes.has(node.id);
+					const nextIsExpanded = false; // Not implemented
 
 					const d = node.data as EntityNodeData;
 					// Skip creating a new object if nothing changed for this node
@@ -1302,7 +1306,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			searchMatchedEntities,
 			hoverHighlightedByEntity,
 			selectedHighlightedByEntity,
-			expandedNodes,
 			setNodes,
 			handleNodeClick,
 			handleNodeDblClick,
@@ -1337,9 +1340,12 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						if (
 							!visibleEntityIds.has(dep.entityId) ||
 							!visibleEntityIds.has(mapping.entityId)
-						)
+						) {
+							// Entity referenced in mapping but not in entities list
 							continue;
+						}
 
+						// Entity-level edge only (attribute edges added in decoration effect)
 						const sourceActiveAttrs =
 							selectedOrSearchedAttrsByEntity.get(dep.entityId) ||
 							EMPTY_STRING_SET;
@@ -1572,9 +1578,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 					/>
 					<div data-name="toggle_layout_direction">
 						<button
-							onClick={() =>
-								setLayoutDirection(layoutDirection === "LR" ? "TB" : "LR")
-							}
+							onClick={() => toggleGraphLayoutDirection(graphId)}
 							style={{
 								width: 26,
 								height: 26,

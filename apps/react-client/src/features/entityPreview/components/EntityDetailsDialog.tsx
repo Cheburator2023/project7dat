@@ -196,17 +196,6 @@ export const EntityDetailsDialog = ({
 						</Box>
 					</Box>
 					<Box display="flex" alignItems="center" gap={1}>
-						{entity.modified && (
-							<Chip
-								label="Изменено"
-								size="small"
-								sx={{
-									bgcolor: "rgba(255,152,0,0.9)",
-									color: "white",
-									fontWeight: 500,
-								}}
-							/>
-						)}
 						<IconButton
 							onClick={onClose}
 							size="small"

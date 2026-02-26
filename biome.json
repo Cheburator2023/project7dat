@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.2/schema.json",
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
@@ -49,6 +49,7 @@
 				"noInferrableTypes": "error"
 			},
 			"correctness": {
+				"noVoidTypeReturn": "warn",
 				"noUnsafeOptionalChaining": "warn",
 				"useExhaustiveDependencies": "off",
 				"noUnusedImports": {
@@ -72,7 +73,9 @@
 				"noPrototypeBuiltins": "warn",
 				"noArrayIndexKey": "off",
 				"noAssignInExpressions": "off",
-				"noThenProperty": "off"
+				"noThenProperty": "off",
+				"useIterableCallbackReturn": "warn",
+				"noDuplicateCustomProperties": "off"
 			},
 			"performance": {
 				"noAccumulatingSpread": "warn",

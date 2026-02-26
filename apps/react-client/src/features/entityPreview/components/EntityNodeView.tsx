@@ -37,7 +37,7 @@ import {
 	CenterFocusStrong,
 	Info,
 } from "@mui/icons-material";
-import { useDataLineageStore } from "@react-client/stores/dataLineageStore";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
