@@ -446,6 +446,8 @@ export const AllCommitsPage: FC = () => {
 						enableCellTextSelection={true}
 						ensureDomOrder={true}
 						maintainColumnOrder={true}
+						overlayNoRowsTemplate="Нет сущностей"
+						overlayLoadingTemplate="Загрузка"
 					/>
 				</GridWrapper>
 

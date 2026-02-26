@@ -23,6 +23,7 @@ export const EntityNodeComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
 		const {
 			entity,
+			isDisabled = false,
 			highlightType,
 			onNodeClick,
 			onNodeDoubleClick,
@@ -42,7 +43,7 @@ export const EntityNodeComponent = memo(
 			isExpanded = false,
 		} = data;
 		const isTemp = isTempTable(entity);
-		console.log("🐸 Pepe said >> entity:", entity);
+		const isDisabledEffective = isDisabled || isTemp;
 
 		const colors = isTemp
 			? {
@@ -77,21 +78,23 @@ export const EntityNodeComponent = memo(
 		const handleNavClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
+				if (isDisabledEffective) return;
 				if (onOpenEntity) {
 					onOpenEntity(entity.id);
 					return;
 				}
 				onNodeClick?.(id);
 			},
-			[entity.id, id, onNodeClick, onOpenEntity],
+			[entity.id, id, isDisabledEffective, onNodeClick, onOpenEntity],
 		);
 
 		const handleViewDetailsClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
+				if (isDisabledEffective) return;
 				onViewDetails?.(id);
 			},
-			[id, onViewDetails],
+			[id, isDisabledEffective, onViewDetails],
 		);
 
 		const relatedAttrNames = useMemo(() => {
@@ -173,7 +176,7 @@ export const EntityNodeComponent = memo(
 		// Dim non-matching nodes when search is active
 		const shouldDim =
 			isSearchActive && !isSearchMatch && highlightType === "none";
-		const nodeOpacity = shouldDim ? 0.3 : 1;
+		const nodeOpacity = isDisabledEffective ? 0.35 : shouldDim ? 0.3 : 1;
 
 		return (
 			<div
@@ -187,11 +190,16 @@ export const EntityNodeComponent = memo(
 							? `0 4px 20px ${borderColor}40`
 							: "0 2px 8px rgba(0,0,0,0.1)",
 					overflow: "hidden",
-					cursor: "pointer",
+					cursor: isDisabledEffective ? "not-allowed" : "pointer",
 					opacity: nodeOpacity,
 					transition: "all 0.2s ease",
+					filter: isDisabledEffective ? "grayscale(0.6)" : undefined,
+					pointerEvents: isDisabledEffective ? "none" : "auto",
 				}}
-				onDoubleClick={() => onNodeDoubleClick(id, graphId)}
+				onDoubleClick={() => {
+					if (isDisabledEffective) return;
+					onNodeDoubleClick(id, graphId);
+				}}
 			>
 				{/* Header */}
 				<div
@@ -219,6 +227,21 @@ export const EntityNodeComponent = memo(
 									marginBottom: 2,
 								}}
 							>
+								{isTemp && (
+									<span
+										style={{
+											background: TEMP_TABLE_COLORS.badge,
+											color: "#fff",
+											padding: "1px 4px",
+											borderRadius: 3,
+											fontSize: 9,
+											textTransform: "none",
+										}}
+										title="Временная сущность"
+									>
+										TEMP
+									</span>
+								)}
 								{entity.type && (
 									<span
 										style={{

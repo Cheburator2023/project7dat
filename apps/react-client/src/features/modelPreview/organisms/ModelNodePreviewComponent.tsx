@@ -2,7 +2,12 @@ import React, { memo, useMemo, useState, useCallback } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import * as fuzzysort from "fuzzysort";
 import type { EntityNodeData } from "../../entities/types";
-import { TYPE_COLORS, HIGHLIGHT_COLORS } from "../../entities/constants";
+import {
+	TYPE_COLORS,
+	HIGHLIGHT_COLORS,
+	TEMP_TABLE_COLORS,
+	isTempTable,
+} from "../../entities/constants";
 import { useEntitiesStore } from "../../entities/stores";
 
 type EntityNode = Node<EntityNodeData, "entityNode">;
@@ -109,6 +114,7 @@ export const ModelNodePreviewComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
 		const {
 			entity,
+			isDisabled = false,
 			highlightType,
 			onNodeClick,
 			onNodeDoubleClick,
@@ -122,7 +128,15 @@ export const ModelNodePreviewComponent = memo(
 			isSearchActive = false,
 			isSearchMatch = false,
 		} = data;
-		const colors = TYPE_COLORS[entity.type] || TYPE_COLORS.table;
+		const isTemp = isTempTable(entity);
+		const isDisabledEffective = isDisabled || isTemp;
+		const colors = isTemp
+			? {
+					bg: TEMP_TABLE_COLORS.bg,
+					border: TEMP_TABLE_COLORS.border,
+					text: TEMP_TABLE_COLORS.text,
+				}
+			: TYPE_COLORS[entity.type] || TYPE_COLORS.table;
 		const attrs = entity.attrSeq || [];
 
 		// Local search state
@@ -201,11 +215,12 @@ export const ModelNodePreviewComponent = memo(
 
 		const shouldDim =
 			isSearchActive && !isSearchMatch && highlightType === "none";
-		const nodeOpacity = shouldDim ? 0.3 : 1;
+		const nodeOpacity = isDisabledEffective ? 0.35 : shouldDim ? 0.3 : 1;
 
 		const handleNavClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
+				if (isDisabledEffective) return;
 				console.log({ entity });
 
 				if ((entity.type as any) === "model") {
@@ -219,15 +234,16 @@ export const ModelNodePreviewComponent = memo(
 				}
 				onNodeClick?.(id);
 			},
-			[id, onNodeClick],
+			[id, isDisabledEffective, onNodeClick],
 		);
 
 		const handleViewDetailsClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
+				if (isDisabledEffective) return;
 				onViewDetails?.(id);
 			},
-			[id, onViewDetails],
+			[id, isDisabledEffective, onViewDetails],
 		);
 
 		const handleAttrClickMemo = useCallback(
@@ -251,8 +267,16 @@ export const ModelNodePreviewComponent = memo(
 						? `0 4px 20px ${borderColor}40`
 						: "0 2px 8px rgba(0,0,0,0.1)",
 				opacity: nodeOpacity,
+				cursor: isDisabledEffective ? "not-allowed" : "pointer",
+				filter: isDisabledEffective ? "grayscale(0.6)" : undefined,
 			}),
-			[borderWidth, borderColor, highlightType, nodeOpacity],
+			[
+				borderWidth,
+				borderColor,
+				highlightType,
+				isDisabledEffective,
+				nodeOpacity,
+			],
 		);
 
 		const headerStyle = useMemo(
@@ -316,12 +340,36 @@ export const ModelNodePreviewComponent = memo(
 		);
 
 		return (
-			<div style={nodeContainerStyle}>
+			<div
+				style={nodeContainerStyle}
+				onDoubleClick={() => {
+					if (isDisabledEffective) return;
+					onNodeDoubleClick?.(id, "");
+				}}
+			>
 				{/* Header */}
 				<div style={headerStyle}>
 					<div style={HEADER_FLEX_STYLE}>
 						<div style={HEADER_CONTENT_STYLE}>
-							<div style={entityTypeStyle}>{entity.type}</div>
+							<div style={entityTypeStyle}>
+								{isTemp && (
+									<span
+										style={{
+											background: TEMP_TABLE_COLORS.badge,
+											color: "#fff",
+											padding: "1px 4px",
+											borderRadius: 3,
+											fontSize: 9,
+											textTransform: "none",
+											marginRight: 6,
+										}}
+										title="Временная сущность"
+									>
+										TEMP
+									</span>
+								)}
+								{entity.type}
+							</div>
 							<div style={ENTITY_NAME_STYLE} title={entity.name || entity.id}>
 								{entity.name || entity.id}
 							</div>

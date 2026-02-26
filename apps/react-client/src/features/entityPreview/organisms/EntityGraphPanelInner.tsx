@@ -35,6 +35,7 @@ import {
 	ATTR_EDGE_COLORS,
 	DEPTH_LEVEL_COLORS,
 	NODE_WIDTH,
+	isTempTable,
 } from "../../entities/constants";
 import type { EntityConnection, EntityNodeData } from "../../entities/types";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -291,7 +292,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		);
 		const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
-		const { fitView, setCenter, getNode } = useReactFlow();
+		const { setCenter, getNode } = useReactFlow();
 		const {
 			hoveredAttribute,
 			setHoveredAttribute,
@@ -798,6 +799,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				!!topologyGlobalSearchQuery && topologySearchMatches.size > 0;
 
 			const nodes: any[] = uniqueEntities.flatMap((entity) => {
+				const isDisabled = isTempTable(entity);
 				let highlightType: EntityNodeData["highlightType"] = "none";
 				const searchScore = topologySearchMatches.get(entity.id);
 				const isSearchMatch =
@@ -814,8 +816,11 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					id: entity.id,
 					type: "entityNode",
 					position: { x: 0, y: 0 },
+					selectable: !isDisabled,
+					draggable: !isDisabled,
 					data: {
 						entity,
+						isDisabled,
 						highlightType,
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,

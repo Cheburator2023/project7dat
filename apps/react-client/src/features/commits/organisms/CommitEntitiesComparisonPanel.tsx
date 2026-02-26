@@ -249,6 +249,7 @@ export const CommitEntitiesComparisonPanel = memo(() => {
 					headerHeight={32}
 					loading={isLoading}
 					overlayNoRowsTemplate="Нет сущностей"
+					overlayLoadingTemplate="Загрузка"
 				/>
 			</Box>
 			<PaginationToolbar

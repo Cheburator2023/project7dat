@@ -1213,6 +1213,7 @@ export class JsonExportService {
 		modelId: string;
 		page: number;
 		limit: number;
+		hideTempTables?: boolean;
 	}): Promise<{
 		entity: JsonExportResponseDto["entities"][0] | null;
 		mappings: JsonExportResponseDto["mappings"];
@@ -1227,6 +1228,7 @@ export class JsonExportService {
 			entityId: params.modelId,
 			page: params.page,
 			limit: params.limit,
+			hideTempTables: params.hideTempTables,
 		});
 	}
 
@@ -1418,6 +1420,7 @@ export class JsonExportService {
 		entityId: string;
 		page: number;
 		limit: number;
+		hideTempTables?: boolean;
 	}): Promise<{
 		entity: JsonExportResponseDto["entities"][0] | null;
 		mappings: JsonExportResponseDto["mappings"];
@@ -1430,6 +1433,25 @@ export class JsonExportService {
 	}> {
 		const { entityId } = params;
 		const startTime = Date.now();
+		const hideTempTables = params.hideTempTables ?? true;
+
+		const isTempEntity = (entity: {
+			id?: string;
+			name?: string | null;
+			namespace?: string | null;
+		}) => {
+			const id = entity.id ?? "";
+			const name = entity.name ?? "";
+			const namespace = entity.namespace ?? "";
+			return (
+				id.includes("TEMP") ||
+				id.includes("TMP") ||
+				name.includes("TEMP") ||
+				name.includes("TMP") ||
+				namespace.includes("TMP") ||
+				namespace.includes("TEMP")
+			);
+		};
 
 		let cached = await this.cacheService.getCachedExportAll();
 		if (!cached) {
@@ -1444,26 +1466,49 @@ export class JsonExportService {
 			index = this.graphIndexService.buildIndex(mappings);
 		}
 
-		const entity = cached.entities?.find((e) => e.id === entityId) ?? null;
+		const entityRaw = cached.entities?.find((e) => e.id === entityId) ?? null;
+		const entity =
+			hideTempTables && entityRaw && isTempEntity(entityRaw) ? null : entityRaw;
 
 		// Run BFS in a Piscina worker thread — non-blocking, O(V+E) with typed arrays
-		const visitedEntities = await this.graphIndexService.bfs(entityId, index);
-
-		const allRelatedMappings = mappings.filter((mapping) => {
-			if (!visitedEntities.has(mapping.entityId)) return false;
-			return (mapping.deps ?? []).some((dep) =>
-				visitedEntities.has(dep.entityId),
+		let visitedEntities = await this.graphIndexService.bfs(entityId, index);
+		if (hideTempTables) {
+			visitedEntities = new Set(
+				[...visitedEntities].filter((id) => {
+					const e = cached.entities?.find((x) => x.id === id);
+					if (!e) return true;
+					return !isTempEntity(e);
+				}),
 			);
-		});
+		}
+
+		const allRelatedMappings = mappings
+			.filter((mapping) => {
+				if (!visitedEntities.has(mapping.entityId)) return false;
+				return (mapping.deps ?? []).some((dep) =>
+					visitedEntities.has(dep.entityId),
+				);
+			})
+			.map((mapping) => {
+				if (!hideTempTables) return mapping;
+				return {
+					...mapping,
+					deps: (mapping.deps ?? []).filter((dep) =>
+						visitedEntities.has(dep.entityId),
+					),
+				};
+			});
 
 		const total = allRelatedMappings.length;
 
 		const relatedEntityIds = new Set<string>(visitedEntities);
 		relatedEntityIds.delete(entityId);
 
-		const relatedEntities = (cached.entities ?? []).filter((e) =>
-			relatedEntityIds.has(e.id),
-		);
+		const relatedEntities = (cached.entities ?? []).filter((e) => {
+			if (!relatedEntityIds.has(e.id)) return false;
+			if (!hideTempTables) return true;
+			return !isTempEntity(e);
+		});
 
 		const duration = Date.now() - startTime;
 		this.logger.debug(

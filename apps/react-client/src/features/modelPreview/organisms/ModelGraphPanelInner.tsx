@@ -30,6 +30,7 @@ import {
 	TYPE_COLORS,
 	HIGHLIGHT_COLORS,
 	DEPTH_LEVEL_COLORS,
+	isTempTable,
 } from "../../entities/constants";
 import type { EntityConnection, EntityNodeData } from "../../entities/types";
 import { useParams } from "react-router-dom";
@@ -686,6 +687,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 				!!globalSearchQuery && searchMatchedEntities.size > 0;
 
 			const nodes: any[] = filteredEntities.flatMap((entity) => {
+				const isDisabled = isTempTable(entity);
 				let highlightType: EntityNodeData["highlightType"] = "none";
 				const searchScore = searchMatchedEntities.get(entity.id);
 				const isSearchMatch = globalSearchQuery && searchScore !== undefined;
@@ -698,8 +700,11 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					id: entity.id,
 					type: "entityNode",
 					position: { x: 0, y: 0 },
+					selectable: !isDisabled,
+					draggable: !isDisabled,
 					data: {
 						entity,
+						isDisabled,
 						highlightType,
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,
