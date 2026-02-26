@@ -598,7 +598,8 @@ mark {
 }
 
 div.dockview-theme-light-spaced,
-div.dockview-theme-dark-spaced {
+div.dockview-theme-dark-spaced,
+div.dockview-theme-abyss-spaced {
 	padding: 0;
 	background-color: transparent;
 }
@@ -609,8 +610,10 @@ div.dv-dockview {
 }
 
 div.dockview-theme-light-spaced .dv-groupview,
-div.dockview-theme-dark-spaced .dv-groupview {
+div.dockview-theme-dark-spaced .dv-groupview,
+div.dockview-theme-abyss-spaced .dv-groupview {
 	border-radius: 8px;
+	border: 1px solid #7a7f894d;
 }
 
 div.dv-tabs-and-actions-container {
@@ -624,11 +627,16 @@ div.dv-react-part {
 }
 
 div.dockview-theme-light-spaced .dv-groupview .dv-tabs-and-actions-container,
-div.dockview-theme-dark-spaced .dv-groupview .dv-tabs-and-actions-container {
+div.dockview-theme-dark-spaced .dv-groupview .dv-tabs-and-actions-container,
+div.dockview-theme-abyss-spaced .dv-groupview .dv-tabs-and-actions-container {
 	padding: 0px 4px;
 }
 
 div.dv-split-view-container .dv-sash-container .dv-sash:not(.disabled):active,
 div.dv-split-view-container .dv-sash-container .dv-sash:not(.disabled):hover {
 	background-color: #6380c1;
+}
+
+div[class*="ag-theme-"] {
+	padding: 0 8px;
 }

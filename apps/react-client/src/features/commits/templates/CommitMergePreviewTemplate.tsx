@@ -14,7 +14,8 @@ import {
 } from "@react-client/features/dockview/core";
 import { DockviewReact } from "@react-client/features/dockview/src";
 import { Header } from "@react-client/common/navigation/organisms/Header";
-import { LoadingSpinner } from "@react-client/features/entities/atoms/LoadingSpinner";
+import { SkeletonFade } from "@react-client/common/skeleton/atoms/SkeletonFade";
+import { DockviewPanelsSkeleton } from "@react-client/common/skeleton/organisms/DockviewPanelsSkeleton";
 
 import { CommitEntitiesPanel } from "../organisms/CommitEntitiesPanel";
 import { CommitEntitiesComparisonPanel } from "../organisms/CommitEntitiesComparisonPanel";
@@ -63,24 +64,6 @@ export const CommitMergePreviewTemplate = () => {
 		event.api.fromJSON(commitMergeLayoutJson);
 	}, []);
 
-	if (isLoading) {
-		return (
-			<Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-				<Header title="Предпросмотр коммита" />
-				<Box
-					sx={{
-						flex: 1,
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-					}}
-				>
-					<LoadingSpinner size={40} />
-				</Box>
-			</Box>
-		);
-	}
-
 	if (!commit && !isLoading) {
 		return (
 			<Box sx={{ height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -108,14 +91,19 @@ export const CommitMergePreviewTemplate = () => {
 			/>
 
 			<DockviewWrapper>
-				<DockviewReact
-					components={panelComponents}
-					onReady={onReady}
-					defaultRenderer="onlyWhenVisible"
-					defaultTabComponent={DockviewNoCloseTab}
-					rightHeaderActionsComponent={DockviewGroupMaximizeActions}
-					theme={mode === "dark" ? themeAbyssSpaced : themeLightSpaced}
-				/>
+				<SkeletonFade
+					loading={isLoading}
+					skeleton={<DockviewPanelsSkeleton panels={2} />}
+				>
+					<DockviewReact
+						components={panelComponents}
+						onReady={onReady}
+						defaultRenderer="onlyWhenVisible"
+						defaultTabComponent={DockviewNoCloseTab}
+						rightHeaderActionsComponent={DockviewGroupMaximizeActions}
+						theme={mode === "dark" ? themeAbyssSpaced : themeLightSpaced}
+					/>
+				</SkeletonFade>
 			</DockviewWrapper>
 		</Box>
 	);

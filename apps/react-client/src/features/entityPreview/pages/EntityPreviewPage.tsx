@@ -1,5 +1,7 @@
 import {
 	useState,
+	useContext,
+	createContext,
 	useCallback,
 	useMemo,
 	useEffect,
@@ -18,11 +20,7 @@ import {
 	useColorScheme,
 } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
-import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { usePanelSettingsStore } from "@react-client/common/stores/panelSettingsStore";
-import { useShallow } from "zustand/react/shallow";
-import { EntityJsonEditor } from "../components/EntityJsonEditor";
-import { EntityDetailsView } from "../components/EntityDetailsView";
 import { useParams, useSearchParams } from "react-router-dom";
 import {
 	useCurrentDataLineageGraph,
@@ -34,6 +32,14 @@ import type {
 } from "@react-client/types/dataLineage";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 
+import { EntityJsonEditor } from "../components/EntityJsonEditor";
+import { EntityDetailsView } from "../components/EntityDetailsView";
+import { EntityGraphPanel } from "@react-client/features/entityPreview/organisms/EntityGraphPanel";
+
+import { SkeletonFade } from "@react-client/common/skeleton/atoms/SkeletonFade";
+import { SkeletonBlock } from "@react-client/common/skeleton/atoms/SkeletonBlock";
+import { SkeletonList } from "@react-client/common/skeleton/molecules/SkeletonList";
+
 import {
 	Storage as StorageIcon,
 	HelpOutline as HelpOutlineIcon,
@@ -41,8 +47,6 @@ import {
 	ViewModule as ViewModuleIcon,
 	Search as SearchIcon,
 } from "@mui/icons-material";
-import { EntityGraphPanel } from "@react-client/features/entityPreview/organisms/EntityGraphPanel";
-import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
 import { DockviewNoCloseTab } from "@react-client/common/dockview/DockviewNoCloseTab";
 import { DockviewGroupMaximizeActions } from "@react-client/common/dockview/DockviewGroupMaximizeActions";
 import {
@@ -117,14 +121,116 @@ const selectSetGlobalAttributeSearch = (state: {
 	setGlobalAttributeSearch: (query: string) => void;
 }) => state.setGlobalAttributeSearch;
 
+type EntityPreviewDockviewContextValue = {
+	isLoading: boolean;
+	selectedEntity: DataLineageEntity | null;
+	relatedMappings: DataLineageMapping[];
+	calculatedEntities: DataLineageEntity[];
+	graphData:
+		| {
+				entities: DataLineageEntity[];
+				mappings: DataLineageMapping[];
+		  }
+		| undefined;
+	depthLimit: number;
+	onDepthChange: (next: number) => void;
+	onSelectNode: (data: any) => void;
+};
+
+const EntityPreviewDockviewContext =
+	createContext<EntityPreviewDockviewContextValue>({
+		isLoading: false,
+		selectedEntity: null,
+		relatedMappings: [],
+		calculatedEntities: [],
+		graphData: undefined,
+		depthLimit: 1,
+		onDepthChange: () => undefined,
+		onSelectNode: () => undefined,
+	});
+
+const useEntityPreviewDockviewContext = () => {
+	return useContext(EntityPreviewDockviewContext);
+};
+
+const EntityDetailsDockviewPanel: FunctionComponent<
+	IDockviewPanelProps
+> = () => {
+	const { isLoading, selectedEntity, relatedMappings, calculatedEntities } =
+		useEntityPreviewDockviewContext();
+
+	return (
+		<EntityContainer>
+			<SkeletonFade
+				loading={isLoading}
+				skeleton={<SkeletonList rows={12} rowHeight={16} />}
+			>
+				<EntityDetailsView
+					entity={selectedEntity}
+					mappings={relatedMappings}
+					allEntities={calculatedEntities}
+				/>
+			</SkeletonFade>
+		</EntityContainer>
+	);
+};
+
+const EntityJsonDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
+	const { isLoading, selectedEntity } = useEntityPreviewDockviewContext();
+
+	return (
+		<EntityContainer>
+			<SkeletonFade
+				loading={isLoading}
+				skeleton={
+					<Box
+						sx={{
+							display: "flex",
+							flexDirection: "column",
+							gap: 1,
+							minHeight: 0,
+						}}
+					>
+						<SkeletonBlock height={18} width="38%" borderRadius={10} />
+						<SkeletonBlock height={14} width="92%" tint="subtle" />
+						<SkeletonBlock height={14} width="88%" tint="subtle" />
+						<SkeletonBlock height={14} width="74%" tint="subtle" />
+						<SkeletonBlock height={14} width="86%" tint="subtle" />
+						<SkeletonBlock height={14} width="68%" tint="subtle" />
+					</Box>
+				}
+			>
+				<EntityJsonEditor entity={selectedEntity} />
+			</SkeletonFade>
+		</EntityContainer>
+	);
+};
+
+const EntityGraphDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
+	const { isLoading, graphData, depthLimit, onDepthChange, onSelectNode } =
+		useEntityPreviewDockviewContext();
+
+	return (
+		<SkeletonFade
+			loading={!isLoading}
+			skeleton={<SkeletonBlock height="100%" borderRadius={12} />}
+		>
+			<EntityGraphPanel
+				onSelectNode={onSelectNode}
+				isLoading={isLoading}
+				graphData={graphData}
+				depthLimit={depthLimit}
+				onDepthChange={onDepthChange}
+			/>
+		</SkeletonFade>
+	);
+};
+
 export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
 }) => {
 	const [currentEntityId, setCurrentEntityId] = useState();
 	const [depthLimit, setDepthLimit] = useState(1);
-	const [calculatedEntities, _setCalculatedEntities] = useState<
-		DataLineageEntity[]
-	>([]);
 
 	const isPersistEnabled = usePanelSettingsStore((state) =>
 		state.isPanelPersistEnabled("entity-preview"),
@@ -187,12 +293,6 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		);
 	}, []);
 
-	const { currentGraph } = useDataLineageStore(
-		useShallow((state) => ({
-			currentGraph: state.currentGraph,
-			isLoading: state.isLoading,
-		})),
-	);
 	// Фоновая загрузка полного графа для GraphPanel
 	useCurrentDataLineageGraph({ enabled: false });
 
@@ -256,6 +356,11 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		};
 	}, [selectedEntity, relatedMappings, entityRelationsData]);
 
+	const calculatedEntities = useMemo(
+		() => graphData?.entities ?? [],
+		[graphData?.entities],
+	);
+
 	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
 
 	const panelComponents: Record<
@@ -263,39 +368,11 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		FunctionComponent<IDockviewPanelProps>
 	> = useMemo(
 		() => ({
-			"entity-details": () => (
-				<EntityContainer>
-					<EntityDetailsView
-						entity={selectedEntity}
-						mappings={relatedMappings}
-						allEntities={calculatedEntities}
-					/>
-				</EntityContainer>
-			),
-			"entity-json": () => (
-				<EntityContainer>
-					<EntityJsonEditor entity={selectedEntity} />
-				</EntityContainer>
-			),
-			"entity-graph": () => (
-				<EntityGraphPanel
-					onSelectNode={onSelectNode}
-					isLoading={isLoading}
-					graphData={graphData}
-					depthLimit={depthLimit}
-					onDepthChange={setDepthLimit}
-				/>
-			),
+			"entity-details": EntityDetailsDockviewPanel,
+			"entity-json": EntityJsonDockviewPanel,
+			"entity-graph": EntityGraphDockviewPanel,
 		}),
-		[
-			selectedEntity,
-			relatedMappings,
-			calculatedEntities,
-			graphData,
-			depthLimit,
-			onSelectNode,
-			isLoading,
-		],
+		[],
 	);
 
 	const isPersistEnabledRef = useRef(isPersistEnabled);
@@ -343,52 +420,72 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		[storageKey],
 	);
 
-	return (
-		<div>
-			<Header>
-				<Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: 2 }}>
-					<TextField
-						size="small"
-						placeholder="Поиск по атрибутам (мин. 3 символа)..."
-						value={attributeSearchInputValue}
-						onChange={handleAttributeSearchChange}
-						InputProps={{
-							startAdornment: (
-								<InputAdornment position="start">
-									<SearchIcon fontSize="small" />
-								</InputAdornment>
-							),
-						}}
-						sx={{
-							minWidth: 350,
-							bgcolor: "background.paper",
-							borderRadius: 1,
-						}}
-					/>
-					{highlightedAttr && (
-						<Alert
-							severity="info"
-							sx={{ py: 0, px: 1 }}
-							onClose={handleClearHighlight}
-						>
-							Выделен атрибут: <strong>{highlightedAttr}</strong>
-						</Alert>
-					)}
-				</Box>
-			</Header>
+	const dockviewContextValue = useMemo<EntityPreviewDockviewContextValue>(
+		() => ({
+			isLoading,
+			selectedEntity,
+			relatedMappings,
+			calculatedEntities,
+			graphData,
+			depthLimit,
+			onDepthChange: setDepthLimit,
+			onSelectNode,
+		}),
+		[
+			isLoading,
+			selectedEntity,
+			relatedMappings,
+			calculatedEntities,
+			graphData,
+			depthLimit,
+			onSelectNode,
+		],
+	);
 
-			<Box
-				sx={{
-					display: "flex",
-					flexDirection: "column",
-					height: "100%",
-					position: "relative",
-				}}
-			>
-				<FlexLayoutContainer>
-					{isLoading ? (
-						<FullScreenLoader />
-					) : (
+	return (
+		<EntityPreviewDockviewContext.Provider value={dockviewContextValue}>
+			<div>
+				<Header>
+					<Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: 2 }}>
+						<TextField
+							size="small"
+							placeholder="Поиск по атрибутам (мин. 3 символа)..."
+							value={attributeSearchInputValue}
+							onChange={handleAttributeSearchChange}
+							InputProps={{
+								startAdornment: (
+									<InputAdornment position="start">
+										<SearchIcon fontSize="small" />
+									</InputAdornment>
+								),
+							}}
+							sx={{
+								minWidth: 350,
+								bgcolor: "background.paper",
+								borderRadius: 1,
+							}}
+						/>
+						{highlightedAttr && (
+							<Alert
+								severity="info"
+								sx={{ py: 0, px: 1 }}
+								onClose={handleClearHighlight}
+							>
+								Выделен атрибут: <strong>{highlightedAttr}</strong>
+							</Alert>
+						)}
+					</Box>
+				</Header>
+
+				<Box
+					sx={{
+						display: "flex",
+						flexDirection: "column",
+						height: "100%",
+						position: "relative",
+					}}
+				>
+					<FlexLayoutContainer>
 						<DockviewReact
 							components={panelComponents}
 							onReady={onReady}
@@ -396,10 +493,10 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 							rightHeaderActionsComponent={DockviewGroupMaximizeActions}
 							theme={mode === "dark" ? themeAbyssSpaced : themeLightSpaced}
 						/>
-					)}
-				</FlexLayoutContainer>
-			</Box>
-		</div>
+					</FlexLayoutContainer>
+				</Box>
+			</div>
+		</EntityPreviewDockviewContext.Provider>
 	);
 };
 
