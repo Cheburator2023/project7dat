@@ -1,5 +1,7 @@
 # Semantic Versioning Changelog
 
+## [1.3.1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.3.0...v1.3.1) (2026-02-26)
+
 # [1.3.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.2.0...v1.3.0) (2026-02-18)
 
 
