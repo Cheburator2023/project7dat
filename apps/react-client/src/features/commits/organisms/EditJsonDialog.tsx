@@ -486,12 +486,6 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 										color="success"
 										variant="outlined"
 									/>
-									<Chip
-										label={`Изменено: ${diffResult.summary.modified}`}
-										size="small"
-										color="warning"
-										variant="outlined"
-									/>
 									{diffResult.summary.skippedDeletions > 0 && (
 										<Chip
 											label={`Удалено: ${diffResult.summary.skippedDeletions}`}

@@ -102,6 +102,7 @@ export interface HighlightedAttribute {
 
 export interface EntityNodeData {
 	entity: DataLineageEntity;
+	isDisabled?: boolean;
 	highlightType:
 		| "none"
 		| "selected"

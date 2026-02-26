@@ -31,6 +31,7 @@ import {
 	MAX_VISIBLE_ATTRS,
 	ATTR_EDGE_COLORS,
 	NODE_WIDTH,
+	isTempTable,
 } from "../constants";
 import type { EntityNodeData } from "../types";
 import { useColorScheme } from "@mui/material";
@@ -717,12 +718,16 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 
 			const nodes: EntityNode[] = uniqueEntities.map((entity) => {
+				const isDisabled = isTempTable(entity);
 				return {
 					id: entity.id,
 					type: "entityNode",
 					position: { x: 0, y: 0 },
+					selectable: !isDisabled,
+					draggable: !isDisabled,
 					data: {
 						entity,
+						isDisabled,
 						highlightType: "none",
 						onNodeClick: handleNodeClick,
 						onNodeDoubleClick: handleNodeDblClick,

@@ -1189,12 +1189,6 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 							color="success"
 							variant="outlined"
 						/>
-						<Chip
-							label={`Изменено: ${diffResult.summary.modified}`}
-							size="small"
-							color="warning"
-							variant="outlined"
-						/>
 						{diffResult.truncated && (
 							<Chip
 								label={`Показаны первые ${diffResult.changes.length} изменений`}

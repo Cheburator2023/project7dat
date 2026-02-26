@@ -396,10 +396,14 @@ export const jsonDataService = {
 		entityId: string;
 		page?: number;
 		limit?: number;
+		hideTempTables?: boolean;
 	}): Promise<PaginatedEntityRelationsResponse> => {
 		const searchParams = new URLSearchParams();
 		if (params.page) searchParams.append("page", params.page.toString());
 		if (params.limit) searchParams.append("limit", params.limit.toString());
+		if (params.hideTempTables !== undefined) {
+			searchParams.append("hideTempTables", String(params.hideTempTables));
+		}
 
 		return jsonDataApi
 			.get(
@@ -412,10 +416,14 @@ export const jsonDataService = {
 		modelId: string;
 		page?: number;
 		limit?: number;
+		hideTempTables?: boolean;
 	}): Promise<PaginatedEntityRelationsResponse> => {
 		const searchParams = new URLSearchParams();
 		if (params.page) searchParams.append("page", params.page.toString());
 		if (params.limit) searchParams.append("limit", params.limit.toString());
+		if (params.hideTempTables !== undefined) {
+			searchParams.append("hideTempTables", String(params.hideTempTables));
+		}
 
 		return jsonDataApi
 			.get(
