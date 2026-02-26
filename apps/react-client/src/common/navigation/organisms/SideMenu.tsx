@@ -3,45 +3,38 @@ import Box from "@mui/material/Box";
 import MuiDrawer, { drawerClasses } from "@mui/material/Drawer";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { styled, useColorScheme } from "@mui/material/styles";
+import { styled } from "@mui/material/styles";
 import { MenuContent } from "../molecules/MenuContent";
 import { OptionsMenu } from "../molecules/OptionsMenu";
 import { LogoDataLineage } from "@react-client/common/primitives/LogoDataLineage";
 import { useUserStore } from "@react-client/common/stores/userStore";
-import { Flex } from "@react-client/common/primitives/Flex";
+import { Paper } from "@mui/material";
 
 const drawerWidth = 260;
 
-const Drawer = styled(MuiDrawer)<{ mode?: string }>(({ mode }) => {
+const Drawer = styled(MuiDrawer)(() => {
 	return {
 		width: drawerWidth,
 		flexShrink: 0,
-		boxSizing: "border-box",
-		border: "none",
-		backgroundColor: "transparent",
-		backgroundImage: "none",
-		boxShadow: "none",
-		padding: "0px",
 		[`& .${drawerClasses.paper}`]: {
 			width: drawerWidth,
 			border: "none",
 			backgroundColor: "transparent",
-			backgroundImage: "none",
-			boxShadow: "none",
-			boxSizing: "border-box",
 			padding: "8px 0px 8px 8px",
 		},
 	};
 });
 
-const DrawerWrapper = styled(Flex)<{ mode?: string }>(({ mode }) => {
+const DrawerWrapper = styled(Paper)(() => {
 	return {
 		flexShrink: 0,
 		boxSizing: "border-box",
-		backgroundColor: mode === "light" ? "#F5F6FA" : "#191b25",
 		padding: "0px",
 		borderRadius: "8px",
 		border: "1px solid #7a7f894d",
+		height: "100%",
+		display: "flex",
+		flexDirection: "column",
 	};
 });
 
@@ -52,12 +45,11 @@ export function SideMenu({
 	open?: boolean;
 	onLogout?: () => void;
 }) {
-	const { mode } = useColorScheme();
 	const { user } = useUserStore();
 
 	return (
 		<Drawer variant="persistent" open={open} data-test-id="side-menu--Drawer-0">
-			<DrawerWrapper mode={mode} flexDirection="column" height="100%">
+			<DrawerWrapper>
 				<LogoDataLineage />
 
 				<Box
