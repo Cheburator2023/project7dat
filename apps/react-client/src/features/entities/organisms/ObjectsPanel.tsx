@@ -66,22 +66,30 @@ export const ObjectsPanel = memo(() => {
 
 	const { effectiveGraphId } = useCurrentSchema();
 
-	const { data: paginatedEntitiesData, isLoading: isLoadingPaginatedEntities } =
-		usePaginatedEntities({
-			page: 1,
-			limit: 50,
-			search: buildEntitiesSearch({
-				uiSearch: globalSearchQuery || undefined,
-				hideTempTables,
-			}),
-			enabled: false,
-		});
-	const { data: paginatedMappingsData, isLoading: isLoadingPaginatedMappings } =
-		usePaginatedMappings({
-			page: 1,
-			limit: 50,
-			enabled: false,
-		});
+	const {
+		data: paginatedEntitiesData,
+		isLoading: isLoadingPaginatedEntities,
+		isPending: isPendingPaginatedEntities,
+		isFetching: isFetchingPaginatedEntities,
+	} = usePaginatedEntities({
+		page: 1,
+		limit: 50,
+		search: buildEntitiesSearch({
+			uiSearch: globalSearchQuery || undefined,
+			hideTempTables,
+		}),
+		enabled: false,
+	});
+	const {
+		data: paginatedMappingsData,
+		isLoading: isLoadingPaginatedMappings,
+		isPending: isPendingPaginatedMappings,
+		isFetching: isFetchingPaginatedMappings,
+	} = usePaginatedMappings({
+		page: 1,
+		limit: 50,
+		enabled: false,
+	});
 
 	const entitiesSource = useMemo<EntityLike[]>(() => {
 		return paginatedEntitiesData?.entities ?? [];
@@ -92,7 +100,10 @@ export const ObjectsPanel = memo(() => {
 	}, [paginatedMappingsData?.mappings]);
 
 	const isPanelLoading =
-		isLoadingPaginatedEntities || isLoadingPaginatedMappings;
+		isLoadingPaginatedEntities ||
+		isLoadingPaginatedMappings ||
+		isFetchingPaginatedEntities ||
+		isFetchingPaginatedMappings;
 
 	// View mode toggle: "attributes" or "links"
 	const [viewMode, _setViewMode] = useState<"attributes" | "links">(

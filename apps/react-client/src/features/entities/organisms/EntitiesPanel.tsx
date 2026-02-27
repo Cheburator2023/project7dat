@@ -69,6 +69,7 @@ export const EntitiesPanel = memo(
 			data: paginatedData,
 			isLoading,
 			isFetching,
+			isPending,
 		} = usePaginatedEntities({
 			page: entitiesPage,
 			limit: entitiesPageSize,
@@ -274,7 +275,7 @@ export const EntitiesPanel = memo(
 						animateRows
 						rowHeight={28}
 						headerHeight={32}
-						loading={isLoading}
+						loading={isLoading || isFetching || isPending}
 						overlayNoRowsTemplate="Нет данных"
 						overlayLoadingTemplate="Загрузка"
 					/>
