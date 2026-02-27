@@ -211,18 +211,13 @@ const EntityGraphDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
 		useEntityPreviewDockviewContext();
 
 	return (
-		<SkeletonFade
-			loading={!isLoading}
-			skeleton={<SkeletonBlock height="100%" borderRadius={12} />}
-		>
-			<EntityGraphPanel
-				onSelectNode={onSelectNode}
-				isLoading={isLoading}
-				graphData={graphData}
-				depthLimit={depthLimit}
-				onDepthChange={onDepthChange}
-			/>
-		</SkeletonFade>
+		<EntityGraphPanel
+			onSelectNode={onSelectNode}
+			isLoading={isLoading}
+			graphData={graphData}
+			depthLimit={depthLimit}
+			onDepthChange={onDepthChange}
+		/>
 	);
 };
 

@@ -496,19 +496,14 @@ const EntityGraphDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
 	} = useModelPreviewDockviewContext();
 
 	return (
-		<SkeletonFade
-			loading={isLoading}
-			skeleton={<SkeletonBlock height="100%" borderRadius={12} />}
-		>
-			<ModelGraphPanel
-				onSelectNode={onSelectNode}
-				entity={selectedEntity}
-				isLoading={isLoading}
-				graphData={graphData}
-				depthLimit={depthLimit}
-				onDepthChange={onDepthChange}
-			/>
-		</SkeletonFade>
+		<ModelGraphPanel
+			onSelectNode={onSelectNode}
+			entity={selectedEntity}
+			isLoading={isLoading}
+			graphData={graphData}
+			depthLimit={depthLimit}
+			onDepthChange={onDepthChange}
+		/>
 	);
 };
 
