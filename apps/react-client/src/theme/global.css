@@ -637,6 +637,6 @@ div.dv-split-view-container .dv-sash-container .dv-sash:not(.disabled):hover {
 	background-color: #6380c1;
 }
 
-div[class*="ag-theme-"] {
+.dv-dockview div[class*="ag-theme-"] {
 	padding: 0 8px;
 }

@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from "react";
 import type { FunctionComponent } from "react";
 import { Box, useColorScheme } from "@mui/material";
-import { styled } from "@mui/material/styles";
 import { useParams } from "react-router";
 import { DockviewNoCloseTab } from "@react-client/common/dockview/DockviewNoCloseTab";
 import { DockviewGroupMaximizeActions } from "@react-client/common/dockview/DockviewGroupMaximizeActions";
@@ -14,8 +13,6 @@ import {
 } from "@react-client/features/dockview/core";
 import { DockviewReact } from "@react-client/features/dockview/src";
 import { Header } from "@react-client/common/navigation/organisms/Header";
-import { SkeletonFade } from "@react-client/common/skeleton/atoms/SkeletonFade";
-import { DockviewPanelsSkeleton } from "@react-client/common/skeleton/organisms/DockviewPanelsSkeleton";
 
 import { CommitEntitiesPanel } from "../organisms/CommitEntitiesPanel";
 import { CommitEntitiesComparisonPanel } from "../organisms/CommitEntitiesComparisonPanel";
@@ -25,6 +22,7 @@ import { CommitMergeActionsPanel } from "../organisms/CommitMergeActionsPanel";
 import { CommitObjectsPanel } from "../organisms/CommitObjectsPanel";
 import { commitMergeLayoutJson } from "../constants/commitMergeLayout";
 import { useCommitMergeStore } from "../stores/commitMergeStore";
+import { FullScreenLoader } from "@react-client/common/muiCustom/FullScreenLoader";
 
 const panelComponents: Record<
 	string,
@@ -89,28 +87,18 @@ export const CommitMergePreviewTemplate = () => {
 			<Header
 				title={`Предпросмотр: ${commit?.commit_name || commit?.id.slice(0, 8) || ""}`}
 			/>
-
-			<DockviewWrapper>
-				<SkeletonFade
-					loading={isLoading}
-					skeleton={<DockviewPanelsSkeleton panels={2} />}
-				>
-					<DockviewReact
-						components={panelComponents}
-						onReady={onReady}
-						defaultRenderer="onlyWhenVisible"
-						defaultTabComponent={DockviewNoCloseTab}
-						rightHeaderActionsComponent={DockviewGroupMaximizeActions}
-						theme={mode === "dark" ? themeAbyssSpaced : themeLightSpaced}
-					/>
-				</SkeletonFade>
-			</DockviewWrapper>
+			{isLoading ? (
+				<FullScreenLoader />
+			) : (
+				<DockviewReact
+					components={panelComponents}
+					onReady={onReady}
+					defaultRenderer="onlyWhenVisible"
+					defaultTabComponent={DockviewNoCloseTab}
+					rightHeaderActionsComponent={DockviewGroupMaximizeActions}
+					theme={mode === "dark" ? themeAbyssSpaced : themeLightSpaced}
+				/>
+			)}
 		</Box>
 	);
 };
-
-const DockviewWrapper = styled("div")(() => ({
-	flex: 1,
-	position: "relative",
-	overflow: "hidden",
-}));

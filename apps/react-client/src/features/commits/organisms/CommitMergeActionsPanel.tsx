@@ -11,26 +11,17 @@ import {
 	Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-	s2tCommitStoreService,
-	type ApplyS2tCommitPayload,
-} from "@react-client/api/hooks/s2tCommitStoreApi";
 import { useAuthStore } from "@react-client/common/stores/authStore";
-import {
-	PAGINATED_ENTITY_RELATIONS_QUERY_KEY,
-	S2T_COMMIT_BY_ID_QUERY_KEY,
-} from "@react-client/api/hooks";
-import { PAGINATED_MODEL_RELATIONS_QUERY_KEY } from "@react-client/api/hooks/usePaginatedModelRelations";
+import { useApplyS2tCommit } from "@react-client/api/hooks/useApplyS2tCommit";
 import { routes } from "@react-client/routing/routes";
 import { useCommitMergeStore } from "../stores/commitMergeStore";
 
 export const CommitMergeActionsPanel = memo(() => {
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
 	const authStore = useAuthStore();
 	const username = authStore.userInfo?.username ?? "system";
+	const applyMutation = useApplyS2tCommit();
 
 	const {
 		commit,
@@ -49,20 +40,11 @@ export const CommitMergeActionsPanel = memo(() => {
 		setApplying(true);
 		setError(null);
 		try {
-			await s2tCommitStoreService.apply(commit.id, {
-				user: username,
-				sourceType,
-			} satisfies ApplyS2tCommitPayload);
+			await applyMutation.mutateAsync({
+				id: commit.id,
+				payload: { user: username, sourceType },
+			});
 			toast.success("Коммит успешно применён");
-			queryClient.invalidateQueries({
-				queryKey: [...PAGINATED_ENTITY_RELATIONS_QUERY_KEY],
-			});
-			queryClient.invalidateQueries({
-				queryKey: [...PAGINATED_MODEL_RELATIONS_QUERY_KEY],
-			});
-			queryClient.invalidateQueries({
-				queryKey: [S2T_COMMIT_BY_ID_QUERY_KEY],
-			});
 			navigate(routes.allCommits.rootPath);
 		} catch (err: any) {
 			setError(
@@ -77,7 +59,7 @@ export const CommitMergeActionsPanel = memo(() => {
 		sourceType,
 		setApplying,
 		setError,
-		queryClient,
+		applyMutation,
 		navigate,
 	]);
 
