@@ -318,7 +318,8 @@ export const AllCommitsPage: FC = () => {
 		(event: any) => {
 			const id = event?.data?.id;
 			if (!id) return;
-			navigate(`/s2t-commits/${id}`);
+			// navigate(`/s2t-commits/${id}`);
+			navigate(`/commits/${id}/merge`);
 		},
 		[navigate],
 	);
