@@ -262,7 +262,7 @@ export class JsonExportService {
 	private async getEnhancedMappingsWithCorrectStructure(): Promise<
 		MappingWithDetails[]
 	> {
-		// Основной запрос для получения entity_map
+		// 1. Основной запрос для получения entity_map
 		const entityMapsQuery = `
             SELECT DISTINCT
                 em.entity_map_id,
@@ -286,14 +286,52 @@ export class JsonExportService {
             ORDER BY em.entity_map_id
         `;
 
-		const entityMaps = await this.dataSource.query(entityMapsQuery);
+		const entityMaps: any[] = await this.dataSource.query(entityMapsQuery);
+		if (entityMaps.length === 0) return [];
+
+		// 2. Батч-загрузка всех target-сущностей одним запросом
+		const targetEntityIds = [
+			...new Set(entityMaps.map((em) => em.target_entity_id)),
+		];
+		const allTargetEntities =
+			await this.getAllEntitiesWithSystemInfoBatch(targetEntityIds);
+		const targetEntityMap = new Map<number, any>();
+		for (const te of allTargetEntities) {
+			targetEntityMap.set(te.entity_id, te);
+		}
+
+		// 3. Батч-загрузка всех entity_map_source одним запросом
+		const allEntityMapSources = await this.getAllEntityMapSourcesBatch();
+		const sourcesByEntityMapId = new Map<number, any[]>();
+		for (const src of allEntityMapSources) {
+			const list = sourcesByEntityMapId.get(src.entity_map_id) ?? [];
+			list.push(src);
+			sourcesByEntityMapId.set(src.entity_map_id, list);
+		}
+
+		// 4. Батч-загрузка всех attribute_map одним запросом
+		const allAttrMaps = await this.getAllAttributeMappingsBatch();
+		const attrMapsByEntityMapId = new Map<number, any[]>();
+		for (const am of allAttrMaps) {
+			const list = attrMapsByEntityMapId.get(am.entity_map_id) ?? [];
+			list.push(am);
+			attrMapsByEntityMapId.set(am.entity_map_id, list);
+		}
+
+		// 5. Батч-загрузка всех entity_attribute_map (функц. зависимости) одним запросом
+		const allAttrDeps = await this.getAllAttributeDependenciesBatch();
+		const attrDepsByEntityMapId = new Map<number, any[]>();
+		for (const ad of allAttrDeps) {
+			const list = attrDepsByEntityMapId.get(ad.entity_map_id) ?? [];
+			list.push(ad);
+			attrDepsByEntityMapId.set(ad.entity_map_id, list);
+		}
+
+		// 6. Сборка результата (in-memory, без дополнительных SQL)
 		const results: MappingWithDetails[] = [];
 
 		for (const entityMap of entityMaps) {
-			// Получаем информацию о целевой сущности
-			const targetEntity = await this.getEntityWithSystemInfo(
-				entityMap.target_entity_id,
-			);
+			const targetEntity = targetEntityMap.get(entityMap.target_entity_id);
 			if (!targetEntity) {
 				this.logger.warn(
 					`Целевая сущность не найдена для entity_map_id: ${entityMap.entity_map_id}`,
@@ -301,12 +339,13 @@ export class JsonExportService {
 				continue;
 			}
 
-			// Получаем источники через attribute_map_source и entity_attribute_map
-			const sources = await this.getSourcesForEntityMap(
+			const sources = this.buildSourcesFromBatch(
 				entityMap.entity_map_id,
+				sourcesByEntityMapId,
+				attrMapsByEntityMapId,
+				attrDepsByEntityMapId,
 			);
 
-			// Создаем базовую запись для целевой сущности
 			const baseMapping: MappingWithDetails = {
 				entity_map_id: entityMap.entity_map_id,
 				target_entity_id: entityMap.target_entity_id,
@@ -322,7 +361,6 @@ export class JsonExportService {
 				atr_deps: [],
 			};
 
-			// Если есть источники, создаем отдельные записи для каждого источника
 			if (sources.length > 0) {
 				for (const source of sources) {
 					const mapping: MappingWithDetails = {
@@ -336,7 +374,6 @@ export class JsonExportService {
 					results.push(mapping);
 				}
 			} else {
-				// Если нет источников, добавляем запись без источника
 				results.push(baseMapping);
 			}
 		}
@@ -345,13 +382,19 @@ export class JsonExportService {
 	}
 
 	/**
-	 * Получение источников для entity_map
+	 * Сборка источников для одного entity_map из батч-данных (без SQL)
 	 */
-	private async getSourcesForEntityMap(entityMapId: number): Promise<any[]> {
+	private buildSourcesFromBatch(
+		entityMapId: number,
+		sourcesByEntityMapId: Map<number, any[]>,
+		attrMapsByEntityMapId: Map<number, any[]>,
+		attrDepsByEntityMapId: Map<number, any[]>,
+	): any[] {
 		const sources = new Map<number, any>();
 
-		const allSources = await this.getEntityMapSources(entityMapId);
-		for (const src of allSources) {
+		// entity_map_source
+		const emSources = sourcesByEntityMapId.get(entityMapId) ?? [];
+		for (const src of emSources) {
 			if (src.source_entity_id && !sources.has(src.source_entity_id)) {
 				sources.set(src.source_entity_id, {
 					source_entity_id: src.source_entity_id,
@@ -363,14 +406,8 @@ export class JsonExportService {
 			}
 		}
 
-		// 2. Получаем информацию об атрибутных маппингах
-		const attrMaps = await this.getAttributeMappingsForEntityMap(entityMapId);
-
-		// 3. Получаем информацию о функциональных зависимостях
-		const attrDeps =
-			await this.getAttributeDependenciesForEntityMap(entityMapId);
-
-		// Обрабатываем атрибутные маппинги
+		// attribute_map
+		const attrMaps = attrMapsByEntityMapId.get(entityMapId) ?? [];
 		for (const attrMap of attrMaps) {
 			if (attrMap.source_entity_id && !sources.has(attrMap.source_entity_id)) {
 				sources.set(attrMap.source_entity_id, {
@@ -396,7 +433,8 @@ export class JsonExportService {
 			}
 		}
 
-		// Обрабатываем функциональные зависимости
+		// entity_attribute_map (функц. зависимости)
+		const attrDeps = attrDepsByEntityMapId.get(entityMapId) ?? [];
 		for (const attrDep of attrDeps) {
 			if (attrDep.source_entity_id && !sources.has(attrDep.source_entity_id)) {
 				sources.set(attrDep.source_entity_id, {
@@ -411,7 +449,6 @@ export class JsonExportService {
 			if (attrDep.source_entity_id) {
 				const existing = sources.get(attrDep.source_entity_id);
 				if (existing) {
-					// Находим существующую зависимость или создаем новую
 					const existingDep = existing.atr_deps.find(
 						(d: any) =>
 							d.attr === attrDep.source_attribute_name &&
@@ -419,7 +456,6 @@ export class JsonExportService {
 					);
 
 					if (existingDep) {
-						// Добавляем уникальные типы связей
 						attrDep.link_types?.forEach((linkType: string) => {
 							if (!existingDep.linkTypes.includes(linkType)) {
 								existingDep.linkTypes.push(linkType);
@@ -443,11 +479,42 @@ export class JsonExportService {
 	}
 
 	/**
-	 * Получение всех источников из entity_map_source
+	 * Батч-загрузка сущностей с system_code по массиву id
 	 */
-	private async getEntityMapSources(entityMapId: number): Promise<any[]> {
+	private async getAllEntitiesWithSystemInfoBatch(
+		entityIds: number[],
+	): Promise<any[]> {
+		if (entityIds.length === 0) return [];
+		const query = `
+            SELECT
+                e.entity_id,
+                e.full_name,
+                e.name,
+                COALESCE(s.code,
+                         CASE
+                             WHEN ec.value LIKE '%1642%' OR e.full_name LIKE '%1642%' THEN '1642'
+                             WHEN ec.value LIKE '%1655%' OR e.full_name LIKE '%1655%' THEN '1655'
+                             WHEN et.name IN ('TABLE_HIVE', 'VIEW_HIVE') THEN '1642'
+                             WHEN et.name IN ('JSON', 'INPUT_VECTOR') THEN '1655'
+                             ELSE '1642'
+                             END
+                ) as system_code
+            FROM entity e
+                     LEFT JOIN entity_type et ON e.entity_type_id = et.entity_type_id
+                     LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
+                     LEFT JOIN systems s ON ec.system_id = s.system_id
+            WHERE e.entity_id = ANY($1)
+        `;
+		return await this.dataSource.query(query, [entityIds]);
+	}
+
+	/**
+	 * Батч-загрузка ВСЕХ entity_map_source (без фильтра по entity_map_id)
+	 */
+	private async getAllEntityMapSourcesBatch(): Promise<any[]> {
 		const query = `
             SELECT DISTINCT
+                ems.entity_map_id,
                 ems.source_entity_id,
                 e.full_name as source_entity_full_name,
                 COALESCE(s.code,
@@ -464,23 +531,21 @@ export class JsonExportService {
                      LEFT JOIN entity_type et ON e.entity_type_id = et.entity_type_id
                      LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
                      LEFT JOIN systems s ON ec.system_id = s.system_id
-            WHERE ems.entity_map_id = $1
-            ORDER BY e.full_name
+                     INNER JOIN entity_map em ON ems.entity_map_id = em.entity_map_id
+            WHERE em.change_id IS NOT NULL
+            ORDER BY ems.entity_map_id, e.full_name
         `;
-
-		return await this.dataSource.query(query, [entityMapId]);
+		return await this.dataSource.query(query);
 	}
 
 	/**
-	 * Получение атрибутных маппингов для entity_map
+	 * Батч-загрузка ВСЕХ атрибутных маппингов
 	 */
-	private async getAttributeMappingsForEntityMap(
-		entityMapId: number,
-	): Promise<any[]> {
+	private async getAllAttributeMappingsBatch(): Promise<any[]> {
 		const query = `
             SELECT
-                am.attribute_map_id,
                 am.entity_map_id,
+                am.attribute_map_id,
                 am.attribute_id as target_attribute_id,
                 a_target.name as target_attribute_name,
                 ams.source_attribute_id,
@@ -510,21 +575,20 @@ export class JsonExportService {
                      LEFT JOIN systems s ON ec.system_id = s.system_id
                      LEFT JOIN changes c_am ON am.change_id = c_am.change_id
                      LEFT JOIN changes c_ams ON ams.change_id = c_ams.change_id
-            WHERE am.entity_map_id = $1
-            ORDER BY e_source.full_name, a_source.name
+                     INNER JOIN entity_map em ON am.entity_map_id = em.entity_map_id
+            WHERE em.change_id IS NOT NULL
+            ORDER BY am.entity_map_id, e_source.full_name, a_source.name
         `;
-
-		return await this.dataSource.query(query, [entityMapId]);
+		return await this.dataSource.query(query);
 	}
 
 	/**
-	 * Получение функциональных зависимостей для entity_map
+	 * Батч-загрузка ВСЕХ функциональных зависимостей
 	 */
-	private async getAttributeDependenciesForEntityMap(
-		entityMapId: number,
-	): Promise<any[]> {
+	private async getAllAttributeDependenciesBatch(): Promise<any[]> {
 		const query = `
             SELECT
+                eam.entity_map_id,
                 eam.source_attribute_id,
                 a.name as source_attribute_name,
                 a.entity_id as source_entity_id,
@@ -547,42 +611,13 @@ export class JsonExportService {
                      LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
                      LEFT JOIN systems s ON ec.system_id = s.system_id
                      LEFT JOIN changes c_dep ON eam.change_id = c_dep.change_id
-            WHERE eam.entity_map_id = $1
-            GROUP BY eam.source_attribute_id, a.name, a.entity_id, e.full_name,
+                     INNER JOIN entity_map em ON eam.entity_map_id = em.entity_map_id
+            WHERE em.change_id IS NOT NULL
+            GROUP BY eam.entity_map_id, eam.source_attribute_id, a.name, a.entity_id, e.full_name,
                 s.code, ec.value, et.name
-            ORDER BY e.full_name, a.name
+            ORDER BY eam.entity_map_id, e.full_name, a.name
         `;
-
-		return await this.dataSource.query(query, [entityMapId]);
-	}
-
-	/**
-	 * Получение информации о сущности с systems_code
-	 */
-	private async getEntityWithSystemInfo(entityId: number): Promise<any> {
-		const query = `
-            SELECT
-                e.entity_id,
-                e.full_name,
-                e.name,
-                COALESCE(s.code,
-                         CASE
-                             WHEN ec.value LIKE '%1642%' OR e.full_name LIKE '%1642%' THEN '1642'
-                             WHEN ec.value LIKE '%1655%' OR e.full_name LIKE '%1655%' THEN '1655'
-                             WHEN et.name IN ('TABLE_HIVE', 'VIEW_HIVE') THEN '1642'
-                             WHEN et.name IN ('JSON', 'INPUT_VECTOR') THEN '1655'
-                             ELSE '1642'
-                             END
-                ) as system_code
-            FROM entity e
-                     LEFT JOIN entity_type et ON e.entity_type_id = et.entity_type_id
-                     LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
-                     LEFT JOIN systems s ON ec.system_id = s.system_id
-            WHERE e.entity_id = $1
-        `;
-
-		const result = await this.dataSource.query(query, [entityId]);
-		return result.length > 0 ? result[0] : null;
+		return await this.dataSource.query(query);
 	}
 
 	/**

@@ -491,6 +491,7 @@ export const AllCommitsPage: FC = () => {
 					</MenuItem>,
 					<MenuItem
 						key="edit-json"
+						// disabled
 						onClick={() => {
 							setEditJsonCommit(contextMenuCommit);
 							handleCloseContextMenu();

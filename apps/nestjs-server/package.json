@@ -5,9 +5,9 @@
 	"private": true,
 	"scripts": {
 		"dev": "nest start --watch",
-		"dev:god": "cross-env NODE_ENV=development NO_ROLES=true DB_SYNCHRONIZE=false nest start --watch",
+		"dev:god": "cross-env NODE_ENV=development NO_ROLES=true NODE_OPTIONS=--max-old-space-size=2048 DB_SYNCHRONIZE=false nest start --watch",
 		"build": "nest build",
-		"start": "cross-env NO_ROLES=true tsx dist/main",
+		"start": "cross-env NO_ROLES=true NODE_OPTIONS=--max-old-space-size=2048 tsx dist/main",
 		"start:debug": "nest start --debug --watch",
 		"prod": "npm run build && npm run start",
 		"test": "jest",

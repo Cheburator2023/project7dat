@@ -115,6 +115,20 @@ export class S2tCommitStoreService {
 		const sortOrder = params?.sortOrder === "asc" ? "ASC" : "DESC";
 
 		const [items, total] = await this.repo.findAndCount({
+			select: [
+				"id",
+				"parent_id",
+				"commit_name",
+				"commit_description",
+				"type",
+				"state",
+				"user",
+				"change_id",
+				"error",
+				"created_at",
+				"updated_at",
+				"payload",
+			],
 			where,
 			order: {
 				[sortBy]: sortOrder,

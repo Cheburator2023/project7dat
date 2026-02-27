@@ -66,6 +66,7 @@ export { useCumulativeCommitData } from "./useCumulativeCommitData";
 export { useCommitById, COMMIT_BY_ID_QUERY_KEY } from "./useCommitById";
 export { useApplyCommit } from "./useApplyCommit";
 export { useApplyPartialCommit } from "./useApplyPartialCommit";
+export { useApplyS2tCommit } from "./useApplyS2tCommit";
 export {
 	useCommitQueue,
 	COMMIT_QUEUE_QUERY_KEY,

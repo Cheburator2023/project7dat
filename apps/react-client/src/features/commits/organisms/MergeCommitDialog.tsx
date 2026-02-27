@@ -27,10 +27,8 @@ import {
 	TextField,
 } from "@mui/material";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
-import {
-	s2tCommitStoreService,
-	type ApplyS2tCommitPayload,
-} from "@react-client/api/hooks/s2tCommitStoreApi";
+import { type ApplyS2tCommitPayload } from "@react-client/api/hooks/s2tCommitStoreApi";
+import { useApplyS2tCommit } from "@react-client/api/hooks/useApplyS2tCommit";
 
 interface MergeCommitDialogProps {
 	open: boolean;
@@ -61,16 +59,17 @@ export const MergeCommitDialog: FC<MergeCommitDialogProps> = ({
 	const [error, setError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState(0);
 	const [entitySearch, setEntitySearch] = useState("");
+	const applyMutation = useApplyS2tCommit();
 
 	const handleApply = async () => {
 		if (!commit) return;
 		setApplying(true);
 		setError(null);
 		try {
-			await s2tCommitStoreService.apply(commit.id, {
-				user: username,
-				sourceType,
-			} satisfies ApplyS2tCommitPayload);
+			await applyMutation.mutateAsync({
+				id: commit.id,
+				payload: { user: username, sourceType } satisfies ApplyS2tCommitPayload,
+			});
 			onApplied();
 			onClose();
 		} catch (err: any) {
