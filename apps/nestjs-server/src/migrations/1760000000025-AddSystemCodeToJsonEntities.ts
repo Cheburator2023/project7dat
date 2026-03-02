@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddSystemCodeToJsonEntities1760000000100 implements MigrationInterface {
-    name = 'AddSystemCodeToJsonEntities1760000000100'
+export class AddSystemCodeToJsonEntities1760000000025 implements MigrationInterface {
+    name = 'AddSystemCodeToJsonEntities1760000000025'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`

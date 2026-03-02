@@ -29,23 +29,41 @@ export class JsonBusinessRulesValidationService extends JsonBusinessRulesValidat
 		};
 	}
 
+	/**
+	 * Проверяет имена сущностей и их атрибутов на соответствие бизнес-правилам.
+	 * Имя должно:
+	 * - содержать только допустимые символы (буквы, цифры, дефис, подчёркивание, скобки)
+	 * - содержать хотя бы одну букву или цифру (не состоять только из спецсимволов)
+	 * - не быть пустым
+	 * - не состоять из одного дефиса, подчёркивания и т.п.
+	 * Дополнительно проверяется namespace (схема) сущности.
+	 */
 	private validateNaming(entities: any[], violations: string[]): void {
 		if (!entities || !Array.isArray(entities)) {
 			return;
 		}
 
 		entities.forEach((entity: any, index: number) => {
-			if (!this.isValidName(entity.name)) {
+			// Проверка имени таблицы (entity.name)
+			if (!this.isValidName(entity.name, true)) {
 				violations.push(
-					`Сущность ${index}: имя содержит недопустимые символы: ${entity.name}`,
+					`Сущность ${index}: имя таблицы содержит недопустимые символы или не содержит букв/цифр: "${entity.name}"`,
 				);
 			}
 
+			// Проверка схемы (entity.namespace), если она присутствует
+			if (entity.namespace && !this.isValidName(entity.namespace, true)) {
+				violations.push(
+					`Сущность ${index}: схема (namespace) содержит недопустимые символы или не содержит букв/цифр: "${entity.namespace}"`,
+				);
+			}
+
+			// Проверка атрибутов
 			if (entity.attrSeq && Array.isArray(entity.attrSeq)) {
 				entity.attrSeq.forEach((attr: any, attrIndex: number) => {
-					if (!this.isValidName(attr.name)) {
+					if (!this.isValidName(attr.name, true)) {
 						violations.push(
-							`Сущность ${index}, атрибут ${attrIndex}: имя содержит недопустимые символы: ${attr.name}`,
+							`Сущность ${index}, атрибут ${attrIndex}: имя атрибута содержит недопустимые символы или не содержит букв/цифр: "${attr.name}"`,
 						);
 					}
 				});
@@ -84,12 +102,36 @@ export class JsonBusinessRulesValidationService extends JsonBusinessRulesValidat
 		}
 	}
 
-	private isValidName(name: string): boolean {
+	/**
+	 * Проверяет, является ли имя допустимым согласно бизнес-правилам.
+	 * @param name - проверяемое имя
+	 * @param requireAlphanumeric - требовать наличия хотя бы одной буквы или цифры
+	 */
+	private isValidName(name: string, requireAlphanumeric = true): boolean {
 		if (!name || typeof name !== "string") {
 			return false;
 		}
 
-		const validNameRegex = /^[а-яА-Яa-zA-Z0-9_\-\s]+$/;
-		return validNameRegex.test(name);
+		// Проверка на пустую строку или только пробелы
+		if (name.trim().length === 0) {
+			return false;
+		}
+
+		// Допустимые символы: буквы (русские и латинские), цифры, дефис, подчёркивание, пробел, скобки
+		const validNameRegex = /^[а-яА-Яa-zA-Z0-9_\-()\s]+$/;
+		if (!validNameRegex.test(name)) {
+			return false;
+		}
+
+		// Если требуется наличие хотя бы одной буквы или цифры (чтобы избежать имён типа "---", "___")
+		if (requireAlphanumeric) {
+			// Проверяем наличие хотя бы одного алфавитно-цифрового символа
+			const hasAlphanumeric = /[а-яА-Яa-zA-Z0-9]/.test(name);
+			if (!hasAlphanumeric) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }
