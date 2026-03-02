@@ -30,6 +30,7 @@ import {
 	TYPE_COLORS,
 	HIGHLIGHT_COLORS,
 	DEPTH_LEVEL_COLORS,
+	ATTR_EDGE_COLORS,
 	isTempTable,
 } from "../../entities/constants";
 import type { EntityConnection, EntityNodeData } from "../../entities/types";
@@ -50,6 +51,8 @@ import {
 	OpenInNew,
 	SwapHoriz,
 	SwapVert,
+	ClearAll,
+	Clear,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
@@ -889,60 +892,6 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 						labelStyle: { fontSize: 9, fill: "#666" },
 						labelBgStyle: { fill: "#fff", fillOpacity: 0.9 },
 					});
-
-					// Render attribute-level edges only when attributes are selected
-					if (
-						selectedAttributes.length > 0 &&
-						dep.attrMaps &&
-						dep.attrMaps.length > 0
-					) {
-						const sourceHighlighted = selectedHighlightedByEntity.get(
-							dep.entityId,
-						);
-						const targetHighlighted = selectedHighlightedByEntity.get(
-							mapping.entityId,
-						);
-						for (const attrMap of dep.attrMaps) {
-							const isSelectedSrc =
-								sourceHighlighted?.has(attrMap.src) ?? false;
-							const isSelectedDst =
-								targetHighlighted?.has(attrMap.dst) ?? false;
-							if (!isSelectedSrc && !isSelectedDst) continue;
-
-							const attrEdgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
-							if (edgeSet.has(attrEdgeId)) continue;
-							edgeSet.add(attrEdgeId);
-
-							// Ensure entities actually have these attributes
-							const srcEntityHasAttr =
-								entityAttrNames.get(dep.entityId)?.has(attrMap.src) ?? false;
-							const dstEntityHasAttr =
-								entityAttrNames.get(mapping.entityId)?.has(attrMap.dst) ??
-								false;
-							if (!srcEntityHasAttr || !dstEntityHasAttr) continue;
-
-							edges.push({
-								id: attrEdgeId,
-								source: dep.entityId,
-								target: mapping.entityId,
-								sourceHandle: `attr-source-${attrMap.src}`,
-								targetHandle: `attr-target-${attrMap.dst}`,
-								type: "default",
-								animated: true,
-								style: {
-									stroke: HIGHLIGHT_COLORS.selected,
-									strokeWidth: 3,
-									opacity: 0.9,
-								},
-								markerEnd: {
-									type: MarkerType.ArrowClosed,
-									color: HIGHLIGHT_COLORS.selected,
-									width: 12,
-									height: 12,
-								},
-							});
-						}
-					}
 				}
 			}
 
@@ -961,8 +910,6 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			upstreamCounts,
 			downstreamCounts,
 			hoverHighlightedByEntity,
-			selectedAttributes,
-			selectedHighlightedByEntity,
 			searchMatchedEntities,
 			globalSearchQuery,
 			showFullGraphByDefault,
@@ -1362,8 +1309,107 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		useEffect(() => {
 			setNodes(layoutedNodes as Node[]);
-			setEdges(layoutedEdges);
-		}, [layoutedNodes, layoutedEdges, setNodes, setEdges]);
+		}, [layoutedNodes, setNodes]);
+
+		// Edge decoration effect: hide entity edges when attrs selected, add attr edges
+		useEffect(() => {
+			const shouldShowAttrEdges = selectedAttributes.length > 0;
+			const attrEdges: Edge[] = [];
+			if (shouldShowAttrEdges) {
+				const edgeSet = new Set<string>();
+				const visibleEntityIds = new Set(nodes.map((n) => n.id));
+
+				for (const mapping of data?.mappings || []) {
+					if (!mapping.deps) continue;
+					for (const dep of mapping.deps) {
+						if (
+							!dep.attrMaps ||
+							dep.attrMaps.length === 0 ||
+							!dep.entityId ||
+							!mapping.entityId
+						)
+							continue;
+						if (
+							!visibleEntityIds.has(dep.entityId) ||
+							!visibleEntityIds.has(mapping.entityId)
+						)
+							continue;
+
+						const sourceActiveAttrs =
+							selectedHighlightedByEntity.get(dep.entityId) ||
+							new Set<string>();
+						const targetActiveAttrs =
+							selectedHighlightedByEntity.get(mapping.entityId) ||
+							new Set<string>();
+
+						dep.attrMaps.forEach((attrMap, attrIdx) => {
+							const shouldRender =
+								sourceActiveAttrs.has(attrMap.src) ||
+								targetActiveAttrs.has(attrMap.dst);
+							if (!shouldRender) return;
+
+							const edgeId = `${dep.entityId}::${attrMap.src}->${mapping.entityId}::${attrMap.dst}`;
+							if (edgeSet.has(edgeId)) return;
+							edgeSet.add(edgeId);
+
+							const edgeColor =
+								ATTR_EDGE_COLORS[attrIdx % ATTR_EDGE_COLORS.length];
+
+							attrEdges.push({
+								id: edgeId,
+								source: dep.entityId,
+								target: mapping.entityId,
+								sourceHandle: `attr-source-${attrMap.src}`,
+								targetHandle: `attr-target-${attrMap.dst}`,
+								type: "default",
+								animated: true,
+								style: {
+									stroke: edgeColor,
+									strokeWidth: 2,
+									strokeDasharray: "5,5",
+									opacity: 0.85,
+								},
+								data: {
+									baseStroke: edgeColor,
+									baseStrokeWidth: 2,
+									isAttrEdge: true,
+								},
+								markerEnd: {
+									type: MarkerType.ArrowClosed,
+									color: edgeColor,
+									width: 12,
+									height: 12,
+								},
+								label: `${attrMap.src} \u2192 ${attrMap.dst}`,
+								labelStyle: { fontSize: 8, fill: "#666" },
+								labelBgStyle: { fill: "#fff", fillOpacity: 0.8 },
+							});
+						});
+					}
+				}
+			}
+
+			// When attributes are selected, hide entity-level edges (keep ghost/synthetic edges)
+			const filteredEntityEdges = shouldShowAttrEdges
+				? layoutedEdges.filter(
+						(edge) =>
+							edge.id.startsWith("ghost-") ||
+							edge.source.startsWith("ghost-") ||
+							edge.target.startsWith("ghost-") ||
+							edge.source.startsWith("__model__fake_node__") ||
+							edge.target.startsWith("__model__fake_node__"),
+					)
+				: layoutedEdges;
+
+			setEdges([...filteredEntityEdges, ...attrEdges]);
+		}, [
+			selectedAttributes,
+			selectedHighlightedByEntity,
+			data?.mappings,
+			nodes,
+			layoutedEdges,
+			setEdges,
+		]);
 
 		useEffect(() => {
 			if (hasFocusedRootInitiallyRef.current) return;
@@ -1481,6 +1527,28 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 								)}
 							</button>
 						</div>
+						{selectedAttributes.length > 0 && (
+							<div data-name="clear_selected_attribute">
+								<button
+									onClick={_handleClearSelectedAttribute}
+									style={{
+										width: 26,
+										height: 26,
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										background: "#fff",
+										border: "none",
+										cursor: "pointer",
+										padding: 0,
+									}}
+									title={`Очистить атрибуты (${selectedAttributes.length})`}
+									type="button"
+								>
+									<Clear style={{ fontSize: 16, color: "#666" }} />
+								</button>
+							</div>
+						)}
 					</Controls>
 					<MiniMap
 						nodeColor={(node) => {

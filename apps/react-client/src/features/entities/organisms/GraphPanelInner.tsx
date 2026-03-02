@@ -39,7 +39,7 @@ import {
 	CenterFocusStrong,
 	SwapHoriz,
 	SwapVert,
-	ClearAll,
+	Clear,
 } from "@mui/icons-material";
 import { useGraphDepthControl } from "@react-client/common/hooks/useGraphDepthControl";
 import {
@@ -1401,60 +1401,69 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 
 			// Decorate entity-level edges from layout + append attr edges
-			const decoratedEntityEdges = layoutedTopologyEdges.map((edge) => {
-				const baseStroke =
-					(edge.data as { baseStroke?: string } | undefined)?.baseStroke ??
-					"#b1b1b7";
-				const baseStrokeWidth =
-					(edge.data as { baseStrokeWidth?: number } | undefined)
-						?.baseStrokeWidth ?? 1;
+			const decoratedEntityEdges = shouldShowAttrEdges
+				? layoutedTopologyEdges.filter((edge) => {
+						// Keep ghost edges visible
+						return (
+							edge.id.startsWith("ghost-") ||
+							edge.source.startsWith("ghost-") ||
+							edge.target.startsWith("ghost-")
+						);
+					})
+				: layoutedTopologyEdges.map((edge) => {
+						const baseStroke =
+							(edge.data as { baseStroke?: string } | undefined)?.baseStroke ??
+							"#b1b1b7";
+						const baseStrokeWidth =
+							(edge.data as { baseStrokeWidth?: number } | undefined)
+								?.baseStrokeWidth ?? 1;
 
-				let edgeHighlightType: "none" | "upstream" | "downstream" = "none";
-				if (selectedEntityId) {
-					if (edge.source === selectedEntityId) {
-						edgeHighlightType = "downstream";
-					} else if (edge.target === selectedEntityId) {
-						edgeHighlightType = "upstream";
-					} else if (
-						upstreamNodes.has(edge.source) &&
-						upstreamNodes.has(edge.target)
-					) {
-						edgeHighlightType = "upstream";
-					} else if (
-						downstreamNodes.has(edge.source) &&
-						downstreamNodes.has(edge.target)
-					) {
-						edgeHighlightType = "downstream";
-					}
-				}
+						let edgeHighlightType: "none" | "upstream" | "downstream" = "none";
+						if (selectedEntityId) {
+							if (edge.source === selectedEntityId) {
+								edgeHighlightType = "downstream";
+							} else if (edge.target === selectedEntityId) {
+								edgeHighlightType = "upstream";
+							} else if (
+								upstreamNodes.has(edge.source) &&
+								upstreamNodes.has(edge.target)
+							) {
+								edgeHighlightType = "upstream";
+							} else if (
+								downstreamNodes.has(edge.source) &&
+								downstreamNodes.has(edge.target)
+							) {
+								edgeHighlightType = "downstream";
+							}
+						}
 
-				const isHighlighted = edgeHighlightType !== "none";
-				const stroke = isHighlighted
-					? edgeHighlightType === "upstream"
-						? HIGHLIGHT_COLORS.upstream
-						: HIGHLIGHT_COLORS.downstream
-					: baseStroke;
-				const strokeWidth = isHighlighted
-					? baseStrokeWidth + 1
-					: baseStrokeWidth;
+						const isHighlighted = edgeHighlightType !== "none";
+						const stroke = isHighlighted
+							? edgeHighlightType === "upstream"
+								? HIGHLIGHT_COLORS.upstream
+								: HIGHLIGHT_COLORS.downstream
+							: baseStroke;
+						const strokeWidth = isHighlighted
+							? baseStrokeWidth + 1
+							: baseStrokeWidth;
 
-				return {
-					...edge,
-					animated: isHighlighted,
-					style: {
-						...(edge.style || {}),
-						stroke,
-						strokeWidth,
-					},
-					markerEnd:
-						edge.markerEnd && typeof edge.markerEnd === "object"
-							? {
-									...edge.markerEnd,
-									color: stroke,
-								}
-							: edge.markerEnd,
-				};
-			});
+						return {
+							...edge,
+							animated: isHighlighted,
+							style: {
+								...(edge.style || {}),
+								stroke,
+								strokeWidth,
+							},
+							markerEnd:
+								edge.markerEnd && typeof edge.markerEnd === "object"
+									? {
+											...edge.markerEnd,
+											color: stroke,
+										}
+									: edge.markerEnd,
+						};
+					});
 
 			setEdges([...decoratedEntityEdges, ...attrEdges]);
 		}, [
@@ -1620,7 +1629,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 								title={`Очистить атрибуты (${selectedAttributes.length})`}
 								type="button"
 							>
-								<ClearAll style={{ fontSize: 16, color: "#666" }} />
+								<Clear style={{ fontSize: 16, color: "#666" }} />
 							</button>
 						</div>
 					)}

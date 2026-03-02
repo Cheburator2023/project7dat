@@ -58,6 +58,7 @@ import {
 	SwapHoriz,
 	SwapVert,
 	ClearAll,
+	Clear,
 } from "@mui/icons-material";
 import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 import { useNavigate } from "react-router";
@@ -1616,8 +1617,9 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		// Edge decoration effect: highlight entity edges + add dynamic attr edges
 		useEffect(() => {
+			const shouldShowAttrEdges = selectedAttributes.length > 0;
 			const attrEdges: Edge[] = [];
-			if (selectedAttributes.length > 0) {
+			if (shouldShowAttrEdges) {
 				const edgeSet = new Set<string>();
 				const visibleEntityIds = new Set(nodes.map((n) => n.id));
 
@@ -1690,7 +1692,17 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 
-			setEdges([...layoutedEdges, ...attrEdges]);
+			// When attributes are selected, hide entity-level edges (keep ghost edges)
+			const filteredEntityEdges = shouldShowAttrEdges
+				? layoutedEdges.filter(
+						(edge) =>
+							edge.id.startsWith("ghost-") ||
+							edge.source.startsWith("ghost-") ||
+							edge.target.startsWith("ghost-"),
+					)
+				: layoutedEdges;
+
+			setEdges([...filteredEntityEdges, ...attrEdges]);
 		}, [
 			selectedAttributes,
 			selectedHighlightedByEntity,
@@ -1786,7 +1798,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 									title={`Очистить атрибуты (${selectedAttributes.length})`}
 									type="button"
 								>
-									<ClearAll style={{ fontSize: 16, color: "#666" }} />
+									<Clear style={{ fontSize: 16, color: "#666" }} />
 								</button>
 							</div>
 						)}
