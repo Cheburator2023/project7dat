@@ -7,13 +7,13 @@ import { JsonBusinessRulesValidator } from "./interfaces/validation.interfaces";
 export class JsonBusinessRulesValidationService extends JsonBusinessRulesValidator {
 	private readonly maxEntities: number;
 
-	constructor(private readonly configService: ConfigService) {
-		super();
-		this.maxEntities = this.configService.get<number>(
-			"MAX_ENTITIES_PER_IMPORT",
-			10000,
-		);
-	}
+    constructor(private readonly configService: ConfigService) {
+        super();
+        this.maxEntities = this.configService.get<number>(
+            "MAX_ENTITIES_PER_IMPORT",
+            1000,
+        );
+    }
 
 	validateBusinessRules(data: any): BusinessValidationResult {
 		const violations: string[] = [];
@@ -29,47 +29,38 @@ export class JsonBusinessRulesValidationService extends JsonBusinessRulesValidat
 		};
 	}
 
-	/**
-	 * Проверяет имена сущностей и их атрибутов на соответствие бизнес-правилам.
-	 * Имя должно:
-	 * - содержать только допустимые символы (буквы, цифры, дефис, подчёркивание, скобки)
-	 * - содержать хотя бы одну букву или цифру (не состоять только из спецсимволов)
-	 * - не быть пустым
-	 * - не состоять из одного дефиса, подчёркивания и т.п.
-	 * Дополнительно проверяется namespace (схема) сущности.
-	 */
-	private validateNaming(entities: any[], violations: string[]): void {
-		if (!entities || !Array.isArray(entities)) {
-			return;
-		}
+    /**
+     * Проверяет имена сущностей и их контейнеров (namespace) на соответствие бизнес-правилам.
+     * Требования:
+     * - имя не должно быть пустым или состоять только из пробелов
+     * - должно содержать хотя бы одну букву (русскую или латинскую) или цифру
+     *   (чтобы отсечь имена, состоящие только из спецсимволов, например "---")
+     * - любые печатные символы разрешены (пробелы, точка, плюс, кавычки, скобки и т.д.)
+     * Атрибуты не проверяются, так как для них допустимы другие символы (например, точка).
+     */
+    private validateNaming(entities: any[], violations: string[]): void {
+        if (!entities || !Array.isArray(entities)) {
+            return;
+        }
 
-		entities.forEach((entity: any, index: number) => {
-			// Проверка имени таблицы (entity.name)
-			if (!this.isValidName(entity.name, true)) {
-				violations.push(
-					`Сущность ${index}: имя таблицы содержит недопустимые символы или не содержит букв/цифр: "${entity.name}"`,
-				);
-			}
+        entities.forEach((entity: any, index: number) => {
+            // Проверка имени таблицы (entity.name)
+            if (!this.isValidEntityName(entity.name)) {
+                violations.push(
+                    `Сущность ${index}: имя таблицы содержит недопустимые символы или не содержит букв/цифр: "${entity.name}"`,
+                );
+            }
 
-			// Проверка схемы (entity.namespace), если она присутствует
-			if (entity.namespace && !this.isValidName(entity.namespace, true)) {
-				violations.push(
-					`Сущность ${index}: схема (namespace) содержит недопустимые символы или не содержит букв/цифр: "${entity.namespace}"`,
-				);
-			}
+            // Проверка схемы (entity.namespace), если она присутствует
+            if (entity.namespace && !this.isValidEntityName(entity.namespace)) {
+                violations.push(
+                    `Сущность ${index}: схема (namespace) содержит недопустимые символы или не содержит букв/цифр: "${entity.namespace}"`,
+                );
+            }
 
-			// Проверка атрибутов
-			if (entity.attrSeq && Array.isArray(entity.attrSeq)) {
-				entity.attrSeq.forEach((attr: any, attrIndex: number) => {
-					if (!this.isValidName(attr.name, true)) {
-						violations.push(
-							`Сущность ${index}, атрибут ${attrIndex}: имя атрибута содержит недопустимые символы или не содержит букв/цифр: "${attr.name}"`,
-						);
-					}
-				});
-			}
-		});
-	}
+            // Атрибуты не проверяются (допускают точку и другие символы)
+        });
+    }
 
 	private validateLimits(
 		data: any,
@@ -102,36 +93,31 @@ export class JsonBusinessRulesValidationService extends JsonBusinessRulesValidat
 		}
 	}
 
-	/**
-	 * Проверяет, является ли имя допустимым согласно бизнес-правилам.
-	 * @param name - проверяемое имя
-	 * @param requireAlphanumeric - требовать наличия хотя бы одной буквы или цифры
-	 */
-	private isValidName(name: string, requireAlphanumeric = true): boolean {
-		if (!name || typeof name !== "string") {
-			return false;
-		}
-
-		// Проверка на пустую строку или только пробелы
-		if (name.trim().length === 0) {
-			return false;
-		}
-
-		// Допустимые символы: буквы (русские и латинские), цифры, дефис, подчёркивание, пробел, скобки
-		const validNameRegex = /^[а-яА-Яa-zA-Z0-9_\-()\s]+$/;
-		if (!validNameRegex.test(name)) {
-			return false;
-		}
-
-		// Если требуется наличие хотя бы одной буквы или цифры (чтобы избежать имён типа "---", "___")
-		if (requireAlphanumeric) {
-			// Проверяем наличие хотя бы одного алфавитно-цифрового символа
-			const hasAlphanumeric = /[а-яА-Яa-zA-Z0-9]/.test(name);
-			if (!hasAlphanumeric) {
-				return false;
-			}
-		}
-
-		return true;
-	}
+    /**
+     * Проверяет, является ли имя сущности (таблицы или схемы) допустимым.
+     * Правила:
+     * - не пустое и не только из пробелов
+     * - содержит хотя бы одну букву (русскую/латинскую) или цифру
+     * - не содержит управляющих символов (опционально, но для безопасности)
+     */
+    private isValidEntityName(name: string): boolean {
+        if (!name || typeof name !== "string") {
+            return false;
+        }
+        const trimmed = name.trim();
+        if (trimmed.length === 0) {
+            return false;
+        }
+        // Проверка наличия хотя бы одной буквы или цифры (включая русские)
+        const hasAlphanumeric = /[а-яА-Яa-zA-Z0-9]/.test(trimmed);
+        if (!hasAlphanumeric) {
+            return false;
+        }
+        // Запрещаем только управляющие символы (непечатные)
+        // Разрешаем всё, кроме управляющих (ASCII < 32, DEL 127)
+        // Можно использовать regex на запрещённые, но проще разрешить любые печатные
+        // Следующая проверка необязательна, но для полноты:
+        const hasControlChar = /[\x00-\x1F\x7F]/.test(trimmed);
+        return !hasControlChar;
+    }
 }
