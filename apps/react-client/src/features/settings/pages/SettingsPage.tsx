@@ -265,7 +265,6 @@ export const SettingsPage = () => {
 							<TableHead>
 								<TableRow>
 									<TableCell>Таблица</TableCell>
-									<TableCell>Ключ localStorage</TableCell>
 									<TableCell align="center">Сохранение</TableCell>
 									<TableCell align="center">Действия</TableCell>
 								</TableRow>
@@ -289,14 +288,6 @@ export const SettingsPage = () => {
 												</Typography>
 												<Typography variant="caption" color="text.secondary">
 													{grid.id}
-												</Typography>
-											</TableCell>
-											<TableCell>
-												<Typography
-													variant="caption"
-													sx={{ fontFamily: "monospace" }}
-												>
-													{grid.localStorageKey}
 												</Typography>
 											</TableCell>
 											<TableCell align="center">
