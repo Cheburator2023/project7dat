@@ -80,9 +80,11 @@ export class JsonValidationOrchestratorService {
 			statistics,
 		);
 
-		// Данные считаются валидными если нет критических ошибок структуры
+		// Данные считаются валидными если нет критических ошибок структуры,
+		// бизнес-правил, рекурсии или дубликатов
 		const hasCriticalErrors =
 			structureValidation.errors.length > 0 ||
+			!businessRulesValidation.isValid ||
 			recursionCheck.hasRecursion ||
 			duplicateCheck.hasDuplicates;
 
@@ -106,6 +108,15 @@ export class JsonValidationOrchestratorService {
 			`Комплексная валидация завершена. Результат: ${response.isValid ? "VALID" : "INVALID"}`,
 		);
 
+		// Если есть нарушения бизнес-правил, логируем их
+		if (businessRulesValidation.violations.length > 0) {
+			this.logger.warn(
+				`Нарушения бизнес-правил (${businessRulesValidation.violations.length}):\n` +
+				businessRulesValidation.violations.slice(0, 20).join('\n') +
+				(businessRulesValidation.violations.length > 20 ? '\n...' : '')
+			);
+		}
+
 		return response;
 	}
 
@@ -115,11 +126,15 @@ export class JsonValidationOrchestratorService {
 			this.structureValidator.validateStructure(normalizedData);
 		const integrityValidation =
 			this.integrityValidator.validateIntegrity(normalizedData);
+		const businessRulesValidation =
+			this.businessRulesValidator.validateBusinessRules(normalizedData);
 		const schemaVersionValidation =
 			this.schemaVersionValidator.validateSchemaVersion(normalizedData);
 		const statistics = this.calculateStatistics(normalizedData);
 
-		const hasCriticalErrors = structureValidation.errors.length > 0;
+		const hasCriticalErrors =
+			structureValidation.errors.length > 0 ||
+			!businessRulesValidation.isValid;
 
 		return {
 			summary: {
