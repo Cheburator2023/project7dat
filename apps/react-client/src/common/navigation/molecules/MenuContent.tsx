@@ -7,25 +7,35 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import { useLocation, useNavigate } from "react-router";
-import { routes } from "@react-client/routing/routes";
+import { navbarGroups, routes } from "@react-client/routing/routes";
+import { IS_DEV } from "@react-client/common/constants";
 
-// Классификация роутов по категориям меню (статический контекст)
-const MOCKED_NEW_ROUTE_KEYS = ["processes", "changelogTable"] as const;
-const IS_DEV = process.env.NODE_ENV === "development";
+type NavbarGroupKey = keyof typeof navbarGroups;
 
-const nonDevEntries = Object.entries(routes).filter(
-	([, route]) => route.showInNavbar && !(route as any).devOnly,
-);
+type RouteConfig = (typeof routes)[keyof typeof routes];
 
-const mockedItems = nonDevEntries
-	.filter(([key]: any) =>
-		(MOCKED_NEW_ROUTE_KEYS as ReadonlyArray<string>).includes(key),
-	)
-	.map(([, route]) => route);
+type RouteWithNavbar = RouteConfig & {
+	navbar?: {
+		group?: string;
+		order?: number;
+	};
+	devOnly?: boolean;
+};
 
-const devOnlyItems = Object.values(routes)
-	.filter((route) => route.showInNavbar && (route as any).devOnly && IS_DEV)
-	.map((route) => route);
+const getNavbarItemsByGroup = (group: NavbarGroupKey) => {
+	return (Object.values(routes) as RouteWithNavbar[])
+		.filter((route) => route.showInNavbar)
+		.filter((route) => route.navbar?.group === group)
+		.filter((route) => !route.disabled)
+		.filter((route) => !(route.devOnly && !IS_DEV))
+		.sort((a, b) => (a.navbar?.order ?? 0) - (b.navbar?.order ?? 0));
+};
+
+const devOnlyItems = (Object.values(routes) as RouteWithNavbar[])
+	.filter((route) => route.showInNavbar)
+	.filter((route) => Boolean(route.devOnly) && IS_DEV)
+	.filter((route) => !route.disabled)
+	.sort((a, b) => (a.navbar?.order ?? 0) - (b.navbar?.order ?? 0));
 
 const secondaryListItems = [
 	{
@@ -44,7 +54,6 @@ const secondaryListItems = [
 		tooltip: "Рееcтр моделей",
 		path: "/sum-rm",
 	},
-	// { text: "Настройки", icon: <SettingsRoundedIcon /> },
 ];
 
 export function MenuContent() {
@@ -64,13 +73,11 @@ export function MenuContent() {
 				<ListItem
 					disablePadding
 					sx={{ display: "block", mb: 0.2 }}
-					onClick={() => handler(routes.home.rootPath.replace("/", ""))}
+					onClick={() => handler(routes.home.rootPath)}
 					data-test-id="menu-content--ListItem-backend"
 				>
 					<ListItemButton
-						selected={
-							routes.home.rootPath === location.pathname.replace("/", "")
-						}
+						selected={routes.home.rootPath === location.pathname}
 						data-test-id="menu-content--ListItemButton-backend"
 					>
 						<ListItemText
@@ -89,150 +96,39 @@ export function MenuContent() {
 						disabled
 					>
 						<ListItemText
-							primary={"Сервисы и продукты"}
+							// primary={navbarGroups.services.title}
+							secondary={navbarGroups.services.title}
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
-					{/*<ListItem*/}
-					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
-					{/*	onClick={() =>*/}
-					{/*		handler(routes.modelServices.rootPath.replace("/", ""))*/}
-					{/*	}*/}
-					{/*	data-test-id="menu-content--ListItem-backend"*/}
-					{/*>*/}
-					{/*	<ListItemButton*/}
-					{/*		selected={*/}
-					{/*			routes.modelServices.rootPath ===*/}
-					{/*			location.pathname.replace("/", "")*/}
-					{/*		}*/}
-					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
-					{/*	>*/}
-					{/*		<ListItemText*/}
-					{/*			primary={routes.modelServices.name}*/}
-					{/*			data-test-id="menu-content--ListItemText-backend"*/}
-					{/*		/>*/}
-					{/*	</ListItemButton>*/}
-					{/*</ListItem>*/}
+
 					<List disablePadding data-test-id="menu-content--List-0-services">
-						<ListItem
-							disablePadding
-							sx={{
-								display: "block",
-								mb: 0.2,
-								paddingBottom: 0,
-								paddingTop: 0,
-							}}
-							onClick={() => handler(routes.models.rootPath.replace("/", ""))}
-							data-test-id="menu-content--ListItem-backend"
-						>
-							<ListItemButton
-								selected={
-									routes.models.rootPath === location.pathname.replace("/", "")
-								}
-								data-test-id="menu-content--ListItemButton-backend"
+						{getNavbarItemsByGroup("services").map((route, index) => (
+							<ListItem
+								key={`services-${index}`}
+								disablePadding
+								sx={{
+									display: "block",
+									mb: 0.2,
+									paddingBottom: 0,
+									paddingTop: 0,
+								}}
+								onClick={() => handler(route.rootPath)}
+								data-test-id="menu-content--ListItem-backend"
 							>
-								<ListItemText
-									primary={routes.models.name}
-									data-test-id="menu-content--ListItemText-backend"
-								/>
-							</ListItemButton>
-						</ListItem>
-						<ListItem
-							disablePadding
-							sx={{
-								display: "block",
-								mb: 0.2,
-								paddingBottom: 0,
-								paddingTop: 0,
-							}}
-							onClick={() => handler(routes.objects.rootPath.replace("/", ""))}
-							data-test-id="menu-content--ListItem-backend"
-						>
-							<ListItemButton
-								selected={
-									routes.objects.rootPath === location.pathname.replace("/", "")
-								}
-								data-test-id="menu-content--ListItemButton-backend"
-							>
-								<ListItemText
-									primary={routes.objects.name}
-									data-test-id="menu-content--ListItemText-backend"
-								/>
-							</ListItemButton>
-						</ListItem>
+								<ListItemButton
+									selected={route.rootPath === location.pathname}
+									data-test-id="menu-content--ListItemButton-backend"
+								>
+									<ListItemText
+										primary={route.name}
+										data-test-id="menu-content--ListItemText-backend"
+									/>
+								</ListItemButton>
+							</ListItem>
+						))}
 					</List>
 				</Box>
-
-				{/* <Box
-					sx={{ display: "block", mb: 0.2 }}
-					data-test-id="menu-content--ListItem-backend"
-				>
-					<ListItemButton
-						data-test-id="menu-content--ListItemButton-backend"
-						disabled
-					>
-						<ListItemText
-							primary={"Отчеты"}
-							data-test-id="menu-content--ListItemText-backend"
-						/>
-					</ListItemButton>
-
-					<List disablePadding data-test-id="menu-content--List-0-reports">
-						<ListItem
-							disablePadding
-							sx={{
-								display: "block",
-								mb: 0.2,
-								paddingBottom: 0,
-								paddingTop: 0,
-							}}
-							onClick={() =>
-								handler(routes.jsonDataReport.rootPath.replace("/", ""))
-							}
-							data-test-id="menu-content--ListItem-backend"
-						>
-							<ListItemButton
-								selected={
-									routes.jsonDataReport.rootPath ===
-									location.pathname.replace("/", "")
-								}
-								data-test-id="menu-content--ListItemButton-backend"
-							>
-								<ListItemText
-									primary={routes.jsonDataReport.name}
-									data-test-id="menu-content--ListItemText-backend"
-								/>
-							</ListItemButton>
-						</ListItem>
-
-						<ListItem
-							disablePadding
-							sx={{
-								display: "block",
-								mb: 0.2,
-								paddingBottom: 0,
-								paddingTop: 0,
-							}}
-							onClick={() =>
-								handler(routes.s2tDataReport.rootPath.replace("/", ""))
-							}
-							data-test-id="menu-content--ListItem-backend"
-						>
-							<ListItemButton
-								selected={
-									routes.s2tDataReport.rootPath ===
-									location.pathname.replace("/", "")
-								}
-								data-test-id="menu-content--ListItemButton-backend"
-							>
-								<ListItemText
-									primary={routes.s2tDataReport.name}
-									data-test-id="menu-content--ListItemText-backend"
-								/>
-							</ListItemButton>
-						</ListItem>
-					</List>
-				</Box> */}
 
 				<Box
 					sx={{ display: "block", mb: 0.2 }}
@@ -243,119 +139,40 @@ export function MenuContent() {
 						disabled
 					>
 						<ListItemText
-							primary={"Импорт данных"}
+							// primary={navbarGroups.import.title}
+							secondary={navbarGroups.import.title}
 							data-test-id="menu-content--ListItemText-backend"
 						/>
 					</ListItemButton>
-					{/*<ListItem*/}
-					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
-					{/*	onClick={() => handleImport("json")}*/}
-					{/*	data-test-id="menu-content--ListItem-backend"*/}
-					{/*>*/}
-					{/*	<ListItemButton*/}
-					{/*		selected={*/}
-					{/*			routes.allCommits.rootPath ===*/}
-					{/*			location.pathname.replace("/", "")*/}
-					{/*		}*/}
-					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
-					{/*	>*/}
-					{/*		<ListItemText*/}
-					{/*			primary={"Импорт JSON"}*/}
-					{/*			data-test-id="menu-content--ListItemText-backend"*/}
-					{/*		/>*/}
-					{/*	</ListItemButton>*/}
-					{/*</ListItem>*/}
 
-					{/*<ListItem*/}
-					{/*	sx={{ display: "block", mb: 0.2, paddingBottom: 0, paddingTop: 0 }}*/}
-					{/*	onClick={() =>*/}
-					{/*		handler(routes.commitQueue.rootPath.replace("/", ""))*/}
-					{/*	}*/}
-					{/*	data-test-id="menu-content--ListItem-backend"*/}
-					{/*>*/}
-					{/*	<ListItemButton*/}
-					{/*		selected={*/}
-					{/*			routes.commitQueue.rootPath ===*/}
-					{/*			location.pathname.replace("/", "")*/}
-					{/*		}*/}
-					{/*		data-test-id="menu-content--ListItemButton-backend"*/}
-					{/*	>*/}
-					{/*		<ListItemText*/}
-					{/*			primary={routes.commitQueue.name}*/}
-					{/*			data-test-id="menu-content--ListItemText-backend"*/}
-					{/*		/>*/}
-					{/*	</ListItemButton>*/}
-					{/*</ListItem>*/}
 					<List disablePadding data-test-id="menu-content--List-0-import">
-						<ListItem
-							disablePadding
-							sx={{
-								display: "block",
-								mb: 0.2,
-								paddingBottom: 0,
-								paddingTop: 0,
-							}}
-							onClick={() =>
-								handler(routes.allCommits.rootPath.replace("/", ""))
-							}
-							data-test-id="menu-content--ListItem-backend"
-						>
-							<ListItemButton
-								selected={
-									routes.allCommits.rootPath ===
-									location.pathname.replace("/", "")
-								}
-								data-test-id="menu-content--ListItemButton-backend"
+						{getNavbarItemsByGroup("import").map((route, index) => (
+							<ListItem
+								key={`import-${index}`}
+								disablePadding
+								sx={{
+									display: "block",
+									mb: 0.2,
+									paddingBottom: 0,
+									paddingTop: 0,
+								}}
+								onClick={() => handler(route.rootPath)}
+								data-test-id="menu-content--ListItem-backend"
 							>
-								<ListItemText
-									primary={routes.allCommits.name}
-									data-test-id="menu-content--ListItemText-backend"
-								/>
-							</ListItemButton>
-						</ListItem>
+								<ListItemButton
+									selected={route.rootPath === location.pathname}
+									data-test-id="menu-content--ListItemButton-backend"
+								>
+									<ListItemText
+										primary={route.name}
+										data-test-id="menu-content--ListItemText-backend"
+									/>
+								</ListItemButton>
+							</ListItem>
+						))}
 					</List>
 				</Box>
-				{/* <Divider sx={{ my: 1 }} data-test-id="menu-content--Divider-mocked" /> */}
 
-				{/*{backendItems.map((item, index) => (*/}
-				{/*	<ListItem*/}
-				{/*		key={`backend-${index}`}*/}
-				{/*		disablePadding*/}
-				{/*		sx={{ display: "block", mb: 0.2 }}*/}
-				{/*		onClick={() => handler(item.rootPath.replace("/", ""))}*/}
-				{/*		data-test-id="menu-content--ListItem-backend"*/}
-				{/*	>*/}
-				{/*		<ListItemButton*/}
-				{/*			selected={item.rootPath === location.pathname.replace("/", "")}*/}
-				{/*			data-test-id="menu-content--ListItemButton-backend"*/}
-				{/*		>*/}
-				{/*			<ListItemText*/}
-				{/*				primary={item.name}*/}
-				{/*				data-test-id="menu-content--ListItemText-backend"*/}
-				{/*			/>*/}
-				{/*		</ListItemButton>*/}
-				{/*	</ListItem>*/}
-				{/*))}*/}
-
-				{mockedItems.map((item, index) => (
-					<ListItem
-						key={`mocked-${index}`}
-						disablePadding
-						sx={{ display: "block", mb: 0.2 }}
-						onClick={() => handler(item.rootPath.replace("/", ""))}
-						data-test-id="menu-content--ListItem-mocked"
-					>
-						<ListItemButton
-							selected={item.rootPath === location.pathname.replace("/", "")}
-							data-test-id="menu-content--ListItemButton-mocked"
-						>
-							<ListItemText
-								primary={item.name}
-								data-test-id="menu-content--ListItemText-mocked"
-							/>
-						</ListItemButton>
-					</ListItem>
-				))}
 				{devOnlyItems.length > 0 && (
 					<>
 						<Divider sx={{ my: 1 }} data-test-id="menu-content--Divider-0" />
@@ -364,13 +181,11 @@ export function MenuContent() {
 								key={`dev-${index}`}
 								disablePadding
 								sx={{ display: "block", mb: 0.2 }}
-								onClick={() => handler(item.rootPath.replace("/", ""))}
+								onClick={() => handler(item.rootPath)}
 								data-test-id="menu-content--ListItem-dev"
 							>
 								<ListItemButton
-									selected={
-										item.rootPath === location.pathname.replace("/", "")
-									}
+									selected={item.rootPath === location.pathname}
 									data-test-id="menu-content--ListItemButton-dev"
 								>
 									<ListItemText
