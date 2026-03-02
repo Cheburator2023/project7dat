@@ -1,9 +1,22 @@
+export const navbarGroups = {
+	services: {
+		title: "Сервисы и продукты",
+	},
+	import: {
+		title: "Импорт данных",
+	},
+} as const;
+
 export const routes = {
 	home: {
 		rootPath: "/",
 		name: "Главная",
 		disabled: false,
 		showInNavbar: true,
+		navbar: {
+			group: "root",
+			order: 0,
+		},
 		subRoutes: {},
 	},
 	snapshots: {
@@ -35,26 +48,32 @@ export const routes = {
 		rootPath: "/reports/all-commits",
 		disabled: false,
 		showInNavbar: true,
+		navbar: {
+			group: "import",
+			order: 0,
+		},
 	},
 	objects: {
 		name: "Объекты данных",
 		rootPath: "/services/objects",
 		disabled: false,
 		showInNavbar: true,
+		navbar: {
+			group: "services",
+			order: 1,
+		},
 	},
 	models: {
 		name: "Модели",
 		rootPath: "/services/models",
 		disabled: false,
 		showInNavbar: true,
+		navbar: {
+			group: "services",
+			order: 0,
+		},
 	},
 
-	modelServices: {
-		name: "Модельные сервисы",
-		rootPath: "/services/model-services",
-		disabled: false,
-		showInNavbar: true,
-	},
 	// CRUD pages
 	entityPreview: {
 		name: "Просмотр сущности",
@@ -94,6 +113,10 @@ export const routes = {
 		devOnly: true,
 		disabled: false,
 		showInNavbar: true,
+		navbar: {
+			group: "dev",
+			order: 0,
+		},
 	},
 	swagger: {
 		name: "API Документация",
@@ -101,5 +124,9 @@ export const routes = {
 		devOnly: true,
 		disabled: false,
 		showInNavbar: true,
+		navbar: {
+			group: "dev",
+			order: 1,
+		},
 	},
 };
