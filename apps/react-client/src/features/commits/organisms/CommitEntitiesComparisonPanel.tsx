@@ -1,4 +1,4 @@
-import { memo, useMemo, useCallback, useState } from "react";
+import { memo, useMemo, useCallback, useState, useRef } from "react";
 import { Box, Chip, TextField, InputAdornment } from "@mui/material";
 import { Search as SearchIcon } from "@mui/icons-material";
 import { useColorScheme } from "@mui/material/styles";
@@ -6,6 +6,8 @@ import { useNavigate } from "react-router";
 import { AgGridReact, type CustomCellRendererProps } from "ag-grid-react";
 import type {
 	ColDef,
+	GridApi,
+	GridReadyEvent,
 	RowClickedEvent,
 	RowDoubleClickedEvent,
 } from "ag-grid-community";
@@ -18,6 +20,8 @@ import { usePaginatedEntities } from "@react-client/api/hooks";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import { TypeChip } from "@react-client/features/entities/atoms";
 import { HIGHLIGHT_COLORS } from "@react-client/features/entities/constants";
+import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
+import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 import {
 	useCommitMergeStore,
 	extractCommitEntities,
@@ -206,6 +210,21 @@ export const CommitEntitiesComparisonPanel = memo(() => {
 		setPage(1);
 	}, []);
 
+	const gridApiRef = useRef<GridApi | null>(null);
+	const gridPersistence = useAgGridPersistence({
+		gridId: "commit-entities-comparison",
+		gridName: "Коммит: сравнение сущностей",
+		apiRef: gridApiRef,
+	});
+
+	const handleGridReady = useCallback(
+		(event: GridReadyEvent) => {
+			gridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			gridApiRef.current = event.api;
+		},
+		[gridPersistence],
+	);
+
 	return (
 		<Box
 			sx={{
@@ -234,11 +253,17 @@ export const CommitEntitiesComparisonPanel = memo(() => {
 				/>
 			</Box>
 			<Spacer />
-			<Box sx={{ flex: 1, minHeight: 0 }}>
+			<Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
+				<AgGridStateControls onReset={gridPersistence.resetGridState} />
 				<AgGridReact
 					rowData={mergedRows}
 					columnDefs={columnDefs}
 					theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+					onGridReady={handleGridReady}
+					onColumnMoved={gridPersistence.onColumnMoved}
+					onColumnPinned={gridPersistence.onColumnPinned}
+					onColumnResized={gridPersistence.onColumnResized}
+					onColumnVisible={gridPersistence.onColumnVisible}
 					onRowClicked={handleRowClicked}
 					onRowDoubleClicked={handleRowDoubleClicked}
 					getRowStyle={getRowStyle}
@@ -250,6 +275,7 @@ export const CommitEntitiesComparisonPanel = memo(() => {
 					loading={isLoading}
 					overlayNoRowsTemplate="Нет сущностей"
 					overlayLoadingTemplate="Загрузка"
+					onSortChanged={gridPersistence.onSortChanged}
 				/>
 			</Box>
 			<PaginationToolbar

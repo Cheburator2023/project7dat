@@ -418,7 +418,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		// Find related entities (upstream + downstream from main entity)
 		const relatedEntityIds = useMemo(() => {
 			if (!selectedNode) return new Set<string>();
-			return new Set([...upstreamNodes, ...downstreamNodes]);
+			return new Set([selectedNode, ...upstreamNodes, ...downstreamNodes]);
 		}, [selectedNode, upstreamNodes, downstreamNodes]);
 
 		// Filter entities to show only related ones
@@ -553,13 +553,15 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleViewDetails = useCallback(
 			(entityId: string) => {
-				const entity = filteredEntities?.find((e) => e.id === entityId);
+				const entity =
+					filteredEntities?.find((e) => e.id === entityId) ??
+					data?.entities?.find((e) => e.id === entityId);
 				if (entity) {
 					setDialogEntity(entity);
 					setIsEntityDialogOpen(true);
 				}
 			},
-			[filteredEntities],
+			[data?.entities, filteredEntities],
 		);
 
 		const handleAttrClick = useCallback(

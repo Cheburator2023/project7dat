@@ -22,6 +22,8 @@ import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import { usePaginatedEntities } from "@react-client/api/hooks";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
+import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
+import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 
 import { useEntitiesStore } from "../stores";
 import { TypeChip } from "../atoms";
@@ -119,15 +121,15 @@ export const EntitiesPanel = memo(
 		const columnDefs: ColDef<EntityRow>[] = useMemo(
 			() => [
 				{
-					field: "namespace",
-					headerName: "База данных",
-					flex: 1,
-				},
-				{
 					field: "system_code",
 					headerName: "Система",
 					width: 120,
 					cellRenderer: ({ value }: { value?: string }) => value || "—",
+				},
+				{
+					field: "namespace",
+					headerName: "База данных",
+					flex: 1,
 				},
 				{
 					field: "name",
@@ -209,16 +211,24 @@ export const EntitiesPanel = memo(
 		}, []);
 
 		const gridApiRef = useRef<GridApi<EntityRow> | null>(null);
+		const gridPersistence = useAgGridPersistence({
+			gridId: "entities",
+			gridName: "Сущности",
+			apiRef: gridApiRef as unknown as React.MutableRefObject<GridApi | null>,
+		});
 
-		const handleGridReady = useCallback((event: GridReadyEvent<EntityRow>) => {
-			gridApiRef.current = event.api;
-		}, []);
+		const handleGridReady = useCallback(
+			(event: GridReadyEvent<EntityRow>) => {
+				gridPersistence.onGridReady(event as unknown as GridReadyEvent);
+				gridApiRef.current = event.api;
+			},
+			[gridPersistence],
+		);
 
 		const handleSortChanged = useCallback(
 			(event: SortChangedEvent<EntityRow>) => {
+				gridPersistence.onSortChanged(event as unknown as SortChangedEvent);
 				const colState = event.api.getColumnState();
-				console.log("🐸 Pepe said >> event:", event);
-
 				const sorted = colState.find((c) => c.sort);
 				if (sorted) {
 					setEntitiesSort(sorted.colId, sorted.sort as "asc" | "desc");
@@ -226,7 +236,7 @@ export const EntitiesPanel = memo(
 					setEntitiesSort(undefined, undefined);
 				}
 			},
-			[setEntitiesSort],
+			[gridPersistence, setEntitiesSort],
 		);
 
 		const getRowStyle = useCallback(
@@ -258,12 +268,17 @@ export const EntitiesPanel = memo(
 					flexDirection: "column",
 				}}
 			>
-				<Box sx={{ flex: 1, minHeight: 0 }}>
+				<Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
+					<AgGridStateControls onReset={gridPersistence.resetGridState} />
 					<AgGridReact
 						rowData={entities}
 						columnDefs={columnDefs}
 						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
 						onGridReady={handleGridReady}
+						onColumnMoved={gridPersistence.onColumnMoved}
+						onColumnPinned={gridPersistence.onColumnPinned}
+						onColumnResized={gridPersistence.onColumnResized}
+						onColumnVisible={gridPersistence.onColumnVisible}
 						onRowClicked={handleRowClicked}
 						onRowDoubleClicked={handleRowDoubleClicked}
 						onCellContextMenu={handleCellContextMenu}

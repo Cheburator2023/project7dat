@@ -254,8 +254,9 @@ export const EntityNodePreviewComponent = memo(
 		const handleViewDetailsClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
-				if (isDisabledEffective) return;
+				// if (isDisabledEffective) return;
 				onViewDetails?.(id);
+				console.log("🐸 Pepe said >> id:", id);
 			},
 			[id, isDisabledEffective, onViewDetails],
 		);
@@ -409,7 +410,7 @@ export const EntityNodePreviewComponent = memo(
 								<button
 									onClick={handleViewDetailsClick}
 									style={detailsButtonStyle}
-									title={"Открыть детали"}
+									title="Открыть детали"
 									type="button"
 								>
 									ⓘ
