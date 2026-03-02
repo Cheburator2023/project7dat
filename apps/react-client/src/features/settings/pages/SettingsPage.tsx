@@ -1,7 +1,5 @@
 import {
 	Box,
-	Card,
-	CardContent,
 	CircularProgress,
 	FormControl,
 	FormControlLabel,
@@ -29,6 +27,8 @@ import {
 import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useReleaseNotes } from "@react-client/api/hooks/useReleaseNotes";
+import { Card } from "@react-client/common/muiCustom/Card";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 
 const extractLatestVersion = (markdown: string): string | null => {
 	if (!markdown.trim()) return null;
@@ -92,151 +92,142 @@ export const SettingsPage = () => {
 	return (
 		<div>
 			<Header title="Настройки" />
-			<Flex flexDirection="column" gap={6}>
-				{/* Глобальная настройка */}
-				<Card>
-					<CardContent>
-						<Typography variant="h6" gutterBottom>
-							Сохранение состояния панелей
-						</Typography>
-						<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-							Когда включено расположение панелей, их положение будет
-							сохраняться и восстанавливаться при следующем посещении.
-						</Typography>
-						<FormControlLabel
-							control={
-								<Switch
-									checked={persistLayoutsEnabled}
-									onChange={(e) => setPersistLayoutsEnabled(e.target.checked)}
-								/>
-							}
-							label="Включить сохранение расположения панелей"
-						/>
 
-						<Box
-							sx={{
-								display: "flex",
-								justifyContent: "space-between",
-								alignItems: "center",
-								mb: 2,
-							}}
-						>
-							<Typography variant="h6">Панели приложения</Typography>
-							<Tooltip title="Сбросить все панели">
-								<IconButton onClick={handleResetAll} color="warning">
-									<RestartAltIcon />
-								</IconButton>
-							</Tooltip>
-						</Box>
+			<Card>
+				<>
+					<Typography variant="h6" gutterBottom>
+						Сохранение состояния панелей
+					</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+						Когда включено расположение панелей, их положение будет сохраняться
+						и восстанавливаться при следующем посещении.
+					</Typography>
+					<FormControlLabel
+						control={
+							<Switch
+								checked={persistLayoutsEnabled}
+								onChange={(e) => setPersistLayoutsEnabled(e.target.checked)}
+							/>
+						}
+						label="Включить сохранение расположения панелей"
+					/>
 
-						<TableContainer>
-							<Table size="small">
-								<TableHead>
-									<TableRow>
-										<TableCell>Панель</TableCell>
-										<TableCell>Описание</TableCell>
-										<TableCell align="center">Сохранение</TableCell>
-										<TableCell align="center">Действия</TableCell>
-									</TableRow>
-								</TableHead>
-								<TableBody>
-									{panels.map((panel) => (
-										<TableRow key={panel.id}>
-											<TableCell>
-												<Typography variant="body2" fontWeight="medium">
-													{
-														defaultPanelsSettings.find((p) => p.id === panel.id)
-															?.name
-													}
-												</Typography>
-											</TableCell>
-											<TableCell>
-												<Typography variant="body2" color="text.secondary">
-													{
-														defaultPanelsSettings.find((p) => p.id === panel.id)
-															?.description
-													}
-												</Typography>
-											</TableCell>
-											<TableCell align="center">
-												<Switch
+					<Spacer />
+
+					<Box
+						sx={{
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							mb: 2,
+						}}
+					>
+						<Typography variant="h6">Панели приложения</Typography>
+						<Tooltip title="Сбросить все панели">
+							<IconButton onClick={handleResetAll} color="warning">
+								<RestartAltIcon />
+							</IconButton>
+						</Tooltip>
+					</Box>
+
+					<TableContainer>
+						<Table size="small">
+							<TableHead>
+								<TableRow>
+									<TableCell>Панель</TableCell>
+									<TableCell>Описание</TableCell>
+									<TableCell align="center">Сохранение</TableCell>
+									<TableCell align="center">Действия</TableCell>
+								</TableRow>
+							</TableHead>
+							<TableBody>
+								{panels.map((panel) => (
+									<TableRow key={panel.id}>
+										<TableCell>
+											<Typography variant="body2" fontWeight="medium">
+												{
+													defaultPanelsSettings.find((p) => p.id === panel.id)
+														?.name
+												}
+											</Typography>
+										</TableCell>
+										<TableCell>
+											<Typography variant="body2" color="text.secondary">
+												{
+													defaultPanelsSettings.find((p) => p.id === panel.id)
+														?.description
+												}
+											</Typography>
+										</TableCell>
+										<TableCell align="center">
+											<Switch
+												size="small"
+												checked={panel.enabled && persistLayoutsEnabled}
+												disabled={!persistLayoutsEnabled}
+												onChange={() => togglePanelPersist(panel.id)}
+											/>
+										</TableCell>
+										<TableCell align="center">
+											<Tooltip title="Сбросить состояние панели">
+												<IconButton
 													size="small"
-													checked={panel.enabled && persistLayoutsEnabled}
-													disabled={!persistLayoutsEnabled}
-													onChange={() => togglePanelPersist(panel.id)}
-												/>
-											</TableCell>
-											<TableCell align="center">
-												<Tooltip title="Сбросить состояние панели">
-													<IconButton
-														size="small"
-														onClick={() =>
-															handleResetPanel(panel.id, panel.name)
-														}
-														color="warning"
-													>
-														<RestartAltIcon fontSize="small" />
-													</IconButton>
-												</Tooltip>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</TableContainer>
+													onClick={() => handleResetPanel(panel.id, panel.name)}
+													color="warning"
+												>
+													<RestartAltIcon fontSize="small" />
+												</IconButton>
+											</Tooltip>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</TableContainer>
+				</>
 
-						{!persistLayoutsEnabled && (
-							<Typography
-								variant="body2"
-								color="text.secondary"
-								sx={{ mt: 2, fontStyle: "italic" }}
-							>
-								Включите глобальную настройку сохранения, чтобы управлять
-								отдельными панелями.
-							</Typography>
-						)}
-					</CardContent>
-				</Card>
+				<Spacer />
 
-				<Card>
-					<CardContent>
-						<Typography variant="h6" gutterBottom>
-							Настройки графа
-						</Typography>
+				<>
+					<Typography variant="h6" gutterBottom>
+						Настройки граф панелей
+					</Typography>
 
-						<FormControlLabel
-							control={
-								<Switch
-									checked={usePerGraphLayout}
-									onChange={(e) => setUsePerGraphLayout(e.target.checked)}
-								/>
+					<FormControlLabel
+						control={
+							<Switch
+								checked={usePerGraphLayout}
+								onChange={(e) => setUsePerGraphLayout(e.target.checked)}
+							/>
+						}
+						label="Индивидуальная ориентация для каждого графа"
+						sx={{ mb: 2 }}
+					/>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+						{usePerGraphLayout
+							? "Каждый граф сохраняет свою ориентацию отдельно. Глобальная настройка используется как значение по умолчанию."
+							: "Все графы используют одну общую ориентацию."}
+					</Typography>
+
+					<FormControl fullWidth size="small">
+						<InputLabel>Ориентация по умолчанию</InputLabel>
+						<Select
+							label="Ориентация по умолчанию"
+							value={layoutDirection}
+							onChange={(e) =>
+								setLayoutDirection(e.target.value as "LR" | "TB")
 							}
-							label="Индивидуальная ориентация для каждого графа"
-							sx={{ mb: 2 }}
-						/>
-						<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-							{usePerGraphLayout
-								? "Каждый граф сохраняет свою ориентацию отдельно. Глобальная настройка используется как значение по умолчанию."
-								: "Все графы используют одну общую ориентацию."}
-						</Typography>
+						>
+							<MenuItem value="LR">Горизонтальный (LR)</MenuItem>
+							<MenuItem value="TB">Вертикальный (TB)</MenuItem>
+						</Select>
+					</FormControl>
+				</>
+			</Card>
 
-						<FormControl fullWidth size="small">
-							<InputLabel>Ориентация по умолчанию</InputLabel>
-							<Select
-								label="Ориентация по умолчанию"
-								value={layoutDirection}
-								onChange={(e) =>
-									setLayoutDirection(e.target.value as "LR" | "TB")
-								}
-							>
-								<MenuItem value="LR">Горизонтальный (LR)</MenuItem>
-								<MenuItem value="TB">Вертикальный (TB)</MenuItem>
-							</Select>
-						</FormControl>
-					</CardContent>
-				</Card>
+			<Spacer space={8} />
 
-				<Flex flexDirection="column">
+			<Flex flexDirection="column">
+				{releaseNotesLoading ? (
 					<Typography
 						variant="caption"
 						sx={{
@@ -244,57 +235,46 @@ export const SettingsPage = () => {
 							color: "text.secondary",
 						}}
 					>
-						System info
+						version: <CircularProgress size={10} />
 					</Typography>
-					{releaseNotesLoading ? (
-						<Typography
-							variant="caption"
-							sx={{
-								pb: 0,
-								color: "text.secondary",
-							}}
-						>
-							version: <CircularProgress size={10} />
-						</Typography>
-					) : null}
-					{!releaseNotesLoading && latestChangelogVersion ? (
-						<Typography
-							title={releaseNotes}
-							variant="caption"
-							sx={{
-								pb: 0,
-								color: "text.secondary",
-							}}
-						>
-							version: {latestChangelogVersion}
-						</Typography>
-					) : null}
-					{!releaseNotesLoading &&
-					!latestChangelogVersion &&
-					releaseNotesError ? (
-						<Typography
-							variant="caption"
-							sx={{
-								pb: 0,
-								color: "error.main",
-							}}
-						>
-							version: n/a
-						</Typography>
-					) : null}
-					{process.env.GIT_HASH ? (
-						<Typography
-							variant="caption"
-							sx={{
-								pb: 0,
-								color: "text.secondary",
-							}}
-							data-test-id="side-menu--Version"
-						>
-							hash: {process.env.GIT_HASH}
-						</Typography>
-					) : null}
-				</Flex>
+				) : null}
+				{!releaseNotesLoading && latestChangelogVersion ? (
+					<Typography
+						title={releaseNotes}
+						variant="caption"
+						sx={{
+							pb: 0,
+							color: "text.secondary",
+						}}
+					>
+						version: {latestChangelogVersion}
+					</Typography>
+				) : null}
+				{!releaseNotesLoading &&
+				!latestChangelogVersion &&
+				releaseNotesError ? (
+					<Typography
+						variant="caption"
+						sx={{
+							pb: 0,
+							color: "error.main",
+						}}
+					>
+						version: n/a
+					</Typography>
+				) : null}
+				{process.env.GIT_HASH ? (
+					<Typography
+						variant="caption"
+						sx={{
+							pb: 0,
+							color: "text.secondary",
+						}}
+						data-test-id="side-menu--Version"
+					>
+						hash: {process.env.GIT_HASH}
+					</Typography>
+				) : null}
 			</Flex>
 		</div>
 	);
