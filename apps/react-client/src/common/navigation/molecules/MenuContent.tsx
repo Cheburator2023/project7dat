@@ -11,6 +11,7 @@ import { routes } from "@react-client/routing/routes";
 
 // Классификация роутов по категориям меню (статический контекст)
 const MOCKED_NEW_ROUTE_KEYS = ["processes", "changelogTable"] as const;
+const IS_DEV = process.env.NODE_ENV === "development";
 
 const nonDevEntries = Object.entries(routes).filter(
 	([, route]) => route.showInNavbar && !(route as any).devOnly,
@@ -23,7 +24,7 @@ const mockedItems = nonDevEntries
 	.map(([, route]) => route);
 
 const devOnlyItems = Object.values(routes)
-	.filter((route) => route.showInNavbar && (route as any).devOnly)
+	.filter((route) => route.showInNavbar && (route as any).devOnly && IS_DEV)
 	.map((route) => route);
 
 const secondaryListItems = [
