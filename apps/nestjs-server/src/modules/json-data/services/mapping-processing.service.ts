@@ -27,8 +27,10 @@ export class MappingProcessingService {
 
 		let processedCount = 0;
 		const warnings: string[] = [];
+		const startTotal = Date.now();
 
 		for (const mapping of mappings) {
+			const mappingStart = Date.now();
 			try {
 				const mappingWarnings = await this.handleSingleMapping(
 					mapping,
@@ -52,9 +54,14 @@ export class MappingProcessingService {
 				warnings.push(
 					`Маппинг для ${mapping.entityId} завершился с ошибкой: ${error.message}`,
 				);
+			} finally {
+				const mappingTime = Date.now() - mappingStart;
+				this.logger.log(`Маппинг ${processedCount}/${mappings.length} (${mapping.entityId}) обработан за ${mappingTime}ms`);
 			}
 		}
 
+		const totalTime = Date.now() - startTotal;
+		this.logger.log(`handleMappings завершён за ${totalTime}ms, обработано маппингов: ${processedCount}`);
 		return { count: processedCount, warnings };
 	}
 

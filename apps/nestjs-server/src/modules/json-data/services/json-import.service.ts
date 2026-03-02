@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { DataSource, QueryRunner } from "typeorm";
+import { ConfigService } from "@nestjs/config";
 import { JsonImportRequestDto } from "../dto";
 import { JsonValidationOrchestratorService } from "./json-validation-orchestrator.service";
 import { JsonConflictService } from "./json-conflict.service";
@@ -45,12 +46,29 @@ export class JsonImportService {
 		private readonly mappingProcessingService: MappingProcessingService,
 		private readonly cacheService: CacheService,
 		private readonly graphIndexService: GraphIndexService,
+		private readonly configService: ConfigService,
 	) {}
 
 	async importJsonData(
 		importRequest: JsonImportRequestDto,
 	): Promise<ImportResult> {
-		const { data, user, changeName, validated = true } = importRequest;
+		const {
+			data,
+			user,
+			changeName,
+			validated = true,
+			allowExistingCycles,
+			skipDuplicateCheck,
+		} = importRequest;
+
+		// Определяем значения по умолчанию из .env, если не переданы в запросе
+		const effectiveAllowExistingCycles = allowExistingCycles !== undefined
+			? allowExistingCycles
+			: this.configService.get<boolean>('ALLOW_EXISTING_CYCLES_DEFAULT', false);
+
+		const effectiveSkipDuplicateCheck = skipDuplicateCheck !== undefined
+			? skipDuplicateCheck
+			: this.configService.get<boolean>('SKIP_DUPLICATE_CHECK_DEFAULT', false);
 
 		const importId = randomUUID();
 
@@ -60,13 +78,19 @@ export class JsonImportService {
 			validated,
 			dataSize: JSON.stringify(data).length,
 			importId,
+			allowExistingCycles: effectiveAllowExistingCycles,
+			skipDuplicateCheck: effectiveSkipDuplicateCheck,
 		});
 
-		// Валидация и предобработка данных
-		const processedData = await this.validateAndPreprocessData(data, validated);
+		// Валидация и предобработка данных с учётом флагов
+		const processedData = await this.validateAndPreprocessData(
+			data,
+			validated,
+			{ allowExistingCycles: effectiveAllowExistingCycles, skipDuplicateCheck: effectiveSkipDuplicateCheck }
+		);
 
-		// Проверка конфликтов
-		await this.checkForConflicts(processedData);
+		// Проверка конфликтов с учётом флагов
+		await this.checkForConflicts(processedData, effectiveAllowExistingCycles, effectiveSkipDuplicateCheck);
 
 		// Выполнение импорта в транзакции
 		return await this.executeImportTransaction(
@@ -80,6 +104,7 @@ export class JsonImportService {
 	private async validateAndPreprocessData(
 		data: any,
 		validated: boolean,
+		options?: { allowExistingCycles?: boolean; skipDuplicateCheck?: boolean }
 	): Promise<any> {
 		if (!validated) {
 			throw new ConflictException(
@@ -91,7 +116,7 @@ export class JsonImportService {
 		const validationResult = await this.validationOrchestrator.validate(data);
 
 		// Разрешаем импорт если есть только предупреждения (но нет критических ошибок)
-		if (this.hasCriticalErrors(validationResult)) {
+        if (this.hasCriticalErrors(validationResult, options)) {
 			throw new BadRequestException({
 				message: "Валидация JSON не пройдена",
 				details: validationResult,
@@ -116,17 +141,20 @@ export class JsonImportService {
 	/**
 	 * Определяет наличие КРИТИЧЕСКИХ ошибок, которые блокируют импорт
 	 */
-	private hasCriticalErrors(validationResult: any): boolean {
+	private hasCriticalErrors(
+		validationResult: any,
+		options?: { allowExistingCycles?: boolean; skipDuplicateCheck?: boolean }
+	): boolean {
 		// Критические ошибки структуры
 		if (validationResult.validation.errors.length > 0) {
 			this.logger.warn(
 				`Критические ошибки структуры: ${validationResult.validation.errors.length}`,
+                { errors: validationResult.validation.errors.slice(0, 20) }
 			);
 			return true;
 		}
 
-		// Проблемы целостности, связанные с отсутствием source entities, НЕ являются критическими
-		// Они будут обработаны как предупреждения
+		// Проблемы целостности, связанные с отсутствием source entities, не являются критическими
 		const criticalIntegrityIssues = validationResult.integrity.issues.filter(
 			(issue) =>
 				!issue.includes("source entity не найдена") &&
@@ -136,26 +164,30 @@ export class JsonImportService {
 		if (criticalIntegrityIssues.length > 0) {
 			this.logger.warn(
 				`Критические ошибки целостности: ${criticalIntegrityIssues.length}`,
+				{ issues: criticalIntegrityIssues.slice(0, 20) }
 			);
 			return true;
 		}
 
-		// Неподдерживаемая версия схемы - критическая ошибка
+		// Неподдерживаемая версия схемы – критическая ошибка
 		if (!validationResult.schemaVersion.supported) {
 			this.logger.warn(
-				`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
+				`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`
 			);
 			return true;
 		}
 
-		// Рекурсия - критическая ошибка
-		if (validationResult.recursionCheck.hasRecursion) {
-			this.logger.warn("Обнаружена рекурсия в зависимостях");
+		// Рекурсия – критическая, если не разрешена явно
+		if (!options?.allowExistingCycles && validationResult.recursionCheck.hasRecursion) {
+			this.logger.warn(
+				"Обнаружена рекурсия в зависимостях",
+				{ cycles: validationResult.recursionCheck.cycles }
+			);
 			return true;
 		}
 
-		// Дубликаты - критическая ошибка
-		if (validationResult.duplicateCheck.hasDuplicates) {
+		// Дубликаты – критическая, если не пропущены явно
+		if (!options?.skipDuplicateCheck && validationResult.duplicateCheck.hasDuplicates) {
 			this.logger.warn(
 				`Обнаружены дубликаты: ${validationResult.duplicateCheck.duplicates.join(", ")}`,
 			);
@@ -168,33 +200,44 @@ export class JsonImportService {
 		return false;
 	}
 
-	private async checkForConflicts(processedData: any): Promise<void> {
-		// Проверка на рекурсию
-		const validationResult =
-			await this.validationOrchestrator.validate(processedData);
+	private async checkForConflicts(
+		processedData: any,
+		allowExistingCycles?: boolean,
+		skipDuplicateCheck?: boolean,
+	): Promise<void> {
+		this.logger.debug(`Проверка конфликтов: allowExistingCycles=${allowExistingCycles}, skipDuplicateCheck=${skipDuplicateCheck}`);
 
-		if (validationResult.recursionCheck.hasRecursion) {
+		const validationResult = await this.validationOrchestrator.validate(processedData);
+
+		// Проверка рекурсии
+		if (!allowExistingCycles && validationResult.recursionCheck.hasRecursion) {
+			this.logger.warn(`Рекурсия обнаружена и не разрешена, циклы: ${JSON.stringify(validationResult.recursionCheck.cycles)}`);
 			throw new BadRequestException(
 				`Обнаружены рекурсивные зависимости: ${JSON.stringify(validationResult.recursionCheck.cycles)}`,
 			);
 		}
-
-		// Проверка на дублирование
-		const duplicateCheck = validationResult.duplicateCheck;
-		if (duplicateCheck.hasDuplicates) {
-			throw new BadRequestException(
-				`Обнаружены дубликаты: ${duplicateCheck.duplicates.join(", ")}`,
-			);
+		if (allowExistingCycles && validationResult.recursionCheck.hasRecursion) {
+			this.logger.warn(`Рекурсия обнаружена, но разрешена флагом allowExistingCycles. Циклы: ${JSON.stringify(validationResult.recursionCheck.cycles)}`);
 		}
 
-		// Проверка зависимостей для модифицированных витрин
+		// Проверка дубликатов
+		if (!skipDuplicateCheck && validationResult.duplicateCheck.hasDuplicates) {
+			this.logger.warn(`Дубликаты обнаружены и не пропущены: ${validationResult.duplicateCheck.duplicates.join(", ")}`);
+			throw new BadRequestException(
+				`Обнаружены дубликаты: ${validationResult.duplicateCheck.duplicates.join(", ")}`,
+			);
+		}
+		if (skipDuplicateCheck && validationResult.duplicateCheck.hasDuplicates) {
+			this.logger.warn(`Дубликаты обнаружены, но пропущены по флагу skipDuplicateCheck: ${validationResult.duplicateCheck.duplicates.join(", ")}`);
+		}
+
+		// Проверка зависимостей для модифицированных витрин (без изменений)
 		const modifiedEntities = (processedData.entities || []).filter(
 			(entity: any) => entity.modified === true,
 		);
 
 		if (modifiedEntities.length > 0) {
-			const processId =
-				await this.processHandlingService.getProcessIdFromData(processedData);
+			const processId = await this.processHandlingService.getProcessIdFromData(processedData);
 			const safetyCheck = await this.conflictService.isSafeToUpdate(
 				modifiedEntities.map((e: any) => e.id),
 				processId,
@@ -363,6 +406,7 @@ export class JsonImportService {
 		);
 
 		// Шаг 2: Обработка процесса с передачей entities и mappings для точной очистки связей
+		this.logger.debug(`Desc перед handleProcess: ${JSON.stringify(processedData.desc)}`);
 		const process = await this.withImportStep(
 			importId,
 			"handleProcess",
