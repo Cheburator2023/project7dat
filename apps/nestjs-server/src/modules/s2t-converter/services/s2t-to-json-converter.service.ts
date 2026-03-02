@@ -357,9 +357,13 @@ export class S2tToJsonConverterService {
 	// ------------------------------------------------------------------------
 	private buildEntityId(container: { schema: string; table: string; system: string }): string {
 		if (container.schema) {
-			return `${container.schema}.${container.table}.${container.system}`;
+			const id = `${container.schema}.${container.table}.${container.system}`;
+			this.logger.debug(`buildEntityId: schema="${container.schema}", table="${container.table}", system="${container.system}" -> id="${id}"`);
+			return id;
 		}
-		return `${container.table}.${container.system}`;
+		const id = `${container.table}.${container.system}`;
+		this.logger.debug(`buildEntityId (без схемы): table="${container.table}", system="${container.system}" -> id="${id}"`);
+		return id;
 	}
 
 	/**

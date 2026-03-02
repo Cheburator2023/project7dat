@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { DataSource, QueryRunner } from "typeorm";
+import { ConfigService } from "@nestjs/config";
 import { JsonImportRequestDto } from "../dto";
 import { JsonValidationOrchestratorService } from "./json-validation-orchestrator.service";
 import { JsonConflictService } from "./json-conflict.service";
@@ -45,6 +46,7 @@ export class JsonImportService {
 		private readonly mappingProcessingService: MappingProcessingService,
 		private readonly cacheService: CacheService,
 		private readonly graphIndexService: GraphIndexService,
+		private readonly configService: ConfigService,
 	) {}
 
 	async importJsonData(
@@ -59,6 +61,15 @@ export class JsonImportService {
 			skipDuplicateCheck,
 		} = importRequest;
 
+		// Определяем значения по умолчанию из .env, если не переданы в запросе
+		const effectiveAllowExistingCycles = allowExistingCycles !== undefined
+			? allowExistingCycles
+			: this.configService.get<boolean>('ALLOW_EXISTING_CYCLES_DEFAULT', false);
+
+		const effectiveSkipDuplicateCheck = skipDuplicateCheck !== undefined
+			? skipDuplicateCheck
+			: this.configService.get<boolean>('SKIP_DUPLICATE_CHECK_DEFAULT', false);
+
 		const importId = randomUUID();
 
 		this.logger.log(`Импорт JSON данных пользователем: ${user}`, {
@@ -67,19 +78,19 @@ export class JsonImportService {
 			validated,
 			dataSize: JSON.stringify(data).length,
 			importId,
-			allowExistingCycles,
-			skipDuplicateCheck,
+			allowExistingCycles: effectiveAllowExistingCycles,
+			skipDuplicateCheck: effectiveSkipDuplicateCheck,
 		});
 
 		// Валидация и предобработка данных с учётом флагов
 		const processedData = await this.validateAndPreprocessData(
 			data,
 			validated,
-			{ allowExistingCycles, skipDuplicateCheck }
+			{ allowExistingCycles: effectiveAllowExistingCycles, skipDuplicateCheck: effectiveSkipDuplicateCheck }
 		);
 
 		// Проверка конфликтов с учётом флагов
-		await this.checkForConflicts(processedData, allowExistingCycles, skipDuplicateCheck);
+		await this.checkForConflicts(processedData, effectiveAllowExistingCycles, effectiveSkipDuplicateCheck);
 
 		// Выполнение импорта в транзакции
 		return await this.executeImportTransaction(
