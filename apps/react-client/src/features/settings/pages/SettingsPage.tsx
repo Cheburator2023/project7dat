@@ -14,7 +14,6 @@ import {
 	TableContainer,
 	TableHead,
 	TableRow,
-	Tooltip,
 	Typography,
 } from "@mui/material";
 import { useMemo } from "react";
@@ -24,6 +23,7 @@ import {
 	defaultPanelsSettings,
 	usePanelSettingsStore,
 } from "@react-client/common/stores/panelSettingsStore";
+import { useAgGridSettingsStore } from "@react-client/common/stores/agGridSettingsStore";
 import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { useReleaseNotes } from "@react-client/api/hooks/useReleaseNotes";
@@ -52,6 +52,15 @@ export const SettingsPage = () => {
 		resetAllPanels,
 		panels,
 	} = usePanelSettingsStore();
+
+	const {
+		persistGridStateEnabled,
+		setPersistGridStateEnabled,
+		grids,
+		toggleGridPersist,
+		resetGridState,
+		resetAllGrids,
+	} = useAgGridSettingsStore();
 
 	const {
 		layoutDirection,
@@ -89,6 +98,30 @@ export const SettingsPage = () => {
 		}
 	};
 
+	const gridList = useMemo(() => {
+		return Object.values(grids).sort((a, b) => a.name.localeCompare(b.name));
+	}, [grids]);
+
+	const handleResetGrid = (gridId: string, gridName: string) => {
+		if (
+			window.confirm(
+				`Сбросить состояние таблицы "${gridName}"? Это удалит сохранённые настройки из localStorage.`,
+			)
+		) {
+			resetGridState(gridId);
+		}
+	};
+
+	const handleResetAllGrids = () => {
+		if (
+			window.confirm(
+				"Сбросить состояние всех таблиц? Это удалит все сохранённые настройки AgGrid из localStorage.",
+			)
+		) {
+			resetAllGrids();
+		}
+	};
+
 	return (
 		<div>
 			<Header title="Настройки" />
@@ -123,11 +156,13 @@ export const SettingsPage = () => {
 						}}
 					>
 						<Typography variant="h6">Панели приложения</Typography>
-						<Tooltip title="Сбросить все панели">
-							<IconButton onClick={handleResetAll} color="warning">
-								<RestartAltIcon />
-							</IconButton>
-						</Tooltip>
+						<IconButton
+							onClick={handleResetAll}
+							color="warning"
+							title="Сбросить все панели"
+						>
+							<RestartAltIcon />
+						</IconButton>
 					</Box>
 
 					<TableContainer>
@@ -168,18 +203,123 @@ export const SettingsPage = () => {
 											/>
 										</TableCell>
 										<TableCell align="center">
-											<Tooltip title="Сбросить состояние панели">
-												<IconButton
-													size="small"
-													onClick={() => handleResetPanel(panel.id, panel.name)}
-													color="warning"
-												>
-													<RestartAltIcon fontSize="small" />
-												</IconButton>
-											</Tooltip>
+											<IconButton
+												size="small"
+												onClick={() => handleResetPanel(panel.id, panel.name)}
+												color="warning"
+												title="Сбросить состояние панели"
+											>
+												<RestartAltIcon fontSize="small" />
+											</IconButton>
 										</TableCell>
 									</TableRow>
 								))}
+							</TableBody>
+						</Table>
+					</TableContainer>
+				</>
+
+				<Spacer />
+
+				<>
+					<Typography variant="h6" gutterBottom>
+						Сохранение состояния таблиц
+					</Typography>
+					<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+						Когда включено, таблицы (AgGrid) будут сохранять порядок/размер
+						колонок и сортировку в localStorage и восстанавливаться при
+						следующем посещении.
+					</Typography>
+					<FormControlLabel
+						control={
+							<Switch
+								checked={persistGridStateEnabled}
+								onChange={(e) => setPersistGridStateEnabled(e.target.checked)}
+							/>
+						}
+						label="Включить сохранение состояния таблиц"
+					/>
+
+					<Spacer />
+
+					<Box
+						sx={{
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							mb: 2,
+						}}
+					>
+						<Typography variant="h6">Таблицы приложения</Typography>
+						<IconButton
+							onClick={handleResetAllGrids}
+							color="warning"
+							title="Сбросить все таблицы"
+						>
+							<RestartAltIcon />
+						</IconButton>
+					</Box>
+
+					<TableContainer>
+						<Table size="small">
+							<TableHead>
+								<TableRow>
+									<TableCell>Таблица</TableCell>
+									<TableCell>Ключ localStorage</TableCell>
+									<TableCell align="center">Сохранение</TableCell>
+									<TableCell align="center">Действия</TableCell>
+								</TableRow>
+							</TableHead>
+							<TableBody>
+								{gridList.length === 0 ? (
+									<TableRow>
+										<TableCell colSpan={4}>
+											<Typography variant="body2" color="text.secondary">
+												Таблицы пока не зарегистрированы. Открой страницу с
+												нужной таблицей, чтобы она появилась здесь.
+											</Typography>
+										</TableCell>
+									</TableRow>
+								) : (
+									gridList.map((grid) => (
+										<TableRow key={grid.id}>
+											<TableCell>
+												<Typography variant="body2" fontWeight="medium">
+													{grid.name}
+												</Typography>
+												<Typography variant="caption" color="text.secondary">
+													{grid.id}
+												</Typography>
+											</TableCell>
+											<TableCell>
+												<Typography
+													variant="caption"
+													sx={{ fontFamily: "monospace" }}
+												>
+													{grid.localStorageKey}
+												</Typography>
+											</TableCell>
+											<TableCell align="center">
+												<Switch
+													size="small"
+													checked={grid.enabled && persistGridStateEnabled}
+													disabled={!persistGridStateEnabled}
+													onChange={() => toggleGridPersist(grid.id)}
+												/>
+											</TableCell>
+											<TableCell align="center">
+												<IconButton
+													size="small"
+													onClick={() => handleResetGrid(grid.id, grid.name)}
+													color="warning"
+													title="Сбросить состояние таблицы"
+												>
+													<RestartAltIcon fontSize="small" />
+												</IconButton>
+											</TableCell>
+										</TableRow>
+									))
+								)}
 							</TableBody>
 						</Table>
 					</TableContainer>

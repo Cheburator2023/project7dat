@@ -1,6 +1,8 @@
 import { useMemo, useCallback, useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
+import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
+import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 import type { FC } from "react";
 import {
 	Alert,
@@ -57,8 +59,8 @@ import {
 	agGridCustomMUIThemeDark,
 } from "@react-client/theme/ag-grid/agGridCustomTheme";
 import { DiffJsonDialog } from "../organisms/DiffJsonDialog";
-import { EditJsonDialog } from "../organisms/EditJsonDialog";
 import { EditMetadataDialog } from "../organisms/EditMetadataDialog";
+import { EditJsonDialog } from "../organisms/EditJsonDialog";
 import { MergeIcon } from "lucide-react";
 
 const defaultColDef = {
@@ -128,6 +130,12 @@ export const AllCommitsPage: FC = () => {
 	const [compareBaseId, setCompareBaseId] = useState<string>("");
 	const [compareTargetId, setCompareTargetId] = useState<string>("");
 	const gridRef = useRef<AgGridReact<S2tCommitItem> | null>(null);
+	const gridApiRef = useRef<any>(null);
+	const gridPersistence = useAgGridPersistence({
+		gridId: "all-commits",
+		gridName: "Коммиты",
+		apiRef: gridApiRef,
+	});
 
 	useCurrentDataLineageGraph({
 		enabled: false,
@@ -140,6 +148,7 @@ export const AllCommitsPage: FC = () => {
 
 	const handleCommitsSortChanged = useCallback(
 		(event: SortChangedEvent<S2tCommitItem>) => {
+			gridPersistence.onSortChanged(event as unknown as SortChangedEvent);
 			const colState = event.api.getColumnState();
 			const sorted = colState.find((c) => c.sort);
 			if (sorted) {
@@ -151,7 +160,7 @@ export const AllCommitsPage: FC = () => {
 			}
 			setCommitsPage(1);
 		},
-		[],
+		[gridPersistence],
 	);
 
 	const handleDialogSaved = () => {
@@ -430,26 +439,39 @@ export const AllCommitsPage: FC = () => {
 				}}
 			>
 				<GridWrapper height="100%">
-					<AgGridReact<S2tCommitItem>
-						ref={gridRef}
-						rowData={s2tCommits}
-						columnDefs={s2tColumnDefs}
-						defaultColDef={defaultColDef}
-						onRowDoubleClicked={handleS2tRowDoubleClick}
-						onSortChanged={handleCommitsSortChanged}
-						onCellContextMenu={handleCellContextMenu}
-						preventDefaultOnContextMenu
-						loading={s2tCommitsQuery.isLoading}
-						theme={
-							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
-						}
-						animateRows={true}
-						enableCellTextSelection={true}
-						ensureDomOrder={true}
-						maintainColumnOrder={true}
-						overlayNoRowsTemplate="Нет сущностей"
-						overlayLoadingTemplate="Загрузка"
-					/>
+					<Box sx={{ position: "relative", height: "100%" }}>
+						<AgGridStateControls onReset={gridPersistence.resetGridState} />
+						<AgGridReact<S2tCommitItem>
+							ref={gridRef}
+							rowData={s2tCommits}
+							columnDefs={s2tColumnDefs}
+							defaultColDef={defaultColDef}
+							onGridReady={(e) => {
+								gridPersistence.onGridReady(e as any);
+								gridApiRef.current = e.api;
+							}}
+							onRowDoubleClicked={handleS2tRowDoubleClick}
+							onSortChanged={handleCommitsSortChanged}
+							onColumnMoved={gridPersistence.onColumnMoved}
+							onColumnPinned={gridPersistence.onColumnPinned}
+							onColumnResized={gridPersistence.onColumnResized}
+							onColumnVisible={gridPersistence.onColumnVisible}
+							onCellContextMenu={handleCellContextMenu}
+							preventDefaultOnContextMenu
+							loading={s2tCommitsQuery.isLoading}
+							theme={
+								mode === "dark"
+									? agGridCustomMUIThemeDark
+									: agGridCustomMUITheme
+							}
+							animateRows={true}
+							enableCellTextSelection={true}
+							ensureDomOrder={true}
+							maintainColumnOrder={true}
+							overlayNoRowsTemplate="Нет сущностей"
+							overlayLoadingTemplate="Загрузка"
+						/>
+					</Box>
 				</GridWrapper>
 
 				<PaginationToolbar
@@ -465,7 +487,6 @@ export const AllCommitsPage: FC = () => {
 				/>
 			</Box>
 
-			{/* Context menu for commit actions */}
 			<Menu
 				open={!!contextMenuAnchor}
 				onClose={handleCloseContextMenu}
@@ -492,7 +513,6 @@ export const AllCommitsPage: FC = () => {
 					</MenuItem>,
 					<MenuItem
 						key="edit-json"
-						// disabled
 						onClick={() => {
 							setEditJsonCommit(contextMenuCommit);
 							handleCloseContextMenu();
@@ -575,6 +595,7 @@ export const AllCommitsPage: FC = () => {
 				commit={diffCommit}
 				onClose={() => setDiffCommit(null)}
 			/>
+
 			<Dialog open={!!deleteCommit} onClose={() => setDeleteCommit(null)}>
 				<DialogTitle>Удалить коммит?</DialogTitle>
 				<DialogContent>
@@ -650,13 +671,11 @@ export const AllCommitsPage: FC = () => {
 					{(!baseCommit || !targetCommit) && (
 						<Alert severity="info">Выберите два коммита для сравнения.</Alert>
 					)}
-
 					{baseCommit && targetCommit && baseCommit.id === targetCommit.id && (
 						<Alert severity="warning">
 							Базовый и сравниваемый коммит не должны совпадать.
 						</Alert>
 					)}
-
 					{baseCommit && targetCommit && baseCommit.id !== targetCommit.id && (
 						<>
 							{compareDiffHtml ? (

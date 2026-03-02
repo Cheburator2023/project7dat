@@ -5,7 +5,6 @@ import {
 	Typography,
 	useColorScheme,
 	IconButton,
-	Tooltip,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
@@ -60,15 +59,14 @@ export const EntityJsonEditor: React.FC<EntityJsonEditorProps> = ({
 		<Container>
 			<JsonContainer>
 				<CopyButton>
-					<Tooltip title={copied ? "Скопировано!" : "Скопировать JSON"}>
-						<IconButton
-							onClick={handleCopy}
-							size="small"
-							color={copied ? "success" : "default"}
-						>
-							{copied ? <CheckIcon /> : <ContentCopyIcon />}
-						</IconButton>
-					</Tooltip>
+					<IconButton
+						onClick={handleCopy}
+						size="small"
+						color={copied ? "success" : "default"}
+						title={copied ? "Скопировано!" : "Скопировать JSON"}
+					>
+						{copied ? <CheckIcon /> : <ContentCopyIcon />}
+					</IconButton>
 				</CopyButton>
 				<pre dangerouslySetInnerHTML={{ __html: highlightedJson }} />
 			</JsonContainer>

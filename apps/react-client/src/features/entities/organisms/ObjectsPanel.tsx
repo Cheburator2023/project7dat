@@ -1,14 +1,18 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useMemo, useState, useCallback, useRef } from "react";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
+import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
+import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 import { Box, Typography, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
 import type {
-	ColDef,
-	RowClickedEvent,
-	RowDoubleClickedEvent,
 	CellContextMenuEvent,
+	ColDef,
+	GridApi,
+	GridReadyEvent,
+	RowDoubleClickedEvent,
+	RowClickedEvent,
 } from "ag-grid-community";
 import {
 	agGridCustomMUITheme,
@@ -69,7 +73,6 @@ export const ObjectsPanel = memo(() => {
 	const {
 		data: paginatedEntitiesData,
 		isLoading: isLoadingPaginatedEntities,
-		isPending: isPendingPaginatedEntities,
 		isFetching: isFetchingPaginatedEntities,
 	} = usePaginatedEntities({
 		page: 1,
@@ -83,7 +86,6 @@ export const ObjectsPanel = memo(() => {
 	const {
 		data: paginatedMappingsData,
 		isLoading: isLoadingPaginatedMappings,
-		isPending: isPendingPaginatedMappings,
 		isFetching: isFetchingPaginatedMappings,
 	} = usePaginatedMappings({
 		page: 1,
@@ -595,6 +597,35 @@ export const ObjectsPanel = memo(() => {
 		setContextMenu(null);
 	}, []);
 
+	const attributesGridApiRef = useRef<GridApi | null>(null);
+	const linksGridApiRef = useRef<GridApi | null>(null);
+	const attributesGridPersistence = useAgGridPersistence({
+		gridId: "objects-attributes",
+		gridName: "Объекты (атрибуты)",
+		apiRef: attributesGridApiRef,
+	});
+	const linksGridPersistence = useAgGridPersistence({
+		gridId: "objects-links",
+		gridName: "Объекты (связи)",
+		apiRef: linksGridApiRef,
+	});
+
+	const handleAttributesGridReady = useCallback(
+		(event: GridReadyEvent) => {
+			attributesGridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			attributesGridApiRef.current = event.api;
+		},
+		[attributesGridPersistence],
+	);
+
+	const handleLinksGridReady = useCallback(
+		(event: GridReadyEvent) => {
+			linksGridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			linksGridApiRef.current = event.api;
+		},
+		[linksGridPersistence],
+	);
+
 	// Get entity for context menu
 	const contextMenuEntity = useMemo(() => {
 		if (!contextMenu) return null;
@@ -701,41 +732,65 @@ export const ObjectsPanel = memo(() => {
 			}}
 		>
 			{/* Table content */}
-			<Box sx={{ flex: 1, minHeight: 0 }}>
+			<Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
 				{viewMode === "attributes" ? (
-					<AgGridReact
-						rowData={filteredObjects}
-						columnDefs={attributeColumnDefs}
-						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-						onRowClicked={handleRowClicked}
-						onRowDoubleClicked={handleRowDoubleClicked}
-						onCellContextMenu={handleCellContextMenu}
-						preventDefaultOnContextMenu
-						getRowStyle={getRowStyle}
-						rowSelection="single"
-						suppressCellFocus
-						animateRows
-						rowHeight={28}
-						headerHeight={32}
-						loading={isPanelLoading}
-						overlayLoadingTemplate="Загрузка"
-						overlayNoRowsTemplate="Нет данных"
-					/>
+					<>
+						<AgGridStateControls
+							onReset={attributesGridPersistence.resetGridState}
+							resetTitle="Сбросить настройки таблицы (атрибуты)"
+						/>
+						<AgGridReact
+							rowData={filteredObjects}
+							columnDefs={attributeColumnDefs}
+							theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+							onGridReady={handleAttributesGridReady}
+							onColumnMoved={attributesGridPersistence.onColumnMoved}
+							onColumnPinned={attributesGridPersistence.onColumnPinned}
+							onColumnResized={attributesGridPersistence.onColumnResized}
+							onColumnVisible={attributesGridPersistence.onColumnVisible}
+							onRowClicked={handleRowClicked}
+							onRowDoubleClicked={handleRowDoubleClicked}
+							onCellContextMenu={handleCellContextMenu}
+							preventDefaultOnContextMenu
+							getRowStyle={getRowStyle}
+							rowSelection="single"
+							suppressCellFocus
+							animateRows
+							rowHeight={28}
+							headerHeight={32}
+							loading={isPanelLoading}
+							overlayLoadingTemplate="Загрузка"
+							overlayNoRowsTemplate="Нет данных"
+							onSortChanged={attributesGridPersistence.onSortChanged}
+						/>
+					</>
 				) : (
-					<AgGridReact
-						rowData={filteredLinks}
-						columnDefs={linkColumnDefs}
-						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-						onRowClicked={handleLinkRowClicked}
-						rowSelection="single"
-						suppressCellFocus
-						animateRows
-						rowHeight={28}
-						headerHeight={32}
-						loading={isPanelLoading}
-						overlayLoadingTemplate="Загрузка"
-						overlayNoRowsTemplate="Нет данных"
-					/>
+					<>
+						<AgGridStateControls
+							onReset={linksGridPersistence.resetGridState}
+							resetTitle="Сбросить настройки таблицы (связи)"
+						/>
+						<AgGridReact
+							rowData={filteredLinks}
+							columnDefs={linkColumnDefs}
+							theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+							onGridReady={handleLinksGridReady}
+							onColumnMoved={linksGridPersistence.onColumnMoved}
+							onColumnPinned={linksGridPersistence.onColumnPinned}
+							onColumnResized={linksGridPersistence.onColumnResized}
+							onColumnVisible={linksGridPersistence.onColumnVisible}
+							onRowClicked={handleLinkRowClicked}
+							rowSelection="single"
+							suppressCellFocus
+							animateRows
+							rowHeight={28}
+							headerHeight={32}
+							loading={isPanelLoading}
+							overlayLoadingTemplate="Загрузка"
+							overlayNoRowsTemplate="Нет данных"
+							onSortChanged={linksGridPersistence.onSortChanged}
+						/>
+					</>
 				)}
 			</Box>
 

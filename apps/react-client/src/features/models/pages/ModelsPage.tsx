@@ -1,11 +1,16 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 
 import { format, parseISO } from "date-fns/esm";
 import { Box, TextField, InputAdornment, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { Search } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
-import type { ColDef, SortChangedEvent } from "ag-grid-community";
+import type {
+	ColDef,
+	GridApi,
+	GridReadyEvent,
+	SortChangedEvent,
+} from "ag-grid-community";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -19,6 +24,8 @@ import { usePaginatedEntities } from "@react-client/api/hooks";
 import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { routes } from "@react-client/routing/routes";
+import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
+import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 
 interface ModelRow {
 	id: string;
@@ -85,7 +92,23 @@ export const ModelsPage = () => {
 		setPage(1);
 	}, []);
 
+	const gridApiRef = useRef<GridApi | null>(null);
+	const gridPersistence = useAgGridPersistence({
+		gridId: "models",
+		gridName: "Модели",
+		apiRef: gridApiRef,
+	});
+
+	const handleGridReady = useCallback(
+		(event: GridReadyEvent<ModelRow>) => {
+			gridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			gridApiRef.current = event.api;
+		},
+		[gridPersistence],
+	);
+
 	const handleSortChanged = useCallback((event: SortChangedEvent<ModelRow>) => {
+		gridPersistence.onSortChanged(event as unknown as SortChangedEvent);
 		const colState = event.api.getColumnState();
 		const sorted = colState.find((c) => c.sort);
 		if (sorted) {
@@ -162,19 +185,25 @@ export const ModelsPage = () => {
 					height: "100%",
 				}}
 			>
-				<Box sx={{ flex: 1, minHeight: 0 }}>
+				<Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
+					<AgGridStateControls onReset={gridPersistence.resetGridState} />
 					<AgGridReact<ModelRow>
 						rowData={filteredModels}
 						columnDefs={columnDefs}
 						theme={
 							mode === "dark" ? agGridCustomMUIThemeDark : agGridCustomMUITheme
 						}
+						onGridReady={handleGridReady}
 						defaultColDef={{
 							sortable: true,
 							filter: false,
 							resizable: true,
 						}}
 						onSortChanged={handleSortChanged}
+						onColumnMoved={gridPersistence.onColumnMoved}
+						onColumnPinned={gridPersistence.onColumnPinned}
+						onColumnResized={gridPersistence.onColumnResized}
+						onColumnVisible={gridPersistence.onColumnVisible}
 						animateRows={true}
 						rowSelection="single"
 						onRowDoubleClicked={(event) => {
