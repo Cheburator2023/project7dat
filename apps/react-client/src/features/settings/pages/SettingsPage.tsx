@@ -32,7 +32,9 @@ import { useReleaseNotes } from "@react-client/api/hooks/useReleaseNotes";
 
 const extractLatestVersion = (markdown: string): string | null => {
 	if (!markdown.trim()) return null;
-	const match = markdown.match(/^#\s+\[([^\]]+)\]/m);
+	const match =
+		markdown.match(/^##\s+\[([^\]]+)\]/m) ??
+		markdown.match(/^#\s+\[([^\]]+)\]/m);
 	return match?.[1] ?? null;
 };
 
@@ -61,6 +63,10 @@ export const SettingsPage = () => {
 	const latestChangelogVersion = useMemo(
 		() => extractLatestVersion(releaseNotes),
 		[releaseNotes],
+	);
+	console.log(
+		"🐸 Pepe said >> SettingsPage >> latestChangelogVersion:",
+		releaseNotes,
 	);
 
 	const handleResetPanel = (panelId: string, panelName: string) => {
@@ -253,6 +259,7 @@ export const SettingsPage = () => {
 					) : null}
 					{!releaseNotesLoading && latestChangelogVersion ? (
 						<Typography
+							title={releaseNotes}
 							variant="caption"
 							sx={{
 								pb: 0,
