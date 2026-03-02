@@ -15,8 +15,7 @@ export class CreateEntityTable1760000000007 implements MigrationInterface {
 				description           VARCHAR,
 				CONSTRAINT fk_entity_change FOREIGN KEY (change_id) REFERENCES changes(change_id),
 				CONSTRAINT fk_entity_type FOREIGN KEY (entity_type_id) REFERENCES entity_type(entity_type_id),
-				CONSTRAINT fk_entity_container FOREIGN KEY (entity_container_id) REFERENCES entity_container(entity_container_id),
-				CONSTRAINT entity_full_name_unique UNIQUE (full_name)
+				CONSTRAINT fk_entity_container FOREIGN KEY (entity_container_id) REFERENCES entity_container(entity_container_id)
 				)
 		`);
 
