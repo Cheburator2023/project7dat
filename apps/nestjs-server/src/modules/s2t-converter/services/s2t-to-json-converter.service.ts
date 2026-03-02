@@ -28,11 +28,7 @@ export class S2tToJsonConverterService {
 	private readonly RELATION_CHANGE_VALUE = "new";
 
 	/**
-	 * Извлекает числовой код системы из сырой строки.
-	 * Примеры:
-	 *   "1642_19, Озеро данных" → "1642_19"
-	 *   "1655" → "1655"
-	 *   "1642" → "1642"
+	 * Извлекает system_code из строки.
 	 */
 	private extractSystemCode(raw: string | undefined | null): string | null {
 		if (!raw) return null;
