@@ -31,8 +31,8 @@ export class JsonValidationOrchestratorService {
 	async validate(data: any): Promise<ComprehensiveValidationResponse> {
 		this.logger.log("Запуск комплексной валидации JSON");
 
-		// Сначала нормализуем данные
-		const normalizedData = this.structureValidator.normalizeJsonData(data);
+        // Нормализуем данные
+        const normalizedData = this.structureValidator.normalizeJsonData(data);
 
 		// Валидация структуры на нормализованных данных
 		const structureValidation =
@@ -62,9 +62,9 @@ export class JsonValidationOrchestratorService {
 			normalizedData.mappings || [],
 		);
 
-		// Проверка на дублирование
-		const duplicateCheck =
-			this.structureValidator.checkForDuplicates(normalizedData);
+        // Проверка на дубликаты
+        const duplicateCheck =
+            this.structureValidator.checkForDuplicates(normalizedData);
 
 		// Статистика
 		const statistics = this.calculateStatistics(normalizedData);
@@ -80,42 +80,53 @@ export class JsonValidationOrchestratorService {
 			statistics,
 		);
 
-		// Данные считаются валидными если нет критических ошибок структуры,
-		// бизнес-правил, рекурсии или дубликатов
-		const hasCriticalErrors =
-			structureValidation.errors.length > 0 ||
-			!businessRulesValidation.isValid ||
-			recursionCheck.hasRecursion ||
-			duplicateCheck.hasDuplicates;
+        // Критические ошибки – ошибки структуры, бизнес-правил, рекурсия или дубликаты
+        const hasCriticalErrors =
+            structureValidation.errors.length > 0 ||
+            !businessRulesValidation.isValid ||
+            recursionCheck.hasRecursion ||
+            duplicateCheck.hasDuplicates;
 
-		const response: ComprehensiveValidationResponse = {
-			isValid: !hasCriticalErrors,
-			validation: structureValidation,
-			integrity: integrityValidation,
-			schemaVersion: {
-				...versionCompatibility,
-				version: schemaVersionValidation.version,
-				supported: schemaVersionValidation.supported,
-			},
-			statistics,
-			recursionCheck,
-			duplicateCheck,
-			normalizedData,
-			recommendations,
-		};
+        // Добавляем ошибки бизнес-правил в общий список ошибок валидации,
+        const enrichedValidationErrors = [
+            ...structureValidation.errors,
+            ...businessRulesValidation.violations,
+        ];
+
+        const enrichedValidation: ValidationResult = {
+            isValid: structureValidation.isValid && businessRulesValidation.isValid,
+            errors: enrichedValidationErrors,
+            warnings: structureValidation.warnings,
+        };
+
+        const response: ComprehensiveValidationResponse = {
+            isValid: !hasCriticalErrors,
+            validation: enrichedValidation,
+            integrity: integrityValidation,
+            schemaVersion: {
+                ...versionCompatibility,
+                version: schemaVersionValidation.version,
+                supported: schemaVersionValidation.supported,
+            },
+            statistics,
+            recursionCheck,
+            duplicateCheck,
+            normalizedData,
+            recommendations,
+        };
 
 		this.logger.log(
 			`Комплексная валидация завершена. Результат: ${response.isValid ? "VALID" : "INVALID"}`,
 		);
 
-		// Если есть нарушения бизнес-правил, логируем их
-		if (businessRulesValidation.violations.length > 0) {
-			this.logger.warn(
-				`Нарушения бизнес-правил (${businessRulesValidation.violations.length}):\n` +
-				businessRulesValidation.violations.slice(0, 20).join('\n') +
-				(businessRulesValidation.violations.length > 20 ? '\n...' : '')
-			);
-		}
+        // Если есть нарушения бизнес-правил, логируем их
+        if (businessRulesValidation.violations.length > 0) {
+            this.logger.warn(
+                `Нарушения бизнес-правил (${businessRulesValidation.violations.length}):\n` +
+                businessRulesValidation.violations.slice(0, 20).join('\n') +
+                (businessRulesValidation.violations.length > 20 ? '\n...' : ''),
+            );
+        }
 
 		return response;
 	}
