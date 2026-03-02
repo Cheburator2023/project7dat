@@ -84,30 +84,24 @@ export class MergeService {
         // 5. Выполняем слияние
         const mergedModel = this.performMerge(currentModel, commit.commit, commitType);
 
-        // 6. Проверяем рекурсию в результирующей модели
+        // 6. Проверяем дубликаты в смерженной модели относительно исходной
+        const duplicateCheckResult = this.checkDuplicatesAfterMerge(currentModel, mergedModel);
+        if (!duplicateCheckResult.allowed) {
+            throw new BadRequestException(
+                `Коммит создаёт новые дубликаты сущностей: ${duplicateCheckResult.newDuplicates.join(', ')}. Операция отклонена.`
+            );
+        }
+        if (duplicateCheckResult.existingDuplicates.length > 0) {
+            this.logger.warn(
+                `В исходной модели уже есть дубликаты (${duplicateCheckResult.existingDuplicates.length}), они будут сохранены.`
+            );
+        }
+
+        // 7. Проверяем рекурсию в результирующей модели
         const recursionMerged = this.structureValidator.checkForRecursion(
             mergedModel.entities,
             mergedModel.mappings,
         );
-
-        // 7. Анализируем появление новых циклов
-        if (recursionMerged.hasRecursion) {
-            if (!recursionCurrent.hasRecursion) {
-                // В текущей модели циклов не было, а после слияния они появились → ошибка
-                this.logger.error(
-                    `Обнаружены новые циклические зависимости, созданные коммитом: ${recursionMerged.cycles.length} циклов`,
-                );
-                throw new BadRequestException(
-                    'Смерженная модель содержит рекурсивные зависимости, созданные данным коммитом. Операция отклонена.',
-                );
-            } else {
-                // Циклы уже существовали – разрешаем, но предупреждаем
-                this.logger.warn(
-                    `В результирующей модели всё ещё присутствуют циклические зависимости (${recursionMerged.cycles.length} циклов). ` +
-                    `Это не связано с данным коммитом.`,
-                );
-            }
-        }
 
         // 8. Дополнительная проверка целостности смерженного JSON (необязательно)
         const integrityWarnings = this.validateMergedJsonIntegrity(mergedModel);
@@ -157,6 +151,22 @@ export class MergeService {
     ): JsonExportResponseDto {
         const merged = JSON.parse(JSON.stringify(currentModel));
 
+        // --- Копируем информацию о процессе и типе коммита из коммита ---
+        if (commitJson.desc) {
+            // process – имя процесса (обязательно для table/model)
+            if (commitJson.desc.process) {
+                merged.desc.process = commitJson.desc.process;
+            }
+            // description – описание процесса (опционально)
+            if (commitJson.desc.description) {
+                merged.desc.description = commitJson.desc.description;
+            }
+            // commit_type – тип коммита (table/json/model)
+            if (commitJson.desc.commit_type) {
+                merged.desc.commit_type = commitJson.desc.commit_type;
+            }
+        }
+
         // 1. Обработка сущностей (для всех типов коммитов)
         this.mergeEntities(merged, commitJson.entities || []);
 
@@ -166,7 +176,7 @@ export class MergeService {
         }
         // Для json-коммита маппинги игнорируются
 
-        // 3. Обновляем дату изменения
+        // 3. Обновляем дату изменения (текущее время)
         merged.desc.change_date = new Date().toISOString();
 
         return merged;
@@ -323,7 +333,7 @@ export class MergeService {
             const commit = await this.jsonCommitService.getCommitById(commitId);
             const finalUser = user || commit.user || 'system';
 
-            // Выполняем импорт смерженной модели в РБД с опцией allowExistingCycles
+            // Выполняем импорт смерженной модели в РБД с флагами
             const importResult = await this.jsonImportService.importJsonData({
                 data: session.mergedJson,
                 user: finalUser,
@@ -332,6 +342,7 @@ export class MergeService {
                 sourceType: undefined,
                 schemaVersion: session.mergedJson.desc?.schemaVersion,
                 allowExistingCycles: session.hadExistingCycles,
+                skipDuplicateCheck: true,
             });
 
             // Создаем снепшот
@@ -393,4 +404,49 @@ export class MergeService {
 	getMergeSession(sessionId: string) {
 		return this.mergeSessions.get(sessionId);
 	}
+
+    /**
+     * Проверяет, не создаёт ли слияние новых дубликатов.
+     * Возвращает структуру с полем allowed (true, если нет новых дубликатов).
+     */
+    private checkDuplicatesAfterMerge(
+        currentModel: JsonExportResponseDto,
+        mergedModel: JsonExportResponseDto
+    ): { allowed: boolean; newDuplicates: string[]; existingDuplicates: string[] } {
+        // Функция для подсчёта вхождений id
+        const countById = (entities: any[]): Map<string, number> => {
+            const map = new Map<string, number>();
+            for (const e of entities) {
+                const id = e.id;
+                map.set(id, (map.get(id) || 0) + 1);
+            }
+            return map;
+        };
+
+        const currentCounts = countById(currentModel.entities);
+        const mergedCounts = countById(mergedModel.entities);
+
+        const newDuplicates: string[] = [];
+        const existingDuplicates: string[] = [];
+
+        for (const [id, mergedCnt] of mergedCounts.entries()) {
+            const currentCnt = currentCounts.get(id) || 0;
+            if (mergedCnt > 1) {
+                if (currentCnt <= 1) {
+                    // Появился новый дубликат
+                    newDuplicates.push(id);
+                } else {
+                    // Дубликат уже был
+                    existingDuplicates.push(id);
+                }
+            }
+        }
+
+        return {
+            allowed: newDuplicates.length === 0,
+            newDuplicates,
+            existingDuplicates,
+        };
+    }
+
 }
