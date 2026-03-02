@@ -4,7 +4,8 @@
 	box-sizing: border-box;
 }
 
-body {
+body,
+html {
 	margin: 0;
 	height: 100%;
 	overflow: hidden;
@@ -13,6 +14,7 @@ body {
 #root {
 	min-height: -webkit-fill-available;
 	height: 100%;
+	overflow: hidden;
 }
 
 :root {
@@ -638,5 +640,5 @@ div.dv-split-view-container .dv-sash-container .dv-sash:not(.disabled):hover {
 }
 
 .dv-dockview div[class*="ag-theme-"] {
-	padding: 0 8px;
+	padding: 0 8px 8px;
 }
