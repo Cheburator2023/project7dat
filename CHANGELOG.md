@@ -1,5 +1,18 @@
 # Semantic Versioning Changelog
 
+## [1.3.3](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.3.2...v1.3.3) (2026-03-02)
+
+
+### Bug Fixes
+
+* css fixes ([c281a49](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/c281a493c6d721814cffa41f4fff3571c545419d))
+* css fixes ([72ebb61](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/72ebb61d18e4db6966d965f61a9242625181f963))
+* mem fixes ([0560218](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/05602181d59c781654522bd20838c7a292a6a49f))
+* mem fixes ([dcb49da](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/dcb49da111b882eef208b5c59d6bde2f1c26b076))
+* mem fixes ([afbeed9](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/afbeed96ccb960262f50767908c7a424424e643d))
+* Поправил constraint ([70830d6](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/70830d6e8bc4cb73edb919e36578b23dc1bf24be))
+* Поправил s2t-converter ([98e50f7](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/98e50f72d221c690ba82a45510cfe15280172f6a))
+
 ## [1.3.2](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.3.1...v1.3.2) (2026-02-27)
 
 
