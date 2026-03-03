@@ -41,6 +41,7 @@ import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/M
 import { SearchIcon } from "lucide-react";
 import { usePaginatedModelRelations } from "@react-client/api/hooks/usePaginatedModelRelations";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
+import { useCurrentSchema } from "@react-client/features/entities/hooks/useCurrentSchema";
 import { SkeletonFade } from "@react-client/common/skeleton/atoms/SkeletonFade";
 import { SkeletonBlock } from "@react-client/common/skeleton/atoms/SkeletonBlock";
 import { SkeletonList } from "@react-client/common/skeleton/molecules/SkeletonList";
@@ -142,13 +143,13 @@ const useModelPreviewDockviewContext = (): ModelPreviewDockviewContextValue =>
 	useContext(ModelPreviewDockviewContext);
 
 // Stable selectors for useEntitiesStore
-const selectGlobalAttributeSearchQuery = (state: {
-	globalAttributeSearchQuery: string;
-}) => state.globalAttributeSearchQuery;
+const selectAttributeSearchByGraphId = (state: {
+	attributeSearchQueryByGraphId: Record<string, string>;
+}) => state.attributeSearchQueryByGraphId;
 
-const selectSetGlobalAttributeSearch = (state: {
-	setGlobalAttributeSearch: (query: string) => void;
-}) => state.setGlobalAttributeSearch;
+const selectSetAttributeSearchByGraphId = (state: {
+	setAttributeSearchByGraphId: (graphId: string, query: string) => void;
+}) => state.setAttributeSearchByGraphId;
 
 export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
@@ -176,13 +177,17 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		});
 	}, [setSearchParams]);
 
-	// Global attribute search
-	const globalAttributeSearchQuery = useEntitiesStore(
-		selectGlobalAttributeSearchQuery,
+	// Attribute search scoped to this page's graph
+	const { effectiveGraphId } = useCurrentSchema();
+	const pageGraphId = effectiveGraphId ?? "model-preview";
+	const attributeSearchByGraphId = useEntitiesStore(
+		selectAttributeSearchByGraphId,
 	);
-	const setGlobalAttributeSearch = useEntitiesStore(
-		selectSetGlobalAttributeSearch,
+	const setAttributeSearchByGraphId = useEntitiesStore(
+		selectSetAttributeSearchByGraphId,
 	);
+	const globalAttributeSearchQuery =
+		attributeSearchByGraphId[pageGraphId] ?? "";
 
 	const [attributeSearchInputValue, setAttributeSearchInputValue] = useState(
 		globalAttributeSearchQuery,
@@ -195,14 +200,15 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 	useEffect(() => {
 		const handle = window.setTimeout(() => {
 			if (attributeSearchInputValue !== globalAttributeSearchQuery) {
-				setGlobalAttributeSearch(attributeSearchInputValue);
+				setAttributeSearchByGraphId(pageGraphId, attributeSearchInputValue);
 			}
 		}, 300);
 		return () => window.clearTimeout(handle);
 	}, [
 		attributeSearchInputValue,
 		globalAttributeSearchQuery,
-		setGlobalAttributeSearch,
+		setAttributeSearchByGraphId,
+		pageGraphId,
 	]);
 
 	const handleAttributeSearchChange = useCallback(
