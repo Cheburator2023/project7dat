@@ -524,6 +524,29 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			return result;
 		}, [selectedAttributes, attrConnectionMap]);
 
+		const attributeSearchMatchedByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			const q = globalSearchQuery.trim().toLowerCase();
+			if (!q || q.length < 2) return result;
+
+			const add = (entityId: string, attrName: string) => {
+				if (!result.has(entityId)) result.set(entityId, new Set());
+				result.get(entityId)!.add(attrName);
+			};
+
+			for (const entity of data.entities || []) {
+				for (const attr of entity.attrSeq || []) {
+					const name = attr.name?.toLowerCase() ?? "";
+					const type = attr.type?.toLowerCase() ?? "";
+					if (name.includes(q) || type.includes(q)) {
+						add(entity.id, attr.name);
+					}
+				}
+			}
+
+			return result;
+		}, [data.entities, globalSearchQuery]);
+
 		const searchedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
 			if (!isAnyAttributeSearchActive) return result;
@@ -1154,9 +1177,53 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		useEffect(() => {
 			cancelAnimationFrame(animFrameRef.current);
 
-			const targetNodes = layoutedTopologyNodes as Node[];
+			const isSearchActive =
+				!!globalSearchQuery && searchMatchedEntities.size > 0;
+
+			// Decorate topology nodes with current highlight/search/hover state
+			// so that setNodes never produces bare un-decorated nodes.
+			const decoratedTargetNodes = (layoutedTopologyNodes as Node[]).map(
+				(n) => {
+					let highlightType: EntityNodeData["highlightType"] = "none";
+					const searchScore = searchMatchedEntities.get(n.id);
+					const isSearchMatch = globalSearchQuery && searchScore !== undefined;
+					if (n.id === selectedEntityId) highlightType = "selected";
+					else if (upstreamNodes.has(n.id)) highlightType = "upstream";
+					else if (downstreamNodes.has(n.id)) highlightType = "downstream";
+					else if (isSearchMatch) highlightType = "searchMatch";
+
+					const nextHoverAttrs =
+						hoverHighlightedByEntity.get(n.id) || EMPTY_STRING_SET;
+					const nextSelectedAttrs =
+						selectedHighlightedByEntity.get(n.id) || EMPTY_STRING_SET;
+					const nextAttributeSearchMatchedAttrs =
+						attributeSearchMatchedByEntity.get(n.id) || EMPTY_STRING_SET;
+					const nextIsExpanded = nextAttributeSearchMatchedAttrs.size > 0;
+
+					return {
+						...n,
+						data: {
+							...n.data,
+							highlightType,
+							hoverHighlightedAttrs: nextHoverAttrs,
+							selectedHighlightedAttrs: nextSelectedAttrs,
+							attributeSearchMatchedAttrs: nextAttributeSearchMatchedAttrs,
+							isSearchActive,
+							isSearchMatch: !!isSearchMatch,
+							searchMatchScore: searchScore,
+							isExpanded: nextIsExpanded,
+							onNodeClick: handleNodeClick,
+							onNodeDoubleClick: handleNodeDblClick,
+							onAttrHover: handleAttrHover,
+							onAttrClick: handleAttrClick,
+							onToggleExpand: handleToggleExpand,
+						},
+					};
+				},
+			);
+
 			const targetPositions = new Map<string, { x: number; y: number }>();
-			for (const n of targetNodes) {
+			for (const n of decoratedTargetNodes) {
 				targetPositions.set(n.id, { x: n.position.x, y: n.position.y });
 			}
 
@@ -1180,7 +1247,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						: { x: 0, y: 0 };
 
 			const startPositions = new Map<string, { x: number; y: number }>();
-			for (const n of targetNodes) {
+			for (const n of decoratedTargetNodes) {
 				startPositions.set(n.id, prev.get(n.id) ?? fallback);
 			}
 
@@ -1191,7 +1258,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 
 			if (isFirstRender) {
 				// No animation on first render — just set positions directly
-				setNodes(targetNodes);
+				setNodes(decoratedTargetNodes);
 				prevPositionsRef.current = targetPositions;
 				return;
 			}
@@ -1206,7 +1273,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				const t = 1 - (1 - rawT) ** 3;
 
 				setNodes(
-					targetNodes.map((n) => {
+					decoratedTargetNodes.map((n) => {
 						const start = startPositions.get(n.id)!;
 						const target = targetPositions.get(n.id)!;
 						return {
@@ -1236,6 +1303,18 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			setNodes,
 			setEdges,
 			selectedEntityId,
+			globalSearchQuery,
+			searchMatchedEntities,
+			upstreamNodes,
+			downstreamNodes,
+			hoverHighlightedByEntity,
+			selectedHighlightedByEntity,
+			attributeSearchMatchedByEntity,
+			handleNodeClick,
+			handleNodeDblClick,
+			handleAttrHover,
+			handleAttrClick,
+			handleToggleExpand,
 		]);
 
 		// Apply highlight/search/hover decorations WITHOUT re-running layout
@@ -1258,7 +1337,9 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						hoverHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
 					const nextSelectedAttrs =
 						selectedHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
-					const nextIsExpanded = false; // Not implemented
+					const nextAttributeSearchMatchedAttrs =
+						attributeSearchMatchedByEntity.get(node.id) || EMPTY_STRING_SET;
+					const nextIsExpanded = nextAttributeSearchMatchedAttrs.size > 0;
 
 					const d = node.data as EntityNodeData;
 					// Skip creating a new object if nothing changed for this node
@@ -1266,6 +1347,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						d.highlightType === highlightType &&
 						d.hoverHighlightedAttrs === nextHoverAttrs &&
 						d.selectedHighlightedAttrs === nextSelectedAttrs &&
+						d.attributeSearchMatchedAttrs === nextAttributeSearchMatchedAttrs &&
 						d.isSearchActive === isSearchActive &&
 						d.isSearchMatch === !!isSearchMatch &&
 						d.isExpanded === nextIsExpanded &&
@@ -1285,6 +1367,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 							highlightType,
 							hoverHighlightedAttrs: nextHoverAttrs,
 							selectedHighlightedAttrs: nextSelectedAttrs,
+							attributeSearchMatchedAttrs: nextAttributeSearchMatchedAttrs,
 							isSearchActive,
 							isSearchMatch: !!isSearchMatch,
 							searchMatchScore: searchScore,
@@ -1306,6 +1389,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			searchMatchedEntities,
 			hoverHighlightedByEntity,
 			selectedHighlightedByEntity,
+			attributeSearchMatchedByEntity,
 			setNodes,
 			handleNodeClick,
 			handleNodeDblClick,
