@@ -137,10 +137,6 @@ export const AllCommitsPage: FC = () => {
 		apiRef: gridApiRef,
 	});
 
-	useCurrentDataLineageGraph({
-		enabled: false,
-	});
-
 	const handleCommitsPageSizeChange = useCallback((size: number) => {
 		setCommitsPageSize(size);
 		setCommitsPage(1);

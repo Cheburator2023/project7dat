@@ -122,6 +122,7 @@ export interface EntityNodeData {
 	highlightedTargetAttrs?: Set<string>;
 	hoverHighlightedAttrs?: Set<string>;
 	selectedHighlightedAttrs?: Set<string>;
+	attributeSearchMatchedAttrs?: Set<string>;
 	isSearchActive?: boolean;
 	isSearchMatch?: boolean;
 	searchMatchScore?: number;

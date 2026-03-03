@@ -288,9 +288,6 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		);
 	}, []);
 
-	// Фоновая загрузка полного графа для GraphPanel
-	useCurrentDataLineageGraph({ enabled: false });
-
 	// Определяем целевой entityId
 	const targetEntityId = useMemo(() => {
 		const decodedUrlEntityId = urlEntityId

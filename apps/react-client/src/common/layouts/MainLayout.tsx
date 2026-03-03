@@ -64,15 +64,9 @@ export function MainLayout({
 	const { setMainDataLoading, markMainDataLoadedOnce, hasMainDataLoadedOnce } =
 		useMainDataLoadingStore();
 	const { mode } = useColorScheme();
-	const {
-		data: currentDataLineageGraph,
-		isPending: isCurrentGraphPending,
-		isFetching: isCurrentGraphFetching,
-		isLoading: isCurrentGraphLoading,
-	} = useCurrentDataLineageGraph({ enabled: false });
 
-	const isInitialLoading = isCurrentGraphPending || isCurrentGraphLoading;
-	const isRefetching = isCurrentGraphFetching && !isInitialLoading;
+	const isInitialLoading = false;
+	const isRefetching = false;
 	const wasInitialLoadingRef = useRef(false);
 
 	useEffect(() => {

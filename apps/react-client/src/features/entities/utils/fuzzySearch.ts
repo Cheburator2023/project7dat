@@ -143,6 +143,131 @@ export function fuzzySearchEntities<
 }
 
 /**
+ * Strict (non-fuzzy) search on links: matches only if the full query appears as
+ * a contiguous substring (case-insensitive).
+ */
+export function strictSearchLinks<
+	T extends {
+		sourceName: string;
+		targetName: string;
+		processName?: string;
+		processCode?: string;
+	},
+>(items: T[], query: string): FuzzySearchResult<T>[] {
+	const normalizedQuery = normalizeSearchText(query);
+	if (!normalizedQuery) {
+		return items.map((item) => ({
+			item,
+			score: 0,
+			highlights: new Map(),
+		}));
+	}
+
+	const matches: Array<FuzzySearchResult<T>> = [];
+	for (const item of items) {
+		const fields: Array<{ key: string; value: string; weight: number }> = [
+			{ key: "sourceName", value: item.sourceName, weight: 0 },
+			{ key: "targetName", value: item.targetName, weight: 1 },
+			{ key: "processName", value: item.processName ?? "", weight: 2 },
+			{ key: "processCode", value: item.processCode ?? "", weight: 3 },
+		];
+
+		let best: { weight: number; index: number } | null = null;
+		for (const field of fields) {
+			if (!field.value) continue;
+			const idx = field.value.toLowerCase().indexOf(normalizedQuery);
+			if (idx < 0) continue;
+			if (
+				best === null ||
+				field.weight < best.weight ||
+				(field.weight === best.weight && idx < best.index)
+			) {
+				best = { weight: field.weight, index: idx };
+			}
+		}
+
+		if (!best) continue;
+
+		const highlights = new Map<string, string>();
+		for (const field of fields) {
+			if (!field.value) continue;
+			if (field.value.toLowerCase().includes(normalizedQuery)) {
+				highlights.set(
+					field.key,
+					highlightSubstring(field.value, normalizedQuery),
+				);
+			}
+		}
+
+		const score = -best.weight * 10_000 - best.index;
+		matches.push({ item, score, highlights });
+	}
+
+	matches.sort((a, b) => b.score - a.score);
+	return matches;
+}
+
+/**
+ * Strict (non-fuzzy) search on objects/attributes: matches only if the full query
+ * appears as a contiguous substring (case-insensitive).
+ */
+export function strictSearchObjects<
+	T extends { name: string; description: string; dataType?: string },
+>(items: T[], query: string): FuzzySearchResult<T>[] {
+	const normalizedQuery = normalizeSearchText(query);
+	if (!normalizedQuery) {
+		return items.map((item) => ({
+			item,
+			score: 0,
+			highlights: new Map(),
+		}));
+	}
+
+	const matches: Array<FuzzySearchResult<T>> = [];
+	for (const item of items) {
+		const fields: Array<{ key: string; value: string; weight: number }> = [
+			{ key: "name", value: item.name, weight: 0 },
+			{ key: "description", value: item.description, weight: 1 },
+			{ key: "dataType", value: item.dataType ?? "", weight: 2 },
+		];
+
+		let best: { weight: number; index: number } | null = null;
+		for (const field of fields) {
+			if (!field.value) continue;
+			const idx = field.value.toLowerCase().indexOf(normalizedQuery);
+			if (idx < 0) continue;
+			if (
+				best === null ||
+				field.weight < best.weight ||
+				(field.weight === best.weight && idx < best.index)
+			) {
+				best = { weight: field.weight, index: idx };
+			}
+		}
+
+		if (!best) continue;
+
+		const highlights = new Map<string, string>();
+		for (const field of fields) {
+			if (!field.value) continue;
+			if (field.value.toLowerCase().includes(normalizedQuery)) {
+				highlights.set(
+					field.key,
+					highlightSubstring(field.value, normalizedQuery),
+				);
+			}
+		}
+
+		// Higher score should mean "better"; keep negative scoring style.
+		const score = -best.weight * 10_000 - best.index;
+		matches.push({ item, score, highlights });
+	}
+
+	matches.sort((a, b) => b.score - a.score);
+	return matches;
+}
+
+/**
  * Strict (non-fuzzy) search: matches only if the full query appears as a contiguous substring.
  * Useful when you want to avoid "character-set" matches.
  */
