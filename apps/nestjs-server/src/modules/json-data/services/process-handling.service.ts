@@ -63,7 +63,7 @@ export class ProcessHandlingService {
 		} else if (commitType === 'model') {
 			processTypeName = 'PIM';
 		} else {
-			processTypeName = this.getProcessTypeName(processName);      // processName точно string
+			processTypeName = this.getProcessTypeName(processName);
 			this.logger.warn(`Тип процесса определён по старой логике как "${processTypeName}" для commit_type="${commitType}"`);
 		}
 
@@ -103,14 +103,14 @@ export class ProcessHandlingService {
 	}
 
 	/**
-	 * Извлекает базовое имя процесса (например, отсекает часть после точки)
+	 * Извлекает базовое имя процесса (отсекает часть после точки)
 	 */
 	private extractProcessName(appName: string): string {
 		return appName.split('.')[0];
 	}
 
 	/**
-	 * Устаревший метод определения типа процесса по имени (оставлен для обратной совместимости)
+	 * Метод определения типа процесса по имени
 	 */
 	private getProcessTypeName(appName: string): string {
 		if (appName.includes("DAG")) {
