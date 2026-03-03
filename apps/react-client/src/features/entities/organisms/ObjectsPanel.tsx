@@ -174,7 +174,7 @@ export const ObjectsPanel = memo(() => {
 	};
 
 	const getDepthLabel = useCallback((depth: number): string => {
-		if (depth === 0) return "Root";
+		if (depth === 0) return "Корень";
 		if (depth > 0) return `Downstream ${depth}`;
 		return `Upstream ${Math.abs(depth)}`;
 	}, []);
@@ -426,7 +426,7 @@ export const ObjectsPanel = memo(() => {
 									label={level}
 									size="small"
 									color={
-										level === "Root"
+										level === "Корень"
 											? "primary"
 											: level.startsWith("Downstream")
 												? "success"
@@ -899,68 +899,37 @@ export const ObjectsPanel = memo(() => {
 		>
 			{/* Table content */}
 			<Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
-				{viewMode === "attributes" ? (
-					<>
-						<AgGridStateControls
-							onReset={attributesGridPersistence.resetGridState}
-							resetTitle="Сбросить настройки таблицы (атрибуты)"
-						/>
-						<AgGridReact<ObjectRowWithDepth>
-							rowData={filteredObjects}
-							columnDefs={attributeColumnDefs}
-							groupDisplayType="groupRows"
-							autoGroupColumnDef={attributesAutoGroupColumnDef}
-							groupDefaultExpanded={-1}
-							theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-							onGridReady={handleAttributesGridReady}
-							onColumnMoved={attributesGridPersistence.onColumnMoved}
-							onColumnPinned={attributesGridPersistence.onColumnPinned}
-							onColumnResized={attributesGridPersistence.onColumnResized}
-							onColumnVisible={attributesGridPersistence.onColumnVisible}
-							onRowClicked={handleRowClicked}
-							onRowDoubleClicked={handleRowDoubleClicked}
-							onCellContextMenu={handleCellContextMenu}
-							preventDefaultOnContextMenu
-							getRowStyle={getRowStyle}
-							rowSelection="single"
-							suppressCellFocus
-							animateRows
-							rowHeight={28}
-							headerHeight={32}
-							loading={isPanelLoading}
-							overlayLoadingTemplate="Загрузка"
-							overlayNoRowsTemplate="Нет данных"
-							onSortChanged={attributesGridPersistence.onSortChanged}
-						/>
-					</>
-				) : (
-					<>
-						<AgGridStateControls
-							onReset={linksGridPersistence.resetGridState}
-							resetTitle="Сбросить настройки таблицы (связи)"
-						/>
-						<AgGridReact<LinkRowWithDepth>
-							rowData={filteredLinks}
-							columnDefs={linkColumnDefs}
-							theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-							onGridReady={handleLinksGridReady}
-							onColumnMoved={linksGridPersistence.onColumnMoved}
-							onColumnPinned={linksGridPersistence.onColumnPinned}
-							onColumnResized={linksGridPersistence.onColumnResized}
-							onColumnVisible={linksGridPersistence.onColumnVisible}
-							onRowClicked={handleLinkRowClicked}
-							rowSelection="single"
-							suppressCellFocus
-							animateRows
-							rowHeight={28}
-							headerHeight={32}
-							loading={isPanelLoading}
-							overlayLoadingTemplate="Загрузка"
-							overlayNoRowsTemplate="Нет данных"
-							onSortChanged={linksGridPersistence.onSortChanged}
-						/>
-					</>
-				)}
+				<AgGridStateControls
+					onReset={attributesGridPersistence.resetGridState}
+					resetTitle="Сбросить настройки таблицы (атрибуты)"
+				/>
+				<AgGridReact<ObjectRowWithDepth>
+					rowData={filteredObjects}
+					columnDefs={attributeColumnDefs}
+					groupDisplayType="groupRows"
+					autoGroupColumnDef={attributesAutoGroupColumnDef}
+					groupDefaultExpanded={-1}
+					theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+					onGridReady={handleAttributesGridReady}
+					onColumnMoved={attributesGridPersistence.onColumnMoved}
+					onColumnPinned={attributesGridPersistence.onColumnPinned}
+					onColumnResized={attributesGridPersistence.onColumnResized}
+					onColumnVisible={attributesGridPersistence.onColumnVisible}
+					onRowClicked={handleRowClicked}
+					onRowDoubleClicked={handleRowDoubleClicked}
+					onCellContextMenu={handleCellContextMenu}
+					preventDefaultOnContextMenu
+					getRowStyle={getRowStyle}
+					rowSelection="single"
+					suppressCellFocus
+					animateRows
+					rowHeight={28}
+					headerHeight={32}
+					loading={isPanelLoading}
+					overlayLoadingTemplate="Загрузка"
+					overlayNoRowsTemplate="Нет данных"
+					onSortChanged={attributesGridPersistence.onSortChanged}
+				/>
 			</Box>
 
 			<EntityContextMenu

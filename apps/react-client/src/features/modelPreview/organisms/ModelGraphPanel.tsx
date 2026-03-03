@@ -244,7 +244,8 @@ export const ModelGraphPanel: React.FC<{
 		const handleOpenInNewTab = useCallback(() => {
 			if (contextMenu?.entityId) {
 				const encodedId = encodeURIComponent(contextMenu.entityId);
-				window.open(`/entity/${encodedId}`, "_blank");
+				const url = new URL(`/entity/${encodedId}`, window.location.href);
+				window.open(url.toString(), "_blank", "noopener,noreferrer");
 			}
 			handleCloseContextMenu();
 		}, [contextMenu?.entityId, handleCloseContextMenu]);

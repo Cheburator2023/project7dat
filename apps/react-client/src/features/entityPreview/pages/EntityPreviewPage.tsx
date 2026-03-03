@@ -22,15 +22,13 @@ import {
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { usePanelSettingsStore } from "@react-client/common/stores/panelSettingsStore";
 import { useParams, useSearchParams } from "react-router-dom";
-import {
-	useCurrentDataLineageGraph,
-	usePaginatedEntityRelations,
-} from "@react-client/api/hooks";
+import { usePaginatedEntityRelations } from "@react-client/api/hooks";
 import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
+import { useCurrentSchema } from "@react-client/features/entities/hooks/useCurrentSchema";
 
 import { EntityJsonEditor } from "../components/EntityJsonEditor";
 import { EntityDetailsView } from "../components/EntityDetailsView";
@@ -113,13 +111,13 @@ interface EntityPreviewPageProps {
 }
 
 // Stable selectors for useEntitiesStore
-const selectGlobalAttributeSearchQuery = (state: {
-	globalAttributeSearchQuery: string;
-}) => state.globalAttributeSearchQuery;
+const selectAttributeSearchByGraphId = (state: {
+	attributeSearchQueryByGraphId: Record<string, string>;
+}) => state.attributeSearchQueryByGraphId;
 
-const selectSetGlobalAttributeSearch = (state: {
-	setGlobalAttributeSearch: (query: string) => void;
-}) => state.setGlobalAttributeSearch;
+const selectSetAttributeSearchByGraphId = (state: {
+	setAttributeSearchByGraphId: (graphId: string, query: string) => void;
+}) => state.setAttributeSearchByGraphId;
 
 type EntityPreviewDockviewContextValue = {
 	isLoading: boolean;
@@ -245,13 +243,17 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		});
 	}, [setSearchParams]);
 
-	// Global attribute search
-	const globalAttributeSearchQuery = useEntitiesStore(
-		selectGlobalAttributeSearchQuery,
+	// Attribute search scoped to this page's graph
+	const { effectiveGraphId } = useCurrentSchema();
+	const pageGraphId = effectiveGraphId ?? "entity-preview";
+	const attributeSearchByGraphId = useEntitiesStore(
+		selectAttributeSearchByGraphId,
 	);
-	const setGlobalAttributeSearch = useEntitiesStore(
-		selectSetGlobalAttributeSearch,
+	const setAttributeSearchByGraphId = useEntitiesStore(
+		selectSetAttributeSearchByGraphId,
 	);
+	const globalAttributeSearchQuery =
+		attributeSearchByGraphId[pageGraphId] ?? "";
 
 	const [attributeSearchInputValue, setAttributeSearchInputValue] = useState(
 		globalAttributeSearchQuery,
@@ -264,14 +266,15 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 	useEffect(() => {
 		const handle = window.setTimeout(() => {
 			if (attributeSearchInputValue !== globalAttributeSearchQuery) {
-				setGlobalAttributeSearch(attributeSearchInputValue);
+				setAttributeSearchByGraphId(pageGraphId, attributeSearchInputValue);
 			}
 		}, 300);
 		return () => window.clearTimeout(handle);
 	}, [
 		attributeSearchInputValue,
 		globalAttributeSearchQuery,
-		setGlobalAttributeSearch,
+		setAttributeSearchByGraphId,
+		pageGraphId,
 	]);
 
 	const handleAttributeSearchChange = useCallback(

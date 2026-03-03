@@ -15,9 +15,9 @@ type EntityNode = Node<EntityNodeData, "entityNode">;
 
 const EMPTY_STRING_SET = new Set<string>();
 
-const selectGlobalAttributeSearch = (state: {
-	globalAttributeSearchQuery: string;
-}) => state.globalAttributeSearchQuery;
+const selectAttributeSearchByGraphId = (state: {
+	attributeSearchQueryByGraphId: Record<string, string>;
+}) => state.attributeSearchQueryByGraphId;
 
 export const EntityNodeComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
@@ -56,13 +56,16 @@ export const EntityNodeComponent = memo(
 		const attrs = entity.attrSeq || [];
 
 		const [localSearchQuery, setLocalSearchQuery] = useState("");
-		const globalAttributeSearchQuery = useEntitiesStore(
-			selectGlobalAttributeSearch,
+		const attributeSearchQueryByGraphId = useEntitiesStore(
+			selectAttributeSearchByGraphId,
 		);
 		const setLocalNodeAttributeSearch = useEntitiesStore(
 			(state) => state.setLocalNodeAttributeSearch,
 		);
-		const activeSearchQuery = globalAttributeSearchQuery || localSearchQuery;
+		const graphAttributeSearchQuery = graphId
+			? (attributeSearchQueryByGraphId[graphId] ?? "")
+			: "";
+		const activeSearchQuery = graphAttributeSearchQuery || localSearchQuery;
 
 		// Debounce store update for local search
 		const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -421,7 +424,7 @@ export const EntityNodeComponent = memo(
 					</div>
 				</div>
 
-				{!globalAttributeSearchQuery && (
+				{!graphAttributeSearchQuery && (
 					<div
 						className="nodrag nopan"
 						style={{

@@ -17,6 +17,7 @@ import {
 	useEdgesState,
 	MarkerType,
 	useReactFlow,
+	type NodeChange,
 } from "@xyflow/react";
 import type {
 	DataLineageSchema,
@@ -57,7 +58,6 @@ import {
 	OpenInNew,
 	SwapHoriz,
 	SwapVert,
-	ClearAll,
 	Clear,
 } from "@mui/icons-material";
 import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
@@ -1088,8 +1088,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				topologyEdges,
 				layoutDirection,
 				{
-					nodesep: layoutDirection === "TB" ? 100 : 80,
-					ranksep: layoutDirection === "TB" ? 200 : 150,
+					nodesep: layoutDirection === "TB" ? 160 : 120,
+					ranksep: layoutDirection === "TB" ? 280 : 220,
 					marginx: 40,
 					marginy: 40,
 					attrLimitCap: showAllAttrs ? Number.MAX_SAFE_INTEGER : undefined,
@@ -1289,7 +1289,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			nodeDepths,
 		]);
 
-		const [nodes, setNodes, onNodesChange] = useNodesState(
+		const [nodes, setNodes, rfOnNodesChange] = useNodesState(
 			layoutedNodes as Node[],
 		);
 		const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
@@ -1378,6 +1378,13 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		// Track previous node dimensions to detect changes
 		const prevDimensionsRef = useRef<Record<string, number>>({});
+
+		// unmount
+		useEffect(() => {
+			return () => {
+				handleClearSelectedAttribute();
+			};
+		}, []);
 
 		// Recalculate layout when node dimensions change (e.g., when attributes expand/collapse)
 		useEffect(() => {
@@ -1588,17 +1595,21 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					const selectedAttrs =
 						selectedHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
 					const nextIsExpanded = expandedNodes.has(node.id);
+					const isCurrentSelected = node.id === selectedNode;
+					const nextZIndex = isCurrentSelected ? 1000 : 0;
 
 					if (
 						entityNodeData.hoverHighlightedAttrs === hoverAttrs &&
 						entityNodeData.selectedHighlightedAttrs === selectedAttrs &&
-						entityNodeData.isExpanded === nextIsExpanded
+						entityNodeData.isExpanded === nextIsExpanded &&
+						(node.zIndex ?? 0) === nextZIndex
 					) {
 						return node;
 					}
 
 					return {
 						...node,
+						zIndex: isCurrentSelected ? 1000 : 0,
 						data: {
 							...node.data,
 							hoverHighlightedAttrs: hoverAttrs,
@@ -1613,6 +1624,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			selectedHighlightedByEntity,
 			setNodes,
 			expandedNodes,
+			selectedNode,
 		]);
 
 		// Edge decoration effect: highlight entity edges + add dynamic attr edges
@@ -1726,6 +1738,94 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 		}, [zoomToNodeId, getNode, setCenter, setZoomToNode]);
 
+		const handleNodesChange = useCallback(
+			(changes: NodeChange[]) => {
+				rfOnNodesChange(changes);
+
+				// Recompute group bounds after drag to keep groups adaptive
+				const hasDragChange = changes.some(
+					(c) => c.type === "position" && c.dragging === false && c.position,
+				);
+				if (!hasDragChange) return;
+
+				setNodes((currentNodes) => {
+					// Collect updated absolute positions per child node
+					const posMap = new Map<string, { x: number; y: number }>();
+					for (const c of changes) {
+						if (c.type === "position" && c.position && c.dragging === false) {
+							posMap.set(c.id, c.position);
+						}
+					}
+
+					// Map groupId -> children absolute positions
+					const groupChildren = new Map<
+						string,
+						{ id: string; absX: number; absY: number; w: number; h: number }[]
+					>();
+
+					for (const node of currentNodes) {
+						if (!node.parentId) continue;
+						const groupNode = currentNodes.find((n) => n.id === node.parentId);
+						if (!groupNode) continue;
+						// rel position after drag (may have been updated by rfOnNodesChange)
+						const relPos = posMap.get(node.id) ?? node.position;
+						const absX = groupNode.position.x + relPos.x;
+						const absY = groupNode.position.y + relPos.y;
+						const w =
+							node.measured?.width ??
+							(node as unknown as { width?: number }).width ??
+							NODE_WIDTH;
+						const h =
+							node.measured?.height ??
+							(node as unknown as { height?: number }).height ??
+							140;
+						if (!groupChildren.has(node.parentId)) {
+							groupChildren.set(node.parentId, []);
+						}
+						groupChildren
+							.get(node.parentId)!
+							.push({ id: node.id, absX, absY, w, h });
+					}
+
+					if (groupChildren.size === 0) return currentNodes;
+
+					return currentNodes.map((node) => {
+						if (node.type !== "depthGroup") return node;
+						const children = groupChildren.get(node.id);
+						if (!children || children.length === 0) return node;
+
+						let minX = Number.POSITIVE_INFINITY;
+						let minY = Number.POSITIVE_INFINITY;
+						let maxX = Number.NEGATIVE_INFINITY;
+						let maxY = Number.NEGATIVE_INFINITY;
+						for (const c of children) {
+							if (c.absX < minX) minX = c.absX;
+							if (c.absY < minY) minY = c.absY;
+							if (c.absX + c.w > maxX) maxX = c.absX + c.w;
+							if (c.absY + c.h > maxY) maxY = c.absY + c.h;
+						}
+
+						const pad = DEPTH_GROUP_PADDING;
+						const newX = minX - pad;
+						const newY = minY - pad - 24;
+						const newW = maxX - minX + pad * 2;
+						const newH = maxY - minY + pad * 2 + 24 + 6;
+
+						return {
+							...node,
+							position: { x: newX, y: newY },
+							style: {
+								...node.style,
+								width: newW,
+								height: newH,
+							},
+						};
+					});
+				});
+			},
+			[rfOnNodesChange, setNodes],
+		);
+
 		const { mode } = useColorScheme();
 
 		return (
@@ -1733,7 +1833,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				<ReactFlow
 					nodes={nodes}
 					edges={edges}
-					onNodesChange={onNodesChange}
+					onNodesChange={handleNodesChange}
 					onEdgesChange={onEdgesChange}
 					onEdgeClick={handleEdgeClick}
 					onNodeContextMenu={handleNodeContextMenu}
@@ -1745,6 +1845,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					proOptions={{ hideAttribution: true }}
 					colorMode={mode}
 					onlyRenderVisibleElements
+					elevateNodesOnSelect
 				>
 					<Background color="#e0e0e0" gap={20} />
 					<Controls>
