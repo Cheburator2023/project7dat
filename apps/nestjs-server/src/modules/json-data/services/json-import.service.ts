@@ -231,7 +231,7 @@ export class JsonImportService {
 			this.logger.warn(`Дубликаты обнаружены, но пропущены по флагу skipDuplicateCheck: ${validationResult.duplicateCheck.duplicates.join(", ")}`);
 		}
 
-		// Проверка зависимостей для модифицированных витрин (без изменений)
+		// Проверка зависимостей для модифицированных витрин
 		const modifiedEntities = (processedData.entities || []).filter(
 			(entity: any) => entity.modified === true,
 		);
