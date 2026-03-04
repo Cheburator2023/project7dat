@@ -379,7 +379,7 @@ export const SettingsPage = () => {
 							color: "text.secondary",
 						}}
 					>
-						version:{" "}
+						dev version: ~{" "}
 						{IS_DEV
 							? latestChangelogVersion
 									.split(".")
@@ -387,7 +387,13 @@ export const SettingsPage = () => {
 										index === 2 ? Number(v_item) + 1 : v_item,
 									)
 									.join(".") +
-								"-dev / current stable: " +
+								` or ${latestChangelogVersion
+									.split(".")
+									.map((v_item, index) =>
+										index === 1 ? Number(v_item) + 1 : index === 2 ? 0 : v_item,
+									)
+									.join(".")}` +
+								"  / current stable: " +
 								latestChangelogVersion
 							: latestChangelogVersion}
 					</Typography>
