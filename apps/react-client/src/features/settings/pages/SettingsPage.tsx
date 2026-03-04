@@ -32,12 +32,14 @@ import { Spacer } from "@react-client/common/primitives/Spacer";
 import { IS_DEV } from "@react-client/common/constants";
 
 const extractLatestVersion = (_markdown: string): string | null => {
-	const markdown = _markdown.split("##")[0];
+	const markdown =
+		_markdown.split("##").find((e) => e.includes("](https://git")) || "";
+
 	if (!markdown.trim()) return null;
-	const match =
-		markdown.match(/^##\s+\[([^\]]+)\]/m) ??
-		markdown.match(/^#\s+\[([^\]]+)\]/m);
-	return match?.[1] ?? null;
+	const match = markdown.split("](")[0].replace("[", "");
+	console.log("🐸 Pepe said >> extractLatestVersion >> match:", match);
+
+	return match ?? null;
 };
 
 export const SettingsPage = () => {
@@ -74,6 +76,10 @@ export const SettingsPage = () => {
 	const latestChangelogVersion = useMemo(
 		() => extractLatestVersion(releaseNotes),
 		[releaseNotes],
+	);
+	console.log(
+		"🐸 Pepe said >> SettingsPage >> latestChangelogVersion:",
+		latestChangelogVersion,
 	);
 
 	const handleResetPanel = (panelId: string, panelName: string) => {
@@ -389,12 +395,22 @@ export const SettingsPage = () => {
 									.map((v_item, index) =>
 										index === 1 ? Number(v_item) + 1 : index === 2 ? 0 : v_item,
 									)
-									.join(".")}` +
-								"  / current stable: " +
-								latestChangelogVersion
+									.join(".")}`
 							: latestChangelogVersion}
 					</Typography>
 				) : null}
+
+				<Typography
+					variant="caption"
+					sx={{
+						pb: 0,
+						color: "text.secondary",
+					}}
+					data-test-id="side-menu--Version"
+				>
+					{"current stable: " + latestChangelogVersion}
+				</Typography>
+
 				{!releaseNotesLoading &&
 				!latestChangelogVersion &&
 				releaseNotesError ? (
