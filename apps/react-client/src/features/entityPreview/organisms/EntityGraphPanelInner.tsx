@@ -246,6 +246,8 @@ interface GraphPanelInnerProps {
 	onSelectNode?: (data: any) => void;
 	depthLimit?: number;
 	onDepthChange?: (depth: number) => void;
+	searchQuery?: string;
+	searchMatchedEntities?: Map<string, number>;
 }
 
 const EMPTY_STRING_SET = new Set<string>();
@@ -263,6 +265,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		onSelectNode,
 		depthLimit: externalDepthLimit,
 		onDepthChange,
+		searchQuery: propSearchQuery,
+		searchMatchedEntities: propSearchMatchedEntities,
 	}) => {
 		const navigate = useNavigate();
 		const [selectedNode, setSelectedNode] = useState<string>(
@@ -301,8 +305,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			toggleSelectedAttribute,
 			clearSelectedAttributes,
 			selectEntityWithAttribute,
-			searchMatchedEntities,
-			globalSearchQuery,
+			storeSearchMatchedEntities,
+			storeGlobalSearchQuery,
 			zoomToNodeId,
 			setZoomToNode,
 		} = useEntitiesStore(
@@ -313,12 +317,16 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				toggleSelectedAttribute: state.toggleSelectedAttribute,
 				clearSelectedAttributes: state.clearSelectedAttributes,
 				selectEntityWithAttribute: state.selectEntityWithAttribute,
-				searchMatchedEntities: state.searchMatchedEntities,
-				globalSearchQuery: state.globalSearchQuery,
+				storeSearchMatchedEntities: state.searchMatchedEntities,
+				storeGlobalSearchQuery: state.globalSearchQuery,
 				zoomToNodeId: state.zoomToNodeId,
 				setZoomToNode: state.setZoomToNode,
 			})),
 		);
+
+		const globalSearchQuery = propSearchQuery ?? storeGlobalSearchQuery;
+		const searchMatchedEntities =
+			propSearchMatchedEntities ?? storeSearchMatchedEntities;
 
 		useEffect(() => {
 			const attrFromUrl = searchParams.get("highlightAttr");

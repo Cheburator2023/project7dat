@@ -47,6 +47,8 @@ export const ModelGraphPanel: React.FC<{
 	};
 	depthLimit?: number;
 	onDepthChange?: (depth: number) => void;
+	searchQuery?: string;
+	searchMatchedEntities?: Map<string, number>;
 }> = memo(
 	({
 		onSelectNode,
@@ -55,6 +57,8 @@ export const ModelGraphPanel: React.FC<{
 		graphData,
 		depthLimit,
 		onDepthChange,
+		searchQuery,
+		searchMatchedEntities,
 	}) => {
 		const {
 			selectedEntityId,
@@ -325,6 +329,8 @@ export const ModelGraphPanel: React.FC<{
 						entity={entity}
 						depthLimit={depthLimit}
 						onDepthChange={onDepthChange}
+						searchQuery={searchQuery}
+						searchMatchedEntities={searchMatchedEntities}
 					/>
 				</ReactFlowProvider>
 				{isLoading && (
