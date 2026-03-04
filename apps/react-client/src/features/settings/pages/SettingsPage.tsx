@@ -31,7 +31,8 @@ import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { IS_DEV } from "@react-client/common/constants";
 
-const extractLatestVersion = (markdown: string): string | null => {
+const extractLatestVersion = (_markdown: string): string | null => {
+	const markdown = _markdown.split("##")[0];
 	if (!markdown.trim()) return null;
 	const match =
 		markdown.match(/^##\s+\[([^\]]+)\]/m) ??
@@ -73,10 +74,6 @@ export const SettingsPage = () => {
 	const latestChangelogVersion = useMemo(
 		() => extractLatestVersion(releaseNotes),
 		[releaseNotes],
-	);
-	console.log(
-		"🐸 Pepe said >> SettingsPage >> latestChangelogVersion:",
-		releaseNotes,
 	);
 
 	const handleResetPanel = (panelId: string, panelName: string) => {
