@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 
 import { format, parseISO } from "date-fns/esm";
-import { Box, TextField, InputAdornment, Chip } from "@mui/material";
+import { Box, TextField, InputAdornment } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { Search } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
@@ -154,7 +154,7 @@ export const ModelsPage = () => {
 	return (
 		<div>
 			<Header title="Модели">
-				<Flex alignItems="center" gap={10} width="100%">
+				<Flex alignItems="flex-end" gap={10} width="466px">
 					<TextField
 						fullWidth
 						variant="outlined"
@@ -169,11 +169,6 @@ export const ModelsPage = () => {
 								</InputAdornment>
 							),
 						}}
-					/>
-					<Chip
-						label={`${filteredModels.length} моделей`}
-						color="primary"
-						variant="outlined"
 					/>
 				</Flex>
 			</Header>
