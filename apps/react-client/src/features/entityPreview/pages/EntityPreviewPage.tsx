@@ -27,8 +27,6 @@ import type {
 	DataLineageEntity,
 	DataLineageMapping,
 } from "@react-client/types/dataLineage";
-import { useEntitiesStore } from "@react-client/features/entities/stores";
-import { useCurrentSchema } from "@react-client/features/entities/hooks/useCurrentSchema";
 
 import { EntityJsonEditor } from "../components/EntityJsonEditor";
 import { EntityDetailsView } from "../components/EntityDetailsView";
@@ -110,15 +108,6 @@ interface EntityPreviewPageProps {
 	entityId?: string;
 }
 
-// Stable selectors for useEntitiesStore
-const selectAttributeSearchByGraphId = (state: {
-	attributeSearchQueryByGraphId: Record<string, string>;
-}) => state.attributeSearchQueryByGraphId;
-
-const selectSetAttributeSearchByGraphId = (state: {
-	setAttributeSearchByGraphId: (graphId: string, query: string) => void;
-}) => state.setAttributeSearchByGraphId;
-
 type EntityPreviewDockviewContextValue = {
 	isLoading: boolean;
 	selectedEntity: DataLineageEntity | null;
@@ -133,6 +122,8 @@ type EntityPreviewDockviewContextValue = {
 	depthLimit: number;
 	onDepthChange: (next: number) => void;
 	onSelectNode: (data: any) => void;
+	searchQuery: string;
+	searchMatchedEntities: Map<string, number>;
 };
 
 const EntityPreviewDockviewContext =
@@ -145,6 +136,8 @@ const EntityPreviewDockviewContext =
 		depthLimit: 1,
 		onDepthChange: () => undefined,
 		onSelectNode: () => undefined,
+		searchQuery: "",
+		searchMatchedEntities: new Map(),
 	});
 
 const useEntityPreviewDockviewContext = () => {
@@ -205,8 +198,15 @@ const EntityJsonDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
 };
 
 const EntityGraphDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
-	const { isLoading, graphData, depthLimit, onDepthChange, onSelectNode } =
-		useEntityPreviewDockviewContext();
+	const {
+		isLoading,
+		graphData,
+		depthLimit,
+		onDepthChange,
+		onSelectNode,
+		searchQuery,
+		searchMatchedEntities,
+	} = useEntityPreviewDockviewContext();
 
 	return (
 		<EntityGraphPanel
@@ -215,6 +215,8 @@ const EntityGraphDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
 			graphData={graphData}
 			depthLimit={depthLimit}
 			onDepthChange={onDepthChange}
+			searchQuery={searchQuery}
+			searchMatchedEntities={searchMatchedEntities}
 		/>
 	);
 };
@@ -243,39 +245,17 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		});
 	}, [setSearchParams]);
 
-	// Attribute search scoped to this page's graph
-	const { effectiveGraphId } = useCurrentSchema();
-	const pageGraphId = effectiveGraphId ?? "entity-preview";
-	const attributeSearchByGraphId = useEntitiesStore(
-		selectAttributeSearchByGraphId,
-	);
-	const setAttributeSearchByGraphId = useEntitiesStore(
-		selectSetAttributeSearchByGraphId,
-	);
-	const globalAttributeSearchQuery =
-		attributeSearchByGraphId[pageGraphId] ?? "";
-
-	const [attributeSearchInputValue, setAttributeSearchInputValue] = useState(
-		globalAttributeSearchQuery,
-	);
-
-	useEffect(() => {
-		setAttributeSearchInputValue(globalAttributeSearchQuery);
-	}, [globalAttributeSearchQuery]);
+	// Local attribute search — fully isolated from the global dashboard store
+	const [attributeSearchInputValue, setAttributeSearchInputValue] =
+		useState("");
+	const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
 	useEffect(() => {
 		const handle = window.setTimeout(() => {
-			if (attributeSearchInputValue !== globalAttributeSearchQuery) {
-				setAttributeSearchByGraphId(pageGraphId, attributeSearchInputValue);
-			}
+			setDebouncedSearchQuery(attributeSearchInputValue);
 		}, 300);
 		return () => window.clearTimeout(handle);
-	}, [
-		attributeSearchInputValue,
-		globalAttributeSearchQuery,
-		setAttributeSearchByGraphId,
-		pageGraphId,
-	]);
+	}, [attributeSearchInputValue]);
 
 	const handleAttributeSearchChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
@@ -415,6 +395,25 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		[storageKey],
 	);
 
+	const searchMatchedEntities = useMemo(() => {
+		const result = new Map<string, number>();
+		const q = debouncedSearchQuery.trim().toLowerCase();
+		if (!q || q.length < 3) return result;
+		for (const entity of graphData?.entities ?? []) {
+			const nameMatch = entity.name?.toLowerCase().includes(q);
+			const nsMatch = entity.namespace?.toLowerCase().includes(q);
+			const attrMatch = entity.attrSeq?.some(
+				(a) =>
+					a.name?.toLowerCase().includes(q) ||
+					a.type?.toLowerCase().includes(q),
+			);
+			if (nameMatch || nsMatch || attrMatch) {
+				result.set(entity.id, 1);
+			}
+		}
+		return result;
+	}, [debouncedSearchQuery, graphData?.entities]);
+
 	const dockviewContextValue = useMemo<EntityPreviewDockviewContextValue>(
 		() => ({
 			isLoading,
@@ -425,6 +424,8 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 			depthLimit,
 			onDepthChange: setDepthLimit,
 			onSelectNode,
+			searchQuery: debouncedSearchQuery,
+			searchMatchedEntities,
 		}),
 		[
 			isLoading,
@@ -434,6 +435,8 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 			graphData,
 			depthLimit,
 			onSelectNode,
+			debouncedSearchQuery,
+			searchMatchedEntities,
 		],
 	);
 
@@ -444,7 +447,7 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 					<Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: 2 }}>
 						<TextField
 							size="small"
-							placeholder="Поиск по атрибутам (мин. 3 символа)..."
+							placeholder="Поиск (мин. 3 символа)..."
 							value={attributeSearchInputValue}
 							onChange={handleAttributeSearchChange}
 							InputProps={{

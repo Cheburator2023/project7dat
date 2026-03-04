@@ -29,6 +29,7 @@ import { Flex } from "@react-client/common/primitives/Flex";
 import { useReleaseNotes } from "@react-client/api/hooks/useReleaseNotes";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
+import { IS_DEV } from "@react-client/common/constants";
 
 const extractLatestVersion = (markdown: string): string | null => {
 	if (!markdown.trim()) return null;
@@ -378,7 +379,17 @@ export const SettingsPage = () => {
 							color: "text.secondary",
 						}}
 					>
-						version: {latestChangelogVersion}
+						version:{" "}
+						{IS_DEV
+							? latestChangelogVersion
+									.split(".")
+									.map((v_item, index) =>
+										index === 2 ? Number(v_item) + 1 : v_item,
+									)
+									.join(".") +
+								"-dev / current stable: " +
+								latestChangelogVersion
+							: latestChangelogVersion}
 					</Typography>
 				) : null}
 				{!releaseNotesLoading &&

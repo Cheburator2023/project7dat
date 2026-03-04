@@ -51,7 +51,6 @@ import {
 	OpenInNew,
 	SwapHoriz,
 	SwapVert,
-	ClearAll,
 	Clear,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router";
@@ -234,6 +233,8 @@ interface GraphPanelInnerProps {
 	entity: DataLineageEntity | null;
 	depthLimit?: number;
 	onDepthChange?: (depth: number) => void;
+	searchQuery?: string;
+	searchMatchedEntities?: Map<string, number>;
 }
 
 export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
@@ -250,6 +251,8 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 		onSelectNode,
 		depthLimit: externalDepthLimit,
 		onDepthChange,
+		searchQuery: propSearchQuery,
+		searchMatchedEntities: propSearchMatchedEntities,
 	}) => {
 		const navigate = useNavigate();
 		const [selectedNode, setSelectedNode] = useState<string>(
@@ -283,11 +286,19 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			selectedAttributes,
 			toggleSelectedAttribute,
 			clearSelectedAttributes,
-			searchMatchedEntities,
-			globalSearchQuery,
-			zoomToNodeId,
-			setZoomToNode,
 		} = useEntitiesStore();
+		const storeSearchMatchedEntities = useEntitiesStore(
+			(state) => state.searchMatchedEntities,
+		);
+		const storeGlobalSearchQuery = useEntitiesStore(
+			(state) => state.globalSearchQuery,
+		);
+		const zoomToNodeId = useEntitiesStore((state) => state.zoomToNodeId);
+		const setZoomToNode = useEntitiesStore((state) => state.setZoomToNode);
+
+		const globalSearchQuery = propSearchQuery ?? storeGlobalSearchQuery;
+		const searchMatchedEntities =
+			propSearchMatchedEntities ?? storeSearchMatchedEntities;
 
 		// Dialog state
 		const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false);
