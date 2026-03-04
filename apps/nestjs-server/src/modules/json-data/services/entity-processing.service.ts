@@ -14,6 +14,8 @@ import { SystemsEntity } from "../entities/systems.entity";
 export class EntityProcessingService {
 	private readonly logger = new Logger(EntityProcessingService.name);
 
+    private containerCache = new Map<string, number>();
+
 	constructor(
 		@InjectRepository(EntityEntity)
 		readonly _entityRepository: Repository<EntityEntity>,
@@ -35,6 +37,9 @@ export class EntityProcessingService {
 		changeId: number,
 		queryRunner: QueryRunner,
 	): Promise<{ count: number; attributesCount: number }> {
+		// сброс кэша перед обработкой новой порции данных
+		this.containerCache.clear();
+
 		if (!entities || !Array.isArray(entities)) {
 			return { count: 0, attributesCount: 0 };
 		}
@@ -106,106 +111,116 @@ export class EntityProcessingService {
 				entity.description = entityData.description || null;
 
 				entity = await queryRunner.manager.save(EntityEntity, entity);
+				this.logger.log(`Создана новая сущность: ${entityData.id}`);
 			} else {
-				this.logger.log(`Обновление существующей сущности: ${entityData.id}`);
-				// Для существующей сущности обновляем change_id и entity_container_id
-				entity.change_id = changeId;
-				entity.entity_container_id = entityContainerId;
-				entity.description = entityData.description || entity.description;
-				entity = await queryRunner.manager.save(EntityEntity, entity);
+				// Сущность существует – проверяем, изменилась ли она
+				if (this.isEntityUnchanged(entity, entityData, entityContainerId)) {
+					this.logger.log(`Сущность ${entityData.id} не изменилась, пропускаем обновление`);
+				} else {
+					entity.change_id = changeId;
+					entity.entity_container_id = entityContainerId;
+					entity.description = entityData.description || entity.description;
+					entity = await queryRunner.manager.save(EntityEntity, entity);
+					this.logger.log(`Сущность ${entityData.id} обновлена`);
+				}
 			}
 
 			// Обработка атрибутов
 			let attributesCount = 0;
 			if (entityData.attrSeq && Array.isArray(entityData.attrSeq)) {
 				for (const attrData of entityData.attrSeq) {
-					await this.handleAttribute(
+					const processed = await this.handleAttribute(
 						attrData,
 						entity.entity_id,
 						changeId,
 						queryRunner,
 					);
-					attributesCount++;
+					if (processed) attributesCount++;
 				}
 			}
 
 			return attributesCount;
 		} catch (error) {
-			this.logger.error(
-				`Ошибка обработки сущности ${entityData.id}: ${error.message}`,
-			);
+			this.logger.error(`Ошибка обработки сущности ${entityData.id}: ${error.message}`);
 			throw error;
 		}
 	}
 
+
+	/**
+	 * Метод для обработки entity_container.
+	 * Использует единый UPSERT-запрос для создания/обновления системы и контейнера.
+	 * Работает атомарно и минимизирует число обращений к БД.
+	 */
 	private async resolveEntityContainer(
 		entityData: any,
 		changeId: number,
 		queryRunner: QueryRunner,
 	): Promise<number | null> {
-		if (!entityData.namespace) {
-			return null;
+		const namespace = entityData.namespace;
+		if (!namespace) return null;
+
+		// Проверка кэша
+		if (this.containerCache.has(namespace)) {
+			return this.containerCache.get(namespace)!;
 		}
 
-		try {
-			// Получаем или создаем систему на основе system_code
-			const systemCode = entityData.system_code || "1642";
-			let system = await queryRunner.manager.findOne(SystemsEntity, {
-				where: { code: systemCode },
-			});
+		// Получаем или создаем систему на основе system_code
+		const systemCode = entityData.system_code || "1642";
+		const systemName = `Система ${systemCode}`;
+		const containerDescription =
+			entityData.container_description ||
+			`Контейнер для ${namespace} (система: ${systemCode})`;
+		const containerTypeId = await this.determineContainerType(entityData.type);
 
-			if (!system) {
-				this.logger.log(`Создание новой системы: ${systemCode}`);
-				system = new SystemsEntity();
-				system.code = systemCode;
-				system.name = `Система ${systemCode}`;
-				system = await queryRunner.manager.save(SystemsEntity, system);
-			}
-
-			// Поиск существующего контейнера
-			let container = await queryRunner.manager.findOne(EntityContainerEntity, {
-				where: { value: entityData.namespace },
-				relations: ["system"],
-			});
-
-			if (!container) {
-				this.logger.log(
-					`Создание нового контейнера: ${entityData.namespace} для системы ${systemCode}`,
-				);
-
-				// Создание нового контейнера
-				container = new EntityContainerEntity();
-				container.change_id = changeId;
-				container.entity_container_type_id = await this.determineContainerType(
-					entityData.type,
-				);
-				container.value = entityData.namespace;
-				container.description =
-					entityData.container_description ||
-					`Контейнер для ${entityData.namespace} (система: ${systemCode})`;
-				container.system_id = system.system_id;
-
-				container = await queryRunner.manager.save(
-					EntityContainerEntity,
-					container,
-				);
-			} else if (container.system_id !== system.system_id) {
-				// Если система изменилась, обновляем контейнер
-				this.logger.log(
-					`Обновление системы контейнера ${entityData.namespace} на ${systemCode}`,
-				);
-				container.system_id = system.system_id;
-				container.change_id = changeId;
-				container = await queryRunner.manager.save(
-					EntityContainerEntity,
-					container,
-				);
-			}
-
+		// 1. Ищем существующий контейнер по значению
+		let container = await queryRunner.manager.findOne(EntityContainerEntity, {
+			where: { value: namespace },
+		});
+		if (container) {
+			this.containerCache.set(namespace, container.entity_container_id);
 			return container.entity_container_id;
+		}
+
+		// 2. Получаем или создаём систему
+		let system = await queryRunner.manager.findOne(SystemsEntity, {
+			where: { code: systemCode },
+		});
+
+		if (!system) {
+			this.logger.log(`Создание новой системы: ${systemCode}`);
+			system = new SystemsEntity();
+			system.code = systemCode;
+			system.name = systemName;
+			system = await queryRunner.manager.save(SystemsEntity, system);
+		}
+
+		// 3. Создаём новый контейнер
+		try {
+			const newContainer = new EntityContainerEntity();
+			newContainer.change_id = changeId;
+			newContainer.entity_container_type_id = containerTypeId;
+			newContainer.value = namespace;
+			newContainer.description = containerDescription;
+			newContainer.system_id = system.system_id;
+
+			const saved = await queryRunner.manager.save(EntityContainerEntity, newContainer);
+			this.containerCache.set(namespace, saved.entity_container_id);
+			return saved.entity_container_id;
 		} catch (error) {
+			// Если ошибка уникальности (код 23505) – значит, параллельная транзакция уже создала контейнер
+			if (error.code === '23505') {
+				this.logger.warn(`Контейнер ${namespace} создан параллельно, выполняем повторный поиск`);
+				container = await queryRunner.manager.findOne(EntityContainerEntity, {
+					where: { value: namespace },
+				});
+				if (container) {
+					this.containerCache.set(namespace, container.entity_container_id);
+					return container.entity_container_id;
+				}
+			}
 			this.logger.error(`Ошибка разрешения контейнера: ${error.message}`);
-			return null;
+			throw error;
 		}
 	}
 
@@ -305,58 +320,73 @@ export class EntityProcessingService {
 		entityId: number,
 		changeId: number,
 		queryRunner: QueryRunner,
-	): Promise<void> {
+	): Promise<boolean> {
 		try {
-			// Валидация типа атрибута согласно документации
-			const typeId =
-				await this.attributeTypeService.resolveAttributeTypeFromJson(
-					attrData.type,
-				);
-
-			// Поиск существующего атрибута
-			const existingAttribute = await queryRunner.manager.findOne(
-				AttributeEntity,
-				{
-					where: {
-						entity_id: entityId,
-						name: attrData.name,
-					},
-				},
+			const typeId = await this.attributeTypeService.resolveAttributeTypeFromJson(
+				attrData.type,
 			);
 
-			if (!existingAttribute) {
-				this.logger.log(
-					`Создание нового атрибута: ${attrData.name} для сущности ${entityId}`,
-				);
+			const existing = await queryRunner.manager.findOne(AttributeEntity, {
+				where: { entity_id: entityId, name: attrData.name },
+			});
 
-				// Создание нового атрибута
+			if (!existing) {
 				const attribute = new AttributeEntity();
 				attribute.entity_id = entityId;
 				attribute.name = attrData.name;
 				attribute.type_id = typeId;
-				attribute.description =
-					attrData.comment || attrData.description || null;
+				attribute.description = attrData.comment || attrData.description || null;
 				attribute.change_id = changeId;
 
 				await queryRunner.manager.save(AttributeEntity, attribute);
-			} else {
-				this.logger.log(
-					`Атрибут уже существует: ${attrData.name} для сущности ${entityId}`,
-				);
-				// Обновляем существующий атрибут
-				existingAttribute.type_id = typeId;
-				existingAttribute.description =
-					attrData.comment ||
-					attrData.description ||
-					existingAttribute.description;
-				existingAttribute.change_id = changeId;
-				await queryRunner.manager.save(AttributeEntity, existingAttribute);
+				this.logger.log(`Создан новый атрибут: ${attrData.name} для сущности ${entityId}`);
+				return true;
 			}
+
+			if (this.isAttributeUnchanged(existing, attrData, typeId)) {
+				this.logger.log(`Атрибут ${attrData.name} для сущности ${entityId} не изменился, пропускаем`);
+				return false;
+			}
+
+			existing.type_id = typeId;
+			existing.description = attrData.comment || attrData.description || existing.description;
+			existing.change_id = changeId;
+			await queryRunner.manager.save(AttributeEntity, existing);
+			this.logger.log(`Атрибут ${attrData.name} для сущности ${entityId} обновлён`);
+			return true;
 		} catch (error) {
-			this.logger.error(
-				`Ошибка обработки атрибута ${attrData.name}: ${error.message}`,
-			);
+			this.logger.error(`Ошибка обработки атрибута ${attrData.name}: ${error.message}`);
 			throw error;
 		}
+	}
+
+	/**
+	 * Сравнивает существующую сущность с новыми данными.
+	 * Возвращает true, если сущность не изменилась.
+	 */
+	private isEntityUnchanged(
+		existing: EntityEntity,
+		newData: any,
+		containerId: number | null,
+	): boolean {
+		return (
+			existing.description === (newData.description || null) &&
+			existing.entity_container_id === containerId
+		);
+	}
+
+	/**
+	 * Сравнивает существующий атрибут с новыми данными.
+	 * Возвращает true, если атрибут не изменился.
+	 */
+	private isAttributeUnchanged(
+		existing: AttributeEntity,
+		newData: any,
+		typeId: number,
+	): boolean {
+		return (
+			existing.type_id === typeId &&
+			existing.description === (newData.comment || newData.description || null)
+		);
 	}
 }

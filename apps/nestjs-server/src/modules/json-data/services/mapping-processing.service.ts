@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { QueryRunner } from "typeorm";
+import {In, QueryRunner } from "typeorm";
 import { EntityMapEntity } from "../entities/entity-map.entity";
 import { AttributeMapEntity } from "../entities/attribute-map.entity";
 import { AttributeMapSourceEntity } from "../entities/attribute-map-source.entity";
@@ -10,6 +10,19 @@ import { AttributeEntity } from "../entities/attribute.entity";
 import { EntityMapSourceEntity } from "../entities/entity-map-source.entity";
 import {EntityContainerEntity} from "../entities/entity-container.entity";
 import {SystemsEntity} from "../entities/systems.entity";
+
+interface ExistingDepData {
+	sourceEntityId: number;
+	attrMaps: Set<string>;          // ключ "src:dst"
+	atrDeps: Map<number, Set<string>>; // ключ source_attribute_id, значение Set<deptype_id>
+}
+
+interface ExistingMappingData {
+	entityMapId: number;
+	targetEntityId: number;
+	processId: number;
+	deps: Map<number, ExistingDepData>;
+}
 
 @Injectable()
 export class MappingProcessingService {
@@ -25,6 +38,9 @@ export class MappingProcessingService {
 			return { count: 0, warnings: [] };
 		}
 
+		// Загружаем существующие маппинги для этого процесса
+		const existingMappings = await this.loadExistingMappings(processId, queryRunner);
+
 		let processedCount = 0;
 		const warnings: string[] = [];
 		const startTotal = Date.now();
@@ -32,28 +48,40 @@ export class MappingProcessingService {
 		for (const mapping of mappings) {
 			const mappingStart = Date.now();
 			try {
-				const mappingWarnings = await this.handleSingleMapping(
+				const targetEntity = await queryRunner.manager.findOne(EntityEntity, {
+					where: { full_name: mapping.entityId },
+				});
+				if (!targetEntity) {
+					warnings.push(`Target entity не найдена: ${mapping.entityId}, маппинг пропущен`);
+					continue;
+				}
+
+				const unchanged = await this.isMappingUnchanged(
 					mapping,
+					targetEntity.entity_id,
+					processId,
+					existingMappings,
+					queryRunner,
+				);
+
+				if (unchanged) {
+					this.logger.log(`Маппинг для ${mapping.entityId} не изменился, пропускаем`);
+					continue;
+				}
+
+				// Маппинг изменился – обрабатываем
+				await this.handleChangedMapping(
+					mapping,
+					targetEntity.entity_id,
 					processId,
 					changeId,
 					queryRunner,
 				);
-				warnings.push(...mappingWarnings);
 				processedCount++;
 			} catch (error) {
-				this.logger.error(
-					`Ошибка обработки маппинга: ${error.message}`,
-					error.stack,
-				);
-				await this.handleFailedMapping(
-					mapping,
-					error.message,
-					changeId,
-					queryRunner,
-				);
-				warnings.push(
-					`Маппинг для ${mapping.entityId} завершился с ошибкой: ${error.message}`,
-				);
+				this.logger.error(`Ошибка обработки маппинга: ${error.message}`, error.stack);
+				await this.handleFailedMapping(mapping, error.message, changeId, queryRunner);
+				warnings.push(`Маппинг для ${mapping.entityId} завершился с ошибкой: ${error.message}`);
 			} finally {
 				const mappingTime = Date.now() - mappingStart;
 				this.logger.log(`Маппинг ${processedCount}/${mappings.length} (${mapping.entityId}) обработан за ${mappingTime}ms`);
@@ -235,7 +263,7 @@ export class MappingProcessingService {
             // Проверяем соответствие system_code
             const entitySystemCode = sourceEntity.entity_container?.system?.code;
             if (entitySystemCode !== dep.system_code) {
-                const warning = `Несоответствие system_code: сущность ${dep.entityId} имеет код ${entitySystemCode}, а в зависимости указан ${dep.system_code}`;
+                const warning = `Несоответствие system_code: сущность ${dep.entityId} имеет system_code ${entitySystemCode}, а в зависимости указан ${dep.system_code}`;
                 this.logger.warn(warning);
                 warnings.push(warning);
             }
@@ -598,5 +626,239 @@ export class MappingProcessingService {
 		);
 
 		await queryRunner.manager.save(FailedMappingsEntity, failedMappingsEntity);
+	}
+
+	/**
+	 * Загружает все существующие маппинги для данного процесса.
+	 */
+	private async loadExistingMappings(
+		processId: number,
+		queryRunner: QueryRunner,
+	): Promise<Map<number, ExistingMappingData>> {
+		const result = new Map<number, ExistingMappingData>();
+
+		const entityMaps = await queryRunner.manager.find(EntityMapEntity, {
+			where: { process_id: processId },
+		});
+
+		for (const em of entityMaps) {
+			const depsMap = new Map<number, ExistingDepData>();
+
+			// Загружаем все attribute_map для этого entity_map
+			const attrMaps = await queryRunner.manager.find(AttributeMapEntity, {
+				where: { entity_map_id: em.entity_map_id },
+			});
+
+			for (const am of attrMaps) {
+				// Загружаем связанные attribute_map_source
+				const amSources = await queryRunner.manager.find(AttributeMapSourceEntity, {
+					where: { attribute_map_id: am.attribute_map_id },
+					relations: ['sourceAttribute'],
+				});
+
+				// Получаем target атрибут (для имени)
+				const targetAttr = am.attribute_id
+					? await queryRunner.manager.findOne(AttributeEntity, {
+						where: { attribute_id: am.attribute_id },
+					})
+					: null;
+				const targetAttrName = targetAttr?.name;
+
+				for (const ams of amSources) {
+					if (!ams.source_attribute) continue;
+					const srcAttr = ams.source_attribute;
+					const srcEntityId = srcAttr.entity_id;
+
+					if (!depsMap.has(srcEntityId)) {
+						depsMap.set(srcEntityId, {
+							sourceEntityId: srcEntityId,
+							attrMaps: new Set(),
+							atrDeps: new Map(),
+						});
+					}
+					const dep = depsMap.get(srcEntityId)!;
+					if (targetAttrName) {
+						dep.attrMaps.add(`${srcAttr.name}:${targetAttrName}`);
+					}
+				}
+			}
+
+			// Загружаем entity_attribute_map
+			const atrDeps = await queryRunner.manager.find(EntityAttributeMapEntity, {
+				where: { entity_map_id: em.entity_map_id },
+				relations: ['source_attribute'], // правильное имя
+			});
+
+			for (const ad of atrDeps) {
+				if (!ad.source_attribute) continue;
+				const srcAttr = ad.source_attribute;
+				const srcEntityId = srcAttr.entity_id;
+
+				if (!depsMap.has(srcEntityId)) {
+					depsMap.set(srcEntityId, {
+						sourceEntityId: srcEntityId,
+						attrMaps: new Set(),
+						atrDeps: new Map(),
+					});
+				}
+				const dep = depsMap.get(srcEntityId)!;
+				if (!dep.atrDeps.has(srcAttr.attribute_id)) {
+					dep.atrDeps.set(srcAttr.attribute_id, new Set());
+				}
+				dep.atrDeps.get(srcAttr.attribute_id)!.add(ad.deptype_id);
+			}
+
+			result.set(em.entity_id, {
+				entityMapId: em.entity_map_id,
+				targetEntityId: em.entity_id,
+				processId: em.process_id,
+				deps: depsMap,
+			});
+		}
+
+		return result;
+	}
+
+	/**
+	 * Сравнивает маппинг из коммита с существующим.
+	 */
+	private async isMappingUnchanged(
+		mapping: any,
+		targetEntityId: number,
+		processId: number,
+		existingMappings: Map<number, ExistingMappingData>,
+		queryRunner: QueryRunner,
+	): Promise<boolean> {
+		const existing = existingMappings.get(targetEntityId);
+		if (!existing) return false;
+
+		// Строим данные коммита для сравнения
+		const commitSources = new Map<number, { attrMaps: Set<string>; atrDeps: Map<number, Set<string>> }>();
+
+		for (const dep of mapping.deps || []) {
+			const sourceEntity = await queryRunner.manager.findOne(EntityEntity, {
+				where: { full_name: dep.entityId },
+			});
+			if (!sourceEntity) continue;
+			const sourceId = sourceEntity.entity_id;
+
+			const srcData = {
+				attrMaps: new Set<string>(),
+				atrDeps: new Map<number, Set<string>>(),
+			};
+
+			for (const am of dep.attrMaps || []) {
+				srcData.attrMaps.add(`${am.src}:${am.dst}`);
+			}
+
+			for (const ad of dep.atrDeps || []) {
+				const attr = await queryRunner.manager.findOne(AttributeEntity, {
+					where: { entity_id: sourceId, name: ad.attr },
+				});
+				if (attr) {
+					if (!srcData.atrDeps.has(attr.attribute_id)) {
+						srcData.atrDeps.set(attr.attribute_id, new Set());
+					}
+					for (const lt of ad.linkTypes || []) {
+						srcData.atrDeps.get(attr.attribute_id)!.add(lt);
+					}
+				}
+			}
+
+			commitSources.set(sourceId, srcData);
+		}
+
+		// Сравниваем
+		const existingDeps = existing.deps;
+		if (commitSources.size !== existingDeps.size) return false;
+
+		for (const [srcId, srcData] of commitSources) {
+			const existingSrc = existingDeps.get(srcId);
+			if (!existingSrc) return false;
+
+			// attrMaps
+			if (srcData.attrMaps.size !== existingSrc.attrMaps.size) return false;
+			for (const pair of srcData.attrMaps) {
+				if (!existingSrc.attrMaps.has(pair)) return false;
+			}
+
+			// atrDeps
+			if (srcData.atrDeps.size !== existingSrc.atrDeps.size) return false;
+			for (const [attrId, linkSet] of srcData.atrDeps) {
+				const existingLinkSet = existingSrc.atrDeps.get(attrId);
+				if (!existingLinkSet) return false;
+				if (linkSet.size !== existingLinkSet.size) return false;
+				for (const lt of linkSet) {
+					if (!existingLinkSet.has(lt)) return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Обрабатывает изменённый маппинг: удаляет старые связи и создаёт новые.
+	 */
+	private async handleChangedMapping(
+		mapping: any,
+		targetEntityId: number,
+		processId: number,
+		changeId: number,
+		queryRunner: QueryRunner,
+	): Promise<void> {
+		// Находим существующий entity_map
+		let entityMap = await queryRunner.manager.findOne(EntityMapEntity, {
+			where: { entity_id: targetEntityId, process_id: processId },
+		});
+
+		if (entityMap) {
+			// 1. Удаляем attribute_map_source (зависит от attribute_map)
+			const attrMaps = await queryRunner.manager.find(AttributeMapEntity, {
+				where: { entity_map_id: entityMap.entity_map_id },
+			});
+			const attrMapIds = attrMaps.map(am => am.attribute_map_id);
+
+			if (attrMapIds.length > 0) {
+				// Удаление записей из attribute_map_source
+				await queryRunner.manager.delete(AttributeMapSourceEntity, {
+					attribute_map_id: In(attrMapIds),
+				});
+
+				// Удаление entity_attribute_map (привязаны к entity_map_id, не к attribute_map)
+				await queryRunner.manager.delete(EntityAttributeMapEntity, {
+					entity_map_id: entityMap.entity_map_id,
+				});
+
+				// Удаление самих attribute_map
+				await queryRunner.manager.delete(AttributeMapEntity, {
+					entity_map_id: entityMap.entity_map_id,
+				});
+			}
+
+			// 2. Удаляем entity_map_source
+			await queryRunner.manager.delete(EntityMapSourceEntity, {
+				entity_map_id: entityMap.entity_map_id,
+			});
+
+			// 3. Обновляем change_id у entity_map
+			entityMap.change_id = changeId;
+			entityMap = await queryRunner.manager.save(EntityMapEntity, entityMap);
+		} else {
+			// Создаём новый entity_map
+			entityMap = new EntityMapEntity();
+			entityMap.entity_id = targetEntityId;
+			entityMap.process_id = processId;
+			entityMap.change_id = changeId;
+			entityMap.description = `Маппинг для ${mapping.entityId}`;
+			entityMap = await queryRunner.manager.save(EntityMapEntity, entityMap);
+		}
+
+		// 4. Обрабатываем зависимости (создаём новые связи)
+		if (mapping.deps && Array.isArray(mapping.deps)) {
+			for (const dep of mapping.deps) {
+				await this.handleDependency(dep, entityMap.entity_map_id, changeId, queryRunner);
+			}
+		}
 	}
 }

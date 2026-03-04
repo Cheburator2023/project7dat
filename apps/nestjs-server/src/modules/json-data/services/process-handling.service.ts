@@ -80,9 +80,7 @@ export class ProcessHandlingService {
 			process.change_id = changeId;
 			process.description = desc.description || processName; // сохраняем оригинальное описание
 			process = await queryRunner.manager.save(ProcessEntity, process);
-
-			// Удаляем только связи для совпадающих источников и витрин
-			await this.cleanupMatchingMappings(process.process_id, mappings, queryRunner);
+			// Удаление связей больше не производится здесь – оно перенесено в MappingProcessingService
 		} else {
 			this.logger.log(`Создание нового процесса: ${cleanProcessName}`);
 
