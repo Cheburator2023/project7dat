@@ -1,5 +1,13 @@
 # Semantic Versioning Changelog
 
+## [1.4.1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.4.0...v1.4.1) (2026-03-04)
+
+
+### Bug Fixes
+
+* search fixes ([5b6be96](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/5b6be96d8038467697eb88c4a6ad75d2954f403c))
+* search fixes ([6ec71c7](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/6ec71c727037907d72ae59a93cfbf23b65f39603))
+
 # [1.4.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.3.3...v1.4.0) (2026-03-04)
 
 
