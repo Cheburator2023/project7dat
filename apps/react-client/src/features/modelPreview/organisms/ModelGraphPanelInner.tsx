@@ -578,6 +578,30 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			return result;
 		}, [hoveredAttribute, attrConnectionMap]);
 
+		// Compute attribute search matches for each entity
+		const attributeSearchMatchedByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			const q = globalSearchQuery.trim().toLowerCase();
+			if (!q || q.length < 3) return result;
+
+			const add = (entityId: string, attrName: string) => {
+				if (!result.has(entityId)) result.set(entityId, new Set());
+				result.get(entityId)!.add(attrName);
+			};
+
+			for (const entity of data?.entities || []) {
+				for (const attr of entity.attrSeq || []) {
+					const name = attr.name?.toLowerCase() ?? "";
+					const type = attr.type?.toLowerCase() ?? "";
+					if (name.includes(q) || type.includes(q)) {
+						add(entity.id, attr.name);
+					}
+				}
+			}
+
+			return result;
+		}, [data?.entities, globalSearchQuery]);
+
 		// Compute selected/clicked-highlighted attributes for each entity
 		// Single-hop only: selected attr + its direct connections (no transitive BFS)
 		const selectedHighlightedByEntity = useMemo(() => {
@@ -710,6 +734,10 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 				else if (downstreamNodes.has(entity.id)) highlightType = "downstream";
 				else if (isSearchMatch) highlightType = "searchMatch";
 
+				const attributeSearchMatchedAttrs =
+					attributeSearchMatchedByEntity.get(entity.id) || new Set<string>();
+				const shouldExpandForSearch = attributeSearchMatchedAttrs.size > 0;
+
 				const node = {
 					id: entity.id,
 					type: "entityNode",
@@ -738,8 +766,10 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 							hoverHighlightedByEntity.get(entity.id) || new Set<string>(),
 						selectedHighlightedAttrs:
 							selectedHighlightedByEntity.get(entity.id) || new Set<string>(),
+						attributeSearchMatchedAttrs,
 						isSearchActive,
 						isSearchMatch: !!isSearchMatch,
+						isExpanded: shouldExpandForSearch,
 					},
 				};
 

@@ -650,6 +650,30 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			return result;
 		}, [hoveredAttribute, attrConnectionMap]);
 
+		// Compute attribute search matches for each entity
+		const attributeSearchMatchedByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			const q = globalSearchQuery.trim().toLowerCase();
+			if (!q || q.length < 3) return result;
+
+			const add = (entityId: string, attrName: string) => {
+				if (!result.has(entityId)) result.set(entityId, new Set());
+				result.get(entityId)!.add(attrName);
+			};
+
+			for (const entity of data?.entities || []) {
+				for (const attr of entity.attrSeq || []) {
+					const name = attr.name?.toLowerCase() ?? "";
+					const type = attr.type?.toLowerCase() ?? "";
+					if (name.includes(q) || type.includes(q)) {
+						add(entity.id, attr.name);
+					}
+				}
+			}
+
+			return result;
+		}, [data?.entities, globalSearchQuery]);
+
 		// Compute selected/clicked-highlighted attributes for each entity
 		// Single-hop only: selected attr + its direct connections (no transitive BFS)
 		const selectedHighlightedByEntity = useMemo(() => {
@@ -823,6 +847,10 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					highlightType = "downstream";
 				else if (isSearchMatch) highlightType = "searchMatch";
 
+				const attributeSearchMatchedAttrs =
+					attributeSearchMatchedByEntity.get(entity.id) || EMPTY_STRING_SET;
+				const shouldExpandForSearch = attributeSearchMatchedAttrs.size > 0;
+
 				const node = {
 					id: entity.id,
 					type: "entityNode",
@@ -850,11 +878,12 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 							hoverHighlightedByEntity.get(entity.id) || EMPTY_STRING_SET,
 						selectedHighlightedAttrs:
 							selectedHighlightedByEntity.get(entity.id) || EMPTY_STRING_SET,
+						attributeSearchMatchedAttrs,
 						layoutAttrLimit: 0,
 						isSearchActive,
 						isSearchMatch: !!isSearchMatch,
 						handleExpandToggle: handleToggleExpand,
-						isExpanded: expandedNodes.has(entity.id),
+						isExpanded: shouldExpandForSearch || expandedNodes.has(entity.id),
 					},
 				};
 
