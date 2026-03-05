@@ -28,6 +28,34 @@ export const s2tCommitStoreApi = axios.create({
 	},
 });
 
+export interface S2tValidationError {
+	code: string;
+	message: string;
+	path?: string;
+	details?: string;
+}
+
+export interface CreateS2tCommitPayload {
+	commit_name: string;
+	commit_description?: string;
+	user?: string;
+	// Режим xlsx — конвертация + валидация на беке
+	xlsxBase64?: string;
+	fileName?: string;
+	processName?: string;
+	processDescription?: string;
+	// Режим прямой передачи payload
+	payload?: Record<string, unknown>;
+	type?: S2tCommitType;
+	parent_id?: string;
+	id?: string;
+}
+
+export interface S2tCreateResult {
+	commit: S2tCommitItem;
+	warnings: S2tValidationError[];
+}
+
 export interface UpdateS2tCommitPayload {
 	id: string;
 	commit_name: string;
@@ -52,6 +80,10 @@ export interface S2tCommitListResponse {
 }
 
 export const s2tCommitStoreService = {
+	create: async (data: CreateS2tCommitPayload): Promise<S2tCreateResult> => {
+		const response = await s2tCommitStoreApi.post("", data);
+		return response.data;
+	},
 	list: async (params?: {
 		state?: string;
 		type?: string;

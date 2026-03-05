@@ -6,6 +6,7 @@ import {
 	IsOptional,
 	IsString,
 	IsUUID,
+	ValidateIf,
 } from "class-validator";
 
 export class CreateS2tCommitRequestDto {
@@ -49,10 +50,12 @@ export class CreateS2tCommitRequestDto {
 		description: "Commit type",
 		example: "table",
 		enum: ["table", "json", "model"],
+		required: false,
 	})
+	@IsOptional()
 	@IsString()
 	@IsIn(["table", "json", "model"])
-	type!: "table" | "json" | "model";
+	type?: "table" | "json" | "model";
 
 	@ApiProperty({
 		description: "User who created/edited commit",
@@ -64,9 +67,50 @@ export class CreateS2tCommitRequestDto {
 	user?: string;
 
 	@ApiProperty({
-		description: "Commit JSON payload",
+		description: "Commit JSON payload. Required if xlsxBase64 is not provided.",
 		example: { desc: {}, entities: [], mappings: [] },
+		required: false,
 	})
+	@ValidateIf((o) => !o.xlsxBase64)
 	@IsObject()
-	payload!: Record<string, any>;
+	payload?: Record<string, any>;
+
+	// --- S2T xlsx upload fields (конвертация + валидация на беке) ---
+
+	@ApiProperty({
+		description:
+			"Base64-encoded S2T xlsx file. If provided, payload is derived from conversion.",
+		required: false,
+		example: "UEsDBBQABgAIAAAAIQ...",
+	})
+	@IsOptional()
+	@IsString()
+	xlsxBase64?: string;
+
+	@ApiProperty({
+		description: "Original xlsx file name (used for commit type detection)",
+		required: false,
+		example: "prod_dm_dadm_pvr.pd_mb_behaviour_online.xlsx",
+	})
+	@IsOptional()
+	@IsString()
+	fileName?: string;
+
+	@ApiProperty({
+		description: "Process name (for table/model commit types)",
+		required: false,
+		example: "PD MB Behaviour Online",
+	})
+	@IsOptional()
+	@IsString()
+	processName?: string;
+
+	@ApiProperty({
+		description: "Process description (for table/model commit types)",
+		required: false,
+		example: "Process for mobile banking behaviour analytics",
+	})
+	@IsOptional()
+	@IsString()
+	processDescription?: string;
 }
