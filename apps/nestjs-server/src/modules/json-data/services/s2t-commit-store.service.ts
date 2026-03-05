@@ -3,7 +3,11 @@ import {
 	Injectable,
 	Logger,
 	NotFoundException,
+	UnprocessableEntityException,
 } from "@nestjs/common";
+import { S2tConversionService } from "./s2t-conversion.service";
+import { S2tToCommitJsonService } from "./s2t-to-commit-json.service";
+import { JsonValidationOrchestratorService } from "./json-validation-orchestrator.service";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import {
@@ -16,6 +20,18 @@ import {
 	JsonSourceType,
 	JsonImportRequestDto,
 } from "../dto/requests/json-import-request.dto";
+
+export interface S2tValidationError {
+	code: string;
+	message: string;
+	path?: string;
+	details?: string;
+}
+
+export interface S2tCreateResult {
+	commit: S2tCommitEntity;
+	warnings: S2tValidationError[];
+}
 
 @Injectable()
 export class S2tCommitStoreService {
@@ -36,11 +52,180 @@ export class S2tCommitStoreService {
 		@InjectRepository(S2tCommitEntity)
 		private readonly repo: Repository<S2tCommitEntity>,
 		private readonly jsonImportService: JsonImportService,
+		private readonly s2tConversionService: S2tConversionService,
+		private readonly s2tToCommitJsonService: S2tToCommitJsonService,
+		private readonly validationOrchestrator: JsonValidationOrchestratorService,
 	) {}
+
+	private detectCommitType(fileName?: string): "table" | "json" | "model" {
+		const name = (fileName ?? "").toLowerCase();
+		if (name.includes("json_")) return "json";
+		if (name.includes("model_")) return "model";
+		return "table";
+	}
+
+	private formatValidationErrors(errors: string[]): S2tValidationError[] {
+		return errors.map((msg) => {
+			const code = msg.includes("рекурс")
+				? "RECURSION"
+				: msg.includes("дублир")
+					? "DUPLICATE"
+					: msg.includes("тип") || msg.includes("type")
+						? "TYPE_MISMATCH"
+						: msg.includes("атрибут")
+							? "ATTRIBUTE_ERROR"
+							: msg.includes("маппинг") || msg.includes("mapping")
+								? "MAPPING_ERROR"
+								: msg.includes("entity") || msg.includes("сущност")
+									? "ENTITY_ERROR"
+									: "VALIDATION_ERROR";
+			return { code, message: msg };
+		});
+	}
+
+	async convertAndValidateXlsx(dto: CreateS2tCommitRequestDto): Promise<{
+		payload: Record<string, any>;
+		commitType: "table" | "json" | "model";
+		warnings: S2tValidationError[];
+	}> {
+		const {
+			xlsxBase64,
+			fileName,
+			commit_name,
+			processName,
+			processDescription,
+		} = dto;
+
+		let workbook: any;
+		try {
+			const result =
+				await this.s2tConversionService.convertXlsxBase64ToWorkbookJson({
+					xlsxBase64: xlsxBase64!,
+					fileName,
+				});
+			workbook = result.workbook;
+		} catch (e: any) {
+			throw new BadRequestException({
+				message: "Не удалось прочитать xlsx файл",
+				code: "XLSX_PARSE_ERROR",
+				details: e?.message,
+			});
+		}
+
+		const commitType = this.detectCommitType(fileName);
+		const needsProcess = commitType === "table" || commitType === "model";
+
+		let payload: Record<string, any>;
+		try {
+			payload = this.s2tToCommitJsonService.convertWorkbookToCommitJson({
+				workbook,
+				fileName,
+				commitName: commit_name,
+				processName: needsProcess ? processName : undefined,
+				processDescription: needsProcess ? processDescription : undefined,
+			});
+		} catch (e: any) {
+			throw new BadRequestException({
+				message: "Не удалось конвертировать S2T в commit JSON",
+				code: "S2T_CONVERSION_ERROR",
+				details: e?.message,
+			});
+		}
+
+		// Валидация сконвертированного payload
+		const validationResult =
+			await this.validationOrchestrator.validate(payload);
+
+		const errors: S2tValidationError[] = [];
+		const warnings: S2tValidationError[] = [];
+
+		// Критические ошибки структуры
+		if (validationResult.validation?.errors?.length) {
+			errors.push(
+				...this.formatValidationErrors(validationResult.validation.errors),
+			);
+		}
+
+		// Рекурсии — критические
+		if (validationResult.recursionCheck?.hasRecursion) {
+			const cycles = validationResult.recursionCheck.cycles ?? [];
+			for (const cycle of cycles) {
+				errors.push({
+					code: "RECURSION",
+					message: `Обнаружена рекурсивная зависимость: ${cycle.join(" → ")}`,
+					details:
+						"Проверьте маппинги на наличие циклических ссылок между сущностями",
+				});
+			}
+		}
+
+		// Дубликаты — критические
+		if (validationResult.duplicateCheck?.hasDuplicates) {
+			for (const dup of validationResult.duplicateCheck.duplicates ?? []) {
+				errors.push({ code: "DUPLICATE", message: dup });
+			}
+		}
+
+		// Предупреждения структуры
+		if (validationResult.validation?.warnings?.length) {
+			warnings.push(
+				...this.formatValidationErrors(validationResult.validation.warnings),
+			);
+		}
+
+		// Проблемы целостности — предупреждения (не критические)
+		if (validationResult.integrity?.issues?.length) {
+			for (const issue of validationResult.integrity.issues) {
+				warnings.push({ code: "INTEGRITY_WARNING", message: issue });
+			}
+		}
+
+		if (errors.length > 0) {
+			this.logger.warn(
+				`S2T валидация не пройдена для "${fileName}": ${errors.length} ошибок`,
+			);
+			throw new UnprocessableEntityException({
+				message: "Данные S2T не прошли валидацию",
+				code: "S2T_VALIDATION_FAILED",
+				errors,
+				warnings,
+				statistics: validationResult.statistics,
+			});
+		}
+
+		this.logger.log(
+			`S2T конвертация и валидация прошли успешно: "${fileName}", тип=${commitType}, ` +
+				`entities=${(payload as any).entities?.length ?? 0}, предупреждений=${warnings.length}`,
+		);
+
+		return { payload, commitType, warnings };
+	}
 
 	async createOrUpdate(
 		dto: CreateS2tCommitRequestDto,
-	): Promise<S2tCommitEntity> {
+	): Promise<S2tCreateResult> {
+		let payload: Record<string, any>;
+		let commitType: "table" | "json" | "model";
+		let warnings: S2tValidationError[] = [];
+
+		if (dto.xlsxBase64) {
+			// Режим xlsx: конвертация + валидация на беке
+			const result = await this.convertAndValidateXlsx(dto);
+			payload = result.payload;
+			commitType = result.commitType;
+			warnings = result.warnings;
+		} else {
+			// Режим прямой передачи payload
+			if (!dto.payload) {
+				throw new BadRequestException({
+					message: "Необходимо передать xlsxBase64 или payload",
+					code: "MISSING_PAYLOAD",
+				});
+			}
+			payload = dto.payload;
+			commitType = dto.type ?? "table";
+		}
+
 		if (dto.id) {
 			const existing = await this.repo.findOne({ where: { id: dto.id } });
 			if (!existing) {
@@ -50,32 +235,31 @@ export class S2tCommitStoreService {
 			existing.parent_id = dto.parent_id ?? existing.parent_id;
 			existing.commit_name = dto.commit_name;
 			existing.commit_description = dto.commit_description ?? null;
-			existing.payload = dto.payload;
-			// original_payload не меняется при update — только при первом создании
-			// type сохраняем только при первом сохранении оригинала, но при update не меняем
-			// если надо сменить тип - это новая запись
+			existing.payload = payload;
 			existing.user = dto.user ?? existing.user;
 			existing.state = "processing";
 			existing.error = null;
 			existing.change_id = null;
 
-			return await this.repo.save(existing);
+			const commit = await this.repo.save(existing);
+			return { commit, warnings };
 		}
 
 		const entity = this.repo.create({
 			parent_id: dto.parent_id ?? null,
 			commit_name: dto.commit_name,
 			commit_description: dto.commit_description ?? null,
-			type: dto.type,
+			type: commitType,
 			state: "processing",
 			user: dto.user ?? null,
-			payload: dto.payload,
-			original_payload: dto.payload,
+			payload,
+			original_payload: payload,
 			change_id: null,
 			error: null,
 		});
 
-		return await this.repo.save(entity);
+		const commit = await this.repo.save(entity);
+		return { commit, warnings };
 	}
 
 	async findById(id: string): Promise<S2tCommitEntity> {

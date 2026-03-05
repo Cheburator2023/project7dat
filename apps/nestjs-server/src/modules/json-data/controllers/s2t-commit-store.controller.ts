@@ -19,7 +19,10 @@ import { RealmRole } from "src/core/auth/decorators/realm-role.decorator";
 import { Permission } from "src/core/auth/permissions";
 import { CreateS2tCommitRequestDto } from "../dto/requests/create-s2t-commit-request.dto";
 import { ApplyS2tCommitRequestDto } from "../dto/requests/apply-s2t-commit-request.dto";
-import { S2tCommitStoreService } from "../services/s2t-commit-store.service";
+import {
+	S2tCommitStoreService,
+	type S2tCreateResult,
+} from "../services/s2t-commit-store.service";
 
 @ApiBearerAuth("JWT-auth")
 @ApiTags("Импорт S2T")
@@ -29,9 +32,24 @@ export class S2tCommitStoreController {
 
 	@Post()
 	@RealmRole(Permission.DL_CREATE_COMMITS)
-	@ApiOperation({ summary: "Сохранить S2T коммит (оригинал или редакция)" })
-	@ApiResponse({ status: 201 })
-	async createOrUpdate(@Body() body: CreateS2tCommitRequestDto) {
+	@ApiOperation({
+		summary: "Создать S2T коммит",
+		description:
+			"Принимает либо xlsxBase64 (конвертация + валидация на беке), либо готовый payload. " +
+			"При ошибках валидации возвращает 422 с детальным списком ошибок.",
+	})
+	@ApiResponse({
+		status: 201,
+		description:
+			"Коммит создан. Поле warnings содержит некритические предупреждения.",
+	})
+	@ApiResponse({
+		status: 422,
+		description: "Ошибки валидации S2T данных (errors + statistics)",
+	})
+	async createOrUpdate(
+		@Body() body: CreateS2tCommitRequestDto,
+	): Promise<S2tCreateResult> {
 		return await this.service.createOrUpdate(body);
 	}
 

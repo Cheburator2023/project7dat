@@ -17,13 +17,11 @@ import {
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import { useUserStore } from "@react-client/common/stores/userStore";
+import { useProcesses, useS2tCommitList } from "@react-client/api/hooks";
 import {
-	useProcesses,
-	useS2tCommitList,
-	useConvertXlsxToCommitJson,
-	useValidateJson,
-} from "@react-client/api/hooks";
-import { s2tCommitStoreService } from "@react-client/api/hooks/s2tCommitStoreApi";
+	s2tCommitStoreService,
+	type S2tValidationError,
+} from "@react-client/api/hooks/s2tCommitStoreApi";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 
@@ -81,9 +79,6 @@ export const S2tCommitEditor = ({
 	const username = useUserStore((state) => state.username) ?? "system";
 	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
 
-	const convertXlsxMutation = useConvertXlsxToCommitJson();
-	const validateJsonMutation = useValidateJson();
-
 	const [_convertedMeta, setConvertedMeta] = useState<{
 		fileName?: string;
 		generatedAt: string;
@@ -105,8 +100,9 @@ export const S2tCommitEditor = ({
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string>("");
 	const [_infoMessage, setInfoMessage] = useState<string>("");
-	const [_validationErrors, setValidationErrors] = useState<string[]>([]);
-	const [_validationWarnings, setValidationWarnings] = useState<string[]>([]);
+	const [validationWarnings, setValidationWarnings] = useState<
+		S2tValidationError[]
+	>([]);
 	const [savedCommit, setSavedCommit] = useState<{
 		id: string;
 		state: "processing" | "done" | "failed";
@@ -162,7 +158,6 @@ export const S2tCommitEditor = ({
 		setIsSaving(false);
 		setError("");
 		setInfoMessage("");
-		setValidationErrors([]);
 		setValidationWarnings([]);
 		setSavedCommit(null);
 		setOriginalCommitId(null);
@@ -332,82 +327,39 @@ export const S2tCommitEditor = ({
 
 			setError("");
 			setInfoMessage("");
-			setValidationErrors([]);
 			setValidationWarnings([]);
 			setConvertedMeta(null);
 			setIsSaving(true);
 
 			try {
-				let commitJson: any = null;
-
 				const xlsxBase64 = await fileToBase64(selectedFile);
 
-				const convertResponse = await convertXlsxMutation.mutateAsync({
+				const createPayload: Parameters<
+					typeof s2tCommitStoreService.create
+				>[0] = {
+					commit_name: commitName.trim(),
+					commit_description: commitDescription.trim() || undefined,
+					user: username,
 					xlsxBase64,
 					fileName: selectedFile.name,
-					commitName: commitName.trim(),
-					processName: shouldShowProcessFields ? processName : undefined,
+					processName: shouldShowProcessFields
+						? processName.trim() || undefined
+						: undefined,
 					processDescription: showProcessFields
-						? processDescription.trim()
+						? processDescription.trim() || undefined
 						: undefined,
-				});
-
-				commitJson = convertResponse?.commitJson;
-				const meta = convertResponse?.meta;
-
-				setConvertedMeta({
-					fileName: meta?.fileName,
-					generatedAt: meta?.generatedAt ?? new Date().toISOString(),
-					worksheetsCount: commitJson?.entities?.length ?? 0,
-				});
-
-				const validationData = await validateJsonMutation.mutateAsync({
-					data: commitJson,
-				});
-				const isValid =
-					typeof validationData?.isValid === "boolean"
-						? validationData.isValid
-						: typeof validationData?.validation?.isValid === "boolean"
-							? validationData.validation.isValid
-							: false;
-				const validationErrors = Array.isArray(validationData?.errors)
-					? validationData.errors
-					: Array.isArray(validationData?.validation?.errors)
-						? validationData.validation.errors
-						: [];
-				const validationWarnings = Array.isArray(validationData?.warnings)
-					? validationData.warnings
-					: Array.isArray(validationData?.validation?.warnings)
-						? validationData.validation.warnings
-						: [];
-
-				if (!isValid) {
-					setValidationErrors(validationErrors);
-					setValidationWarnings(validationWarnings);
-					setError(
-						validationErrors.length > 0
-							? "Коммит не сохранён: найдены ошибки валидации."
-							: "Коммит не сохранён: валидация не пройдена.",
-					);
-					return;
-				}
-
-				const updatePayload: any = {
-					parent_id: undefined,
-					commit_name: commitName.trim(),
-					commit_description: commitDescription.trim()
-						? commitDescription.trim()
-						: undefined,
-					type: commitType,
-					user: username,
-					payload: commitJson,
 				};
 				if (mode === "overwrite" && savedCommit?.id) {
-					updatePayload.id = savedCommit.id;
+					createPayload.id = savedCommit.id;
 				}
-				const saveResponse = await s2tCommitStoreService.update(updatePayload);
 
-				const savedId = saveResponse?.id;
+				const saveResponse = await s2tCommitStoreService.create(createPayload);
+
+				if (saveResponse.warnings?.length) {
+					setValidationWarnings(saveResponse.warnings);
+				}
+
+				const savedId = saveResponse?.commit?.id;
 				if (!savedId) {
 					throw new Error("Не удалось сохранить коммит: сервер не вернул id");
 				}
@@ -417,9 +369,9 @@ export const S2tCommitEditor = ({
 
 				setSavedCommit({
 					id: savedId,
-					state: saveResponse?.state,
-					change_id: saveResponse?.change_id ?? null,
-					error: saveResponse?.error ?? null,
+					state: saveResponse.commit.state,
+					change_id: saveResponse.commit.change_id ?? null,
+					error: saveResponse.commit.error ?? null,
 				});
 				setPrefilledCommitType(commitType);
 
@@ -437,7 +389,15 @@ export const S2tCommitEditor = ({
 				onImported?.();
 				onSaved?.(savedId);
 			} catch (e: any) {
-				setError(e?.response?.data?.message || e?.message || "Ошибка импорта");
+				const errData = e?.response?.data;
+				if (errData?.errors?.length) {
+					setValidationWarnings(errData.errors);
+					setError(
+						errData.message || "Коммит не сохранён: найдены ошибки валидации.",
+					);
+				} else {
+					setError(errData?.message || e?.message || "Ошибка импорта");
+				}
 			} finally {
 				setIsSaving(false);
 			}
@@ -454,8 +414,6 @@ export const S2tCommitEditor = ({
 			shouldShowProcessFields,
 			showProcessFields,
 			username,
-			convertXlsxMutation,
-			validateJsonMutation,
 			originalCommitId,
 			onSaved,
 		],
@@ -686,81 +644,21 @@ export const S2tCommitEditor = ({
 
 				<Spacer space={1} />
 
-				{/* {convertedMeta && (
-					<Alert severity="success">
+				{validationWarnings.length > 0 && (
+					<Alert severity={error ? "error" : "warning"}>
 						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-							<Typography variant="subtitle2">Конвертация выполнена</Typography>
-							<Typography variant="body2">
-								Файл: {convertedMeta.fileName ?? "—"}
+							<Typography variant="subtitle2">
+								{error ? "Ошибки валидации" : "Предупреждения"}
 							</Typography>
-							<Typography variant="body2">
-								Листов: {convertedMeta.worksheetsCount}
-							</Typography>
-							<Typography variant="body2">
-								Время: {convertedMeta.generatedAt}
-							</Typography>
-						</Box>
-					</Alert>
-				)} */}
-
-				{_validationErrors.length > 0 && (
-					<Alert severity="error">
-						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-							<Typography variant="subtitle2">Ошибки валидации</Typography>
-							{_validationErrors.map((m, idx) => (
+							{validationWarnings.map((w, idx) => (
 								<Typography key={idx} variant="body2">
-									{m}
+									<strong>[{w.code}]</strong> {w.message}
+									{w.details && ` — ${w.details}`}
 								</Typography>
 							))}
 						</Box>
 					</Alert>
 				)}
-
-				{_validationWarnings.length > 0 && (
-					<Alert severity="warning">
-						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-							<Typography variant="subtitle2">Предупреждения</Typography>
-							{_validationWarnings.map((m, idx) => (
-								<Typography key={idx} variant="body2">
-									{m}
-								</Typography>
-							))}
-						</Box>
-					</Alert>
-				)}
-				{/* 
-				{infoMessage && <Alert severity="info">{infoMessage}</Alert>}
-
-				{savedCommit?.id && (
-					<Alert severity="info">
-						<Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-							<Typography variant="subtitle2">Хранилище коммитов</Typography>
-							<Typography variant="body2">
-								ID коммита: {savedCommit.id}
-							</Typography>
-							<Typography variant="body2">
-								Состояние:{" "}
-								{savedCommit.state === "processing"
-									? "в обработке"
-									: savedCommit.state === "done"
-										? "готово"
-										: savedCommit.state === "failed"
-											? "ошибка"
-											: savedCommit.state}
-							</Typography>
-							{typeof savedCommit.change_id === "number" && (
-								<Typography variant="body2">
-									ID изменения: {savedCommit.change_id}
-								</Typography>
-							)}
-							{savedCommit.error && (
-								<Typography variant="body2">
-									Ошибка: {savedCommit.error}
-								</Typography>
-							)}
-						</Box>
-					</Alert>
-				)} */}
 
 				{error && <Alert severity="error">{error}</Alert>}
 			</Box>
