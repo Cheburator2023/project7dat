@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
+import type { MergeDiffItem } from "@react-client/api/hooks/mergeApi";
 
 interface CommitEntity {
 	id: string;
@@ -27,6 +28,14 @@ interface CommitMapping {
 	}>;
 }
 
+export type MergeStep = "idle" | "previewing" | "confirmed" | "cancelled";
+
+interface MergeStats {
+	changedEntitiesCount: number;
+	changedAttributesCount: number;
+	changedMappingsCount: number;
+}
+
 interface CommitMergeState {
 	commit: S2tCommitItem | null;
 	sourceType: "SURM" | "DAPP";
@@ -35,16 +44,25 @@ interface CommitMergeState {
 	selectedEntityId: string | null;
 	entitySearch: string;
 
+	mergeStep: MergeStep;
+	mergeSessionId: string | null;
+	mergeDiff: MergeDiffItem[];
+	mergeStats: MergeStats | null;
+
 	setCommit: (commit: S2tCommitItem | null) => void;
 	setSourceType: (sourceType: "SURM" | "DAPP") => void;
 	setApplying: (applying: boolean) => void;
 	setError: (error: string | null) => void;
 	setSelectedEntityId: (id: string | null) => void;
 	setEntitySearch: (search: string) => void;
+	setMergeStep: (step: MergeStep) => void;
+	setMergeSessionId: (id: string | null) => void;
+	setMergeDiff: (diff: MergeDiffItem[]) => void;
+	setMergeStats: (stats: MergeStats | null) => void;
 	reset: () => void;
 }
 
-export type { CommitEntity, CommitMapping };
+export type { CommitEntity, CommitMapping, MergeStats };
 
 const initialState = {
 	commit: null,
@@ -53,6 +71,10 @@ const initialState = {
 	error: null,
 	selectedEntityId: null,
 	entitySearch: "",
+	mergeStep: "idle" as MergeStep,
+	mergeSessionId: null,
+	mergeDiff: [],
+	mergeStats: null,
 };
 
 export const useCommitMergeStore = create<CommitMergeState>()((set) => ({
@@ -63,6 +85,10 @@ export const useCommitMergeStore = create<CommitMergeState>()((set) => ({
 	setError: (error) => set({ error }),
 	setSelectedEntityId: (id) => set({ selectedEntityId: id }),
 	setEntitySearch: (search) => set({ entitySearch: search }),
+	setMergeStep: (mergeStep) => set({ mergeStep }),
+	setMergeSessionId: (mergeSessionId) => set({ mergeSessionId }),
+	setMergeDiff: (mergeDiff) => set({ mergeDiff }),
+	setMergeStats: (mergeStats) => set({ mergeStats }),
 	reset: () => set(initialState),
 }));
 

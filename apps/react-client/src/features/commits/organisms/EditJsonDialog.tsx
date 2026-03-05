@@ -390,7 +390,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 					<Tab
 						label={
 							<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-								Diff изменений
+								Различия
 								{isDiffComputing && <CircularProgress size={14} />}
 								{diffResult && diffResult.changes.length > 0 && (
 									<Chip

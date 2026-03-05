@@ -36,9 +36,13 @@ import {
 	HelpOutline as HelpOutlineIcon,
 	TableChart as TableChartIcon,
 	ViewModule as ViewModuleIcon,
+	Psychology as PsychologyIcon,
+	AutoAwesome as AutoAwesomeIcon,
+	Science as ScienceIcon,
+	Analytics as AnalyticsIcon,
 } from "@mui/icons-material";
 import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/ModelGraphPanel";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, Brain, Sparkles, Network } from "lucide-react";
 import { usePaginatedModelRelations } from "@react-client/api/hooks/usePaginatedModelRelations";
 import { SkeletonFade } from "@react-client/common/skeleton/atoms/SkeletonFade";
 import { SkeletonBlock } from "@react-client/common/skeleton/atoms/SkeletonBlock";
@@ -290,6 +294,51 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		return null;
 	}, [modelRelationsData]);
 
+	const modelIcon = useMemo(() => {
+		if (!selectedEntity) return null;
+
+		const searchText = [
+			selectedEntity.type,
+			selectedEntity.description,
+			selectedEntity.namespace,
+			selectedEntity.name,
+		]
+			.filter(Boolean)
+			.join(" ")
+			.toLowerCase();
+
+		if (searchText.includes("deep") || searchText.includes("dl")) {
+			return <Brain size={20} />;
+		}
+		if (searchText.includes("nlp") || searchText.includes("language")) {
+			return <Sparkles size={20} />;
+		}
+		if (searchText.includes("neural") || searchText.includes("network")) {
+			return <Network size={20} />;
+		}
+		if (
+			searchText.includes("cv") ||
+			searchText.includes("vision") ||
+			searchText.includes("image")
+		) {
+			return <ScienceIcon sx={{ fontSize: 20 }} />;
+		}
+		if (searchText.includes("ai") || searchText.includes("artificial")) {
+			return <AutoAwesomeIcon sx={{ fontSize: 20 }} />;
+		}
+		if (
+			searchText.includes("analytics") ||
+			searchText.includes("statistical")
+		) {
+			return <AnalyticsIcon sx={{ fontSize: 20 }} />;
+		}
+		if (searchText.includes("ml") || searchText.includes("machine")) {
+			return <PsychologyIcon sx={{ fontSize: 20 }} />;
+		}
+
+		return <PsychologyIcon sx={{ fontSize: 20 }} />;
+	}, [selectedEntity]);
+
 	const relatedMappings = useMemo(() => {
 		if (modelRelationsData?.mappings?.length) {
 			return modelRelationsData.mappings.map((mapping, index) => ({
@@ -430,7 +479,18 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		<div>
 			<Header
 				title={
-					<Flex gap={10}>
+					<Flex gap={10} alignItems="center">
+						{modelIcon && (
+							<Box
+								sx={{
+									display: "flex",
+									alignItems: "center",
+									color: "primary.main",
+								}}
+							>
+								{modelIcon}
+							</Box>
+						)}
 						{selectedEntity?.namespace}
 
 						<Chip label="model" size="small" color="secondary" />

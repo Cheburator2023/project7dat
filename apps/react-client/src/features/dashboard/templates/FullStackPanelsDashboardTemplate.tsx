@@ -21,7 +21,6 @@ import { dockviewLayoutJson } from "../../entities/constants";
 
 export { useEntitiesStore } from "../../entities/stores";
 import { useEntitiesStore } from "../../entities/stores";
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import {
 	DockviewReadyEvent,
 	IDockviewPanelProps,
@@ -33,16 +32,31 @@ import { RenderWhenVisible } from "@react-client/common/dockview/RenderWnelVisib
 
 const STORAGE_KEY = "dashboard2-dockview-layout";
 
+const EntitiesPanelComponent: FunctionComponent<IDockviewPanelProps> = () => (
+	<EntitiesPanel />
+);
+const ObjectsPanelComponent: FunctionComponent<IDockviewPanelProps> = () => (
+	<ObjectsPanel />
+);
+const GraphPanelComponent: FunctionComponent<IDockviewPanelProps> = () => (
+	<GraphPanel />
+);
+const SelectionInfoPanelComponent: FunctionComponent<
+	IDockviewPanelProps
+> = () => <SelectionInfoPanel />;
+const IssuesPanelComponent: FunctionComponent<IDockviewPanelProps> = () => (
+	<IssuesPanel />
+);
+
 const panelComponents: Record<
 	string,
 	FunctionComponent<IDockviewPanelProps>
 > = {
-	entities: () => <EntitiesPanel />,
-	objects: () => <ObjectsPanel />,
-	graph: () => <GraphPanel />,
-	"selection-info": () => <SelectionInfoPanel />,
-	// "code-editor": () => <CodeEditorPanel />,
-	issues: () => <IssuesPanel />,
+	entities: EntitiesPanelComponent,
+	objects: ObjectsPanelComponent,
+	graph: GraphPanelComponent,
+	"selection-info": SelectionInfoPanelComponent,
+	issues: IssuesPanelComponent,
 	schema: RenderWhenVisible(SchemaPanel),
 };
 

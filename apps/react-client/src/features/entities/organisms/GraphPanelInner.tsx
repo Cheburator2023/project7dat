@@ -372,9 +372,11 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		]);
 
 		// Notify parent about upstream/downstream changes
+		const onUpstreamDownstreamChangeRef = useRef(onUpstreamDownstreamChange);
+		onUpstreamDownstreamChangeRef.current = onUpstreamDownstreamChange;
 		useEffect(() => {
-			onUpstreamDownstreamChange(upstreamNodes, downstreamNodes);
-		}, [upstreamNodes, downstreamNodes, onUpstreamDownstreamChange]);
+			onUpstreamDownstreamChangeRef.current(upstreamNodes, downstreamNodes);
+		}, [upstreamNodes, downstreamNodes]);
 
 		// unmount
 		useEffect(() => {
@@ -1187,54 +1189,9 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		useEffect(() => {
 			cancelAnimationFrame(animFrameRef.current);
 
-			const isSearchActive =
-				!!globalSearchQuery && searchMatchedEntities.size > 0;
-
-			// Decorate topology nodes with current highlight/search/hover state
-			// so that setNodes never produces bare un-decorated nodes.
-			const decoratedTargetNodes = (layoutedTopologyNodes as Node[]).map(
-				(n) => {
-					let highlightType: EntityNodeData["highlightType"] = "none";
-					const searchScore = searchMatchedEntities.get(n.id);
-					const isSearchMatch = globalSearchQuery && searchScore !== undefined;
-					if (n.id === selectedEntityId) highlightType = "selected";
-					else if (upstreamNodes.has(n.id)) highlightType = "upstream";
-					else if (downstreamNodes.has(n.id)) highlightType = "downstream";
-					else if (isSearchMatch) highlightType = "searchMatch";
-
-					const nextHoverAttrs =
-						hoverHighlightedByEntity.get(n.id) || EMPTY_STRING_SET;
-					const nextSelectedAttrs =
-						selectedHighlightedByEntity.get(n.id) || EMPTY_STRING_SET;
-					const nextAttributeSearchMatchedAttrs =
-						attributeSearchMatchedByEntity.get(n.id) || EMPTY_STRING_SET;
-					const nextIsExpanded = nextAttributeSearchMatchedAttrs.size > 0;
-
-					return {
-						...n,
-						zIndex: n.id === selectedEntityId ? 1000 : 0,
-						data: {
-							...n.data,
-							highlightType,
-							hoverHighlightedAttrs: nextHoverAttrs,
-							selectedHighlightedAttrs: nextSelectedAttrs,
-							attributeSearchMatchedAttrs: nextAttributeSearchMatchedAttrs,
-							isSearchActive,
-							isSearchMatch: !!isSearchMatch,
-							searchMatchScore: searchScore,
-							isExpanded: nextIsExpanded,
-							onNodeClick: handleNodeClick,
-							onNodeDoubleClick: handleNodeDblClick,
-							onAttrHover: handleAttrHover,
-							onAttrClick: handleAttrClick,
-							onToggleExpand: handleToggleExpand,
-						},
-					};
-				},
-			);
-
+			const targetNodes = layoutedTopologyNodes as Node[];
 			const targetPositions = new Map<string, { x: number; y: number }>();
-			for (const n of decoratedTargetNodes) {
+			for (const n of targetNodes) {
 				targetPositions.set(n.id, { x: n.position.x, y: n.position.y });
 			}
 
@@ -1258,7 +1215,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						: { x: 0, y: 0 };
 
 			const startPositions = new Map<string, { x: number; y: number }>();
-			for (const n of decoratedTargetNodes) {
+			for (const n of targetNodes) {
 				startPositions.set(n.id, prev.get(n.id) ?? fallback);
 			}
 
@@ -1269,7 +1226,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 
 			if (isFirstRender) {
 				// No animation on first render — just set positions directly
-				setNodes(decoratedTargetNodes);
+				setNodes(targetNodes);
 				prevPositionsRef.current = targetPositions;
 				return;
 			}
@@ -1284,7 +1241,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				const t = 1 - (1 - rawT) ** 3;
 
 				setNodes(
-					decoratedTargetNodes.map((n) => {
+					targetNodes.map((n) => {
 						const start = startPositions.get(n.id)!;
 						const target = targetPositions.get(n.id)!;
 						return {
@@ -1314,18 +1271,6 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			setNodes,
 			setEdges,
 			selectedEntityId,
-			globalSearchQuery,
-			searchMatchedEntities,
-			upstreamNodes,
-			downstreamNodes,
-			hoverHighlightedByEntity,
-			selectedHighlightedByEntity,
-			attributeSearchMatchedByEntity,
-			handleNodeClick,
-			handleNodeDblClick,
-			handleAttrHover,
-			handleAttrClick,
-			handleToggleExpand,
 		]);
 
 		// Apply highlight/search/hover decorations WITHOUT re-running layout

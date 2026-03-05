@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
-import { default as axios } from "axios";
 import {
 	Alert,
 	Box,
@@ -18,12 +17,15 @@ import {
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
 import { useAuthStore } from "@react-client/common/stores/authStore";
-import { useProcesses, useS2tCommitList } from "@react-client/api/hooks";
+import {
+	useProcesses,
+	useS2tCommitList,
+	useConvertXlsxToCommitJson,
+	useValidateJson,
+} from "@react-client/api/hooks";
+import { s2tCommitStoreService } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
-
-const API_BASE_URL =
-	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
 
 const UploadBox = styled(Box)(({ theme }) => ({
 	border: `2px dashed ${theme.palette.divider}`,
@@ -79,6 +81,9 @@ export const S2tCommitEditor = ({
 	const authStore = useAuthStore();
 	const username = authStore.userInfo?.username ?? "system";
 	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
+
+	const convertXlsxMutation = useConvertXlsxToCommitJson();
+	const validateJsonMutation = useValidateJson();
 
 	const [_convertedMeta, setConvertedMeta] = useState<{
 		fileName?: string;
@@ -183,21 +188,14 @@ export const S2tCommitEditor = ({
 			if (!prefillCommitId) return;
 
 			try {
-				const res = await axios.get(
-					`${API_BASE_URL}/api/s2t-import/commits/${prefillCommitId}`,
-				);
-				const commit = (res.data?.commit ?? res.data) as any;
-				const payload = (commit?.payload ??
-					commit?.commitJson ??
-					commit?.data) as any;
-				const payloadDesc = (payload?.desc ?? commit?.desc) as any;
+				const commit = await s2tCommitStoreService.getById(prefillCommitId);
+				const payload = commit?.payload as any;
+				const payloadDesc = (payload?.desc ?? {}) as any;
 
 				if (cancelled) return;
 
-				setCommitName(String(commit?.commit_name ?? commit?.commitName ?? ""));
-				setCommitDescription(
-					String(commit?.commit_description ?? commit?.commitDescription ?? ""),
-				);
+				setCommitName(String(commit?.commit_name ?? ""));
+				setCommitDescription(String(commit?.commit_description ?? ""));
 				setProcessName(String(payloadDesc?.process ?? ""));
 				setProcessDescription(String(payloadDesc?.description ?? ""));
 				setPrefilledCommitType(
@@ -345,21 +343,18 @@ export const S2tCommitEditor = ({
 
 				const xlsxBase64 = await fileToBase64(selectedFile);
 
-				const convertResponse = await axios.post(
-					`${API_BASE_URL}/api/s2t-import/convert-xlsx-to-commit-json`,
-					{
-						xlsxBase64,
-						fileName: selectedFile.name,
-						commitName: commitName.trim(),
-						processName: shouldShowProcessFields ? processName : undefined,
-						processDescription: showProcessFields
-							? processDescription.trim()
-							: undefined,
-					},
-				);
+				const convertResponse = await convertXlsxMutation.mutateAsync({
+					xlsxBase64,
+					fileName: selectedFile.name,
+					commitName: commitName.trim(),
+					processName: shouldShowProcessFields ? processName : undefined,
+					processDescription: showProcessFields
+						? processDescription.trim()
+						: undefined,
+				});
 
-				commitJson = convertResponse.data?.commitJson;
-				const meta = convertResponse.data?.meta;
+				commitJson = convertResponse?.commitJson;
+				const meta = convertResponse?.meta;
 
 				setConvertedMeta({
 					fileName: meta?.fileName,
@@ -367,12 +362,9 @@ export const S2tCommitEditor = ({
 					worksheetsCount: commitJson?.entities?.length ?? 0,
 				});
 
-				const validateResponse = await axios.post(
-					`${API_BASE_URL}/api/json-validation/validate`,
-					{ data: commitJson },
-				);
-
-				const validationData = validateResponse.data;
+				const validationData = await validateJsonMutation.mutateAsync({
+					data: commitJson,
+				});
 				const isValid =
 					typeof validationData?.isValid === "boolean"
 						? validationData.isValid
@@ -401,22 +393,22 @@ export const S2tCommitEditor = ({
 					return;
 				}
 
-				const saveResponse = await axios.post(
-					`${API_BASE_URL}/api/s2t-import/commits`,
-					{
-						id: mode === "overwrite" ? savedCommit?.id : undefined,
-						parent_id: undefined,
-						commit_name: commitName.trim(),
-						commit_description: commitDescription.trim()
-							? commitDescription.trim()
-							: undefined,
-						type: commitType,
-						user: username,
-						payload: commitJson,
-					},
-				);
+				const updatePayload: any = {
+					parent_id: undefined,
+					commit_name: commitName.trim(),
+					commit_description: commitDescription.trim()
+						? commitDescription.trim()
+						: undefined,
+					type: commitType,
+					user: username,
+					payload: commitJson,
+				};
+				if (mode === "overwrite" && savedCommit?.id) {
+					updatePayload.id = savedCommit.id;
+				}
+				const saveResponse = await s2tCommitStoreService.update(updatePayload);
 
-				const savedId: string | undefined = saveResponse.data?.id;
+				const savedId = saveResponse?.id;
 				if (!savedId) {
 					throw new Error("Не удалось сохранить коммит: сервер не вернул id");
 				}
@@ -426,9 +418,9 @@ export const S2tCommitEditor = ({
 
 				setSavedCommit({
 					id: savedId,
-					state: saveResponse.data?.state,
-					change_id: saveResponse.data?.change_id ?? null,
-					error: saveResponse.data?.error ?? null,
+					state: saveResponse?.state,
+					change_id: saveResponse?.change_id ?? null,
+					error: saveResponse?.error ?? null,
 				});
 				setPrefilledCommitType(commitType);
 
@@ -463,6 +455,10 @@ export const S2tCommitEditor = ({
 			shouldShowProcessFields,
 			showProcessFields,
 			username,
+			convertXlsxMutation,
+			validateJsonMutation,
+			originalCommitId,
+			onSaved,
 		],
 	);
 

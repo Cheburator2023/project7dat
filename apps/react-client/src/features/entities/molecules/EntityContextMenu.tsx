@@ -18,8 +18,11 @@ import { useNavigate } from "react-router-dom";
 import type { DataLineageEntity } from "@react-client/types/dataLineage";
 import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { toast } from "sonner";
-import { useAuthStore } from "@react-client/common/stores/authStore";
-import { usePaginatedEntityRelations } from "@react-client/api/hooks";
+import {
+	usePaginatedEntityRelations,
+	useDownloadS2tReport,
+	useDownloadJsonReport,
+} from "@react-client/api/hooks";
 import { useEntitiesStore } from "../stores";
 import type { EntityConnection } from "../types";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
@@ -48,53 +51,6 @@ const buildDefaultFileName = (params: {
 	return `${base}${timestamp}.${params.extension}`;
 };
 
-const downloadJson = (params: { data: unknown; fileName: string }) => {
-	const dataStr = JSON.stringify(params.data, null, 2);
-	const dataBlob = new Blob([dataStr], { type: "application/json" });
-	const url = URL.createObjectURL(dataBlob);
-
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = params.fileName;
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	URL.revokeObjectURL(url);
-};
-
-const getFileNameFromContentDisposition = (value: string | null) => {
-	if (!value) return null;
-
-	const parts = value.split(";").map((p) => p.trim());
-	const filenameStar = parts.find((p) =>
-		p.toLowerCase().startsWith("filename*="),
-	);
-	if (filenameStar) {
-		const raw = filenameStar.split("=")[1] ?? "";
-		const cleaned = raw.replace(/^UTF-8''/i, "").replace(/^"|"$/g, "");
-		try {
-			return decodeURIComponent(cleaned);
-		} catch {
-			return cleaned;
-		}
-	}
-
-	const filename = parts.find((p) => p.toLowerCase().startsWith("filename="));
-	if (!filename) return null;
-	return (filename.split("=")[1] ?? "").replace(/^"|"$/g, "");
-};
-
-const downloadBlob = (params: { blob: Blob; fileName: string }) => {
-	const url = URL.createObjectURL(params.blob);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = params.fileName;
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	URL.revokeObjectURL(url);
-};
-
 export interface EntityContextMenuState {
 	entityId: string;
 	entityName: string;
@@ -115,7 +71,8 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 		const navigate = useNavigate();
 		const { setRevealPosition } = useDataLineageStore();
 		const { setZoomToNode, selectEntity } = useEntitiesStore();
-		const { accessToken } = useAuthStore();
+		const downloadS2tReport = useDownloadS2tReport();
+		const downloadJsonReport = useDownloadJsonReport();
 
 		const { data: relationsData, isLoading: isRelationsLoading } =
 			usePaginatedEntityRelations({
@@ -160,7 +117,7 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 			onClose();
 		}, [contextMenu?.entityId, onClose]);
 
-		const handleShowInEditor = useCallback(() => {
+		const _handleShowInEditor = useCallback(() => {
 			if (contextMenu?.entityId) {
 				setRevealPosition({ nodeId: contextMenu.entityId, from: "search" });
 			}
@@ -275,18 +232,17 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 				extension: "json",
 			});
 
-			downloadJson({ data: report, fileName });
+			downloadJsonReport({ data: report, fileName });
 		}, [
 			contextMenu?.entityId,
 			relationsData,
 			entity,
 			isAllowedReportEntityType,
 			relatedMappingsCount,
+			downloadJsonReport,
 		]);
 
 		const handleDownloadS2tReport = useCallback(async () => {
-			const API_BASE_URL =
-				window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
 			if (!contextMenu?.entityId) return;
 			if (!entity) {
 				toast.error("Не удалось определить сущность");
@@ -302,38 +258,24 @@ export const EntityContextMenu = memo<EntityContextMenuProps>(
 			}
 
 			try {
-				const url = new URL(`${API_BASE_URL}/api/s2t-export/dl`);
-				url.searchParams.set("entityId", contextMenu.entityId);
-
-				const res = await fetch(url.toString(), {
-					method: "GET",
-					headers: {
-						...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-					},
-				});
-
-				if (!res.ok) {
-					throw new Error(`HTTP ${res.status}`);
-				}
-
-				const blob = await res.blob();
-				const cd = res.headers.get("content-disposition");
-				const responseFileName = getFileNameFromContentDisposition(cd);
 				const fallbackName = buildDefaultFileName({
 					entityName: entity.name ?? entity.id,
 					schemaName: entity.namespace,
 					extension: "xlsx",
 				});
-				downloadBlob({ blob, fileName: responseFileName ?? fallbackName });
-			} catch (e: any) {
-				toast.error(`Не удалось скачать отчёт: ${e?.message ?? "ошибка"}`);
+				await downloadS2tReport({
+					entityId: contextMenu.entityId,
+					fallbackFileName: fallbackName,
+				});
+			} catch {
+				// Error already handled in hook
 			}
 		}, [
-			accessToken,
 			contextMenu?.entityId,
 			entity,
 			isAllowedReportEntityType,
 			relatedMappingsCount,
+			downloadS2tReport,
 		]);
 
 		return (

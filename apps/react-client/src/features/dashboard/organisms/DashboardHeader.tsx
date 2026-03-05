@@ -10,7 +10,6 @@ import {
 	FilterButton,
 	SelectedEntityChip,
 } from "../../entities/molecules";
-import { S2tImportDialog } from "@react-client/features/s2tImport/organisms/S2tImportDialog";
 
 // S2T format conversion utilities
 interface S2TFormat {
@@ -37,7 +36,7 @@ interface S2TFormat {
 	}>;
 }
 
-const convertGraphToS2T = (graph: DataLineageGraph): S2TFormat => {
+const _convertGraphToS2T = (graph: DataLineageGraph): S2TFormat => {
 	return {
 		generatedAt: new Date().toISOString(),
 		format: "S2T-JSON",
@@ -83,7 +82,7 @@ export const DashboardHeader = memo(() => {
 		})),
 	);
 
-	const [isS2tImportDialogOpen, setIsS2tImportDialogOpen] = useState(false);
+	const [_isS2tImportDialogOpen, _setIsS2tImportDialogOpen] = useState(false);
 
 	return (
 		<>
@@ -131,11 +130,6 @@ export const DashboardHeader = memo(() => {
 					</Select> */}
 				</Flex>
 			</Header>
-
-			<S2tImportDialog
-				open={isS2tImportDialogOpen}
-				onClose={() => setIsS2tImportDialogOpen(false)}
-			/>
 		</>
 	);
 });

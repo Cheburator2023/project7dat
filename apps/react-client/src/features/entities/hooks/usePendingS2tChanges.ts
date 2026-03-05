@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import type {
 	DataLineageSchema,
 	DataLineageEntity,
 } from "@react-client/types/dataLineage";
-
-const API_BASE_URL =
-	window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
+import { useS2tCommitById } from "../../../api/hooks/useS2tCommitById";
 
 const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
 
@@ -56,29 +53,18 @@ export function usePendingS2tChanges(currentSchema: DataLineageSchema | null) {
 		};
 	}, []);
 
-	useEffect(() => {
-		let cancelled = false;
-		const run = async () => {
-			if (!pendingCommitId) {
-				setPendingSchema(null);
-				return;
-			}
-			try {
-				const res = await axios.get(
-					`${API_BASE_URL}/api/s2t-import/commits/${pendingCommitId}`,
-				);
-				const payload = res.data?.payload as DataLineageSchema | undefined;
-				if (!cancelled) setPendingSchema(payload ?? null);
-			} catch {
-				if (!cancelled) setPendingSchema(null);
-			}
-		};
+	const { data: commitData } = useS2tCommitById(pendingCommitId, {
+		enabled: !!pendingCommitId,
+	});
 
-		run();
-		return () => {
-			cancelled = true;
-		};
-	}, [pendingCommitId]);
+	useEffect(() => {
+		if (!pendingCommitId) {
+			setPendingSchema(null);
+			return;
+		}
+		const payload = commitData?.payload as DataLineageSchema | undefined;
+		setPendingSchema(payload ?? null);
+	}, [pendingCommitId, commitData]);
 
 	const { changeByEntityId, addedOnlyEntityIds, displaySchema } =
 		useMemo(() => {
