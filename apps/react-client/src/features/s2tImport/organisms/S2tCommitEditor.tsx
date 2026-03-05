@@ -16,7 +16,7 @@ import {
 	CloudUpload as CloudUploadIcon,
 } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
-import { useAuthStore } from "@react-client/common/stores/authStore";
+import { useUserStore } from "@react-client/common/stores/userStore";
 import {
 	useProcesses,
 	useS2tCommitList,
@@ -78,8 +78,7 @@ export const S2tCommitEditor = ({
 	prefillCommitId,
 	showCloseButton = false,
 }: S2tCommitEditorProps) => {
-	const authStore = useAuthStore();
-	const username = authStore.userInfo?.username ?? "system";
+	const username = useUserStore((state) => state.username) ?? "system";
 	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
 
 	const convertXlsxMutation = useConvertXlsxToCommitJson();
