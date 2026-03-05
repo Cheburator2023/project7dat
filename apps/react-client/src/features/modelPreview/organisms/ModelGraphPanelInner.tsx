@@ -164,27 +164,46 @@ const computeNodeDepths = (
 	if (!rootId) return depths;
 	depths.set(rootId, 0);
 
-	// Bidirectional BFS (upstream + downstream) to mirror backend traversal.
+	// BFS upstream (negative depths)
 	let frontier: string[] = [rootId];
 	let level = 0;
-	const visited = new Set<string>([rootId]);
-
+	const visitedUp = new Set<string>([rootId]);
 	while (frontier.length > 0) {
+		level -= 1;
 		const next: string[] = [];
 		for (const current of frontier) {
-			const neighbors = new Set<string>([
-				...(upstream.get(current) ?? []),
-				...(downstream.get(current) ?? []),
-			]);
-			for (const neighbor of neighbors) {
-				if (visited.has(neighbor) || !visibleNodeIds.has(neighbor)) continue;
-				visited.add(neighbor);
-				depths.set(neighbor, level + 1);
-				next.push(neighbor);
+			const parents = upstream.get(current);
+			if (!parents) continue;
+			for (const parent of parents) {
+				if (visitedUp.has(parent) || !visibleNodeIds.has(parent)) continue;
+				visitedUp.add(parent);
+				depths.set(parent, level);
+				next.push(parent);
 			}
 		}
 		frontier = next;
+	}
+
+	// BFS downstream (positive depths)
+	frontier = [rootId];
+	level = 0;
+	const visitedDown = new Set<string>([rootId]);
+	while (frontier.length > 0) {
 		level += 1;
+		const next: string[] = [];
+		for (const current of frontier) {
+			const children = downstream.get(current);
+			if (!children) continue;
+			for (const child of children) {
+				if (visitedDown.has(child) || !visibleNodeIds.has(child)) continue;
+				visitedDown.add(child);
+				if (!depths.has(child)) {
+					depths.set(child, level);
+				}
+				next.push(child);
+			}
+		}
+		frontier = next;
 	}
 
 	return depths;
@@ -967,7 +986,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 			);
 			if (selectedNode) {
 				const modelNodeId = `__model__fake_node__${selectedNode}`;
-				if (visibleIds.has(modelNodeId)) depths.set(modelNodeId, 0);
+				if (visibleIds.has(modelNodeId)) depths.set(modelNodeId, 1);
 			}
 			return depths;
 		}, [selectedNode, lineageGraph, initialNodes]);
@@ -1122,7 +1141,7 @@ export const ModelGraphPanelInner = memo<GraphPanelInnerProps>(
 					DEPTH_LEVEL_COLORS.length;
 				const color = DEPTH_LEVEL_COLORS[colorIdx];
 
-				const depthLabel = depth === 0 ? "Выбранная" : `Шаг ${depth}`;
+				const depthLabel = depth === 0 ? "Выбранная" : `Шаг ${Math.abs(depth)}`;
 
 				const groupId = `__depth_group_${depth}`;
 				groupNodes.push({

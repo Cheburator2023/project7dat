@@ -45,7 +45,6 @@ import "jsondiffpatch/formatters/styles/html.css";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
-	useCurrentDataLineageGraph,
 	useS2tCommitList,
 	PAGINATED_ENTITY_RELATIONS_QUERY_KEY,
 } from "@react-client/api/hooks";
@@ -505,7 +504,7 @@ export const AllCommitsPage: FC = () => {
 						<ListItemIcon>
 							<EditIcon fontSize="small" />
 						</ListItemIcon>
-						<ListItemText>Редактировать метаданные</ListItemText>
+						<ListItemText>Редактировать наименование и описание</ListItemText>
 					</MenuItem>,
 					<MenuItem
 						key="edit-json"
@@ -523,8 +522,8 @@ export const AllCommitsPage: FC = () => {
 						</ListItemIcon>
 						<ListItemText>
 							{contextMenuCommit.state === "processing"
-								? "Редактировать JSON"
-								: "Просмотреть JSON"}
+								? "Редактировать данные коммита"
+								: "Просмотреть данные коммита"}
 						</ListItemText>
 					</MenuItem>,
 					<MenuItem
@@ -537,7 +536,7 @@ export const AllCommitsPage: FC = () => {
 						<ListItemIcon>
 							<CompareArrowsIcon fontSize="small" />
 						</ListItemIcon>
-						<ListItemText>Diff к текущему JSON</ListItemText>
+						<ListItemText>Сравнить с актуальными данными</ListItemText>
 					</MenuItem>,
 					<Divider key="divider" />,
 					<MenuItem
@@ -554,7 +553,7 @@ export const AllCommitsPage: FC = () => {
 						<ListItemIcon>
 							<MergeIcon fontSize={16} />
 						</ListItemIcon>
-						<ListItemText>Применить (merge)</ListItemText>
+						<ListItemText>Начать применение коммита</ListItemText>
 					</MenuItem>,
 					<MenuItem
 						key="delete"

@@ -1,15 +1,14 @@
 import dagre from "@dagrejs/dagre";
 import type { Node, Edge, Position } from "@xyflow/react";
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 export const getLayoutedElements = (
 	nodes: Node[],
 	edges: Edge[],
 	direction = "TB",
 ) => {
 	const isHorizontal = direction === "LR";
+	const dagreGraph = new dagre.graphlib.Graph();
+	dagreGraph.setDefaultEdgeLabel(() => ({}));
 	dagreGraph.setGraph({ rankdir: direction });
 
 	nodes.forEach((node) => {
