@@ -8,7 +8,6 @@ import {
 	IconButton,
 	Typography,
 } from "@mui/material";
-import { default as axios } from "axios";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useNavigate } from "react-router";
@@ -41,77 +40,6 @@ export function Header({
 	const navigate = useNavigate();
 	const { selectedEntityId } = useEntitiesStore();
 	const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-	const [pendingS2t, setPendingS2t] = useState<{
-		commitId: string;
-		state: string;
-		updatedAt?: string;
-	} | null>(null);
-	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
-	const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
-	const [_isApplyingS2t, setIsApplyingS2t] = useState(false);
-
-	const _handleApplyPendingS2t = async () => {
-		if (!pendingS2t?.commitId) return;
-		if (pendingS2t.state === "applying") return;
-		setIsApplyingS2t(true);
-		try {
-			localStorage.setItem(
-				S2T_PENDING_COMMIT_LS_KEY,
-				JSON.stringify({
-					...pendingS2t,
-					state: "applying",
-					updatedAt: new Date().toISOString(),
-				}),
-			);
-
-			const res = await axios.post(
-				`${API_BASE_URL}/api/s2t-import/commits/${pendingS2t.commitId}/apply`,
-				{},
-			);
-			localStorage.removeItem(S2T_PENDING_COMMIT_LS_KEY);
-			window.dispatchEvent(
-				new CustomEvent("s2t_commit_applied", {
-					detail: {
-						commitId: pendingS2t.commitId,
-						changeId: res.data?.changeId ?? res.data?.commit?.change_id,
-					},
-				}),
-			);
-		} catch {
-			localStorage.setItem(
-				S2T_PENDING_COMMIT_LS_KEY,
-				JSON.stringify({
-					...pendingS2t,
-					state: "failed",
-					updatedAt: new Date().toISOString(),
-				}),
-			);
-		} finally {
-			setIsApplyingS2t(false);
-		}
-	};
-
-	useEffect(() => {
-		const read = () => {
-			try {
-				const raw = localStorage.getItem(S2T_PENDING_COMMIT_LS_KEY);
-				setPendingS2t(raw ? JSON.parse(raw) : null);
-			} catch {
-				setPendingS2t(null);
-			}
-		};
-
-		read();
-		const onStorage = (e: StorageEvent) => {
-			if (e.key === S2T_PENDING_COMMIT_LS_KEY) read();
-		};
-		window.addEventListener("storage", onStorage);
-		const interval = window.setInterval(read, 2000);
-		return () => {
-			window.removeEventListener("storage", onStorage);
-			window.clearInterval(interval);
-		};
-	}, []);
 
 	const id1 = new URLSearchParams(window.location.search).get("id1");
 	const id2 = new URLSearchParams(window.location.search).get("id2");

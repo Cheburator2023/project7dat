@@ -18,7 +18,7 @@ const getMethodFromConfig = (config: any): string => {
 };
 
 const getUrlFromConfig = (config: any): string => {
-	return config?.url || "Unknown URL";
+	return config?.url || "";
 };
 
 const shouldShowToast = (url: string): boolean => {
