@@ -107,10 +107,9 @@ const ENTITY_HANDLE_STYLE = {
 	top: 30,
 };
 
-// Stable selector for global attribute search
-const selectGlobalAttributeSearch = (state: {
-	globalAttributeSearchQuery: string;
-}) => state.globalAttributeSearchQuery;
+const selectAttributeSearchByGraphId = (state: {
+	attributeSearchQueryByGraphId: Record<string, string>;
+}) => state.attributeSearchQueryByGraphId;
 
 export const EntityNodePreviewComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
@@ -149,13 +148,13 @@ export const EntityNodePreviewComponent = memo(
 		// Local search state
 		const [localSearchQuery, setLocalSearchQuery] = useState("");
 
-		// Get global attribute search from store with stable selector
-		const globalAttributeSearchQuery = useEntitiesStore(
-			selectGlobalAttributeSearch,
+		const attributeSearchQueryByGraphId = useEntitiesStore(
+			selectAttributeSearchByGraphId,
 		);
-
-		// Use global search if available, otherwise local
-		const activeSearchQuery = globalAttributeSearchQuery || localSearchQuery;
+		const graphAttributeSearchQuery = graphId
+			? (attributeSearchQueryByGraphId[graphId] ?? "")
+			: "";
+		const activeSearchQuery = graphAttributeSearchQuery || localSearchQuery;
 
 		// Debounce store update for local search if needed, but here we just use local state primarily
 		// Dashboard syncs with store, we can keep it simple here or match.
@@ -254,8 +253,9 @@ export const EntityNodePreviewComponent = memo(
 		const handleViewDetailsClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
-				if (isDisabledEffective) return;
+				// if (isDisabledEffective) return;
 				onViewDetails?.(id);
+				console.log("🐸 Pepe said >> id:", id);
 			},
 			[id, isDisabledEffective, onViewDetails],
 		);
@@ -409,7 +409,7 @@ export const EntityNodePreviewComponent = memo(
 								<button
 									onClick={handleViewDetailsClick}
 									style={detailsButtonStyle}
-									title={"Открыть детали"}
+									title="Открыть детали"
 									type="button"
 								>
 									ⓘ
@@ -428,7 +428,7 @@ export const EntityNodePreviewComponent = memo(
 				</div>
 
 				{/* Search input for attributes */}
-				{!globalAttributeSearchQuery && (
+				{!graphAttributeSearchQuery && (
 					<div
 						className="nodrag nopan"
 						style={{

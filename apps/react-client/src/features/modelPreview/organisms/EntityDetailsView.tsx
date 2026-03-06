@@ -16,7 +16,6 @@ import {
 	Accordion,
 	AccordionSummary,
 	AccordionDetails,
-	Tooltip,
 	Link,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -215,18 +214,17 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 												<TableCell
 													sx={{ fontFamily: "monospace", fontSize: 11 }}
 												>
-													<Tooltip title="Открыть страницу сущности">
-														<Link
-															component="button"
-															variant="body2"
-															sx={{ fontSize: 11 }}
-															onClick={() =>
-																handleOpenEntityPage(dep.sourceEntityId)
-															}
-														>
-															{dep.sourceName}
-														</Link>
-													</Tooltip>
+													<Link
+														component="button"
+														variant="body2"
+														sx={{ fontSize: 11 }}
+														title="Открыть страницу сущности"
+														onClick={() =>
+															handleOpenEntityPage(dep.sourceEntityId)
+														}
+													>
+														{dep.sourceName}
+													</Link>
 												</TableCell>
 												<TableCell>{dep.process || "—"}</TableCell>
 												<TableCell>

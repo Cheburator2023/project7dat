@@ -36,11 +36,14 @@ import {
 	HelpOutline as HelpOutlineIcon,
 	TableChart as TableChartIcon,
 	ViewModule as ViewModuleIcon,
+	Psychology as PsychologyIcon,
+	AutoAwesome as AutoAwesomeIcon,
+	Science as ScienceIcon,
+	Analytics as AnalyticsIcon,
 } from "@mui/icons-material";
 import { ModelGraphPanel } from "@react-client/features/modelPreview/organisms/ModelGraphPanel";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, Brain, Sparkles, Network } from "lucide-react";
 import { usePaginatedModelRelations } from "@react-client/api/hooks/usePaginatedModelRelations";
-import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { SkeletonFade } from "@react-client/common/skeleton/atoms/SkeletonFade";
 import { SkeletonBlock } from "@react-client/common/skeleton/atoms/SkeletonBlock";
 import { SkeletonList } from "@react-client/common/skeleton/molecules/SkeletonList";
@@ -110,6 +113,72 @@ interface EntityPreviewPageProps {
 	entityId?: string;
 }
 
+const DockviewContainer = styled("div")(({ theme }) => {
+	return {
+		position: "absolute",
+		width: "100%",
+		height: "100%",
+		left: 0,
+		top: 0,
+		zIndex: 1,
+		pointerEvents: "auto",
+		backgroundColor: "transparent",
+		color: theme.vars?.palette?.text.primary,
+		"& .dockview-react": {
+			height: "100%",
+			width: "100%",
+		},
+		"& .dv-groupview": {
+			borderRadius: "8px",
+			border: "1px solid #a5aaba90",
+			backgroundColor: theme.vars?.palette?.background.paper,
+		},
+		"& .dv-tabs-and-actions-container": {
+			backgroundColor: theme.vars?.palette?.background.paper,
+			borderBottom: "1px solid rgb(83 83 83 / 30%)",
+		},
+		"& .dv-content-container": {
+			backgroundColor: theme.vars?.palette?.background.default,
+		},
+		"& .dv-tab": {
+			backgroundColor: "transparent",
+			color: theme.vars?.palette?.text.secondary,
+			"&:hover": {
+				backgroundColor: theme.vars?.palette?.action.hover,
+				color: theme.vars?.palette?.text.primary,
+			},
+		},
+		"& .dv-tab.active-tab": {
+			backgroundColor: theme.vars?.palette?.action.selected,
+			color: theme.vars?.palette?.primary.main,
+			fontWeight: 600,
+		},
+		"& .dv-tab-content": {
+			padding: "4px 9px",
+			borderRadius: "8px",
+			backgroundColor: "#488ecb1a",
+		},
+	};
+});
+
+const EntityContainer = styled("div")(
+	({ theme }) => `
+	height: 100%;
+	width: 100%;
+	background-color: ${theme.vars?.palette?.background.paper};
+	color: ${theme.vars?.palette?.text.primary};
+`,
+);
+
+const Wrapper = styled("div")(
+	({ theme }) => `
+	height: calc(100vh - 64px);
+	position: relative;
+	background-color: transparent;
+	color: ${theme.vars?.palette?.text.primary};
+`,
+);
+
 type ModelPreviewDockviewContextValue = {
 	isLoading: boolean;
 	selectedEntity: DataLineageEntity | null;
@@ -124,6 +193,8 @@ type ModelPreviewDockviewContextValue = {
 	depthLimit: number;
 	onDepthChange: (next: number) => void;
 	onSelectNode: (data: any) => void;
+	searchQuery: string;
+	searchMatchedEntities: Map<string, number>;
 };
 
 const ModelPreviewDockviewContext =
@@ -136,19 +207,12 @@ const ModelPreviewDockviewContext =
 		depthLimit: 1,
 		onDepthChange: () => {},
 		onSelectNode: () => {},
+		searchQuery: "",
+		searchMatchedEntities: new Map(),
 	});
 
 const useModelPreviewDockviewContext = (): ModelPreviewDockviewContextValue =>
 	useContext(ModelPreviewDockviewContext);
-
-// Stable selectors for useEntitiesStore
-const selectGlobalAttributeSearchQuery = (state: {
-	globalAttributeSearchQuery: string;
-}) => state.globalAttributeSearchQuery;
-
-const selectSetGlobalAttributeSearch = (state: {
-	setGlobalAttributeSearch: (query: string) => void;
-}) => state.setGlobalAttributeSearch;
 
 export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 	entityId: propEntityId,
@@ -176,34 +240,17 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		});
 	}, [setSearchParams]);
 
-	// Global attribute search
-	const globalAttributeSearchQuery = useEntitiesStore(
-		selectGlobalAttributeSearchQuery,
-	);
-	const setGlobalAttributeSearch = useEntitiesStore(
-		selectSetGlobalAttributeSearch,
-	);
-
-	const [attributeSearchInputValue, setAttributeSearchInputValue] = useState(
-		globalAttributeSearchQuery,
-	);
-
-	useEffect(() => {
-		setAttributeSearchInputValue(globalAttributeSearchQuery);
-	}, [globalAttributeSearchQuery]);
+	// Local search — fully isolated from the global dashboard store
+	const [attributeSearchInputValue, setAttributeSearchInputValue] =
+		useState("");
+	const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
 	useEffect(() => {
 		const handle = window.setTimeout(() => {
-			if (attributeSearchInputValue !== globalAttributeSearchQuery) {
-				setGlobalAttributeSearch(attributeSearchInputValue);
-			}
+			setDebouncedSearchQuery(attributeSearchInputValue);
 		}, 300);
 		return () => window.clearTimeout(handle);
-	}, [
-		attributeSearchInputValue,
-		globalAttributeSearchQuery,
-		setGlobalAttributeSearch,
-	]);
+	}, [attributeSearchInputValue]);
 
 	const handleAttributeSearchChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +294,51 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		return null;
 	}, [modelRelationsData]);
 
+	const modelIcon = useMemo(() => {
+		if (!selectedEntity) return null;
+
+		const searchText = [
+			selectedEntity.type,
+			selectedEntity.description,
+			selectedEntity.namespace,
+			selectedEntity.name,
+		]
+			.filter(Boolean)
+			.join(" ")
+			.toLowerCase();
+
+		if (searchText.includes("deep") || searchText.includes("dl")) {
+			return <Brain size={20} />;
+		}
+		if (searchText.includes("nlp") || searchText.includes("language")) {
+			return <Sparkles size={20} />;
+		}
+		if (searchText.includes("neural") || searchText.includes("network")) {
+			return <Network size={20} />;
+		}
+		if (
+			searchText.includes("cv") ||
+			searchText.includes("vision") ||
+			searchText.includes("image")
+		) {
+			return <ScienceIcon sx={{ fontSize: 20 }} />;
+		}
+		if (searchText.includes("ai") || searchText.includes("artificial")) {
+			return <AutoAwesomeIcon sx={{ fontSize: 20 }} />;
+		}
+		if (
+			searchText.includes("analytics") ||
+			searchText.includes("statistical")
+		) {
+			return <AnalyticsIcon sx={{ fontSize: 20 }} />;
+		}
+		if (searchText.includes("ml") || searchText.includes("machine")) {
+			return <PsychologyIcon sx={{ fontSize: 20 }} />;
+		}
+
+		return <PsychologyIcon sx={{ fontSize: 20 }} />;
+	}, [selectedEntity]);
+
 	const relatedMappings = useMemo(() => {
 		if (modelRelationsData?.mappings?.length) {
 			return modelRelationsData.mappings.map((mapping, index) => ({
@@ -289,6 +381,25 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 
 	const onSelectNode = useCallback((data: any) => setCurrentEntityId(data), []);
 	const { mode } = useColorScheme();
+
+	const searchMatchedEntities = useMemo(() => {
+		const result = new Map<string, number>();
+		const q = debouncedSearchQuery.trim().toLowerCase();
+		if (!q || q.length < 3) return result;
+		for (const entity of graphData?.entities ?? []) {
+			const nameMatch = entity.name?.toLowerCase().includes(q);
+			const nsMatch = entity.namespace?.toLowerCase().includes(q);
+			const attrMatch = entity.attrSeq?.some(
+				(a) =>
+					a.name?.toLowerCase().includes(q) ||
+					a.type?.toLowerCase().includes(q),
+			);
+			if (nameMatch || nsMatch || attrMatch) {
+				result.set(entity.id, 1);
+			}
+		}
+		return result;
+	}, [debouncedSearchQuery, graphData?.entities]);
 
 	const panelComponents: Record<
 		string,
@@ -368,7 +479,18 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 		<div>
 			<Header
 				title={
-					<Flex gap={10}>
+					<Flex gap={10} alignItems="center">
+						{modelIcon && (
+							<Box
+								sx={{
+									display: "flex",
+									alignItems: "center",
+									color: "primary.main",
+								}}
+							>
+								{modelIcon}
+							</Box>
+						)}
 						{selectedEntity?.namespace}
 
 						<Chip label="model" size="small" color="secondary" />
@@ -418,6 +540,8 @@ export const ModelPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 							depthLimit,
 							onDepthChange: setDepthLimit,
 							onSelectNode,
+							searchQuery: debouncedSearchQuery,
+							searchMatchedEntities,
 						}}
 					>
 						<DockviewReact
@@ -493,6 +617,8 @@ const EntityGraphDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
 		depthLimit,
 		onDepthChange,
 		onSelectNode,
+		searchQuery,
+		searchMatchedEntities,
 	} = useModelPreviewDockviewContext();
 
 	return (
@@ -503,72 +629,8 @@ const EntityGraphDockviewPanel: FunctionComponent<IDockviewPanelProps> = () => {
 			graphData={graphData}
 			depthLimit={depthLimit}
 			onDepthChange={onDepthChange}
+			searchQuery={searchQuery}
+			searchMatchedEntities={searchMatchedEntities}
 		/>
 	);
 };
-
-const DockviewContainer = styled("div")(({ theme }) => {
-	return {
-		position: "absolute",
-		width: "100%",
-		height: "100%",
-		left: 0,
-		top: 0,
-		zIndex: 1,
-		pointerEvents: "auto",
-		backgroundColor: "transparent",
-		color: theme.vars?.palette?.text.primary,
-		"& .dockview-react": {
-			height: "100%",
-			width: "100%",
-		},
-		"& .dv-groupview": {
-			borderRadius: "8px",
-			border: "1px solid #a5aaba90",
-			backgroundColor: theme.vars?.palette?.background.paper,
-		},
-		"& .dv-tabs-and-actions-container": {
-			backgroundColor: theme.vars?.palette?.background.paper,
-			borderBottom: "1px solid rgb(83 83 83 / 30%)",
-		},
-		"& .dv-content-container": {
-			backgroundColor: theme.vars?.palette?.background.default,
-		},
-		"& .dv-tab": {
-			backgroundColor: "transparent",
-			color: theme.vars?.palette?.text.secondary,
-			"&:hover": {
-				backgroundColor: theme.vars?.palette?.action.hover,
-				color: theme.vars?.palette?.text.primary,
-			},
-		},
-		"& .dv-tab.active-tab": {
-			backgroundColor: theme.vars?.palette?.action.selected,
-			color: theme.vars?.palette?.primary.main,
-			fontWeight: 600,
-		},
-		"& .dv-tab-content": {
-			padding: "4px 9px",
-			borderRadius: "8px",
-			backgroundColor: "#488ecb1a",
-		},
-	};
-});
-
-const EntityContainer = styled("div")(
-	({ theme }) => `
-	height: 100%;
-	width: 100%;
-	background-color: ${theme.vars?.palette?.background.paper};
-	color: ${theme.vars?.palette?.text.primary};
-`,
-);
-
-const Wrapper = styled("div")(
-	({ theme }) => `
-	height: calc(100vh - 64px);
-	position: relative;
-	background-color: transparent;
-	color: ${theme.vars?.palette?.text.primary};
-`,
-);

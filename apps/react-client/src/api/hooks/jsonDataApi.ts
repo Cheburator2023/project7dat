@@ -377,21 +377,6 @@ export const jsonDataService = {
 			.then((response) => response.data);
 	},
 
-	getPaginatedMappings: (params: {
-		page?: number;
-		limit?: number;
-		search?: string;
-	}): Promise<PaginatedMappingsResponse> => {
-		const searchParams = new URLSearchParams();
-		if (params.page) searchParams.append("page", params.page.toString());
-		if (params.limit) searchParams.append("limit", params.limit.toString());
-		if (params.search) searchParams.append("search", params.search);
-
-		return jsonDataApi
-			.get(`/dl/paginated/mappings?${searchParams}`)
-			.then((response) => response.data);
-	},
-
 	getPaginatedEntityRelations: (params: {
 		entityId: string;
 		page?: number;

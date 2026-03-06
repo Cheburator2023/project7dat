@@ -172,7 +172,7 @@ export class JsonExportController {
 		});
 	}
 
-	@Get("dl/entity-relations/:entityId")
+	@Get("dl/entity-relations/*")
 	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
 		summary: "Полный граф связей сущности из кэша",
@@ -189,7 +189,7 @@ export class JsonExportController {
 		description: "Скрывать TMP/TEMP сущности (по умолчанию true)",
 	})
 	async exportCachedEntityRelations(
-		@Param("entityId") entityId: string,
+		@Param("*") entityId: string,
 		@Query("page") pageRaw?: string,
 		@Query("limit") limitRaw?: string,
 		@Query("hideTempTables") hideTempTablesRaw?: string,
@@ -209,14 +209,14 @@ export class JsonExportController {
 		}
 
 		return await this.jsonExportService.exportPaginatedEntityRelations({
-			entityId: decodeURIComponent(entityId),
+			entityId,
 			page,
 			limit,
 			hideTempTables,
 		});
 	}
 
-	@Get("dl/model-relations/:modelId")
+	@Get("dl/model-relations/*")
 	@RealmRole(Permission.DL_VIEW_JSON_DATA)
 	@ApiOperation({
 		summary: "Полный граф связей модели из кэша",
@@ -233,7 +233,7 @@ export class JsonExportController {
 		description: "Скрывать TMP/TEMP сущности (по умолчанию true)",
 	})
 	async exportModelRelationsPaginated(
-		@Param("modelId") modelId: string,
+		@Param("*") modelId: string,
 		@Query("page") pageRaw?: string,
 		@Query("limit") limitRaw?: string,
 		@Query("hideTempTables") hideTempTablesRaw?: string,
@@ -253,7 +253,7 @@ export class JsonExportController {
 		}
 
 		return await this.jsonExportService.exportPaginatedModelRelations({
-			modelId: decodeURIComponent(modelId),
+			modelId,
 			page,
 			limit,
 			hideTempTables,

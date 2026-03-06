@@ -1,5 +1,32 @@
 # Semantic Versioning Changelog
 
+## [1.4.1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.4.0...v1.4.1) (2026-03-04)
+
+
+### Bug Fixes
+
+* search fixes ([5b6be96](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/5b6be96d8038467697eb88c4a6ad75d2954f403c))
+* search fixes ([6ec71c7](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/6ec71c727037907d72ae59a93cfbf23b65f39603))
+
+# [1.4.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.3.3...v1.4.0) (2026-03-04)
+
+
+### Bug Fixes
+
+* css fixes ([ae2938a](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/ae2938af0ba87240192e164d08d951b998a81607))
+* css fixes ([42b5f52](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/42b5f52bf226e5b60c4a3ba429522989a31d625a))
+* search fixes ([23b7340](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/23b73405574d71ff7701cd6d4b0fc8ea219b2de2))
+* добавить раскрытие атрибутов при поиске в EntityPreviewPage и ModelPreviewPage ([52733cb](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/52733cbab9e4b93230eff3ec7405145e2dcb7199))
+* изолировать поиск EntityPreviewPage и ModelPreviewPage от глобального стора дашборда ([f8a9252](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/f8a9252241de02a32c96705fcf37460bba77b10f))
+* Поправил валидацию ([b7b6604](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/b7b660434444e5475316a300fc88c6549dda4eb0))
+* скрытие entity-связей при выборе атрибутов и замена иконки очистки на Clear ([1f5b958](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/1f5b958ffcafd6ed7deb882314593063524c04d4))
+* улучшена логика парсинга схемы и таблицы в S2T экспорте и удалена колонка localStorage из настроек ([fec88fc](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/fec88fc6c24d22bc4e06e211ac2457c1969e79b3))
+
+
+### Features
+
+* добавлена персистентность состояния AG Grid таблиц ([63a3c62](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/63a3c62baaee323f37bca2a3b43875c4f68a9d82))
+
 ## [1.3.3](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.3.2...v1.3.3) (2026-03-02)
 
 

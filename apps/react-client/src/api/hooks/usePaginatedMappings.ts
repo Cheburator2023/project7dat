@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { jsonDataService, type PaginatedMappingsResponse } from "./jsonDataApi";
+import { type PaginatedMappingsResponse } from "./jsonDataApi";
 
 export const PAGINATED_MAPPINGS_QUERY_KEY = [
 	"dataLineage",
@@ -19,12 +19,16 @@ export const usePaginatedMappings = (params: {
 			params.limit,
 			params.search ?? "",
 		],
-		queryFn: () =>
-			jsonDataService.getPaginatedMappings({
+		queryFn: async () => {
+			return {
+				mappings: [],
+				total: 0,
 				page: params.page,
 				limit: params.limit,
-				search: params.search,
-			}),
+				totalPages: 1,
+				desc: { change_date: "" },
+			};
+		},
 		placeholderData: keepPreviousData,
 		staleTime: 0,
 		enabled: params.enabled ?? true,

@@ -1,15 +1,21 @@
-import { memo, useCallback, useMemo, useState } from "react";
-import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
+import { memo, useMemo, useState, useCallback, useRef } from "react";
+import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
+import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 import { Box, Typography, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
+import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
+import { RowGroupingModule } from "ag-grid-enterprise";
 import type {
-	ColDef,
-	RowClickedEvent,
-	RowDoubleClickedEvent,
 	CellContextMenuEvent,
+	ColDef,
+	GridApi,
+	GridReadyEvent,
+	RowDoubleClickedEvent,
+	RowClickedEvent,
 } from "ag-grid-community";
+
 import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
@@ -24,21 +30,19 @@ import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { ObjectTypeChip } from "../atoms/ObjectTypeChip";
 import { HIGHLIGHT_COLORS } from "../constants";
-import { fuzzySearchObjects, fuzzySearchLinks } from "../utils/fuzzySearch";
+import { strictSearchObjects, strictSearchLinks } from "../utils/fuzzySearch";
 import {
 	EntityContextMenu,
 	type EntityContextMenuState,
 } from "../molecules/EntityContextMenu";
 import type { ObjectRow, LinkRow, EntityConnection } from "../types";
-import { usePaginatedEntities } from "@react-client/api/hooks/usePaginatedEntities";
-import { usePaginatedMappings } from "@react-client/api/hooks/usePaginatedMappings";
-import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
+import { usePaginatedEntityRelations } from "@react-client/api/hooks/usePaginatedEntityRelations";
 import type {
 	PaginatedEntitiesResponse,
 	PaginatedMappingsResponse,
 } from "@react-client/api/hooks/jsonDataApi";
 
-const OBJECTS_PAGE_SIZES = [25, 50, 100, 200];
+ModuleRegistry.registerModules([AllCommunityModule, RowGroupingModule]);
 
 type EntityLike = DataLineageEntity | PaginatedEntitiesResponse["entities"][0];
 type MappingLike =
@@ -50,16 +54,13 @@ export const ObjectsPanel = memo(() => {
 	const isDark = mode === "dark";
 	const navigate = useNavigate();
 
-	// Client-side pagination
-	const [objectsPage, setObjectsPage] = useState(1);
-	const [objectsPageSize, setObjectsPageSize] = useState(50);
-	const [linksPage, setLinksPage] = useState(1);
-	const [linksPageSize, setLinksPageSize] = useState(50);
-
 	const {
 		selectedEntityId,
 		selectedAttributeName,
 		selectAttribute,
+		clearSelectedAttributes,
+		toggleSelectedAttribute,
+		setZoomToNode,
 		globalSearchQuery,
 		hideTempTables,
 	} = useEntitiesStore();
@@ -67,43 +68,86 @@ export const ObjectsPanel = memo(() => {
 	const { effectiveGraphId } = useCurrentSchema();
 
 	const {
-		data: paginatedEntitiesData,
-		isLoading: isLoadingPaginatedEntities,
-		isPending: isPendingPaginatedEntities,
-		isFetching: isFetchingPaginatedEntities,
-	} = usePaginatedEntities({
+		data: entityRelationsData,
+		isLoading: isLoadingEntityRelations,
+		isFetching: isFetchingEntityRelations,
+	} = usePaginatedEntityRelations({
+		entityId: selectedEntityId ?? "",
 		page: 1,
-		limit: 50,
-		search: buildEntitiesSearch({
-			uiSearch: globalSearchQuery || undefined,
-			hideTempTables,
-		}),
-		enabled: false,
-	});
-	const {
-		data: paginatedMappingsData,
-		isLoading: isLoadingPaginatedMappings,
-		isPending: isPendingPaginatedMappings,
-		isFetching: isFetchingPaginatedMappings,
-	} = usePaginatedMappings({
-		page: 1,
-		limit: 50,
-		enabled: false,
+		limit: 10000,
+		hideTempTables,
+		enabled: !!selectedEntityId,
 	});
 
 	const entitiesSource = useMemo<EntityLike[]>(() => {
-		return paginatedEntitiesData?.entities ?? [];
-	}, [paginatedEntitiesData?.entities]);
+		if (!entityRelationsData) return [];
+		return [
+			...(entityRelationsData.entity ? [entityRelationsData.entity] : []),
+			...entityRelationsData.relatedEntities,
+		];
+	}, [entityRelationsData]);
 
 	const mappingsSource = useMemo<MappingLike[]>(() => {
-		return paginatedMappingsData?.mappings ?? [];
-	}, [paginatedMappingsData?.mappings]);
+		return entityRelationsData?.mappings ?? [];
+	}, [entityRelationsData?.mappings]);
 
-	const isPanelLoading =
-		isLoadingPaginatedEntities ||
-		isLoadingPaginatedMappings ||
-		isFetchingPaginatedEntities ||
-		isFetchingPaginatedMappings;
+	const isPanelLoading = isLoadingEntityRelations || isFetchingEntityRelations;
+
+	const depthByEntityId = useMemo(() => {
+		const depthMap = new Map<string, number>();
+		if (!selectedEntityId) return depthMap;
+		if (!entitiesSource.length || !mappingsSource.length) {
+			depthMap.set(selectedEntityId, 0);
+			return depthMap;
+		}
+
+		const visibleEntityIds = new Set(entitiesSource.map((e) => e.id));
+		const downstreamAdj = new Map<string, Set<string>>();
+		const upstreamAdj = new Map<string, Set<string>>();
+
+		for (const mapping of mappingsSource) {
+			if (!mapping.deps) continue;
+			for (const dep of mapping.deps) {
+				const src = dep.entityId;
+				const dst = mapping.entityId;
+				if (!visibleEntityIds.has(src) || !visibleEntityIds.has(dst)) continue;
+				const ds = downstreamAdj.get(src);
+				if (ds) ds.add(dst);
+				else downstreamAdj.set(src, new Set([dst]));
+				const us = upstreamAdj.get(dst);
+				if (us) us.add(src);
+				else upstreamAdj.set(dst, new Set([src]));
+			}
+		}
+
+		depthMap.set(selectedEntityId, 0);
+
+		const bfs = (
+			start: string,
+			adj: Map<string, Set<string>>,
+			sign: 1 | -1,
+		) => {
+			const queue: Array<{ id: string; d: number }> = [{ id: start, d: 0 }];
+			const visited = new Set<string>([start]);
+			while (queue.length) {
+				const curr = queue.shift();
+				if (!curr) break;
+				const next = adj.get(curr.id);
+				if (!next) continue;
+				for (const n of next) {
+					if (visited.has(n)) continue;
+					visited.add(n);
+					const nextDepth = (curr.d + 1) * sign;
+					depthMap.set(n, nextDepth);
+					queue.push({ id: n, d: curr.d + 1 });
+				}
+			}
+		};
+
+		bfs(selectedEntityId, downstreamAdj, 1);
+		bfs(selectedEntityId, upstreamAdj, -1);
+		return depthMap;
+	}, [selectedEntityId, entitiesSource, mappingsSource]);
 
 	// View mode toggle: "attributes" or "links"
 	const [viewMode, _setViewMode] = useState<"attributes" | "links">(
@@ -111,25 +155,40 @@ export const ObjectsPanel = memo(() => {
 	);
 
 	// State for mapping dialog
-	const [selectedLink, setSelectedLink] = useState<LinkRow | null>(null);
+	const [selectedLink, setSelectedLink] = useState<LinkRowWithDepth | null>(
+		null,
+	);
 	const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
 
 	// Transform data to object rows (attributes)
-	const objects: ObjectRow[] = useMemo(() => {
-		const rows: ObjectRow[] = [];
+	type ObjectRowWithDepth = ObjectRow & {
+		depthLabel: string;
+		depthOrder: number;
+		entityName: string;
+	};
+	type LinkRowWithDepth = LinkRow & {
+		sourceDepth: number | null;
+		targetDepth: number | null;
+		sourceDepthLabel: string | null;
+		targetDepthLabel: string | null;
+	};
+
+	const getDepthLabel = useCallback((depth: number): string => {
+		if (depth === 0) return "Корень";
+		if (depth > 0) return `Downstream ${depth}`;
+		return `Upstream ${Math.abs(depth)}`;
+	}, []);
+
+	const objects = useMemo<ObjectRowWithDepth[]>(() => {
+		const rows: ObjectRowWithDepth[] = [];
 		const localEntities = entitiesSource;
 		localEntities.forEach((entity) => {
-			// Add entity row
-			rows.push({
-				id: `${effectiveGraphId}::${entity.id}`,
-				graphId: effectiveGraphId || "",
-				name: entity.name ?? entity.id,
-				objectType: entity.modified ? "Витрина" : "Источник",
-				parentEntity: entity.id,
-				description: "",
-			});
-
-			// Add attribute rows
+			const entityDepth = depthByEntityId.get(entity.id) ?? 0;
+			const label = getDepthLabel(entityDepth);
+			const entityName = entity.namespace
+				? `${entity.namespace}.${entity.name ?? entity.id}`
+				: (entity.name ?? entity.id);
+			// Add attribute rows only (entity is shown as group header via row grouping)
 			entity.attrSeq?.forEach((attr) => {
 				rows.push({
 					id: `${effectiveGraphId}::${entity.id}::${attr.name}`,
@@ -139,16 +198,33 @@ export const ObjectsPanel = memo(() => {
 					parentEntity: entity.id,
 					dataType: attr.type,
 					description: attr.comment ?? "",
+					depthLabel: label,
+					depthOrder: entityDepth,
+					entityName,
 				});
 			});
+			// If entity has no attributes, add a placeholder row to keep group visible
+			if (!entity.attrSeq?.length) {
+				rows.push({
+					id: `${effectiveGraphId}::${entity.id}`,
+					graphId: effectiveGraphId || "",
+					name: entity.name ?? entity.id,
+					objectType: entity.modified ? "Витрина" : "Источник",
+					parentEntity: entity.id,
+					description: "",
+					depthLabel: label,
+					depthOrder: entityDepth,
+					entityName,
+				});
+			}
 		});
 
 		return rows;
-	}, [entitiesSource, effectiveGraphId]);
+	}, [entitiesSource, effectiveGraphId, depthByEntityId, getDepthLabel]);
 
 	// Transform data to link rows (connections)
-	const links: LinkRow[] = useMemo(() => {
-		const rows: LinkRow[] = [];
+	const links = useMemo<LinkRowWithDepth[]>(() => {
+		const rows: LinkRowWithDepth[] = [];
 		const entityMap = new Map<string, { id: string; name?: string | null }>();
 		for (const entity of entitiesSource) {
 			entityMap.set(entity.id, entity);
@@ -187,6 +263,8 @@ export const ObjectsPanel = memo(() => {
 					"process_id" in dep && typeof dep.process_id === "number"
 						? dep.process_id
 						: undefined;
+				const srcDepth = depthByEntityId.get(dep.entityId) ?? null;
+				const tgtDepth = depthByEntityId.get(mapping.entityId) ?? null;
 				rows.push({
 					id: `${effectiveGraphId}::${dep.entityId}->${mapping.entityId}::${mappingId}::${depIndex}`,
 					graphId: effectiveGraphId || "",
@@ -199,36 +277,34 @@ export const ObjectsPanel = memo(() => {
 					processCode: mapping.system_code || dep.system_code,
 					attrMappingsCount: attrMaps.length,
 					attrMaps,
+					sourceDepth: srcDepth,
+					targetDepth: tgtDepth,
+					sourceDepthLabel: srcDepth !== null ? getDepthLabel(srcDepth) : null,
+					targetDepthLabel: tgtDepth !== null ? getDepthLabel(tgtDepth) : null,
 				});
 			});
 		});
 
 		return rows;
-	}, [entitiesSource, mappingsSource, effectiveGraphId]);
-
-	// Filter by selected entity first
-	const entityFilteredObjects = useMemo(() => {
-		if (selectedEntityId) {
-			return objects.filter((o) => o.parentEntity === selectedEntityId);
-		}
-		return objects;
-	}, [objects, selectedEntityId]);
+	}, [
+		entitiesSource,
+		mappingsSource,
+		effectiveGraphId,
+		depthByEntityId,
+		getDepthLabel,
+	]);
 
 	const objectsSearch = useMemo(() => {
 		const query = globalSearchQuery.trim();
 		if (!query) {
 			return {
-				items: entityFilteredObjects,
+				items: objects,
 				highlightsMap: new Map<string, Map<string, string>>(),
 			};
 		}
 
-		const entityRows = entityFilteredObjects.filter(
-			(row) => row.objectType !== "Признак",
-		);
-		const attributeRows = entityFilteredObjects.filter(
-			(row) => row.objectType === "Признак",
-		);
+		const entityRows = objects.filter((row) => row.objectType !== "Признак");
+		const attributeRows = objects.filter((row) => row.objectType === "Признак");
 
 		const attrsByEntityId = new Map<string, ObjectRow[]>();
 		for (const row of attributeRows) {
@@ -248,7 +324,7 @@ export const ObjectsPanel = memo(() => {
 		const includedIds = new Set<string>();
 		const highlightsMap = new Map<string, Map<string, string>>();
 
-		const entityMatches = fuzzySearchObjects(entityRows, query);
+		const entityMatches = strictSearchObjects(entityRows, query);
 		for (const match of entityMatches) {
 			includedIds.add(match.item.id);
 			const attrs = attrsByEntityId.get(match.item.parentEntity) ?? [];
@@ -258,7 +334,7 @@ export const ObjectsPanel = memo(() => {
 			}
 		}
 
-		const attrMatches = fuzzySearchObjects(attributeRows, query);
+		const attrMatches = strictSearchObjects(attributeRows, query);
 		for (const match of attrMatches) {
 			includedIds.add(match.item.id);
 			const parentEntityRow = entityRowByEntityId.get(match.item.parentEntity);
@@ -269,37 +345,20 @@ export const ObjectsPanel = memo(() => {
 		}
 
 		return {
-			items: entityFilteredObjects.filter((row) => includedIds.has(row.id)),
+			items: objects.filter((row) => includedIds.has(row.id)),
 			highlightsMap,
 		};
-	}, [entityFilteredObjects, globalSearchQuery]);
+	}, [objects, globalSearchQuery]);
 
 	const objectHighlightsMap = objectsSearch.highlightsMap;
 	const allFilteredObjects = objectsSearch.items;
 
-	const totalObjects = allFilteredObjects.length;
-	const totalObjectsPages = Math.ceil(totalObjects / objectsPageSize) || 1;
-	const filteredObjects = useMemo(() => {
-		const offset = (objectsPage - 1) * objectsPageSize;
-		return allFilteredObjects.slice(offset, offset + objectsPageSize);
-	}, [allFilteredObjects, objectsPage, objectsPageSize]);
-
-	// Filter links by selected entity first
-	const entityFilteredLinks = useMemo(() => {
-		if (selectedEntityId) {
-			return links.filter(
-				(l) =>
-					l.sourceEntity === selectedEntityId ||
-					l.targetEntity === selectedEntityId,
-			);
-		}
-		return links;
-	}, [links, selectedEntityId]);
+	const filteredObjects = allFilteredObjects;
 
 	// Fuzzy search links
 	const fuzzyLinkResults = useMemo(() => {
-		return fuzzySearchLinks(entityFilteredLinks, globalSearchQuery);
-	}, [entityFilteredLinks, globalSearchQuery]);
+		return strictSearchLinks(links, globalSearchQuery);
+	}, [links, globalSearchQuery]);
 
 	// Create highlights map for links
 	const linkHighlightsMap = useMemo(() => {
@@ -317,22 +376,7 @@ export const ObjectsPanel = memo(() => {
 		return fuzzyLinkResults.map((r) => r.item);
 	}, [fuzzyLinkResults]);
 
-	const totalLinks = allFilteredLinks.length;
-	const totalLinksPages = Math.ceil(totalLinks / linksPageSize) || 1;
-	const filteredLinks = useMemo(() => {
-		const offset = (linksPage - 1) * linksPageSize;
-		return allFilteredLinks.slice(offset, offset + linksPageSize);
-	}, [allFilteredLinks, linksPage, linksPageSize]);
-
-	const handleObjectsPageSizeChange = useCallback((size: number) => {
-		setObjectsPageSize(size);
-		setObjectsPage(1);
-	}, []);
-
-	const handleLinksPageSizeChange = useCallback((size: number) => {
-		setLinksPageSize(size);
-		setLinksPage(1);
-	}, []);
+	const filteredLinks = allFilteredLinks;
 
 	// Navigate to object page based on type
 	const handleNavigateToObject = useCallback(
@@ -352,19 +396,74 @@ export const ObjectsPanel = memo(() => {
 	);
 
 	// Handle link click to open mapping dialog
-	const handleLinkClick = useCallback((link: LinkRow) => {
+	const handleLinkClick = useCallback((link: LinkRowWithDepth) => {
 		setSelectedLink(link);
 		setIsMappingDialogOpen(true);
 	}, []);
 
-	// Column definitions for attributes
-	const attributeColumnDefs: ColDef<ObjectRow>[] = useMemo(
+	const attributesAutoGroupColumnDef = useMemo<ColDef<ObjectRowWithDepth>>(
+		() => ({
+			headerName: "Объект",
+			flex: 2,
+			cellRendererParams: {
+				suppressCount: true,
+				innerRenderer: ({
+					value,
+					node,
+				}: {
+					value: string;
+					node: { allLeafChildren?: Array<{ data: ObjectRowWithDepth }> };
+				}) => {
+					const firstChild = node.allLeafChildren?.[0]?.data;
+					const level = firstChild?.depthLabel ?? "";
+					return (
+						<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+							<Typography variant="body2" fontWeight={600}>
+								{value}
+							</Typography>
+							{level ? (
+								<Chip
+									label={level}
+									size="small"
+									color={
+										level === "Корень"
+											? "primary"
+											: level.startsWith("Downstream")
+												? "success"
+												: "warning"
+									}
+									variant="outlined"
+								/>
+							) : null}
+						</Box>
+					);
+				},
+			},
+		}),
+		[],
+	);
+
+	// Column definitions for attributes (row grouping by entityName)
+	const attributeColumnDefs: ColDef<ObjectRowWithDepth>[] = useMemo(
 		() => [
 			{
+				field: "entityName",
+				headerName: "Сущность",
+				hide: true,
+				rowGroup: true,
+			},
+			{
 				field: "name",
-				headerName: "Объект",
+				headerName: "Признак",
 				flex: 2,
-				cellRenderer: ({ value, data }: { value: string; data: ObjectRow }) => {
+				cellRenderer: ({
+					value,
+					data,
+				}: {
+					value: string;
+					data?: ObjectRowWithDepth;
+				}) => {
+					if (!data) return value;
 					const highlights = objectHighlightsMap.get(data.id);
 					const highlightedName = highlights?.get("name");
 					if (highlightedName) {
@@ -379,12 +478,23 @@ export const ObjectsPanel = memo(() => {
 				},
 			},
 			{
+				field: "depthLabel",
+				headerName: "Уровень",
+				width: 130,
+				sortable: true,
+				comparator: (
+					_a: string,
+					_b: string,
+					nodeA: { data?: ObjectRowWithDepth },
+					nodeB: { data?: ObjectRowWithDepth },
+				) => (nodeA.data?.depthOrder ?? 0) - (nodeB.data?.depthOrder ?? 0),
+			},
+			{
 				field: "objectType",
 				headerName: "Тип",
 				width: 100,
-				cellRenderer: ({ value }: { value: ObjectRow["objectType"] }) => (
-					<ObjectTypeChip type={value} />
-				),
+				cellRenderer: ({ value }: { value: ObjectRow["objectType"] }) =>
+					value ? <ObjectTypeChip type={value} /> : null,
 			},
 			{
 				field: "dataType",
@@ -397,7 +507,14 @@ export const ObjectsPanel = memo(() => {
 				field: "description",
 				headerName: "Описание",
 				flex: 1,
-				cellRenderer: ({ value, data }: { value: string; data: ObjectRow }) => {
+				cellRenderer: ({
+					value,
+					data,
+				}: {
+					value: string;
+					data?: ObjectRowWithDepth;
+				}) => {
+					if (!data) return value;
 					const highlights = objectHighlightsMap.get(data.id);
 					const highlightedDesc = highlights?.get("description");
 					if (highlightedDesc) {
@@ -416,13 +533,41 @@ export const ObjectsPanel = memo(() => {
 	);
 
 	// Column definitions for links
-	const linkColumnDefs: ColDef<LinkRow>[] = useMemo(
+	const linkColumnDefs: ColDef<LinkRowWithDepth>[] = useMemo(
 		() => [
+			{
+				field: "sourceDepthLabel",
+				headerName: "Уровень ист.",
+				width: 130,
+				comparator: (
+					_a: string | null,
+					_b: string | null,
+					nodeA: { data?: LinkRowWithDepth },
+					nodeB: { data?: LinkRowWithDepth },
+				) => (nodeA.data?.sourceDepth ?? 0) - (nodeB.data?.sourceDepth ?? 0),
+			},
+			{
+				field: "targetDepthLabel",
+				headerName: "Уровень цели",
+				width: 130,
+				comparator: (
+					_a: string | null,
+					_b: string | null,
+					nodeA: { data?: LinkRowWithDepth },
+					nodeB: { data?: LinkRowWithDepth },
+				) => (nodeA.data?.targetDepth ?? 0) - (nodeB.data?.targetDepth ?? 0),
+			},
 			{
 				field: "sourceName",
 				headerName: "Источник",
 				flex: 1,
-				cellRenderer: ({ value, data }: { value: string; data: LinkRow }) => {
+				cellRenderer: ({
+					value,
+					data,
+				}: {
+					value: string;
+					data: LinkRowWithDepth;
+				}) => {
 					const highlights = linkHighlightsMap.get(data.id);
 					const highlightedSource = highlights?.get("sourceName");
 					if (highlightedSource) {
@@ -456,7 +601,13 @@ export const ObjectsPanel = memo(() => {
 				field: "targetName",
 				headerName: "Цель",
 				flex: 1,
-				cellRenderer: ({ value, data }: { value: string; data: LinkRow }) => {
+				cellRenderer: ({
+					value,
+					data,
+				}: {
+					value: string;
+					data: LinkRowWithDepth;
+				}) => {
 					const highlights = linkHighlightsMap.get(data.id);
 					const highlightedTarget = highlights?.get("targetName");
 					if (highlightedTarget) {
@@ -480,7 +631,13 @@ export const ObjectsPanel = memo(() => {
 				headerName: "Процесс",
 				flex: 1,
 				minWidth: 220,
-				cellRenderer: ({ value, data }: { value: string; data: LinkRow }) => {
+				cellRenderer: ({
+					value,
+					data,
+				}: {
+					value: string;
+					data: LinkRowWithDepth;
+				}) => {
 					const highlights = linkHighlightsMap.get(data.id);
 					const highlightedProcessName = highlights?.get("processName");
 					const highlightedProcessCode = highlights?.get("processCode");
@@ -543,16 +700,27 @@ export const ObjectsPanel = memo(() => {
 	);
 
 	const handleRowClicked = useCallback(
-		(event: RowClickedEvent<ObjectRow>) => {
+		(event: RowClickedEvent<ObjectRowWithDepth>) => {
 			if (event.data?.objectType === "Признак") {
 				selectAttribute(event.data.name);
+				clearSelectedAttributes();
+				toggleSelectedAttribute({
+					entityId: event.data.parentEntity,
+					attrName: event.data.name,
+				});
+				setZoomToNode(event.data.parentEntity);
 			}
 		},
-		[selectAttribute],
+		[
+			clearSelectedAttributes,
+			selectAttribute,
+			setZoomToNode,
+			toggleSelectedAttribute,
+		],
 	);
 
 	const handleRowDoubleClicked = useCallback(
-		(event: RowDoubleClickedEvent<ObjectRow>) => {
+		(event: RowDoubleClickedEvent<ObjectRowWithDepth>) => {
 			if (event.data) {
 				handleNavigateToObject(event.data);
 			}
@@ -561,7 +729,7 @@ export const ObjectsPanel = memo(() => {
 	);
 
 	const handleLinkRowClicked = useCallback(
-		(event: RowClickedEvent<LinkRow>) => {
+		(event: RowClickedEvent<LinkRowWithDepth>) => {
 			if (event.data) {
 				handleLinkClick(event.data);
 			}
@@ -575,7 +743,7 @@ export const ObjectsPanel = memo(() => {
 	);
 
 	const handleCellContextMenu = useCallback(
-		(event: CellContextMenuEvent<ObjectRow>) => {
+		(event: CellContextMenuEvent<ObjectRowWithDepth>) => {
 			event.event?.preventDefault();
 			if (event.data) {
 				const mouseEvent = event.event as MouseEvent;
@@ -594,6 +762,35 @@ export const ObjectsPanel = memo(() => {
 	const handleCloseContextMenu = useCallback(() => {
 		setContextMenu(null);
 	}, []);
+
+	const attributesGridApiRef = useRef<GridApi | null>(null);
+	const linksGridApiRef = useRef<GridApi | null>(null);
+	const attributesGridPersistence = useAgGridPersistence({
+		gridId: "objects-attributes",
+		gridName: "Объекты (атрибуты)",
+		apiRef: attributesGridApiRef,
+	});
+	const linksGridPersistence = useAgGridPersistence({
+		gridId: "objects-links",
+		gridName: "Объекты (связи)",
+		apiRef: linksGridApiRef,
+	});
+
+	const handleAttributesGridReady = useCallback(
+		(event: GridReadyEvent) => {
+			attributesGridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			attributesGridApiRef.current = event.api;
+		},
+		[attributesGridPersistence],
+	);
+
+	const handleLinksGridReady = useCallback(
+		(event: GridReadyEvent) => {
+			linksGridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			linksGridApiRef.current = event.api;
+		},
+		[linksGridPersistence],
+	);
 
 	// Get entity for context menu
 	const contextMenuEntity = useMemo(() => {
@@ -701,67 +898,39 @@ export const ObjectsPanel = memo(() => {
 			}}
 		>
 			{/* Table content */}
-			<Box sx={{ flex: 1, minHeight: 0 }}>
-				{viewMode === "attributes" ? (
-					<AgGridReact
-						rowData={filteredObjects}
-						columnDefs={attributeColumnDefs}
-						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-						onRowClicked={handleRowClicked}
-						onRowDoubleClicked={handleRowDoubleClicked}
-						onCellContextMenu={handleCellContextMenu}
-						preventDefaultOnContextMenu
-						getRowStyle={getRowStyle}
-						rowSelection="single"
-						suppressCellFocus
-						animateRows
-						rowHeight={28}
-						headerHeight={32}
-						loading={isPanelLoading}
-						overlayLoadingTemplate="Загрузка"
-						overlayNoRowsTemplate="Нет данных"
-					/>
-				) : (
-					<AgGridReact
-						rowData={filteredLinks}
-						columnDefs={linkColumnDefs}
-						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-						onRowClicked={handleLinkRowClicked}
-						rowSelection="single"
-						suppressCellFocus
-						animateRows
-						rowHeight={28}
-						headerHeight={32}
-						loading={isPanelLoading}
-						overlayLoadingTemplate="Загрузка"
-						overlayNoRowsTemplate="Нет данных"
-					/>
-				)}
+			<Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
+				<AgGridStateControls
+					onReset={attributesGridPersistence.resetGridState}
+					resetTitle="Сбросить настройки таблицы (атрибуты)"
+				/>
+				<AgGridReact<ObjectRowWithDepth>
+					rowData={filteredObjects}
+					columnDefs={attributeColumnDefs}
+					groupDisplayType="groupRows"
+					autoGroupColumnDef={attributesAutoGroupColumnDef}
+					groupDefaultExpanded={-1}
+					theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+					onGridReady={handleAttributesGridReady}
+					onColumnMoved={attributesGridPersistence.onColumnMoved}
+					onColumnPinned={attributesGridPersistence.onColumnPinned}
+					onColumnResized={attributesGridPersistence.onColumnResized}
+					onColumnVisible={attributesGridPersistence.onColumnVisible}
+					onRowClicked={handleRowClicked}
+					onRowDoubleClicked={handleRowDoubleClicked}
+					onCellContextMenu={handleCellContextMenu}
+					preventDefaultOnContextMenu
+					getRowStyle={getRowStyle}
+					rowSelection="single"
+					suppressCellFocus
+					animateRows
+					rowHeight={28}
+					headerHeight={32}
+					loading={isPanelLoading}
+					overlayLoadingTemplate="Загрузка"
+					overlayNoRowsTemplate="Нет данных"
+					onSortChanged={attributesGridPersistence.onSortChanged}
+				/>
 			</Box>
-
-			{viewMode === "attributes" ? (
-				<PaginationToolbar
-					page={objectsPage}
-					totalPages={totalObjectsPages}
-					totalItems={totalObjects}
-					pageSize={objectsPageSize}
-					onPageChange={setObjectsPage}
-					onPageSizeChange={handleObjectsPageSizeChange}
-					itemLabel="объектов"
-					pageSizeOptions={OBJECTS_PAGE_SIZES}
-				/>
-			) : (
-				<PaginationToolbar
-					page={linksPage}
-					totalPages={totalLinksPages}
-					totalItems={totalLinks}
-					pageSize={linksPageSize}
-					onPageChange={setLinksPage}
-					onPageSizeChange={handleLinksPageSizeChange}
-					itemLabel="связей"
-					pageSizeOptions={OBJECTS_PAGE_SIZES}
-				/>
-			)}
 
 			<EntityContextMenu
 				contextMenu={contextMenu}
@@ -784,5 +953,3 @@ export const ObjectsPanel = memo(() => {
 		</Box>
 	);
 });
-
-ObjectsPanel.displayName = "ObjectsPanel";

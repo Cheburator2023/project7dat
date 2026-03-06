@@ -23,6 +23,7 @@ const MainWrapper = styled("div", {
 }>(({ theme, mode, open }) => ({
 	flexGrow: 1,
 	minHeight: "100vh",
+	height: "100vh",
 	width: `calc(100vw - ${open ? DEFAULT_SIDEBAR_WIDTH : 0}px)`,
 	marginLeft: !open ? `-${DEFAULT_SIDEBAR_WIDTH}px !important` : 0,
 	padding: "8px",
@@ -63,15 +64,9 @@ export function MainLayout({
 	const { setMainDataLoading, markMainDataLoadedOnce, hasMainDataLoadedOnce } =
 		useMainDataLoadingStore();
 	const { mode } = useColorScheme();
-	const {
-		data: currentDataLineageGraph,
-		isPending: isCurrentGraphPending,
-		isFetching: isCurrentGraphFetching,
-		isLoading: isCurrentGraphLoading,
-	} = useCurrentDataLineageGraph({ enabled: false });
 
-	const isInitialLoading = isCurrentGraphPending || isCurrentGraphLoading;
-	const isRefetching = isCurrentGraphFetching && !isInitialLoading;
+	const isInitialLoading = false;
+	const isRefetching = false;
 	const wasInitialLoadingRef = useRef(false);
 
 	useEffect(() => {

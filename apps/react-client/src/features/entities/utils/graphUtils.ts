@@ -35,9 +35,9 @@ export const getLayoutedElements = (
 	const dagreGraph = new dagre.graphlib.Graph();
 	dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-	// Use smaller spacing when attributes are hidden
-	const nodesep = options?.nodesep ?? (showAttributesInNodes ? 70 : 35);
-	const ranksep = options?.ranksep ?? (showAttributesInNodes ? 120 : 80);
+	// Use larger spacing to prevent node overlap; adapt based on attribute visibility
+	const nodesep = options?.nodesep ?? (showAttributesInNodes ? 120 : 50);
+	const ranksep = options?.ranksep ?? (showAttributesInNodes ? 180 : 100);
 	const marginx = options?.marginx ?? 50;
 	const marginy = options?.marginy ?? 50;
 

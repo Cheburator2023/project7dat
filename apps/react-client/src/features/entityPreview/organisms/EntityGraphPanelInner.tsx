@@ -17,6 +17,7 @@ import {
 	useEdgesState,
 	MarkerType,
 	useReactFlow,
+	type NodeChange,
 } from "@xyflow/react";
 import type {
 	DataLineageSchema,
@@ -57,7 +58,7 @@ import {
 	OpenInNew,
 	SwapHoriz,
 	SwapVert,
-	ClearAll,
+	Clear,
 } from "@mui/icons-material";
 import { useGraphSettingsStore } from "@react-client/common/stores/graphSettingsStore";
 import { useNavigate } from "react-router";
@@ -245,6 +246,8 @@ interface GraphPanelInnerProps {
 	onSelectNode?: (data: any) => void;
 	depthLimit?: number;
 	onDepthChange?: (depth: number) => void;
+	searchQuery?: string;
+	searchMatchedEntities?: Map<string, number>;
 }
 
 const EMPTY_STRING_SET = new Set<string>();
@@ -262,6 +265,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		onSelectNode,
 		depthLimit: externalDepthLimit,
 		onDepthChange,
+		searchQuery: propSearchQuery,
+		searchMatchedEntities: propSearchMatchedEntities,
 	}) => {
 		const navigate = useNavigate();
 		const [selectedNode, setSelectedNode] = useState<string>(
@@ -300,8 +305,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			toggleSelectedAttribute,
 			clearSelectedAttributes,
 			selectEntityWithAttribute,
-			searchMatchedEntities,
-			globalSearchQuery,
+			storeSearchMatchedEntities,
+			storeGlobalSearchQuery,
 			zoomToNodeId,
 			setZoomToNode,
 		} = useEntitiesStore(
@@ -312,12 +317,16 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				toggleSelectedAttribute: state.toggleSelectedAttribute,
 				clearSelectedAttributes: state.clearSelectedAttributes,
 				selectEntityWithAttribute: state.selectEntityWithAttribute,
-				searchMatchedEntities: state.searchMatchedEntities,
-				globalSearchQuery: state.globalSearchQuery,
+				storeSearchMatchedEntities: state.searchMatchedEntities,
+				storeGlobalSearchQuery: state.globalSearchQuery,
 				zoomToNodeId: state.zoomToNodeId,
 				setZoomToNode: state.setZoomToNode,
 			})),
 		);
+
+		const globalSearchQuery = propSearchQuery ?? storeGlobalSearchQuery;
+		const searchMatchedEntities =
+			propSearchMatchedEntities ?? storeSearchMatchedEntities;
 
 		useEffect(() => {
 			const attrFromUrl = searchParams.get("highlightAttr");
@@ -418,7 +427,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 		// Find related entities (upstream + downstream from main entity)
 		const relatedEntityIds = useMemo(() => {
 			if (!selectedNode) return new Set<string>();
-			return new Set([...upstreamNodes, ...downstreamNodes]);
+			return new Set([selectedNode, ...upstreamNodes, ...downstreamNodes]);
 		}, [selectedNode, upstreamNodes, downstreamNodes]);
 
 		// Filter entities to show only related ones
@@ -553,13 +562,15 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		const handleViewDetails = useCallback(
 			(entityId: string) => {
-				const entity = filteredEntities?.find((e) => e.id === entityId);
+				const entity =
+					filteredEntities?.find((e) => e.id === entityId) ??
+					data?.entities?.find((e) => e.id === entityId);
 				if (entity) {
 					setDialogEntity(entity);
 					setIsEntityDialogOpen(true);
 				}
 			},
-			[filteredEntities],
+			[data?.entities, filteredEntities],
 		);
 
 		const handleAttrClick = useCallback(
@@ -638,6 +649,30 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 			return result;
 		}, [hoveredAttribute, attrConnectionMap]);
+
+		// Compute attribute search matches for each entity
+		const attributeSearchMatchedByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			const q = globalSearchQuery.trim().toLowerCase();
+			if (!q || q.length < 3) return result;
+
+			const add = (entityId: string, attrName: string) => {
+				if (!result.has(entityId)) result.set(entityId, new Set());
+				result.get(entityId)!.add(attrName);
+			};
+
+			for (const entity of data?.entities || []) {
+				for (const attr of entity.attrSeq || []) {
+					const name = attr.name?.toLowerCase() ?? "";
+					const type = attr.type?.toLowerCase() ?? "";
+					if (name.includes(q) || type.includes(q)) {
+						add(entity.id, attr.name);
+					}
+				}
+			}
+
+			return result;
+		}, [data?.entities, globalSearchQuery]);
 
 		// Compute selected/clicked-highlighted attributes for each entity
 		// Single-hop only: selected attr + its direct connections (no transitive BFS)
@@ -812,6 +847,10 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					highlightType = "downstream";
 				else if (isSearchMatch) highlightType = "searchMatch";
 
+				const attributeSearchMatchedAttrs =
+					attributeSearchMatchedByEntity.get(entity.id) || EMPTY_STRING_SET;
+				const shouldExpandForSearch = attributeSearchMatchedAttrs.size > 0;
+
 				const node = {
 					id: entity.id,
 					type: "entityNode",
@@ -839,11 +878,12 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 							hoverHighlightedByEntity.get(entity.id) || EMPTY_STRING_SET,
 						selectedHighlightedAttrs:
 							selectedHighlightedByEntity.get(entity.id) || EMPTY_STRING_SET,
+						attributeSearchMatchedAttrs,
 						layoutAttrLimit: 0,
 						isSearchActive,
 						isSearchMatch: !!isSearchMatch,
 						handleExpandToggle: handleToggleExpand,
-						isExpanded: expandedNodes.has(entity.id),
+						isExpanded: shouldExpandForSearch || expandedNodes.has(entity.id),
 					},
 				};
 
@@ -1085,8 +1125,8 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				topologyEdges,
 				layoutDirection,
 				{
-					nodesep: layoutDirection === "TB" ? 100 : 80,
-					ranksep: layoutDirection === "TB" ? 200 : 150,
+					nodesep: layoutDirection === "TB" ? 160 : 120,
+					ranksep: layoutDirection === "TB" ? 280 : 220,
 					marginx: 40,
 					marginy: 40,
 					attrLimitCap: showAllAttrs ? Number.MAX_SAFE_INTEGER : undefined,
@@ -1286,7 +1326,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			nodeDepths,
 		]);
 
-		const [nodes, setNodes, onNodesChange] = useNodesState(
+		const [nodes, setNodes, rfOnNodesChange] = useNodesState(
 			layoutedNodes as Node[],
 		);
 		const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
@@ -1375,6 +1415,13 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 
 		// Track previous node dimensions to detect changes
 		const prevDimensionsRef = useRef<Record<string, number>>({});
+
+		// unmount
+		useEffect(() => {
+			return () => {
+				handleClearSelectedAttribute();
+			};
+		}, []);
 
 		// Recalculate layout when node dimensions change (e.g., when attributes expand/collapse)
 		useEffect(() => {
@@ -1585,17 +1632,21 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					const selectedAttrs =
 						selectedHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
 					const nextIsExpanded = expandedNodes.has(node.id);
+					const isCurrentSelected = node.id === selectedNode;
+					const nextZIndex = isCurrentSelected ? 1000 : 0;
 
 					if (
 						entityNodeData.hoverHighlightedAttrs === hoverAttrs &&
 						entityNodeData.selectedHighlightedAttrs === selectedAttrs &&
-						entityNodeData.isExpanded === nextIsExpanded
+						entityNodeData.isExpanded === nextIsExpanded &&
+						(node.zIndex ?? 0) === nextZIndex
 					) {
 						return node;
 					}
 
 					return {
 						...node,
+						zIndex: isCurrentSelected ? 1000 : 0,
 						data: {
 							...node.data,
 							hoverHighlightedAttrs: hoverAttrs,
@@ -1610,12 +1661,14 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			selectedHighlightedByEntity,
 			setNodes,
 			expandedNodes,
+			selectedNode,
 		]);
 
 		// Edge decoration effect: highlight entity edges + add dynamic attr edges
 		useEffect(() => {
+			const shouldShowAttrEdges = selectedAttributes.length > 0;
 			const attrEdges: Edge[] = [];
-			if (selectedAttributes.length > 0) {
+			if (shouldShowAttrEdges) {
 				const edgeSet = new Set<string>();
 				const visibleEntityIds = new Set(nodes.map((n) => n.id));
 
@@ -1688,7 +1741,17 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				}
 			}
 
-			setEdges([...layoutedEdges, ...attrEdges]);
+			// When attributes are selected, hide entity-level edges (keep ghost edges)
+			const filteredEntityEdges = shouldShowAttrEdges
+				? layoutedEdges.filter(
+						(edge) =>
+							edge.id.startsWith("ghost-") ||
+							edge.source.startsWith("ghost-") ||
+							edge.target.startsWith("ghost-"),
+					)
+				: layoutedEdges;
+
+			setEdges([...filteredEntityEdges, ...attrEdges]);
 		}, [
 			selectedAttributes,
 			selectedHighlightedByEntity,
@@ -1712,6 +1775,94 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 		}, [zoomToNodeId, getNode, setCenter, setZoomToNode]);
 
+		const handleNodesChange = useCallback(
+			(changes: NodeChange[]) => {
+				rfOnNodesChange(changes);
+
+				// Recompute group bounds after drag to keep groups adaptive
+				const hasDragChange = changes.some(
+					(c) => c.type === "position" && c.dragging === false && c.position,
+				);
+				if (!hasDragChange) return;
+
+				setNodes((currentNodes) => {
+					// Collect updated absolute positions per child node
+					const posMap = new Map<string, { x: number; y: number }>();
+					for (const c of changes) {
+						if (c.type === "position" && c.position && c.dragging === false) {
+							posMap.set(c.id, c.position);
+						}
+					}
+
+					// Map groupId -> children absolute positions
+					const groupChildren = new Map<
+						string,
+						{ id: string; absX: number; absY: number; w: number; h: number }[]
+					>();
+
+					for (const node of currentNodes) {
+						if (!node.parentId) continue;
+						const groupNode = currentNodes.find((n) => n.id === node.parentId);
+						if (!groupNode) continue;
+						// rel position after drag (may have been updated by rfOnNodesChange)
+						const relPos = posMap.get(node.id) ?? node.position;
+						const absX = groupNode.position.x + relPos.x;
+						const absY = groupNode.position.y + relPos.y;
+						const w =
+							node.measured?.width ??
+							(node as unknown as { width?: number }).width ??
+							NODE_WIDTH;
+						const h =
+							node.measured?.height ??
+							(node as unknown as { height?: number }).height ??
+							140;
+						if (!groupChildren.has(node.parentId)) {
+							groupChildren.set(node.parentId, []);
+						}
+						groupChildren
+							.get(node.parentId)!
+							.push({ id: node.id, absX, absY, w, h });
+					}
+
+					if (groupChildren.size === 0) return currentNodes;
+
+					return currentNodes.map((node) => {
+						if (node.type !== "depthGroup") return node;
+						const children = groupChildren.get(node.id);
+						if (!children || children.length === 0) return node;
+
+						let minX = Number.POSITIVE_INFINITY;
+						let minY = Number.POSITIVE_INFINITY;
+						let maxX = Number.NEGATIVE_INFINITY;
+						let maxY = Number.NEGATIVE_INFINITY;
+						for (const c of children) {
+							if (c.absX < minX) minX = c.absX;
+							if (c.absY < minY) minY = c.absY;
+							if (c.absX + c.w > maxX) maxX = c.absX + c.w;
+							if (c.absY + c.h > maxY) maxY = c.absY + c.h;
+						}
+
+						const pad = DEPTH_GROUP_PADDING;
+						const newX = minX - pad;
+						const newY = minY - pad - 24;
+						const newW = maxX - minX + pad * 2;
+						const newH = maxY - minY + pad * 2 + 24 + 6;
+
+						return {
+							...node,
+							position: { x: newX, y: newY },
+							style: {
+								...node.style,
+								width: newW,
+								height: newH,
+							},
+						};
+					});
+				});
+			},
+			[rfOnNodesChange, setNodes],
+		);
+
 		const { mode } = useColorScheme();
 
 		return (
@@ -1719,7 +1870,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 				<ReactFlow
 					nodes={nodes}
 					edges={edges}
-					onNodesChange={onNodesChange}
+					onNodesChange={handleNodesChange}
 					onEdgesChange={onEdgesChange}
 					onEdgeClick={handleEdgeClick}
 					onNodeContextMenu={handleNodeContextMenu}
@@ -1731,6 +1882,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 					proOptions={{ hideAttribution: true }}
 					colorMode={mode}
 					onlyRenderVisibleElements
+					elevateNodesOnSelect
 				>
 					<Background color="#e0e0e0" gap={20} />
 					<Controls>
@@ -1784,7 +1936,7 @@ export const EntityGraphPanelInner = memo<GraphPanelInnerProps>(
 									title={`Очистить атрибуты (${selectedAttributes.length})`}
 									type="button"
 								>
-									<ClearAll style={{ fontSize: 16, color: "#666" }} />
+									<Clear style={{ fontSize: 16, color: "#666" }} />
 								</button>
 							</div>
 						)}
