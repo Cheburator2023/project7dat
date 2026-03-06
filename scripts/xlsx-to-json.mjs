@@ -5,7 +5,6 @@ import process from "node:process";
 import ExcelJS from "exceljs";
 
 function printUsage() {
-	// eslint-disable-next-line no-console
 	console.log("Usage:");
 	// eslint-disable-next-line no-console
 	console.log("  node scripts/xlsx-to-json.mjs <input.xlsx> [output.json] [--pretty]");
