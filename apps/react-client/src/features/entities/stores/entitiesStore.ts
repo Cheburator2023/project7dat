@@ -33,6 +33,7 @@ interface SelectionState {
 	// Filter state
 	globalSearchQuery: string;
 	globalAttributeSearchQuery: string;
+	attributeSearchQueryByGraphId: Record<string, string>;
 	localNodeAttributeSearchQueries: Record<string, string>;
 	filters: FilterState;
 
@@ -48,6 +49,7 @@ interface SelectionState {
 	clearHighlights: () => void;
 	setGlobalSearch: (query: string) => void;
 	setGlobalAttributeSearch: (query: string) => void;
+	setAttributeSearchByGraphId: (graphId: string, query: string) => void;
 	setLocalNodeAttributeSearch: (entityId: string, query: string) => void;
 	setFilters: (filters: FilterState) => void;
 	updateFilter: <K extends keyof FilterState>(
@@ -136,6 +138,7 @@ export const useEntitiesStore = create<SelectionState>((set) => ({
 		set({ searchMatchedEntities: matches }),
 	globalSearchQuery: "",
 	globalAttributeSearchQuery: "",
+	attributeSearchQueryByGraphId: {},
 	localNodeAttributeSearchQueries: {},
 	upstreamEntities: new Set(),
 	downstreamEntities: new Set(),
@@ -179,6 +182,13 @@ export const useEntitiesStore = create<SelectionState>((set) => ({
 		set({ globalSearchQuery: query, entitiesPage: 1 }),
 	setGlobalAttributeSearch: (query) =>
 		set({ globalAttributeSearchQuery: query }),
+	setAttributeSearchByGraphId: (graphId, query) =>
+		set((state) => ({
+			attributeSearchQueryByGraphId: {
+				...state.attributeSearchQueryByGraphId,
+				[graphId]: query,
+			},
+		})),
 	setLocalNodeAttributeSearch: (entityId, query) =>
 		set((state) => {
 			const trimmed = query.trim();

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import {
 	Dialog,
@@ -16,6 +16,8 @@ import {
 	Paper,
 	IconButton,
 	Alert,
+	InputAdornment,
+	TextField,
 } from "@mui/material";
 import {
 	Close as CloseIcon,
@@ -24,9 +26,12 @@ import {
 	AccountTree as AccountTreeIcon,
 	Home as HomeIcon,
 	OpenInNew as OpenInNewIcon,
+	Search as SearchIcon,
+	Clear as ClearIcon,
 } from "@mui/icons-material";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 import type { EntityConnection } from "@react-client/features/entities/types";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 
 interface MappingDetailsDialogProps {
 	open: boolean;
@@ -38,11 +43,38 @@ interface MappingDetailsDialogProps {
 	} | null;
 }
 
+const highlightMatch = (text: string, query: string): React.ReactNode => {
+	if (!query) return text;
+	const idx = text.toLowerCase().indexOf(query.toLowerCase());
+	if (idx < 0) return text;
+	return (
+		<>
+			{text.slice(0, idx)}
+			<mark
+				style={{ background: "#fff176", borderRadius: 2, padding: "0 1px" }}
+			>
+				{text.slice(idx, idx + query.length)}
+			</mark>
+			{text.slice(idx + query.length)}
+		</>
+	);
+};
+
 export const MappingDetailsDialog = ({
 	open,
 	onClose,
 	connection,
 }: MappingDetailsDialogProps) => {
+	const [attrSearch, setAttrSearch] = useState("");
+
+	const filteredAttrMaps = useMemo(() => {
+		const q = attrSearch.trim().toLowerCase();
+		if (!q) return connection.attrMaps;
+		return connection.attrMaps.filter(
+			(m) => m.src.toLowerCase().includes(q) || m.dst.toLowerCase().includes(q),
+		);
+	}, [connection.attrMaps, attrSearch]);
+
 	const normalizedProcessName =
 		connection.processName &&
 		connection.processName.trim() &&
@@ -353,12 +385,46 @@ export const MappingDetailsDialog = ({
 								Соответствие атрибутов
 							</Typography>
 							<Chip
-								label={`${connection.attrMaps.length} маппингов`}
+								label={`${filteredAttrMaps.length}${attrSearch ? ` / ${connection.attrMaps.length}` : ""} маппингов`}
 								size="small"
 								color="primary"
 								sx={{ fontWeight: 500 }}
 							/>
 						</Box>
+
+						{connection.attrMaps.length > 0 && (
+							<TextField
+								size="small"
+								placeholder="Поиск по атрибутам..."
+								value={attrSearch}
+								onChange={(e) => setAttrSearch(e.target.value)}
+								fullWidth
+								slotProps={{
+									input: {
+										startAdornment: (
+											<InputAdornment position="start">
+												<SearchIcon
+													fontSize="small"
+													sx={{ color: "text.secondary" }}
+												/>
+											</InputAdornment>
+										),
+										endAdornment: attrSearch ? (
+											<InputAdornment position="end">
+												<IconButton
+													size="small"
+													onClick={() => setAttrSearch("")}
+												>
+													<ClearIcon fontSize="small" />
+												</IconButton>
+											</InputAdornment>
+										) : null,
+									},
+								}}
+							/>
+						)}
+
+						<Spacer />
 
 						{connection.attrMaps.length > 0 ? (
 							<Paper
@@ -406,89 +472,101 @@ export const MappingDetailsDialog = ({
 											</TableRow>
 										</TableHead>
 										<TableBody>
-											{connection.attrMaps.map((mapping, index) => (
-												<TableRow
-													key={`${mapping.src}-${mapping.dst}-${index}`}
-													sx={{
-														bgcolor: index % 2 === 0 ? "white" : "grey.50",
-														"&:hover": { bgcolor: "action.hover" },
-													}}
-												>
-													<TableCell>
-														<Chip
-															label={mapping.src}
-															size="small"
-															clickable
-															title="Клик - страница, Shift - Dashboard"
-															onClick={(e) => {
-																if (e.shiftKey) {
-																	handleGoToDashboard(
-																		connection.sourceId,
-																		mapping.src,
-																	);
-																} else {
-																	handleGoToEntityPage(
-																		connection.sourceId,
-																		mapping.src,
-																	);
-																}
-															}}
-															sx={{
-																bgcolor: "success.50",
-																color: "success.700",
-																fontFamily: "monospace",
-																fontWeight: 500,
-																cursor: "pointer",
-															}}
-														/>
-													</TableCell>
-													<TableCell align="center">
-														<IconButton
-															size="small"
-															title="Показать маппинг в Dashboard"
-															onClick={() =>
-																handleGoToDashboardWithMapping(
-																	mapping.src,
-																	mapping.dst,
-																)
-															}
-														>
-															<HomeIcon
-																fontSize="small"
-																sx={{ color: "primary.main" }}
+											{filteredAttrMaps.length > 0 ? (
+												filteredAttrMaps.map((mapping, index) => (
+													<TableRow
+														key={`${mapping.src}-${mapping.dst}-${index}`}
+														sx={{
+															bgcolor: index % 2 === 0 ? "white" : "grey.50",
+															"&:hover": { bgcolor: "action.hover" },
+														}}
+													>
+														<TableCell>
+															<Chip
+																label={highlightMatch(mapping.src, attrSearch)}
+																size="small"
+																clickable
+																title="Клик - страница, Shift - Dashboard"
+																onClick={(e) => {
+																	if (e.shiftKey) {
+																		handleGoToDashboard(
+																			connection.sourceId,
+																			mapping.src,
+																		);
+																	} else {
+																		handleGoToEntityPage(
+																			connection.sourceId,
+																			mapping.src,
+																		);
+																	}
+																}}
+																sx={{
+																	bgcolor: "success.50",
+																	color: "success.700",
+																	fontFamily: "monospace",
+																	fontWeight: 500,
+																	cursor: "pointer",
+																}}
 															/>
-														</IconButton>
-													</TableCell>
-													<TableCell>
-														<Chip
-															label={mapping.dst}
-															size="small"
-															clickable
-															title="Клик - страница, Shift - Dashboard"
-															onClick={(e) => {
-																if (e.shiftKey) {
-																	handleGoToDashboard(
-																		connection.targetId,
+														</TableCell>
+														<TableCell align="center">
+															<IconButton
+																size="small"
+																title="Показать маппинг в Dashboard"
+																onClick={() =>
+																	handleGoToDashboardWithMapping(
+																		mapping.src,
 																		mapping.dst,
-																	);
-																} else {
-																	handleGoToEntityPage(
-																		connection.targetId,
-																		mapping.dst,
-																	);
+																	)
 																}
-															}}
-															sx={{
-																bgcolor: "primary.50",
-																color: "primary.700",
-																fontFamily: "monospace",
-																fontWeight: 500,
-																cursor: "pointer",
-															}}
-														/>
+															>
+																<HomeIcon
+																	fontSize="small"
+																	sx={{ color: "primary.main" }}
+																/>
+															</IconButton>
+														</TableCell>
+														<TableCell>
+															<Chip
+																label={highlightMatch(mapping.dst, attrSearch)}
+																size="small"
+																clickable
+																title="Клик - страница, Shift - Dashboard"
+																onClick={(e) => {
+																	if (e.shiftKey) {
+																		handleGoToDashboard(
+																			connection.targetId,
+																			mapping.dst,
+																		);
+																	} else {
+																		handleGoToEntityPage(
+																			connection.targetId,
+																			mapping.dst,
+																		);
+																	}
+																}}
+																sx={{
+																	bgcolor: "primary.50",
+																	color: "primary.700",
+																	fontFamily: "monospace",
+																	fontWeight: 500,
+																	cursor: "pointer",
+																}}
+															/>
+														</TableCell>
+													</TableRow>
+												))
+											) : (
+												<TableRow>
+													<TableCell
+														colSpan={3}
+														align="center"
+														sx={{ py: 3, color: "text.secondary" }}
+													>
+														Ничего не найдено
 													</TableCell>
 												</TableRow>
-											))}
+											)}
 										</TableBody>
 									</Table>
 								</Box>

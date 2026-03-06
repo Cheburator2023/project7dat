@@ -15,9 +15,9 @@ type EntityNode = Node<EntityNodeData, "entityNode">;
 
 const EMPTY_STRING_SET = new Set<string>();
 
-const selectGlobalAttributeSearch = (state: {
-	globalAttributeSearchQuery: string;
-}) => state.globalAttributeSearchQuery;
+const selectAttributeSearchByGraphId = (state: {
+	attributeSearchQueryByGraphId: Record<string, string>;
+}) => state.attributeSearchQueryByGraphId;
 
 export const EntityNodeComponent = memo(
 	({ data, id }: NodeProps<EntityNode>) => {
@@ -37,6 +37,7 @@ export const EntityNodeComponent = memo(
 			highlightedSourceAttrs = EMPTY_STRING_SET,
 			highlightedTargetAttrs = EMPTY_STRING_SET,
 			selectedHighlightedAttrs = EMPTY_STRING_SET,
+			attributeSearchMatchedAttrs = EMPTY_STRING_SET,
 			isSearchActive = false,
 			isSearchMatch = false,
 			showAllAttrs = false,
@@ -55,13 +56,16 @@ export const EntityNodeComponent = memo(
 		const attrs = entity.attrSeq || [];
 
 		const [localSearchQuery, setLocalSearchQuery] = useState("");
-		const globalAttributeSearchQuery = useEntitiesStore(
-			selectGlobalAttributeSearch,
+		const attributeSearchQueryByGraphId = useEntitiesStore(
+			selectAttributeSearchByGraphId,
 		);
 		const setLocalNodeAttributeSearch = useEntitiesStore(
 			(state) => state.setLocalNodeAttributeSearch,
 		);
-		const activeSearchQuery = globalAttributeSearchQuery || localSearchQuery;
+		const graphAttributeSearchQuery = graphId
+			? (attributeSearchQueryByGraphId[graphId] ?? "")
+			: "";
+		const activeSearchQuery = graphAttributeSearchQuery || localSearchQuery;
 
 		// Debounce store update for local search
 		const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,7 +124,10 @@ export const EntityNodeComponent = memo(
 		}, [activeSearchQuery, attrs]);
 
 		const isExpandedEffective =
-			isExpanded || selectedHighlightedAttrs.size > 0 || searchedAttrs !== null;
+			isExpanded ||
+			selectedHighlightedAttrs.size > 0 ||
+			attributeSearchMatchedAttrs.size > 0 ||
+			searchedAttrs !== null;
 
 		const { visibleAttrs, moreCount } = useMemo(() => {
 			if (!isExpandedEffective) {
@@ -131,6 +138,15 @@ export const EntityNodeComponent = memo(
 				const filtered = attrs.filter(
 					(attr) =>
 						searchedAttrs.has(attr.name) ||
+						selectedHighlightedAttrs.has(attr.name),
+				);
+				return { visibleAttrs: filtered, moreCount: 0 };
+			}
+
+			if (attributeSearchMatchedAttrs.size > 0) {
+				const filtered = attrs.filter(
+					(attr) =>
+						attributeSearchMatchedAttrs.has(attr.name) ||
 						selectedHighlightedAttrs.has(attr.name),
 				);
 				return { visibleAttrs: filtered, moreCount: 0 };
@@ -158,6 +174,7 @@ export const EntityNodeComponent = memo(
 			relatedAttrNames,
 			searchedAttrs,
 			selectedHighlightedAttrs,
+			attributeSearchMatchedAttrs,
 			showAllAttrs,
 		]);
 
@@ -407,7 +424,7 @@ export const EntityNodeComponent = memo(
 					</div>
 				</div>
 
-				{!globalAttributeSearchQuery && (
+				{!graphAttributeSearchQuery && (
 					<div
 						className="nodrag nopan"
 						style={{
@@ -451,6 +468,9 @@ export const EntityNodeComponent = memo(
 							const isSelectedHighlighted = selectedHighlightedAttrs.has(
 								attr.name,
 							);
+							const isAttributeSearchMatched = attributeSearchMatchedAttrs.has(
+								attr.name,
+							);
 							const leftArrow = isTargetHighlighted || isSelectedHighlighted;
 							const rightArrow = isSourceHighlighted || isSelectedHighlighted;
 							return (
@@ -473,9 +493,11 @@ export const EntityNodeComponent = memo(
 												: "none",
 										background: isSelectedHighlighted
 											? `${HIGHLIGHT_COLORS.selected}70`
-											: idx % 2 === 0
-												? "#fafafa"
-												: "#fff",
+											: isAttributeSearchMatched
+												? `${HIGHLIGHT_COLORS.searchMatch}25`
+												: idx % 2 === 0
+													? "#fafafa"
+													: "#fff",
 										position: "relative",
 										cursor: "pointer",
 										transition: "background 0.15s ease",

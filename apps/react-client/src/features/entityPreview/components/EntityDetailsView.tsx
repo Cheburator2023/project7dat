@@ -17,7 +17,6 @@ import {
 	AccordionSummary,
 	AccordionDetails,
 	Link,
-	Tooltip,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -134,7 +133,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 											ID
 										</TableCell>
 										<TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
-											{entity.id}
+											{entity.id.replace(/^(\w+)\.(\w+)\.(\d+)$/, "$3.$1.$2")}
 										</TableCell>
 									</TableRow>
 									<TableRow>
@@ -270,25 +269,22 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 								{allEntities
 									.filter((ent) => ent.id !== entity.id)
 									.map((ent) => (
-										<Tooltip
+										<Chip
+											label={ent.name || ent.id}
+											size="small"
+											variant="outlined"
 											key={ent.id}
 											title="Клик - страница, Shift+клик - Dashboard"
-										>
-											<Chip
-												label={ent.name || ent.id}
-												size="small"
-												variant="outlined"
-												clickable
-												onClick={(e) => {
-													if (e.shiftKey) {
-														handleOpenInDashboard(ent.id);
-													} else {
-														handleOpenEntityPage(ent.id);
-													}
-												}}
-												sx={{ cursor: "pointer" }}
-											/>
-										</Tooltip>
+											clickable
+											onClick={(e) => {
+												if (e.shiftKey) {
+													handleOpenInDashboard(ent.id);
+												} else {
+													handleOpenEntityPage(ent.id);
+												}
+											}}
+											sx={{ cursor: "pointer" }}
+										/>
 									))}
 							</Box>
 						</CompactAccordionDetails>
@@ -388,38 +384,35 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 												</TableCell>
 												<TableCell>
 													<Box sx={{ display: "flex", gap: 0.5 }}>
-														<Tooltip title="Открыть страницу">
-															<OpenInNewIcon
-																fontSize="small"
-																sx={{
-																	cursor: "pointer",
-																	color: "primary.main",
-																}}
-																onClick={() =>
-																	handleOpenEntityPage(mapping.entityId)
+														<OpenInNewIcon
+															fontSize="small"
+															sx={{
+																cursor: "pointer",
+																color: "primary.main",
+															}}
+															onClick={() =>
+																handleOpenEntityPage(mapping.entityId)
+															}
+														/>
+
+														<HomeIcon
+															fontSize="small"
+															sx={{
+																cursor: "pointer",
+																color: "secondary.main",
+															}}
+															onClick={() => {
+																const sourceId = mapping.deps?.[0]?.entityId;
+																if (sourceId) {
+																	handleOpenMappingInDashboard(
+																		sourceId,
+																		mapping.entityId,
+																	);
+																} else {
+																	handleOpenInDashboard(mapping.entityId);
 																}
-															/>
-														</Tooltip>
-														<Tooltip title="Показать в Dashboard">
-															<HomeIcon
-																fontSize="small"
-																sx={{
-																	cursor: "pointer",
-																	color: "secondary.main",
-																}}
-																onClick={() => {
-																	const sourceId = mapping.deps?.[0]?.entityId;
-																	if (sourceId) {
-																		handleOpenMappingInDashboard(
-																			sourceId,
-																			mapping.entityId,
-																		);
-																	} else {
-																		handleOpenInDashboard(mapping.entityId);
-																	}
-																}}
-															/>
-														</Tooltip>
+															}}
+														/>
 													</Box>
 												</TableCell>
 											</TableRow>
@@ -459,7 +452,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 											>
 												{mapping.entityId}
 											</Link>
-											<Tooltip title="Показать в Dashboard">
+											<div title="Показать в Dashboard">
 												<HomeIcon
 													fontSize="small"
 													sx={{ cursor: "pointer", color: "secondary.main" }}
@@ -467,7 +460,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 														handleOpenInDashboard(mapping.entityId)
 													}
 												/>
-											</Tooltip>
+											</div>
 										</Box>
 										{mapping.deps.map((dep, depIndex) => (
 											<Box
@@ -498,7 +491,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 													>
 														{dep.entityId}
 													</Link>
-													<Tooltip title="Показать в Dashboard">
+													<div title="Показать в Dashboard">
 														<HomeIcon
 															fontSize="small"
 															sx={{
@@ -513,7 +506,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 																)
 															}
 														/>
-													</Tooltip>
+													</div>
 												</Box>
 												{/* Attribute Mappings */}
 												{dep.attrMaps && dep.attrMaps.length > 0 && (
@@ -533,7 +526,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 															}}
 														>
 															{dep.attrMaps.map((attrMap, idx) => (
-																<Tooltip
+																<div
 																	key={idx}
 																	title={`${attrMap.src} → ${attrMap.dst}. Клик - выделить в Dashboard`}
 																>
@@ -552,7 +545,7 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 																			)
 																		}
 																	/>
-																</Tooltip>
+																</div>
 															))}
 														</Box>
 													</Box>

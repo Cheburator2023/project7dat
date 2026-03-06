@@ -22,10 +22,6 @@ import { dockviewLayoutJson } from "../../entities/constants";
 export { useEntitiesStore } from "../../entities/stores";
 import { useEntitiesStore } from "../../entities/stores";
 import {
-	useCurrentDataLineageGraph,
-	usePaginatedMappings,
-} from "@react-client/api/hooks";
-import {
 	DockviewReadyEvent,
 	IDockviewPanelProps,
 	themeAbyssSpaced,
@@ -36,32 +32,37 @@ import { RenderWhenVisible } from "@react-client/common/dockview/RenderWnelVisib
 
 const STORAGE_KEY = "dashboard2-dockview-layout";
 
+const EntitiesPanelComponent: FunctionComponent<IDockviewPanelProps> = () => (
+	<EntitiesPanel />
+);
+const ObjectsPanelComponent: FunctionComponent<IDockviewPanelProps> = () => (
+	<ObjectsPanel />
+);
+const GraphPanelComponent: FunctionComponent<IDockviewPanelProps> = () => (
+	<GraphPanel />
+);
+const SelectionInfoPanelComponent: FunctionComponent<
+	IDockviewPanelProps
+> = () => <SelectionInfoPanel />;
+const IssuesPanelComponent: FunctionComponent<IDockviewPanelProps> = () => (
+	<IssuesPanel />
+);
+
 const panelComponents: Record<
 	string,
 	FunctionComponent<IDockviewPanelProps>
 > = {
-	entities: () => <EntitiesPanel />,
-	objects: () => <ObjectsPanel />,
-	graph: () => <GraphPanel />,
-	"selection-info": () => <SelectionInfoPanel />,
-	// "code-editor": () => <CodeEditorPanel />,
-	issues: () => <IssuesPanel />,
+	entities: EntitiesPanelComponent,
+	objects: ObjectsPanelComponent,
+	graph: GraphPanelComponent,
+	"selection-info": SelectionInfoPanelComponent,
+	issues: IssuesPanelComponent,
 	schema: RenderWhenVisible(SchemaPanel),
 };
 
 export const FullStackPanelsDashboardTemplate = () => {
 	const [, setSearchParams] = useSearchParams();
 	const { mode } = useColorScheme();
-
-	// Загрузка полного графа для панелей Graph/CodeEditor/etc.
-	// Поиск по сущностям теперь идёт через бекенд-пагинацию в EntitiesPanel.
-	useCurrentDataLineageGraph({ enabled: false });
-
-	usePaginatedMappings({
-		page: 1,
-		limit: 5000,
-		enabled: true,
-	});
 
 	const { selectEntityWithAttribute, setZoomToNode } = useEntitiesStore(
 		useShallow((state) => ({

@@ -8,8 +8,8 @@ export const SelectedEntityChip = memo(() => {
 	if (!selectedEntityId) return null;
 
 	const truncatedLabel =
-		selectedEntityId.length > 10
-			? `${selectedEntityId.slice(0, 20)}...`
+		selectedEntityId.length > 40
+			? `${selectedEntityId.slice(0, 40)}...`
 			: selectedEntityId;
 
 	return (

@@ -125,6 +125,29 @@ export class S2tExportService {
 
 	constructor(private readonly jsonExportService: JsonExportService) {}
 
+	private getEntitySchemaAndTable(entity: JsonExportEntity): {
+		schema?: string;
+		table: string;
+	} {
+		const id = entity.id?.trim() ?? "";
+		const namespace = entity.namespace?.trim() ?? "";
+		const name = entity.name?.trim() ?? "";
+
+		if (namespace && name) {
+			return { schema: namespace, table: name };
+		}
+		const fullNameFromNamespaceAndName =
+			namespace && name ? `${namespace}.${name}` : "";
+
+		const candidate = id.includes(".")
+			? id
+			: namespace.includes(".")
+				? namespace
+				: fullNameFromNamespaceAndName || id;
+
+		return parseSchemaAndTable(candidate);
+	}
+
 	private findEntity(exportData: JsonExportResult, entityId: string) {
 		return exportData.entities.find((e) => e.id === entityId) ?? null;
 	}
@@ -499,7 +522,7 @@ export class S2tExportService {
 		const sourceEntities = Array.from(sourceEntitiesById.values());
 		let sourceTablesRows = 0;
 		for (const sourceEntity of sourceEntities) {
-			const sourceParts = parseSchemaAndTable(sourceEntity.id);
+			const sourceParts = this.getEntitySchemaAndTable(sourceEntity);
 			const database = sourceEntity.system_code ?? PLACEHOLDER_CELL_VALUE;
 			const schema = sourceParts.schema ?? sourceEntity.namespace ?? "";
 			const tableName = sourceParts.table;
@@ -547,10 +570,11 @@ export class S2tExportService {
 
 		// Target Tables — добавляем все target-сущности
 		const targetDatabase = targetEntity.system_code ?? PLACEHOLDER_CELL_VALUE;
+		const targetPartsForSheet = this.getEntitySchemaAndTable(targetEntity);
 		targetTablesSheet.addRow([
 			targetDatabase,
-			targetParts.schema ?? targetEntity.namespace ?? "",
-			targetParts.table,
+			targetPartsForSheet.schema ?? targetEntity.namespace ?? "",
+			targetPartsForSheet.table,
 			targetEntity.description ?? "",
 			NO_DATA_CELL_VALUE,
 			PLACEHOLDER_CELL_VALUE,
@@ -616,8 +640,11 @@ export class S2tExportService {
 				);
 				continue;
 			}
-			const curTargetParts = parseSchemaAndTable(curTargetEntity.id);
+			const curTargetParts = this.getEntitySchemaAndTable(curTargetEntity);
 			const curTargetSystemCode = curTargetEntity.system_code ?? "";
+			const targetSchema =
+				curTargetParts.schema ?? curTargetEntity.namespace ?? "";
+			const targetTable = curTargetParts.table;
 
 			for (const dep of m.deps ?? []) {
 				const sourceEntity = this.findEntity(params.exportData, dep.entityId);
@@ -635,8 +662,10 @@ export class S2tExportService {
 					continue;
 				}
 
-				const sourceParts = parseSchemaAndTable(sourceEntity.id);
+				const sourceParts = this.getEntitySchemaAndTable(sourceEntity);
 				const sourceSystemCode = sourceEntity.system_code ?? "";
+				const sourceSchema = sourceParts.schema ?? sourceEntity.namespace ?? "";
+				const sourceTable = sourceParts.table;
 
 				for (const attrMap of dep.attrMaps ?? []) {
 					const sourceAttrMeta = this.getAttrMeta(sourceEntity, attrMap.src);
@@ -647,23 +676,50 @@ export class S2tExportService {
 					row.getCell(2).value = "";
 
 					row.getCell(3).value = sourceSystemCode;
-					row.getCell(4).value =
-						sourceParts.schema ?? sourceEntity.namespace ?? "";
-					row.getCell(5).value = sourceParts.table;
+					row.getCell(4).value = sourceSchema;
+					row.getCell(5).value = sourceTable;
 					row.getCell(6).value = sourceEntity.description ?? "";
 					row.getCell(7).value = attrMap.src;
 					row.getCell(8).value = sourceAttrMeta.comment;
 					row.getCell(9).value = sourceAttrMeta.type;
 
 					row.getCell(19).value = curTargetSystemCode;
-					row.getCell(20).value =
-						curTargetParts.schema ?? curTargetEntity.namespace ?? "";
-					row.getCell(21).value = curTargetParts.table;
+					row.getCell(20).value = targetSchema;
+					row.getCell(21).value = targetTable;
 					row.getCell(22).value = attrMap.dst;
 					row.getCell(23).value = targetAttrMeta.comment;
 					row.getCell(24).value = curTargetEntity.description ?? "";
 					row.getCell(25).value = "";
 					row.getCell(26).value = targetAttrMeta.type;
+
+					row.commit();
+					rowIndex += 1;
+					seq += 1;
+				}
+
+				for (const atrDep of dep.atrDeps ?? []) {
+					const sourceAttrMeta = this.getAttrMeta(sourceEntity, atrDep.attr);
+
+					const row = mappingSheet.getRow(rowIndex);
+					row.getCell(1).value = seq;
+					row.getCell(2).value = "";
+
+					row.getCell(3).value = sourceSystemCode;
+					row.getCell(4).value = sourceSchema;
+					row.getCell(5).value = sourceTable;
+					row.getCell(6).value = sourceEntity.description ?? "";
+					row.getCell(7).value = atrDep.attr;
+					row.getCell(8).value = sourceAttrMeta.comment;
+					row.getCell(9).value = sourceAttrMeta.type;
+
+					row.getCell(19).value = curTargetSystemCode;
+					row.getCell(20).value = targetSchema;
+					row.getCell(21).value = targetTable;
+					row.getCell(22).value = "";
+					row.getCell(23).value = "";
+					row.getCell(24).value = curTargetEntity.description ?? "";
+					row.getCell(25).value = "";
+					row.getCell(26).value = "";
 
 					row.commit();
 					rowIndex += 1;
@@ -676,7 +732,7 @@ export class S2tExportService {
 			`[S2T] Mapping sheet: ${seq - 1} строк из ${allMappings.length} маппингов`,
 		);
 
-		// Если маппингов нет (или attrMaps пустые) — оставляем плейсхолдеры
+		// Если маппингов нет (или attrMaps/atrDeps пустые) — оставляем плейсхолдеры
 		if (rowIndex === 3) {
 			const row = Array.from({ length: 32 }, () => PLACEHOLDER_CELL_VALUE);
 			row[0] = NO_DATA_CELL_VALUE;

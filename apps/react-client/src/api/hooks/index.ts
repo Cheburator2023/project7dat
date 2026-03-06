@@ -87,3 +87,21 @@ export {
 
 // Database management hooks
 export { useResetDatabase } from "./useResetDatabase";
+
+// Merge hooks
+export { useMergeApply } from "./useMergeApply";
+export { useMergeConfirm } from "./useMergeConfirm";
+export { useMergeCancel } from "./useMergeCancel";
+export { mergeService } from "./mergeApi";
+export type {
+	MergeDiffItem,
+	ApplyMergeResponse,
+	ConfirmMergeResponse,
+	CancelMergeResponse,
+} from "./mergeApi";
+
+// S2T and Export hooks
+export { useDownloadS2tReport } from "./useDownloadS2tReport";
+export { useDownloadJsonReport } from "./useDownloadJsonReport";
+export { useConvertXlsxToCommitJson } from "./useConvertXlsxToCommitJson";
+export { useValidateJson } from "./useValidateJson";

@@ -17,10 +17,12 @@ import { Flex } from "../../primitives/Flex";
 import { useGlobalSettingsStore } from "../../stores/globalSettingsStore";
 import { useMainDataLoadingStore } from "@react-client/common/stores/mainDataLoadingStore";
 import { ColorModeIconDropdown } from "../../../theme/ColorModeIconDropdown";
-import { S2tImportDialog } from "@react-client/features/s2tImport/organisms/S2tImportDialog";
 import { MenuButton } from "../molecules/MenuButton";
 import { NavbarBreadcrumbs } from "../molecules/NavbarBreadcrumbs";
 import { NotificationButton } from "../../notification/NotificationButton";
+import { Download } from "@mui/icons-material";
+import { ExportDialog } from "../../dialogs/ExportDialog";
+import { useEntitiesStore } from "@react-client/features/entities/stores";
 
 export function Header({
 	children,
@@ -37,16 +39,16 @@ export function Header({
 	const { isMainDataLoading, hasMainDataLoadedOnce } =
 		useMainDataLoadingStore();
 	const navigate = useNavigate();
+	const { selectedEntityId } = useEntitiesStore();
+	const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 	const [pendingS2t, setPendingS2t] = useState<{
 		commitId: string;
 		state: string;
 		updatedAt?: string;
 	} | null>(null);
 	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
-	const API_BASE_URL =
-		window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
+	const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 	const [_isApplyingS2t, setIsApplyingS2t] = useState(false);
-	const [isS2tCommitDialogOpen, setIsS2tCommitDialogOpen] = useState(false);
 
 	const _handleApplyPendingS2t = async () => {
 		if (!pendingS2t?.commitId) return;
@@ -198,6 +200,14 @@ export function Header({
 							<NotificationButton isLoading={!!isLoading} />
 							<ColorModeIconDropdown data-test-id="header--ColorModeIconDropdown-0" />
 							<IconButton
+								data-test-id="header--Report_ExportButton"
+								title="Отчет по выбраной сущности"
+								onClick={() => setIsExportDialogOpen(true)}
+								disabled={!selectedEntityId}
+							>
+								<Download />
+							</IconButton>
+							<IconButton
 								onClick={() => navigate("/settings")}
 								title="Настройки"
 								data-test-id="header--SettingsButton-0"
@@ -211,10 +221,10 @@ export function Header({
 
 			<Spacer height={8} data-test-id="anketa-create-page--Spacer-1" />
 
-			<S2tImportDialog
-				open={isS2tCommitDialogOpen}
-				onClose={() => setIsS2tCommitDialogOpen(false)}
-				prefillCommitId={pendingS2t?.commitId ?? null}
+			<ExportDialog
+				open={isExportDialogOpen}
+				onClose={() => setIsExportDialogOpen(false)}
+				entityId={selectedEntityId}
 			/>
 		</>
 	);

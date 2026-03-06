@@ -248,7 +248,7 @@ const MUIPaperStyled = styled(Paper, {
 })<{ overflow: string | null }>`
 	pointer-events: all;
 	position: relative;
-	overflow: hidden;
+	overflow: auto;
 	& > div {
 		padding: 0;
 		overflow: ${({ overflow }) => overflow};

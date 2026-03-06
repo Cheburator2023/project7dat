@@ -20,7 +20,6 @@ import {
 	InputAdornment,
 	IconButton,
 	Paper,
-	Tooltip,
 } from "@mui/material";
 import {
 	Close as CloseIcon,
@@ -429,17 +428,14 @@ export const EntityDetailsDialog = ({
 													</Typography>
 												</TableCell>
 												<TableCell>
-													<Tooltip title="Показать в Dashboard">
-														<IconButton
-															size="small"
-															color="secondary"
-															onClick={() =>
-																handleOpenAttrInDashboard(attr.name)
-															}
-														>
-															<HomeIcon fontSize="small" />
-														</IconButton>
-													</Tooltip>
+													<IconButton
+														size="small"
+														color="secondary"
+														onClick={() => handleOpenAttrInDashboard(attr.name)}
+														title="Показать в Dashboard"
+													>
+														<HomeIcon fontSize="small" />
+													</IconButton>
 												</TableCell>
 											</TableRow>
 										))}
@@ -559,37 +555,35 @@ export const EntityDetailsDialog = ({
 												</TableCell>
 												<TableCell>
 													<Box sx={{ display: "flex", gap: 0.5 }}>
-														<Tooltip title="Открыть связанную сущность">
-															<IconButton
-																size="small"
-																color="primary"
-																onClick={(e) => {
-																	e.stopPropagation();
-																	const relatedId =
-																		conn.sourceId === entity.id
-																			? conn.targetId
-																			: conn.sourceId;
-																	onOpenEntity?.(relatedId);
-																}}
-															>
-																<OpenInNewIcon fontSize="small" />
-															</IconButton>
-														</Tooltip>
-														<Tooltip title="Показать маппинг в Dashboard">
-															<IconButton
-																size="small"
-																color="secondary"
-																onClick={(e) => {
-																	e.stopPropagation();
-																	handleOpenMappingInDashboard(
-																		conn.sourceId,
-																		conn.targetId,
-																	);
-																}}
-															>
-																<HomeIcon fontSize="small" />
-															</IconButton>
-														</Tooltip>
+														<IconButton
+															size="small"
+															color="primary"
+															onClick={(e) => {
+																e.stopPropagation();
+																const relatedId =
+																	conn.sourceId === entity.id
+																		? conn.targetId
+																		: conn.sourceId;
+																onOpenEntity?.(relatedId);
+															}}
+															title="Открыть связанную сущность"
+														>
+															<OpenInNewIcon fontSize="small" />
+														</IconButton>
+														<IconButton
+															size="small"
+															color="secondary"
+															onClick={(e) => {
+																e.stopPropagation();
+																handleOpenMappingInDashboard(
+																	conn.sourceId,
+																	conn.targetId,
+																);
+															}}
+															title="Показать маппинг в Dashboard"
+														>
+															<HomeIcon fontSize="small" />
+														</IconButton>
 													</Box>
 												</TableCell>
 											</TableRow>

@@ -1018,7 +1018,8 @@ const EntityGraphInner: React.FC<EntityGraphInnerExtendedProps> = ({
 	const handleContextMenuOpenInNewTab = useCallback(() => {
 		if (contextMenu) {
 			const encodedId = encodeURIComponent(contextMenu.entityId);
-			window.open(`/entity/${encodedId}`, "_blank");
+			const url = new URL(`/entity/${encodedId}`, window.location.href);
+			window.open(url.toString(), "_blank", "noopener,noreferrer");
 		}
 		setContextMenu(null);
 	}, [contextMenu]);

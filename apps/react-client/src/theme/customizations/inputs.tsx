@@ -489,7 +489,7 @@ export const inputsCustomizations: Components<Theme> = {
 				border: "none",
 			},
 			input: {
-				padding: "7px !important",
+				padding: "3px 5px !important",
 				"&::placeholder": {
 					opacity: 0.7,
 					color: gray[500],

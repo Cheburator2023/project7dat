@@ -46,7 +46,6 @@ import {
 	Container,
 	Stack,
 	Alert,
-	Tooltip,
 	CircularProgress,
 } from "@mui/material";
 import {
@@ -128,9 +127,9 @@ const TableNode: React.FC<any> = ({ data, selected }) => {
 						>
 							<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
 								{column.primaryKey && (
-									<Tooltip title="Primary Key">
+									<div title="Primary Key">
 										<KeyIcon sx={{ fontSize: 16, color: "warning.main" }} />
-									</Tooltip>
+									</div>
 								)}
 								<Typography
 									variant="body2"
@@ -356,11 +355,11 @@ const SQLiteViewer: React.FC = () => {
 												sx={{ display: "flex", alignItems: "center", gap: 1 }}
 											>
 												{column.primaryKey && (
-													<Tooltip title="Первичный ключ">
+													<div title="Первичный ключ">
 														<KeyIcon
 															sx={{ color: "warning.main", fontSize: 20 }}
 														/>
-													</Tooltip>
+													</div>
 												)}
 												<Typography
 													variant="body2"

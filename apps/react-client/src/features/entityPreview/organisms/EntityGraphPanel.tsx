@@ -42,6 +42,8 @@ export const EntityGraphPanel: React.FC<{
 	};
 	depthLimit?: number;
 	onDepthChange?: (depth: number) => void;
+	searchQuery?: string;
+	searchMatchedEntities?: Map<string, number>;
 }> = memo(
 	({
 		onSelectNode,
@@ -49,6 +51,8 @@ export const EntityGraphPanel: React.FC<{
 		graphData,
 		depthLimit,
 		onDepthChange,
+		searchQuery,
+		searchMatchedEntities,
 	}) => {
 		const {
 			selectedEntityId,
@@ -228,7 +232,8 @@ export const EntityGraphPanel: React.FC<{
 		const handleOpenInNewTab = useCallback(() => {
 			if (contextMenu?.entityId) {
 				const encodedId = encodeURIComponent(contextMenu.entityId);
-				window.open(`/entity/${encodedId}`, "_blank");
+				const url = new URL(`/entity/${encodedId}`, window.location.href);
+				window.open(url.toString(), "_blank", "noopener,noreferrer");
 			}
 			handleCloseContextMenu();
 		}, [contextMenu?.entityId, handleCloseContextMenu]);
@@ -321,6 +326,8 @@ export const EntityGraphPanel: React.FC<{
 						onEdgeClick={handleEdgeClick}
 						onNodeContextMenu={handleNodeContextMenu}
 						onSelectNode={onSelectNode}
+						searchQuery={searchQuery}
+						searchMatchedEntities={searchMatchedEntities}
 						onNodeDoubleClick={() => {
 							console.log("node double clicked");
 						}}

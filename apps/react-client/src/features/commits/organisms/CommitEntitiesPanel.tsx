@@ -1,9 +1,14 @@
-import { memo, useMemo, useCallback } from "react";
+import { memo, useMemo, useCallback, useRef } from "react";
 import { Box, Chip, TextField, InputAdornment } from "@mui/material";
 import { Search as SearchIcon } from "@mui/icons-material";
 import { useColorScheme } from "@mui/material/styles";
 import { AgGridReact } from "ag-grid-react";
-import type { ColDef, RowClickedEvent } from "ag-grid-community";
+import type {
+	ColDef,
+	GridApi,
+	GridReadyEvent,
+	RowClickedEvent,
+} from "ag-grid-community";
 import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
@@ -13,6 +18,8 @@ import {
 	extractCommitEntities,
 	type CommitEntity,
 } from "../stores/commitMergeStore";
+import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
+import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 
 export const CommitEntitiesPanel = memo(() => {
 	const { mode } = useColorScheme();
@@ -106,6 +113,21 @@ export const CommitEntitiesPanel = memo(() => {
 		[setSelectedEntityId],
 	);
 
+	const gridApiRef = useRef<GridApi | null>(null);
+	const gridPersistence = useAgGridPersistence({
+		gridId: "commit-entities",
+		gridName: "Коммит: сущности",
+		apiRef: gridApiRef,
+	});
+
+	const handleGridReady = useCallback(
+		(event: GridReadyEvent) => {
+			gridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			gridApiRef.current = event.api;
+		},
+		[gridPersistence],
+	);
+
 	return (
 		<Box
 			sx={{
@@ -133,11 +155,17 @@ export const CommitEntitiesPanel = memo(() => {
 					}}
 				/>
 			</Box>
-			<Box sx={{ flex: 1, minHeight: 0 }}>
+			<Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
+				<AgGridStateControls onReset={gridPersistence.resetGridState} />
 				<AgGridReact
 					rowData={filteredEntities}
 					columnDefs={columnDefs}
 					theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+					onGridReady={handleGridReady}
+					onColumnMoved={gridPersistence.onColumnMoved}
+					onColumnPinned={gridPersistence.onColumnPinned}
+					onColumnResized={gridPersistence.onColumnResized}
+					onColumnVisible={gridPersistence.onColumnVisible}
 					onRowClicked={handleRowClicked}
 					getRowStyle={getRowStyle}
 					rowSelection="single"
@@ -146,6 +174,7 @@ export const CommitEntitiesPanel = memo(() => {
 					rowHeight={28}
 					headerHeight={32}
 					overlayNoRowsTemplate="Нет сущностей в коммите"
+					onSortChanged={gridPersistence.onSortChanged}
 				/>
 			</Box>
 		</Box>

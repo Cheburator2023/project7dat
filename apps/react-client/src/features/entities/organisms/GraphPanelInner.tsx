@@ -39,7 +39,7 @@ import {
 	CenterFocusStrong,
 	SwapHoriz,
 	SwapVert,
-	ClearAll,
+	Clear,
 } from "@mui/icons-material";
 import { useGraphDepthControl } from "@react-client/common/hooks/useGraphDepthControl";
 import {
@@ -247,7 +247,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			selectedAttributes,
 			toggleSelectedAttribute,
 			clearSelectedAttributes,
-			globalAttributeSearchQuery,
+			attributeSearchQueryByGraphId,
 			localNodeAttributeSearchQueries,
 			searchMatchedEntities,
 			globalSearchQuery,
@@ -260,7 +260,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				selectedAttributes: state.selectedAttributes,
 				toggleSelectedAttribute: state.toggleSelectedAttribute,
 				clearSelectedAttributes: state.clearSelectedAttributes,
-				globalAttributeSearchQuery: state.globalAttributeSearchQuery,
+				attributeSearchQueryByGraphId: state.attributeSearchQueryByGraphId,
 				localNodeAttributeSearchQueries: state.localNodeAttributeSearchQueries,
 				searchMatchedEntities: state.searchMatchedEntities,
 				globalSearchQuery: state.globalSearchQuery,
@@ -268,6 +268,9 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				setZoomToNode: state.setZoomToNode,
 			})),
 		);
+
+		const globalAttributeSearchQuery =
+			attributeSearchQueryByGraphId[graphId] ?? "";
 
 		const lineageGraph = useMemo(
 			() => buildLineageGraph(data.mappings || []),
@@ -369,9 +372,18 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 		]);
 
 		// Notify parent about upstream/downstream changes
+		const onUpstreamDownstreamChangeRef = useRef(onUpstreamDownstreamChange);
+		onUpstreamDownstreamChangeRef.current = onUpstreamDownstreamChange;
 		useEffect(() => {
-			onUpstreamDownstreamChange(upstreamNodes, downstreamNodes);
-		}, [upstreamNodes, downstreamNodes, onUpstreamDownstreamChange]);
+			onUpstreamDownstreamChangeRef.current(upstreamNodes, downstreamNodes);
+		}, [upstreamNodes, downstreamNodes]);
+
+		// unmount
+		useEffect(() => {
+			return () => {
+				handleClearSelectedAttribute();
+			};
+		}, []);
 
 		const handleNodeClick = useCallback(
 			(id: string) => onSelectEntity(id),
@@ -523,6 +535,29 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 			return result;
 		}, [selectedAttributes, attrConnectionMap]);
+
+		const attributeSearchMatchedByEntity = useMemo(() => {
+			const result = new Map<string, Set<string>>();
+			const q = globalSearchQuery.trim().toLowerCase();
+			if (!q || q.length < 2) return result;
+
+			const add = (entityId: string, attrName: string) => {
+				if (!result.has(entityId)) result.set(entityId, new Set());
+				result.get(entityId)!.add(attrName);
+			};
+
+			for (const entity of data.entities || []) {
+				for (const attr of entity.attrSeq || []) {
+					const name = attr.name?.toLowerCase() ?? "";
+					const type = attr.type?.toLowerCase() ?? "";
+					if (name.includes(q) || type.includes(q)) {
+						add(entity.id, attr.name);
+					}
+				}
+			}
+
+			return result;
+		}, [data.entities, globalSearchQuery]);
 
 		const searchedHighlightedByEntity = useMemo(() => {
 			const result = new Map<string, Set<string>>();
@@ -1258,7 +1293,9 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						hoverHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
 					const nextSelectedAttrs =
 						selectedHighlightedByEntity.get(node.id) || EMPTY_STRING_SET;
-					const nextIsExpanded = false; // Not implemented
+					const nextAttributeSearchMatchedAttrs =
+						attributeSearchMatchedByEntity.get(node.id) || EMPTY_STRING_SET;
+					const nextIsExpanded = nextAttributeSearchMatchedAttrs.size > 0;
 
 					const d = node.data as EntityNodeData;
 					// Skip creating a new object if nothing changed for this node
@@ -1266,6 +1303,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						d.highlightType === highlightType &&
 						d.hoverHighlightedAttrs === nextHoverAttrs &&
 						d.selectedHighlightedAttrs === nextSelectedAttrs &&
+						d.attributeSearchMatchedAttrs === nextAttributeSearchMatchedAttrs &&
 						d.isSearchActive === isSearchActive &&
 						d.isSearchMatch === !!isSearchMatch &&
 						d.isExpanded === nextIsExpanded &&
@@ -1285,6 +1323,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 							highlightType,
 							hoverHighlightedAttrs: nextHoverAttrs,
 							selectedHighlightedAttrs: nextSelectedAttrs,
+							attributeSearchMatchedAttrs: nextAttributeSearchMatchedAttrs,
 							isSearchActive,
 							isSearchMatch: !!isSearchMatch,
 							searchMatchScore: searchScore,
@@ -1306,6 +1345,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			searchMatchedEntities,
 			hoverHighlightedByEntity,
 			selectedHighlightedByEntity,
+			attributeSearchMatchedByEntity,
 			setNodes,
 			handleNodeClick,
 			handleNodeDblClick,
@@ -1401,60 +1441,69 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 			}
 
 			// Decorate entity-level edges from layout + append attr edges
-			const decoratedEntityEdges = layoutedTopologyEdges.map((edge) => {
-				const baseStroke =
-					(edge.data as { baseStroke?: string } | undefined)?.baseStroke ??
-					"#b1b1b7";
-				const baseStrokeWidth =
-					(edge.data as { baseStrokeWidth?: number } | undefined)
-						?.baseStrokeWidth ?? 1;
+			const decoratedEntityEdges = shouldShowAttrEdges
+				? layoutedTopologyEdges.filter((edge) => {
+						// Keep ghost edges visible
+						return (
+							edge.id.startsWith("ghost-") ||
+							edge.source.startsWith("ghost-") ||
+							edge.target.startsWith("ghost-")
+						);
+					})
+				: layoutedTopologyEdges.map((edge) => {
+						const baseStroke =
+							(edge.data as { baseStroke?: string } | undefined)?.baseStroke ??
+							"#b1b1b7";
+						const baseStrokeWidth =
+							(edge.data as { baseStrokeWidth?: number } | undefined)
+								?.baseStrokeWidth ?? 1;
 
-				let edgeHighlightType: "none" | "upstream" | "downstream" = "none";
-				if (selectedEntityId) {
-					if (edge.source === selectedEntityId) {
-						edgeHighlightType = "downstream";
-					} else if (edge.target === selectedEntityId) {
-						edgeHighlightType = "upstream";
-					} else if (
-						upstreamNodes.has(edge.source) &&
-						upstreamNodes.has(edge.target)
-					) {
-						edgeHighlightType = "upstream";
-					} else if (
-						downstreamNodes.has(edge.source) &&
-						downstreamNodes.has(edge.target)
-					) {
-						edgeHighlightType = "downstream";
-					}
-				}
+						let edgeHighlightType: "none" | "upstream" | "downstream" = "none";
+						if (selectedEntityId) {
+							if (edge.source === selectedEntityId) {
+								edgeHighlightType = "downstream";
+							} else if (edge.target === selectedEntityId) {
+								edgeHighlightType = "upstream";
+							} else if (
+								upstreamNodes.has(edge.source) &&
+								upstreamNodes.has(edge.target)
+							) {
+								edgeHighlightType = "upstream";
+							} else if (
+								downstreamNodes.has(edge.source) &&
+								downstreamNodes.has(edge.target)
+							) {
+								edgeHighlightType = "downstream";
+							}
+						}
 
-				const isHighlighted = edgeHighlightType !== "none";
-				const stroke = isHighlighted
-					? edgeHighlightType === "upstream"
-						? HIGHLIGHT_COLORS.upstream
-						: HIGHLIGHT_COLORS.downstream
-					: baseStroke;
-				const strokeWidth = isHighlighted
-					? baseStrokeWidth + 1
-					: baseStrokeWidth;
+						const isHighlighted = edgeHighlightType !== "none";
+						const stroke = isHighlighted
+							? edgeHighlightType === "upstream"
+								? HIGHLIGHT_COLORS.upstream
+								: HIGHLIGHT_COLORS.downstream
+							: baseStroke;
+						const strokeWidth = isHighlighted
+							? baseStrokeWidth + 1
+							: baseStrokeWidth;
 
-				return {
-					...edge,
-					animated: isHighlighted,
-					style: {
-						...(edge.style || {}),
-						stroke,
-						strokeWidth,
-					},
-					markerEnd:
-						edge.markerEnd && typeof edge.markerEnd === "object"
-							? {
-									...edge.markerEnd,
-									color: stroke,
-								}
-							: edge.markerEnd,
-				};
-			});
+						return {
+							...edge,
+							animated: isHighlighted,
+							style: {
+								...(edge.style || {}),
+								stroke,
+								strokeWidth,
+							},
+							markerEnd:
+								edge.markerEnd && typeof edge.markerEnd === "object"
+									? {
+											...edge.markerEnd,
+											color: stroke,
+										}
+									: edge.markerEnd,
+						};
+					});
 
 			setEdges([...decoratedEntityEdges, ...attrEdges]);
 		}, [
@@ -1525,8 +1574,86 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 						});
 					}
 				}
+
+				// Recompute group bounds after drag to keep groups adaptive
+				const hasDragEnd = changes.some(
+					(c) => c.type === "position" && c.dragging === false && c.position,
+				);
+				if (!hasDragEnd) return;
+
+				setNodes((currentNodes) => {
+					const posMap = new Map<string, { x: number; y: number }>();
+					for (const c of changes) {
+						if (c.type === "position" && c.position && c.dragging === false) {
+							posMap.set(c.id, c.position);
+						}
+					}
+
+					const groupChildren = new Map<
+						string,
+						{ id: string; absX: number; absY: number; w: number; h: number }[]
+					>();
+
+					for (const node of currentNodes) {
+						if (!node.parentId) continue;
+						const groupNode = currentNodes.find((n) => n.id === node.parentId);
+						if (!groupNode) continue;
+						const relPos = posMap.get(node.id) ?? node.position;
+						const absX = groupNode.position.x + relPos.x;
+						const absY = groupNode.position.y + relPos.y;
+						const w =
+							node.measured?.width ??
+							(node as unknown as { width?: number }).width ??
+							NODE_WIDTH;
+						const h =
+							node.measured?.height ??
+							(node as unknown as { height?: number }).height ??
+							140;
+						if (!groupChildren.has(node.parentId)) {
+							groupChildren.set(node.parentId, []);
+						}
+						groupChildren
+							.get(node.parentId)!
+							.push({ id: node.id, absX, absY, w, h });
+					}
+
+					if (groupChildren.size === 0) return currentNodes;
+
+					return currentNodes.map((node) => {
+						if (node.type !== "depthGroup") return node;
+						const children = groupChildren.get(node.id);
+						if (!children || children.length === 0) return node;
+
+						let minX = Number.POSITIVE_INFINITY;
+						let minY = Number.POSITIVE_INFINITY;
+						let maxX = Number.NEGATIVE_INFINITY;
+						let maxY = Number.NEGATIVE_INFINITY;
+						for (const c of children) {
+							if (c.absX < minX) minX = c.absX;
+							if (c.absY < minY) minY = c.absY;
+							if (c.absX + c.w > maxX) maxX = c.absX + c.w;
+							if (c.absY + c.h > maxY) maxY = c.absY + c.h;
+						}
+
+						const pad = DEPTH_GROUP_PADDING;
+						const newX = minX - pad;
+						const newY = minY - pad - 24;
+						const newW = maxX - minX + pad * 2;
+						const newH = maxY - minY + pad * 2 + 24 + 6;
+
+						return {
+							...node,
+							position: { x: newX, y: newY },
+							style: {
+								...node.style,
+								width: newW,
+								height: newH,
+							},
+						};
+					});
+				});
 			},
-			[onNodesChange],
+			[onNodesChange, setNodes],
 		);
 
 		return (
@@ -1547,6 +1674,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 				proOptions={{ hideAttribution: true }}
 				colorMode={mode}
 				onlyRenderVisibleElements
+				elevateNodesOnSelect
 			>
 				<Background color="#e0e0e0" gap={20} />
 				<Controls>
@@ -1620,7 +1748,7 @@ export const GraphPanelInner = memo<GraphPanelInnerProps>(
 								title={`Очистить атрибуты (${selectedAttributes.length})`}
 								type="button"
 							>
-								<ClearAll style={{ fontSize: 16, color: "#666" }} />
+								<Clear style={{ fontSize: 16, color: "#666" }} />
 							</button>
 						</div>
 					)}

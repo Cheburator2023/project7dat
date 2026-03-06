@@ -12,8 +12,10 @@ import { toast } from "sonner";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
-import { useAuthStore } from "@react-client/common/stores/authStore";
-import { usePaginatedEntityRelations } from "@react-client/api/hooks";
+import {
+	usePaginatedEntityRelations,
+	useDownloadS2tReport,
+} from "@react-client/api/hooks";
 
 const sanitizeFilePart = (value: string) =>
 	value.replace(/[^a-zA-Z0-9._-]+/g, "_");
@@ -32,42 +34,9 @@ const buildDefaultFileName = (params: {
 	return `${base}${timestamp}.${params.extension}`;
 };
 
-const getFileNameFromContentDisposition = (value: string | null) => {
-	if (!value) return null;
-
-	const parts = value.split(";").map((p) => p.trim());
-	const filenameStar = parts.find((p) =>
-		p.toLowerCase().startsWith("filename*="),
-	);
-	if (filenameStar) {
-		const raw = filenameStar.split("=")[1] ?? "";
-		const cleaned = raw.replace(/^UTF-8''/i, "").replace(/^"|"$/g, "");
-		try {
-			return decodeURIComponent(cleaned);
-		} catch {
-			return cleaned;
-		}
-	}
-
-	const filename = parts.find((p) => p.toLowerCase().startsWith("filename="));
-	if (!filename) return null;
-	return (filename.split("=")[1] ?? "").replace(/^"|"$/g, "");
-};
-
-const downloadBlob = (params: { blob: Blob; fileName: string }) => {
-	const url = URL.createObjectURL(params.blob);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = params.fileName;
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	URL.revokeObjectURL(url);
-};
-
 export const S2tDataReportPage = () => {
 	const { selectedEntityId } = useEntitiesStore();
-	const { accessToken } = useAuthStore();
+	const downloadS2tReport = useDownloadS2tReport();
 	const [loading, setLoading] = useState(false);
 
 	const { data: relationsData, isLoading: isEntityLoading } =
@@ -103,8 +72,6 @@ export const S2tDataReportPage = () => {
 
 	const handleDownload = useCallback(async () => {
 		if (loading) return;
-		const API_BASE_URL =
-			window.urlConfig?.DATA_LINEAGE_API || "http://localhost:3000";
 		if (!selectedEntityId) {
 			toast.error("Сначала выбери витрину (таблицу или view) на главной");
 			return;
@@ -116,33 +83,16 @@ export const S2tDataReportPage = () => {
 
 		setLoading(true);
 		try {
-			const url = new URL(`${API_BASE_URL}/api/s2t-export/dl`);
-			url.searchParams.set("entityId", selectedEntityId);
-
-			const res = await fetch(url.toString(), {
-				method: "GET",
-				headers: {
-					...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-				},
+			await downloadS2tReport({
+				entityId: selectedEntityId,
+				fallbackFileName: derived.fileName ?? "report.xlsx",
 			});
-
-			if (!res.ok) {
-				throw new Error(`HTTP ${res.status}`);
-			}
-
-			const blob = await res.blob();
-			const cd = res.headers.get("content-disposition");
-			const responseFileName = getFileNameFromContentDisposition(cd);
-			downloadBlob({
-				blob,
-				fileName: responseFileName ?? derived.fileName ?? "report.xlsx",
-			});
-		} catch (e: any) {
-			toast.error(`Не удалось скачать отчёт: ${e?.message ?? "ошибка"}`);
+		} catch {
+			// Error already handled in hook
 		} finally {
 			setLoading(false);
 		}
-	}, [accessToken, derived, loading, selectedEntityId]);
+	}, [derived, loading, selectedEntityId, downloadS2tReport]);
 
 	return (
 		<Box>

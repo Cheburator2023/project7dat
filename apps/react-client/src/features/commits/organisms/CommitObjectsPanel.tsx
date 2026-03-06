@@ -1,8 +1,13 @@
-import { memo, useMemo, useCallback, useState } from "react";
+import { memo, useMemo, useCallback, useState, useRef } from "react";
 import { Box, Typography, Chip } from "@mui/material";
 import { useColorScheme } from "@mui/material/styles";
 import { AgGridReact } from "ag-grid-react";
-import type { ColDef, RowClickedEvent } from "ag-grid-community";
+import type {
+	ColDef,
+	GridApi,
+	GridReadyEvent,
+	RowClickedEvent,
+} from "ag-grid-community";
 import {
 	agGridCustomMUITheme,
 	agGridCustomMUIThemeDark,
@@ -14,6 +19,8 @@ import {
 	extractCommitEntities,
 	extractCommitMappings,
 } from "../stores/commitMergeStore";
+import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
+import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 
 interface ObjectRow {
 	id: string;
@@ -228,6 +235,35 @@ export const CommitObjectsPanel = memo(() => {
 		[],
 	);
 
+	const objectsGridApiRef = useRef<GridApi | null>(null);
+	const linksGridApiRef = useRef<GridApi | null>(null);
+	const objectsGridPersistence = useAgGridPersistence({
+		gridId: "commit-objects",
+		gridName: "Коммит: объекты",
+		apiRef: objectsGridApiRef,
+	});
+	const linksGridPersistence = useAgGridPersistence({
+		gridId: "commit-links",
+		gridName: "Коммит: связи",
+		apiRef: linksGridApiRef,
+	});
+
+	const handleObjectsGridReady = useCallback(
+		(event: GridReadyEvent) => {
+			objectsGridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			objectsGridApiRef.current = event.api;
+		},
+		[objectsGridPersistence],
+	);
+
+	const handleLinksGridReady = useCallback(
+		(event: GridReadyEvent) => {
+			linksGridPersistence.onGridReady(event as unknown as GridReadyEvent);
+			linksGridApiRef.current = event.api;
+		},
+		[linksGridPersistence],
+	);
+
 	const selectedConnection: EntityConnection | null = selectedLink
 		? {
 				id: selectedLink.id,
@@ -252,11 +288,20 @@ export const CommitObjectsPanel = memo(() => {
 				flexDirection: "column",
 			}}
 		>
-			<Box sx={{ flex: 1, minHeight: 0 }}>
+			<Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
+				<AgGridStateControls
+					onReset={objectsGridPersistence.resetGridState}
+					resetTitle="Сбросить настройки таблицы (объекты)"
+				/>
 				<AgGridReact
 					rowData={filteredObjects}
 					columnDefs={objectColumnDefs}
 					theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+					onGridReady={handleObjectsGridReady}
+					onColumnMoved={objectsGridPersistence.onColumnMoved}
+					onColumnPinned={objectsGridPersistence.onColumnPinned}
+					onColumnResized={objectsGridPersistence.onColumnResized}
+					onColumnVisible={objectsGridPersistence.onColumnVisible}
 					onRowClicked={handleObjectRowClicked}
 					rowSelection="single"
 					suppressCellFocus
@@ -264,6 +309,7 @@ export const CommitObjectsPanel = memo(() => {
 					rowHeight={28}
 					headerHeight={32}
 					overlayNoRowsTemplate="Нет объектов"
+					onSortChanged={objectsGridPersistence.onSortChanged}
 				/>
 			</Box>
 			<Box
@@ -274,18 +320,30 @@ export const CommitObjectsPanel = memo(() => {
 					minHeight: 0,
 				}}
 			>
-				<AgGridReact
-					rowData={filteredLinks}
-					columnDefs={linkColumnDefs}
-					theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
-					onRowClicked={handleLinkRowClicked}
-					rowSelection="single"
-					suppressCellFocus
-					animateRows
-					rowHeight={28}
-					headerHeight={32}
-					overlayNoRowsTemplate="Нет связей"
-				/>
+				<Box sx={{ position: "relative", height: "100%" }}>
+					<AgGridStateControls
+						onReset={linksGridPersistence.resetGridState}
+						resetTitle="Сбросить настройки таблицы (связи)"
+					/>
+					<AgGridReact
+						rowData={filteredLinks}
+						columnDefs={linkColumnDefs}
+						theme={isDark ? agGridCustomMUIThemeDark : agGridCustomMUITheme}
+						onGridReady={handleLinksGridReady}
+						onColumnMoved={linksGridPersistence.onColumnMoved}
+						onColumnPinned={linksGridPersistence.onColumnPinned}
+						onColumnResized={linksGridPersistence.onColumnResized}
+						onColumnVisible={linksGridPersistence.onColumnVisible}
+						onRowClicked={handleLinkRowClicked}
+						rowSelection="single"
+						suppressCellFocus
+						animateRows
+						rowHeight={28}
+						headerHeight={32}
+						overlayNoRowsTemplate="Нет связей"
+						onSortChanged={linksGridPersistence.onSortChanged}
+					/>
+				</Box>
 			</Box>
 
 			{selectedConnection && (

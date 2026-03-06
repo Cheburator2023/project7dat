@@ -21,7 +21,6 @@ import { EntityDetailsDialog } from "@react-client/features/entityPreview/compon
 import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
 import { usePaginatedEntities } from "@react-client/api/hooks/usePaginatedEntities";
-import { usePaginatedMappings } from "@react-client/api/hooks/usePaginatedMappings";
 import { usePaginatedEntityRelations } from "@react-client/api/hooks/usePaginatedEntityRelations";
 import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import type {
@@ -30,16 +29,13 @@ import type {
 } from "@react-client/api/hooks/jsonDataApi";
 import type { DataLineageMapping } from "@react-client/types/dataLineage";
 
+import { strictSearchEntities } from "../utils/fuzzySearch";
+
 import { useEntitiesStore } from "../stores";
 import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { LoadingSpinner } from "../atoms/LoadingSpinner";
 import { GraphPanelInner, type NodeContextMenuEvent } from "./GraphPanelInner";
 import type { EntityConnection } from "../types";
-import {
-	getUpstreamNodes,
-	getDownstreamNodes,
-	buildLineageGraph,
-} from "../utils";
 import { LinkIcon } from "lucide-react";
 
 type EntityLike = DataLineageEntity | PaginatedEntitiesResponse["entities"][0];
@@ -58,6 +54,7 @@ export const GraphPanel = memo(() => {
 		setUpstreamDownstream,
 		selectedAttributes,
 		globalSearchQuery,
+		setSearchMatchedEntities,
 		hideTempTables,
 	} = useEntitiesStore(
 		useShallow((state) => ({
@@ -66,6 +63,7 @@ export const GraphPanel = memo(() => {
 			setUpstreamDownstream: state.setUpstreamDownstream,
 			selectedAttributes: state.selectedAttributes,
 			globalSearchQuery: state.globalSearchQuery,
+			setSearchMatchedEntities: state.setSearchMatchedEntities,
 			hideTempTables: state.hideTempTables,
 		})),
 	);
@@ -83,12 +81,6 @@ export const GraphPanel = memo(() => {
 				uiSearch: globalSearchQuery || undefined,
 				hideTempTables,
 			}),
-			enabled: false,
-		});
-	const { data: paginatedMappingsData, isLoading: isPaginatedMappingsLoading } =
-		usePaginatedMappings({
-			page: 1,
-			limit: 50,
 			enabled: false,
 		});
 
@@ -113,8 +105,7 @@ export const GraphPanel = memo(() => {
 
 	const isPanelLoading = selectedEntityId
 		? isEntityRelationsLoading
-		: !currentSchema &&
-			(isPaginatedEntitiesLoading || isPaginatedMappingsLoading);
+		: !currentSchema && isPaginatedEntitiesLoading;
 
 	const entitiesSource = useMemo<EntityLike[]>(() => {
 		if (currentSchema?.entities?.length) return currentSchema.entities;
@@ -123,8 +114,8 @@ export const GraphPanel = memo(() => {
 
 	const mappingsSource = useMemo<MappingLike[]>(() => {
 		if (currentSchema?.mappings?.length) return currentSchema.mappings as any;
-		return paginatedMappingsData?.mappings ?? [];
-	}, [currentSchema?.mappings, paginatedMappingsData?.mappings]);
+		return [];
+	}, [currentSchema?.mappings]);
 
 	// For selected entity always render only backend depth slice (no frontend merge).
 	const schemaForGraph = useMemo(() => {
@@ -157,7 +148,7 @@ export const GraphPanel = memo(() => {
 		return {
 			entities: entitiesSource,
 			mappings: mappingsSource,
-			desc: paginatedEntitiesData?.desc ?? paginatedMappingsData?.desc,
+			desc: paginatedEntitiesData?.desc,
 		} as any;
 	}, [
 		selectedEntityId,
@@ -166,8 +157,49 @@ export const GraphPanel = memo(() => {
 		entitiesSource,
 		mappingsSource,
 		paginatedEntitiesData?.desc,
-		paginatedMappingsData?.desc,
 	]);
+
+	useEffect(() => {
+		const q = globalSearchQuery.trim();
+		if (!q) {
+			setSearchMatchedEntities(new Map());
+			return;
+		}
+
+		const entities = schemaForGraph?.entities ?? [];
+		const directEntityMatches = strictSearchEntities(
+			entities.map((e: EntityLike) => ({
+				id: e.id,
+				name: e.name ?? null,
+				namespace: (e as any).namespace ?? null,
+				type: (e as any).type ?? null,
+			})),
+			q,
+		);
+
+		const matches = new Map<string, number>();
+		for (const m of directEntityMatches) {
+			matches.set(m.item.id, m.score);
+		}
+
+		// Also match by attributes (contiguous substring on name/type)
+		const normalizedQ = q.toLowerCase();
+		for (const entity of entities) {
+			for (const attr of entity.attrSeq ?? []) {
+				const name = attr.name?.toLowerCase() ?? "";
+				const type = attr.type?.toLowerCase() ?? "";
+				if (!name && !type) continue;
+				if (name.includes(normalizedQ) || type.includes(normalizedQ)) {
+					if (!matches.has(entity.id)) {
+						matches.set(entity.id, -50_000);
+					}
+					break;
+				}
+			}
+		}
+
+		setSearchMatchedEntities(matches);
+	}, [globalSearchQuery, schemaForGraph, setSearchMatchedEntities]);
 
 	// Get setRevealPosition for scrolling to entity in editor
 	const setRevealPosition = useDataLineageStore(
@@ -326,43 +358,6 @@ export const GraphPanel = memo(() => {
 		);
 	}, [contextMenu, schemaForGraph]);
 
-	// Build lineage graph for upstream/downstream navigation
-	const lineageGraph = useMemo(
-		() => buildLineageGraph((schemaForGraph?.mappings || []) as any),
-		[schemaForGraph?.mappings],
-	);
-
-	// Get upstream/downstream entities for context menu entity
-	const { contextUpstream, contextDownstream } = useMemo(() => {
-		if (!contextMenu?.entityId) {
-			return { contextUpstream: [], contextDownstream: [] };
-		}
-		const upstreamSet = getUpstreamNodes(
-			contextMenu.entityId,
-			lineageGraph.upstream,
-		);
-		upstreamSet.delete(contextMenu.entityId);
-		const downstreamSet = getDownstreamNodes(
-			contextMenu.entityId,
-			lineageGraph.downstream,
-		);
-		downstreamSet.delete(contextMenu.entityId);
-
-		const entityMap = new Map<string, DataLineageEntity>();
-		for (const e of schemaForGraph?.entities || []) {
-			entityMap.set(e.id, e as any);
-		}
-
-		const upstream = Array.from(upstreamSet)
-			.map((id) => entityMap.get(id))
-			.filter((e): e is DataLineageEntity => !!e);
-		const downstream = Array.from(downstreamSet)
-			.map((id) => entityMap.get(id))
-			.filter((e): e is DataLineageEntity => !!e);
-
-		return { contextUpstream: upstream, contextDownstream: downstream };
-	}, [contextMenu?.entityId, lineageGraph, schemaForGraph?.entities]);
-
 	// Context menu actions
 	const handleViewDetails = useCallback(() => {
 		if (contextMenuEntity) {
@@ -375,7 +370,8 @@ export const GraphPanel = memo(() => {
 	const handleOpenInNewTab = useCallback(() => {
 		if (contextMenu?.entityId) {
 			const encodedId = encodeURIComponent(contextMenu.entityId);
-			window.open(`/entity/${encodedId}`, "_blank");
+			const url = new URL(`/entity/${encodedId}`, window.location.href);
+			window.open(url.toString(), "_blank", "noopener,noreferrer");
 		}
 		handleCloseContextMenu();
 	}, [contextMenu?.entityId, handleCloseContextMenu]);

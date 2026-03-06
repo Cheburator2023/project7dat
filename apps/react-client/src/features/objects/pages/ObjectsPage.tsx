@@ -8,10 +8,7 @@ import {
 	EntitiesPanel,
 	DashboardHeader,
 } from "@react-client/features/entities/organisms";
-import {
-	useCurrentDataLineageGraph,
-	usePaginatedMappings,
-} from "@react-client/api/hooks";
+import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 
 export const ObjectsPage = () => {
@@ -22,12 +19,6 @@ export const ObjectsPage = () => {
 			setZoomToNode: state.setZoomToNode,
 		})),
 	);
-	useCurrentDataLineageGraph({ enabled: false });
-	usePaginatedMappings({
-		page: 1,
-		limit: 5000,
-		enabled: true,
-	});
 
 	const location = useLocation();
 
