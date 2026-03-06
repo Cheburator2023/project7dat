@@ -1,5 +1,24 @@
 # Semantic Versioning Changelog
 
+# [1.5.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.4.1...v1.5.0) (2026-03-06)
+
+
+### Bug Fixes
+
+* version fix ([889a618](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/889a618125d1b9206e71b5579b9792d016e55c4e))
+* version fix ([5508f95](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/5508f95454cf08913bc82a6e29d1d1d7645c7390))
+* исправлен порядок нод в графе моделей и добавлены иконки типов ([86b0d0b](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/86b0d0be535d19a170a7da1e4f2abd264696e9bc))
+* Поправил работу mergeservice ([62257dd](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/62257ddd56656c728810c4108853506abfd7c6bd))
+* Поправил работу mergeservice ([5c20d3c](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/5c20d3c52f4c32f6d9ef5c251be32e7ef4fb059f))
+* Поправил работу маппингов ([de75978](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/de75978ef3dedf9b69f42b84e24cd41db5911059))
+* увеличены расстояния между нодами в графе моделей ([6ef78ab](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/6ef78ab9fbc9c010e08b9c4a81243284430269c9))
+
+
+### Features
+
+* использование userStore для автора коммита вместо authStore ([b9af8ac](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/b9af8ac66c2e13f1e0076e9b3ffed429e21d4cbc))
+* упрощение импорта S2T — конвертация и валидация на беке ([89ada77](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/89ada77fb0d6b5bf7338fba30623dcb202fedc2c))
+
 ## [1.4.1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.4.0...v1.4.1) (2026-03-04)
 
 
