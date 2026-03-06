@@ -45,13 +45,13 @@ export class MergeService {
 		private readonly structureValidator: JsonStructureValidator,
 	) {}
 
-	/**
-	 * Применить коммит к текущей модели данных
-	 * @param commitId - идентификатор пользовательской версии коммита
-	 * @returns сессия слияния с результатом
-	 */
-	async applyMerge(commitId: string): Promise<ApplyMergeResponseDto> {
-		this.logger.log(`Запуск слияния для коммита: ${commitId}`);
+    /**
+     * Применить коммит к текущей модели данных
+     * @param commitId - идентификатор пользовательской версии коммита
+     * @returns сессия слияния с результатом
+     */
+    async applyMerge(commitId: string): Promise<ApplyMergeResponseDto> {
+        this.logger.log(`Запуск слияния для коммита: ${commitId}`);
 
 		// 1. Получаем коммит
 		const commit = await this.s2tCommitService.findById(commitId);
@@ -64,8 +64,8 @@ export class MergeService {
 			throw new BadRequestException("Коммит не содержит JSON данных");
 		}
 
-		// 2. Получаем текущую модель данных из РБД
-		const currentModel = await this.jsonExportService.exportToJson();
+        // 2. Получаем текущую модель данных из РБД
+        const currentModel = await this.jsonExportService.exportToJson();
 
 		// 3. Проверяем рекурсию в текущей модели
 		const recursionCurrent = this.structureValidator.checkForRecursion(
@@ -140,17 +140,17 @@ export class MergeService {
 		// 11. Подсчёт статистики
 		const stats = this.calculateChangeStats(diff);
 
-		this.logger.log(`Слияние применено, сессия: ${mergeSessionId}`);
+        this.logger.log(`Слияние применено, сессия: ${mergeSessionId}`);
 
-		return {
-			mergeSessionId,
-			mergedJson: mergedModel,
-			diff,
-			changedEntitiesCount: stats.entities,
-			changedAttributesCount: stats.attributes,
-			changedMappingsCount: stats.mappings,
-		};
-	}
+        return {
+            mergeSessionId,
+            mergedJson: mergedModel,
+            diff,
+            changedEntitiesCount: stats.entities,
+            changedAttributesCount: stats.attributes,
+            changedMappingsCount: stats.mappings,
+        };
+    }
 
 	/**
 	 * Основная логика слияния.
@@ -346,16 +346,16 @@ export class MergeService {
 	): Promise<{ success: boolean; snapshotId: string; message: string }> {
 		this.logger.log(`Подтверждение слияния для коммита: ${commitId}`);
 
-		// Находим активную сессию
-		let session: any = null;
-		let sessionId: string | null = null;
-		for (const [id, sess] of this.mergeSessions.entries()) {
-			if (sess.commitId === commitId) {
-				session = sess;
-				sessionId = id;
-				break;
-			}
-		}
+        // Находим активную сессию
+        let session: any = null;
+        let sessionId: string | null = null;
+        for (const [id, sess] of this.mergeSessions.entries()) {
+            if (sess.commitId === commitId) {
+                session = sess;
+                sessionId = id;
+                break;
+            }
+        }
 
 		if (!session) {
 			throw new NotFoundException(
@@ -363,10 +363,10 @@ export class MergeService {
 			);
 		}
 
-		// Выполняем импорт смерженной модели в РБД
-		const queryRunner = this.dataSource.createQueryRunner();
-		await queryRunner.connect();
-		await queryRunner.startTransaction();
+        // Выполняем импорт смерженной модели в РБД
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
 
 		try {
 			// Получаем пользователя (из коммита или переданный)
@@ -395,14 +395,14 @@ export class MergeService {
 			commit.change_id = importResult.changeId;
 			await this.commitRepository.save(commit);
 
-			await queryRunner.commitTransaction();
+            await queryRunner.commitTransaction();
 
-			// Удаляем сессию
-			if (sessionId) {
-				this.mergeSessions.delete(sessionId);
-			}
+            // Удаляем сессию
+            if (sessionId) {
+                this.mergeSessions.delete(sessionId);
+            }
 
-			this.logger.log(`Слияние подтверждено, снепшот: ${snapshot.snapshot_id}`);
+            this.logger.log(`Слияние подтверждено, снепшот: ${snapshot.snapshot_id}`);
 
 			return {
 				success: true,
@@ -431,14 +431,14 @@ export class MergeService {
 	): Promise<{ success: boolean; message: string }> {
 		this.logger.log(`Отмена слияния для коммита: ${commitId}`);
 
-		let deleted = false;
-		for (const [id, sess] of this.mergeSessions.entries()) {
-			if (sess.commitId === commitId) {
-				this.mergeSessions.delete(id);
-				deleted = true;
-				break;
-			}
-		}
+        let deleted = false;
+        for (const [id, sess] of this.mergeSessions.entries()) {
+            if (sess.commitId === commitId) {
+                this.mergeSessions.delete(id);
+                deleted = true;
+                break;
+            }
+        }
 
 		if (!deleted) {
 			throw new NotFoundException(
@@ -452,12 +452,12 @@ export class MergeService {
 		};
 	}
 
-	/**
-	 * Получение сессии по ID (для внутреннего использования)
-	 */
-	getMergeSession(sessionId: string) {
-		return this.mergeSessions.get(sessionId);
-	}
+    /**
+     * Получение сессии по ID (для внутреннего использования)
+     */
+    getMergeSession(sessionId: string) {
+        return this.mergeSessions.get(sessionId);
+    }
 
 	/**
 	 * Проверяет, не создаёт ли слияние новых дубликатов.
