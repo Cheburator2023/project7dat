@@ -21,7 +21,6 @@ import {
 import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import { usePaginatedEntities } from "@react-client/api/hooks";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
-import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
 import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
 
@@ -55,6 +54,7 @@ export const EntitiesPanel = memo(
 			upstreamEntities,
 			downstreamEntities,
 			globalSearchQuery,
+			filters,
 			hideTempTables,
 			selectEntity,
 			entitiesPage,
@@ -75,10 +75,15 @@ export const EntitiesPanel = memo(
 		} = usePaginatedEntities({
 			page: entitiesPage,
 			limit: entitiesPageSize,
-			search: buildEntitiesSearch({
-				uiSearch: globalSearchQuery || undefined,
-				hideTempTables,
-			}),
+			search: globalSearchQuery || undefined,
+			types: filters.entityTypes,
+			namespaces: filters.namespaces,
+			modifiedOnly: filters.modifiedOnly || undefined,
+			hasUpstream: filters.hasUpstream,
+			hasDownstream: filters.hasDownstream,
+			attrCountMin: filters.attrCountMin,
+			attrCountMax: filters.attrCountMax,
+			hideTempTables,
 			sortBy: entitiesSortBy,
 			sortOrder: entitiesSortOrder,
 		});
@@ -306,7 +311,11 @@ export const EntitiesPanel = memo(
 					isFetching={isFetching}
 					itemLabel="сущностей"
 					extraInfo={
-						globalSearchQuery ? `(поиск: "${globalSearchQuery}")` : undefined
+						globalSearchQuery
+							? `(поиск: "${globalSearchQuery}")`
+							: entities.length !== totalEntities
+								? `(на странице после фильтров: ${entities.length})`
+								: undefined
 					}
 				/>
 

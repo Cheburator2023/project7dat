@@ -21,7 +21,6 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import { usePaginatedEntities } from "@react-client/api/hooks";
-import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { routes } from "@react-client/routing/routes";
 import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
@@ -55,11 +54,9 @@ export const ModelsPage = () => {
 	} = usePaginatedEntities({
 		page,
 		limit: pageSize,
-		search: buildEntitiesSearch({
-			uiSearch: searchQuery || undefined,
-			hideTempTables,
-		}),
+		search: searchQuery || undefined,
 		type: "input_vector",
+		hideTempTables,
 		sortBy,
 		sortOrder,
 	});

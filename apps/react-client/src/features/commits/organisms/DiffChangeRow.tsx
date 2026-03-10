@@ -102,6 +102,7 @@ const ValueBlock: FC<{
 				py: 0.5,
 				fontFamily: "monospace",
 				fontSize: "0.8rem",
+				whiteSpace: "pre-wrap",
 				wordBreak: "break-all",
 				color: textColor,
 				flex: 1,

@@ -367,7 +367,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 	return (
 		<Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
 			<DialogTitle>
-				{editable ? "Редактирование" : "Просмотр"} JSON коммита
+				{editable ? "Редактирование" : "Просмотр"} данных коммита
 				{commit && (
 					<Typography variant="body2" color="text.secondary">
 						{commit.commit_name} ({commit.id.slice(0, 8)})

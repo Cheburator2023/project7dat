@@ -11,6 +11,14 @@ export const usePaginatedEntities = (params: {
 	limit: number;
 	search?: string;
 	type?: string;
+	types?: string[];
+	namespaces?: string[];
+	modifiedOnly?: boolean;
+	hasUpstream?: "any" | "yes" | "no";
+	hasDownstream?: "any" | "yes" | "no";
+	attrCountMin?: string;
+	attrCountMax?: string;
+	hideTempTables?: boolean;
 	sortBy?: string;
 	sortOrder?: "asc" | "desc";
 	enabled?: boolean;
@@ -22,6 +30,14 @@ export const usePaginatedEntities = (params: {
 			params.limit,
 			params.search ?? "",
 			params.type ?? "",
+			params.types?.join(",") ?? "",
+			params.namespaces?.join(",") ?? "",
+			params.modifiedOnly ?? "",
+			params.hasUpstream ?? "",
+			params.hasDownstream ?? "",
+			params.attrCountMin ?? "",
+			params.attrCountMax ?? "",
+			params.hideTempTables ?? "",
 			params.sortBy ?? "",
 			params.sortOrder ?? "",
 		],
@@ -31,6 +47,14 @@ export const usePaginatedEntities = (params: {
 				limit: params.limit,
 				search: params.search,
 				type: params.type,
+				types: params.types,
+				namespaces: params.namespaces,
+				modifiedOnly: params.modifiedOnly,
+				hasUpstream: params.hasUpstream,
+				hasDownstream: params.hasDownstream,
+				attrCountMin: params.attrCountMin,
+				attrCountMax: params.attrCountMax,
+				hideTempTables: params.hideTempTables,
 				sortBy: params.sortBy,
 				sortOrder: params.sortOrder,
 			}),

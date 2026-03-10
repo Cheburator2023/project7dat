@@ -18,6 +18,7 @@ import {
 	TextField,
 	InputAdornment,
 	useColorScheme,
+	Typography,
 } from "@mui/material";
 import { Header } from "@react-client/common/navigation/organisms/Header";
 import { usePanelSettingsStore } from "@react-client/common/stores/panelSettingsStore";
@@ -42,6 +43,8 @@ import {
 	TableChart as TableChartIcon,
 	ViewModule as ViewModuleIcon,
 	Search as SearchIcon,
+	Code as CodeIcon,
+	Input as InputIcon,
 } from "@mui/icons-material";
 import { DockviewNoCloseTab } from "@react-client/common/dockview/DockviewNoCloseTab";
 import { DockviewGroupMaximizeActions } from "@react-client/common/dockview/DockviewGroupMaximizeActions";
@@ -55,18 +58,31 @@ import {
 } from "@react-client/features/dockview/core";
 import { DockviewReact } from "@react-client/features/dockview/src";
 
-const _TYPE_ICONS: Record<string, ReactNode> = {
-	table: <TableChartIcon fontSize={"large"} />,
-	view: <ViewModuleIcon fontSize={"large"} />,
-	rdd: <StorageIcon fontSize={"large"} />,
-	unresolved: <HelpOutlineIcon fontSize={"large"} />,
+const TYPE_ICONS: Record<string, ReactNode> = {
+	table: <TableChartIcon fontSize="small" />,
+	view: <ViewModuleIcon fontSize="small" />,
+	rdd: <StorageIcon fontSize="small" />,
+	json: <CodeIcon fontSize="small" />,
+	input_vector: <InputIcon fontSize="small" />,
+	unresolved: <HelpOutlineIcon fontSize="small" />,
 };
 
-const _TYPE_LABELS: Record<string, string> = {
+const TYPE_LABELS: Record<string, string> = {
 	table: "Таблица",
 	view: "Представление",
 	rdd: "RDD",
+	json: "JSON",
+	input_vector: "Входной вектор",
 	unresolved: "Неизвестно",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+	table: "primary",
+	view: "success",
+	rdd: "warning",
+	json: "info",
+	input_vector: "secondary",
+	unresolved: "default",
 };
 
 const dockviewLayoutJson: SerializedDockview = {
@@ -443,7 +459,36 @@ export const EntityPreviewPage: FunctionComponent<EntityPreviewPageProps> = ({
 	return (
 		<EntityPreviewDockviewContext.Provider value={dockviewContextValue}>
 			<div>
-				<Header>
+				<Header
+					title={
+						selectedEntity?.type && (
+							<Box
+								title={TYPE_LABELS[selectedEntity.type] ?? selectedEntity.type}
+								sx={{
+									display: "flex",
+									alignItems: "center",
+									gap: 0.75,
+									px: 1.25,
+									py: 0.5,
+									borderRadius: 1,
+									border: "1px solid",
+									borderColor: "divider",
+									bgcolor: "background.paper",
+									color: `${TYPE_COLORS[selectedEntity.type] ?? "text.secondary"}.main`,
+									whiteSpace: "nowrap",
+								}}
+							>
+								{TYPE_ICONS[selectedEntity.type] ?? (
+									<HelpOutlineIcon fontSize="small" />
+								)}
+								<Typography variant="caption" fontWeight={600} lineHeight={1}>
+									{TYPE_LABELS[selectedEntity.type] ?? selectedEntity.type}
+								</Typography>
+								{selectedEntity.id.split(".").slice(0, 2).join(".")}
+							</Box>
+						)
+					}
+				>
 					<Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: 2 }}>
 						<TextField
 							size="small"

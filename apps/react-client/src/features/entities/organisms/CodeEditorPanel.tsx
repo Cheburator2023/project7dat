@@ -12,24 +12,23 @@ import { useDataLineageStore } from "@react-client/common/stores/dataLineageStor
 import { useShallow } from "zustand/react/shallow";
 
 import { useEntitiesStore } from "../stores";
-import { useCurrentSchema } from "../hooks/useCurrentSchema";
 
 export const CodeEditorPanel = memo(() => {
 	const { selectedEntityId } = useEntitiesStore();
-	const { currentSchema } = useCurrentSchema();
 
-	// Get dataLineageStore actions
 	const {
 		setCurrentGraph,
 		setRevealPosition,
 		initializeGraph,
 		currentGraphId,
+		currentGraph,
 	} = useDataLineageStore(
 		useShallow((state) => ({
 			setCurrentGraph: state.setCurrentGraph,
 			setRevealPosition: state.setRevealPosition,
 			initializeGraph: state.initializeGraph,
 			currentGraphId: state.currentGraphId,
+			currentGraph: state.currentGraph,
 		})),
 	);
 
@@ -37,10 +36,10 @@ export const CodeEditorPanel = memo(() => {
 
 	// Initialize dataLineageStore with server data on first load
 	useEffect(() => {
-		if (currentSchema && !currentGraphId) {
-			initializeGraph(currentSchema as DataLineageGraph);
+		if (currentGraph && !currentGraphId) {
+			initializeGraph(currentGraph as DataLineageGraph);
 		}
-	}, [currentSchema, currentGraphId, initializeGraph]);
+	}, [currentGraph, currentGraphId, initializeGraph]);
 
 	// Handle changes from CodeJsonEditor - update dataLineageStore
 	const handleEditorChange = useCallback(
@@ -52,9 +51,9 @@ export const CodeEditorPanel = memo(() => {
 
 	// When entity is selected, trigger scroll and highlight in CodeJsonEditor
 	useEffect(() => {
-		if (selectedEntityId && currentSchema) {
+		if (selectedEntityId && currentGraph) {
 			// Find entity index in schema
-			const entityIndex = currentSchema.entities?.findIndex(
+			const entityIndex = (currentGraph as any).entities?.findIndex(
 				(e: DataLineageEntity) => e.id === selectedEntityId,
 			);
 
@@ -77,14 +76,14 @@ export const CodeEditorPanel = memo(() => {
 		}
 	}, [
 		selectedEntityId,
-		currentSchema,
+		currentGraph,
 		setRevealPosition,
 		addHighlight,
 		clearHighlights,
 		setExpanded,
 	]);
 
-	if (!currentSchema) {
+	if (!currentGraph) {
 		return (
 			<Box sx={{ p: 4, textAlign: "center" }}>
 				<Typography color="text.secondary">
@@ -97,7 +96,7 @@ export const CodeEditorPanel = memo(() => {
 	return (
 		<Box sx={{ height: "100%", width: "100%" }}>
 			<CodeJsonEditor
-				initialData={currentSchema}
+				initialData={currentGraph as DataLineageGraph}
 				onChange={handleEditorChange}
 			/>
 		</Box>

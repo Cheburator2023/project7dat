@@ -13,8 +13,10 @@ import type { DataLineageSchema } from "@react-client/types/dataLineage";
 import { Flex } from "@react-client/common/primitives/Flex";
 import { Card } from "@react-client/common/muiCustom/Card";
 import * as fuzzysort from "fuzzysort";
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
+import { useShallow } from "zustand/react/shallow";
 
-import { useCurrentSchema } from "../hooks/useCurrentSchema";
+import { useEntitiesStore } from "../stores";
 import type { DebugIssue } from "../types";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -207,7 +209,15 @@ function analyzeSchema(
 }
 
 export const IssuesPanel = memo(() => {
-	const { currentSchema, effectiveGraphId } = useCurrentSchema();
+	const selectedGraphId = useEntitiesStore((state) => state.selectedGraphId);
+	const { currentGraph, currentGraphId } = useDataLineageStore(
+		useShallow((state) => ({
+			currentGraph: state.currentGraph,
+			currentGraphId: state.currentGraphId,
+		})),
+	);
+	const currentSchema = (currentGraph as DataLineageSchema | null) ?? null;
+	const effectiveGraphId = selectedGraphId ?? currentGraphId ?? null;
 	const [localSearchQuery, setLocalSearchQuery] = useState("");
 	const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 

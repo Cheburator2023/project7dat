@@ -206,8 +206,9 @@ export const useEntitiesStore = create<SelectionState>((set) => ({
 	updateFilter: (key, value) =>
 		set((state) => ({
 			filters: { ...state.filters, [key]: value },
+			entitiesPage: 1,
 		})),
-	resetFilters: () => set({ filters: initialFilters }),
+	resetFilters: () => set({ filters: initialFilters, entitiesPage: 1 }),
 
 	setUpstreamDownstream: (upstream, downstream) =>
 		set({ upstreamEntities: upstream, downstreamEntities: downstream }),
@@ -235,5 +236,8 @@ export const useEntitiesStore = create<SelectionState>((set) => ({
 
 	hideTempTables: true,
 	toggleHideTempTables: () =>
-		set((state) => ({ hideTempTables: !state.hideTempTables })),
+		set((state) => ({
+			hideTempTables: !state.hideTempTables,
+			entitiesPage: 1,
+		})),
 }));

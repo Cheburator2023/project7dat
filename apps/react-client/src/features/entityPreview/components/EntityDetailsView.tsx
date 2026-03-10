@@ -133,7 +133,9 @@ export const EntityDetailsView: React.FC<EntityDetailsViewProps> = ({
 											ID
 										</TableCell>
 										<TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
-											{entity.id.replace(/^(\w+)\.(\w+)\.(\d+)$/, "$3.$1.$2")}
+											{entity.system_code +
+												"." +
+												entity.id.split(".").slice(0, 2).join(".")}
 										</TableCell>
 									</TableRow>
 									<TableRow>

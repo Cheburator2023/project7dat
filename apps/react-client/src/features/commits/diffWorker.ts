@@ -1,4 +1,10 @@
+import { create as createDiffInstance } from "jsondiffpatch";
+
 const MAX_CHANGES_IN_OUTPUT = 20000;
+
+const _linesDiffInstance = createDiffInstance({
+	arrays: { detectMove: false },
+});
 
 export interface DiffChangeItem {
 	path: string;
@@ -29,6 +35,14 @@ export interface DiffEntityGroup {
 	modified: number;
 	changes: DiffChangeItem[];
 	searchText: string;
+}
+
+export interface LineDiffRow {
+	type: "same" | "added" | "removed" | "modified";
+	leftLineNumber: number | null;
+	rightLineNumber: number | null;
+	leftText: string;
+	rightText: string;
 }
 
 export const buildEntityGroups = (
@@ -69,20 +83,20 @@ export const buildEntityGroups = (
 const formatStableKeyLabel = (stableKey: string): string => {
 	const [base, ...rest] = stableKey.split("::sys:");
 	const sys = rest.length > 0 ? rest.join("::sys:") : "";
-	const sysPart = sys ? ", sys=" + sys : "";
+	const sysPart = sys ? " (система: " + sys + ")" : "";
 
 	if (base.startsWith("id:")) {
-		return "id=" + base.slice(3) + sysPart;
+		return "ID: " + base.slice(3) + sysPart;
 	}
 	if (base.startsWith("entityId:")) {
-		return "entityId=" + base.slice(9) + sysPart;
+		return "entityId: " + base.slice(9) + sysPart;
 	}
 	if (base.startsWith("name:")) {
-		return "name=" + base.slice(5) + sysPart;
+		return "название: " + base.slice(5) + sysPart;
 	}
 	if (base.startsWith("src:") && base.includes("::dst:")) {
 		const [srcPart, dstPart] = base.split("::dst:");
-		return "src=" + srcPart.slice(4) + ", dst=" + dstPart + sysPart;
+		return "источник: " + srcPart.slice(4) + " → " + dstPart + sysPart;
 	}
 	return base + sysPart;
 };
@@ -209,43 +223,18 @@ export const convertDiffPathToRealPath = (
 	return realParts.join(".");
 };
 
-export const toPreview = (value: unknown, depth = 0): string => {
+export const toPreview = (value: unknown): string => {
 	if (value === undefined) return "undefined";
 	if (value === null) return "null";
-	if (typeof value === "string") {
-		return value.length > 200 ? `${value.slice(0, 200)}…` : value;
-	}
+	if (typeof value === "string") return value;
 	if (typeof value === "number" || typeof value === "boolean") {
 		return String(value);
 	}
-	if (Array.isArray(value)) {
-		if (depth >= 2 || value.length === 0) {
-			return `[${value.length} items]`;
-		}
-		const items = value
-			.slice(0, 3)
-			.map((item) => toPreview(item, depth + 1))
-			.join(", ");
-		return value.length > 3
-			? `[${items}, …+${value.length - 3}]`
-			: `[${items}]`;
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
 	}
-	if (typeof value === "object") {
-		const obj = value as Record<string, unknown>;
-		const keys = Object.keys(obj);
-		if (keys.length === 0) return "{}";
-		if (depth >= 2) {
-			return `{${keys.slice(0, 3).join(", ")}${keys.length > 3 ? "…" : ""}}`;
-		}
-		const entries = keys
-			.slice(0, 4)
-			.map((k) => `${k}: ${toPreview(obj[k], depth + 1)}`)
-			.join(", ");
-		return keys.length > 4
-			? `{${entries}, …+${keys.length - 4}}`
-			: `{${entries}}`;
-	}
-	return String(value);
 };
 
 export const getInlineStringDiff = (
@@ -296,6 +285,95 @@ export const getInlineStringDiff = (
 		}
 	}
 	return result;
+};
+
+export const computeLineDiffRows = (
+	leftText: string,
+	rightText: string,
+): LineDiffRow[] => {
+	const leftLines = leftText.replace(/\r/g, "").split("\n");
+	const rightLines = rightText.replace(/\r/g, "").split("\n");
+
+	const delta = _linesDiffInstance.diff(leftLines, rightLines) as
+		| Record<string, unknown>
+		| null
+		| undefined;
+
+	if (!delta || (delta as any)._t !== "a") {
+		return leftLines.map((text, i) => ({
+			type: "same" as const,
+			leftLineNumber: i + 1,
+			rightLineNumber: i + 1,
+			leftText: text,
+			rightText: text,
+		}));
+	}
+
+	const deletedFromLeft = new Set<number>();
+	const addedAtRight = new Set<number>();
+
+	for (const key of Object.keys(delta)) {
+		if (key === "_t") continue;
+		const d = (delta as any)[key];
+		if (key.startsWith("_")) {
+			const idx = Number.parseInt(key.slice(1), 10);
+			if (Array.isArray(d) && d.length === 3 && d[2] === 0) {
+				deletedFromLeft.add(idx);
+			}
+		} else {
+			const idx = Number.parseInt(key, 10);
+			if (Array.isArray(d) && d.length === 1) {
+				addedAtRight.add(idx);
+			}
+		}
+	}
+
+	const rows: LineDiffRow[] = [];
+	let leftIdx = 0;
+	let rightIdx = 0;
+
+	while (leftIdx < leftLines.length || rightIdx < rightLines.length) {
+		if (leftIdx < leftLines.length && deletedFromLeft.has(leftIdx)) {
+			rows.push({
+				type: "removed",
+				leftLineNumber: leftIdx + 1,
+				rightLineNumber: null,
+				leftText: leftLines[leftIdx],
+				rightText: "",
+			});
+			leftIdx += 1;
+			continue;
+		}
+
+		if (rightIdx < rightLines.length && addedAtRight.has(rightIdx)) {
+			rows.push({
+				type: "added",
+				leftLineNumber: null,
+				rightLineNumber: rightIdx + 1,
+				leftText: "",
+				rightText: rightLines[rightIdx],
+			});
+			rightIdx += 1;
+			continue;
+		}
+
+		if (leftIdx < leftLines.length && rightIdx < rightLines.length) {
+			rows.push({
+				type: "same",
+				leftLineNumber: leftIdx + 1,
+				rightLineNumber: rightIdx + 1,
+				leftText: leftLines[leftIdx],
+				rightText: rightLines[rightIdx],
+			});
+			leftIdx += 1;
+			rightIdx += 1;
+			continue;
+		}
+
+		break;
+	}
+
+	return rows;
 };
 
 export const createDiffWorkerScript = (): string => {
@@ -428,22 +506,15 @@ const tryMatchArrayByStableKey = (
 const toPreview = (value) => {
 	if (value === undefined) return "undefined";
 	if (value === null) return "null";
-	if (typeof value === "string") {
-		return value.length > 180 ? value.slice(0, 180) + "…" : value;
-	}
+	if (typeof value === "string") return value;
 	if (typeof value === "number" || typeof value === "boolean") {
 		return String(value);
 	}
-	if (Array.isArray(value)) {
-		return "[array(" + value.length + ")]";
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
 	}
-	if (typeof value === "object") {
-		const keys = Object.keys(value);
-		return keys.length === 0
-			? "{object}"
-			: "{object keys: " + keys.slice(0, 4).join(", ") + (keys.length > 4 ? "…" : "") + "}";
-	}
-	return String(value);
 };
 
 const getEntityMetaFromPath = (path) => {
@@ -457,20 +528,20 @@ const getEntityMetaFromPath = (path) => {
 		}
 		const [base, ...rest] = stableKey.split("::sys:");
 		const sys = rest.length > 0 ? rest.join("::sys:") : "";
-		const sysPart = sys ? ", sys=" + sys : "";
+		const sysPart = sys ? " (система: " + sys + ")" : "";
 
 		if (base.startsWith("id:")) {
-			return "id=" + base.slice(3) + sysPart;
+			return "ID: " + base.slice(3) + sysPart;
 		}
 		if (base.startsWith("entityId:")) {
-			return "entityId=" + base.slice(9) + sysPart;
+			return "entityId: " + base.slice(9) + sysPart;
 		}
 		if (base.startsWith("name:")) {
-			return "name=" + base.slice(5) + sysPart;
+			return "название: " + base.slice(5) + sysPart;
 		}
 		if (base.startsWith("src:") && base.includes("::dst:")) {
 			const [srcPart, dstPart] = base.split("::dst:");
-			return "src=" + srcPart.slice(4) + ", dst=" + dstPart + sysPart;
+			return "источник: " + srcPart.slice(4) + " → " + dstPart + sysPart;
 		}
 		return base + sysPart;
 	};

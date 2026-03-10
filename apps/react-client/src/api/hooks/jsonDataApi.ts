@@ -361,6 +361,14 @@ export const jsonDataService = {
 		limit?: number;
 		search?: string;
 		type?: string;
+		types?: string[];
+		namespaces?: string[];
+		modifiedOnly?: boolean;
+		hasUpstream?: "any" | "yes" | "no";
+		hasDownstream?: "any" | "yes" | "no";
+		attrCountMin?: string;
+		attrCountMax?: string;
+		hideTempTables?: boolean;
 		sortBy?: string;
 		sortOrder?: "asc" | "desc";
 	}): Promise<PaginatedEntitiesResponse> => {
@@ -369,6 +377,30 @@ export const jsonDataService = {
 		if (params.limit) searchParams.append("limit", params.limit.toString());
 		if (params.search) searchParams.append("search", params.search);
 		if (params.type) searchParams.append("type", params.type);
+		if (params.types?.length) {
+			searchParams.append("types", params.types.join(","));
+		}
+		if (params.namespaces?.length) {
+			searchParams.append("namespaces", params.namespaces.join(","));
+		}
+		if (params.modifiedOnly !== undefined) {
+			searchParams.append("modifiedOnly", String(params.modifiedOnly));
+		}
+		if (params.hasUpstream && params.hasUpstream !== "any") {
+			searchParams.append("hasUpstream", params.hasUpstream);
+		}
+		if (params.hasDownstream && params.hasDownstream !== "any") {
+			searchParams.append("hasDownstream", params.hasDownstream);
+		}
+		if (params.attrCountMin?.trim()) {
+			searchParams.append("attrCountMin", params.attrCountMin);
+		}
+		if (params.attrCountMax?.trim()) {
+			searchParams.append("attrCountMax", params.attrCountMax);
+		}
+		if (params.hideTempTables !== undefined) {
+			searchParams.append("hideTempTables", String(params.hideTempTables));
+		}
 		if (params.sortBy) searchParams.append("sortBy", params.sortBy);
 		if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 

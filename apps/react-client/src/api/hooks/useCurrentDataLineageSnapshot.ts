@@ -9,7 +9,7 @@ export const CURRENT_DATA_LINEAGE_SNAPSHOT_QUERY_KEY = [
 	"currentSnapshot",
 ] as const;
 
-export const useCurrentDataLineageSnapshot = (options?: {
+export const useCurrentDataLineageWholeData = (options?: {
 	enabled?: boolean;
 }): UseQueryResult<CurrentDataLineageResponse, Error> => {
 	return useQuery({

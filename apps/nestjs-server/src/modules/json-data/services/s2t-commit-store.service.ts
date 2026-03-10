@@ -232,10 +232,14 @@ export class S2tCommitStoreService {
 				throw new NotFoundException(`S2T commit ${dto.id} not found`);
 			}
 
+			const previousPayloadSnapshot =
+				existing.original_payload ?? structuredClone(existing.payload);
+
 			existing.parent_id = dto.parent_id ?? existing.parent_id;
 			existing.commit_name = dto.commit_name;
 			existing.commit_description = dto.commit_description ?? null;
 			existing.payload = payload;
+			existing.original_payload = previousPayloadSnapshot;
 			existing.user = dto.user ?? existing.user;
 			existing.state = "processing";
 			existing.error = null;
@@ -253,7 +257,7 @@ export class S2tCommitStoreService {
 			state: "processing",
 			user: dto.user ?? null,
 			payload,
-			original_payload: payload,
+			original_payload: structuredClone(payload),
 			change_id: null,
 			error: null,
 		});
@@ -312,6 +316,7 @@ export class S2tCommitStoreService {
 				"created_at",
 				"updated_at",
 				"payload",
+				"original_payload",
 			],
 			where,
 			order: {
