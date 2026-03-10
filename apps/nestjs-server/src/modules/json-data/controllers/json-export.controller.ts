@@ -79,6 +79,54 @@ export class JsonExportController {
 		description: "Фильтр по типу сущности (например input_vector)",
 	})
 	@ApiQuery({
+		name: "types",
+		required: false,
+		type: String,
+		description: "Список типов через запятую",
+	})
+	@ApiQuery({
+		name: "namespaces",
+		required: false,
+		type: String,
+		description: "Список namespace через запятую",
+	})
+	@ApiQuery({
+		name: "modifiedOnly",
+		required: false,
+		type: Boolean,
+		description: "Только изменённые сущности",
+	})
+	@ApiQuery({
+		name: "hasUpstream",
+		required: false,
+		type: String,
+		description: "Фильтр по наличию источников: any | yes | no",
+	})
+	@ApiQuery({
+		name: "hasDownstream",
+		required: false,
+		type: String,
+		description: "Фильтр по наличию потребителей: any | yes | no",
+	})
+	@ApiQuery({
+		name: "attrCountMin",
+		required: false,
+		type: Number,
+		description: "Минимальное количество атрибутов",
+	})
+	@ApiQuery({
+		name: "attrCountMax",
+		required: false,
+		type: Number,
+		description: "Максимальное количество атрибутов",
+	})
+	@ApiQuery({
+		name: "hideTempTables",
+		required: false,
+		type: Boolean,
+		description: "Скрыть temp/tmp таблицы",
+	})
+	@ApiQuery({
 		name: "sortBy",
 		required: false,
 		type: String,
@@ -111,6 +159,14 @@ export class JsonExportController {
 		@Query("limit") limitRaw?: string,
 		@Query("search") search?: string,
 		@Query("type") type?: string,
+		@Query("types") typesRaw?: string,
+		@Query("namespaces") namespacesRaw?: string,
+		@Query("modifiedOnly") modifiedOnlyRaw?: string,
+		@Query("hasUpstream") hasUpstream?: string,
+		@Query("hasDownstream") hasDownstream?: string,
+		@Query("attrCountMin") attrCountMinRaw?: string,
+		@Query("attrCountMax") attrCountMaxRaw?: string,
+		@Query("hideTempTables") hideTempTablesRaw?: string,
 		@Query("sortBy") sortBy?: string,
 		@Query("sortOrder") sortOrder?: string,
 	) {
@@ -126,11 +182,56 @@ export class JsonExportController {
 			);
 		}
 
+		const types = typesRaw
+			?.split(",")
+			.map((value) => value.trim())
+			.filter(Boolean);
+		const namespaces = namespacesRaw
+			?.split(",")
+			.map((value) => value.trim())
+			.filter(Boolean);
+		const modifiedOnly =
+			modifiedOnlyRaw === "true"
+				? true
+				: modifiedOnlyRaw === "false"
+					? false
+					: undefined;
+		const attrCountMin = attrCountMinRaw
+			? Number.parseInt(attrCountMinRaw, 10)
+			: undefined;
+		const attrCountMax = attrCountMaxRaw
+			? Number.parseInt(attrCountMaxRaw, 10)
+			: undefined;
+		const hideTempTables =
+			hideTempTablesRaw === "true"
+				? true
+				: hideTempTablesRaw === "false"
+					? false
+					: undefined;
+
 		return await this.jsonExportService.exportPaginated({
 			page,
 			limit,
 			search,
 			type,
+			types,
+			namespaces,
+			modifiedOnly,
+			hasUpstream:
+				hasUpstream === "yes" || hasUpstream === "no" ? hasUpstream : undefined,
+			hasDownstream:
+				hasDownstream === "yes" || hasDownstream === "no"
+					? hasDownstream
+					: undefined,
+			attrCountMin:
+				attrCountMin !== undefined && !Number.isNaN(attrCountMin)
+					? attrCountMin
+					: undefined,
+			attrCountMax:
+				attrCountMax !== undefined && !Number.isNaN(attrCountMax)
+					? attrCountMax
+					: undefined,
+			hideTempTables,
 			sortBy,
 			sortOrder:
 				sortOrder === "desc" ? "desc" : sortOrder === "asc" ? "asc" : undefined,

@@ -18,8 +18,9 @@ import { MappingDetailsDialog } from "@react-client/features/entityPreview/compo
 import { EntityDetailsDialog } from "@react-client/features/entityPreview/components/EntityDetailsDialog";
 import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 
+import { useShallow } from "zustand/react/shallow";
+
 import { useEntitiesStore } from "../../entities/stores";
-import { useCurrentSchema } from "../../entities/hooks/useCurrentSchema";
 import {
 	EntityGraphPanelInner,
 	type NodeContextMenuEvent,
@@ -59,10 +60,19 @@ export const EntityGraphPanel: React.FC<{
 			selectEntity,
 			setUpstreamDownstream,
 			selectedAttributes,
+			selectedGraphId,
 		} = useEntitiesStore();
 
-		// Use currentSchema hook to get data synced with editor
-		const { currentSchema, effectiveGraphId } = useCurrentSchema();
+		const { currentGraph, currentGraphId } = useDataLineageStore(
+			useShallow((state) => ({
+				currentGraph: state.currentGraph,
+				currentGraphId: state.currentGraphId,
+			})),
+		);
+
+		const currentSchema = currentGraph ?? null;
+		const effectiveGraphId = selectedGraphId ?? currentGraphId ?? null;
+
 		const navigate = useNavigate();
 
 		const { setRevealPosition } = useDataLineageStore();

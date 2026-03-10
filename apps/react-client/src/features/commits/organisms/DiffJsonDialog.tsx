@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FC, ReactNode } from "react";
 import {
 	Accordion,
@@ -15,6 +15,8 @@ import {
 	DialogTitle,
 	IconButton,
 	InputAdornment,
+	Tab,
+	Tabs,
 	TextField,
 	Typography,
 } from "@mui/material";
@@ -27,7 +29,12 @@ import { create as createDiff } from "jsondiffpatch";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { go as fuzzyGo, single as fuzzySingle } from "fuzzysort";
 import { Spacer } from "@react-client/common/primitives/Spacer";
-import { useCurrentSchema } from "@react-client/features/entities/hooks";
+import { useCurrentDataLineageWholeData } from "@react-client/api/hooks/useCurrentDataLineageSnapshot";
+import { DiffChangeRow } from "./DiffChangeRow";
+
+const MonacoDiffEditor = lazy(() =>
+	import("@monaco-editor/react").then((m) => ({ default: m.DiffEditor })),
+);
 
 const diffInstance = createDiff();
 const DIFF_DEBOUNCE_MS = 220;
@@ -145,24 +152,28 @@ const renderHighlightedText = (text: string, query: string): ReactNode => {
 };
 
 const toPreview = (value: unknown): string => {
-	if (value === undefined) return "undefined";
-	if (value === null) return "null";
-	if (typeof value === "string") {
-		return value.length > 180 ? `${value.slice(0, 180)}…` : value;
+	return JSON.stringify(value);
+};
+
+const formatStableKeyLabel = (stableKey: string): string => {
+	const [base, ...rest] = stableKey.split("::sys:");
+	const sys = rest.length > 0 ? rest.join("::sys:") : "";
+	const sysPart = sys ? " (система: " + sys + ")" : "";
+
+	if (base.startsWith("id:")) {
+		return "ID: " + base.slice(3) + sysPart;
 	}
-	if (typeof value === "number" || typeof value === "boolean") {
-		return String(value);
+	if (base.startsWith("entityId:")) {
+		return "entityId: " + base.slice(9) + sysPart;
 	}
-	if (Array.isArray(value)) {
-		return `[array(${value.length})]`;
+	if (base.startsWith("name:")) {
+		return "название: " + base.slice(5) + sysPart;
 	}
-	if (typeof value === "object") {
-		const keys = Object.keys(value as Record<string, unknown>);
-		return keys.length === 0
-			? "{object}"
-			: `{object keys: ${keys.slice(0, 4).join(", ")}${keys.length > 4 ? "…" : ""}}`;
+	if (base.startsWith("src:") && base.includes("::dst:")) {
+		const [srcPart, dstPart] = base.split("::dst:");
+		return "источник: " + srcPart.slice(4) + " → " + dstPart + sysPart;
 	}
-	return String(value);
+	return base + sysPart;
 };
 
 const getEntityMetaFromPath = (
@@ -182,11 +193,19 @@ const getEntityMetaFromPath = (
 
 	if (parts.length > 1 && parts[1].startsWith("id:")) {
 		const rawKey = parts[1].slice(3);
-		const decodedKey = decodeURIComponent(rawKey);
-		return {
-			entityKey: `${parts[0]}.${parts[1]}`,
-			entityLabel: `${parts[0]}[id=${decodedKey}]`,
-		};
+		try {
+			const decodedKey = decodeURIComponent(rawKey);
+			const prettyKey = formatStableKeyLabel(decodedKey);
+			return {
+				entityKey: `${parts[0]}.${parts[1]}`,
+				entityLabel: `${parts[0]} — ${prettyKey}`,
+			};
+		} catch {
+			return {
+				entityKey: `${parts[0]}.${parts[1]}`,
+				entityLabel: `${parts[0]} — ${rawKey}`,
+			};
+		}
 	}
 
 	return {
@@ -215,14 +234,14 @@ const getStableArrayItemKey = (item: unknown): string | null => {
 
 	if (typeof idValue === "string" || typeof idValue === "number") {
 		const id = String(idValue);
-		return systemCode ? `id: ${id} система: ${systemCode}` : `id: ${id}`;
+		return systemCode ? `id:${id}::sys:${systemCode}` : `id:${id}`;
 	}
 
 	if (typeof entityIdValue === "string" || typeof entityIdValue === "number") {
 		const entityId = String(entityIdValue);
 		return systemCode
-			? `entityId: ${entityId} система: ${systemCode}`
-			: `entityId: ${entityId}`;
+			? `entityId:${entityId}::sys:${systemCode}`
+			: `entityId:${entityId}`;
 	}
 
 	if (typeof nameValue === "string" && nameValue.trim().length > 0) {
@@ -233,7 +252,7 @@ const getStableArrayItemKey = (item: unknown): string | null => {
 		(typeof srcValue === "string" || typeof srcValue === "number") &&
 		(typeof dstValue === "string" || typeof dstValue === "number")
 	) {
-		return `src: ${String(srcValue)} dst: ${String(dstValue)}`;
+		return `src:${String(srcValue)}::dst:${String(dstValue)}`;
 	}
 
 	return null;
@@ -679,22 +698,24 @@ const tryMatchArrayByStableKey = (
 const toPreview = (value) => {
 	if (value === undefined) return "undefined";
 	if (value === null) return "null";
-	if (typeof value === "string") {
-		return value.length > 180 ? value.slice(0, 180) + "…" : value;
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean") return String(value);
+	try { return JSON.stringify(value, null, 2); } catch { return String(value); }
+};
+
+const formatStableKeyLabel = (stableKey) => {
+	const sepIdx = stableKey.indexOf("::sys:");
+	const base = sepIdx >= 0 ? stableKey.slice(0, sepIdx) : stableKey;
+	const sys = sepIdx >= 0 ? stableKey.slice(sepIdx + 6) : "";
+	const sysPart = sys ? " (система: " + sys + ")" : "";
+	if (base.startsWith("id:")) return "ID: " + base.slice(3) + sysPart;
+	if (base.startsWith("entityId:")) return "entityId: " + base.slice(9) + sysPart;
+	if (base.startsWith("name:")) return "название: " + base.slice(5) + sysPart;
+	if (base.startsWith("src:") && base.indexOf("::dst:") >= 0) {
+		const dstIdx = base.indexOf("::dst:");
+		return "источник: " + base.slice(4, dstIdx) + " → " + base.slice(dstIdx + 6) + sysPart;
 	}
-	if (typeof value === "number" || typeof value === "boolean") {
-		return String(value);
-	}
-	if (Array.isArray(value)) {
-		return "[array(" + value.length + ")]";
-	}
-	if (typeof value === "object") {
-		const keys = Object.keys(value);
-		return keys.length === 0
-			? "{object}"
-			: "{object keys: " + keys.slice(0, 4).join(", ") + (keys.length > 4 ? "…" : "") + "}";
-	}
-	return String(value);
+	return base + sysPart;
 };
 
 const getEntityMetaFromPath = (path) => {
@@ -710,11 +731,19 @@ const getEntityMetaFromPath = (path) => {
 	}
 	if (parts.length > 1 && parts[1].startsWith("id:")) {
 		const rawKey = parts[1].slice(3);
-		const decodedKey = decodeURIComponent(rawKey);
-		return {
-			entityKey: parts[0] + "." + parts[1],
-			entityLabel: parts[0] + "[id=" + decodedKey + "]",
-		};
+		try {
+			const decodedKey = decodeURIComponent(rawKey);
+			const prettyKey = formatStableKeyLabel(decodedKey);
+			return {
+				entityKey: parts[0] + "." + parts[1],
+				entityLabel: parts[0] + " — " + prettyKey,
+			};
+		} catch {
+			return {
+				entityKey: parts[0] + "." + parts[1],
+				entityLabel: parts[0] + " — " + rawKey,
+			};
+		}
 	}
 	return { entityKey: parts[0], entityLabel: parts[0] };
 };
@@ -908,7 +937,9 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	commit,
 	onClose,
 }) => {
-	const { currentSchema } = useCurrentSchema();
+	const { data: snapshotData } = useCurrentDataLineageWholeData({
+		enabled: open,
+	});
 	const [diffResult, setDiffResult] = useState<DiffComputationResult | null>(
 		null,
 	);
@@ -917,6 +948,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	const [localSearchQuery, setLocalSearchQuery] = useState("");
 	const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 	const [expandedEntityKeys, setExpandedEntityKeys] = useState<string[]>([]);
+	const [diffMode, setDiffMode] = useState<"structured" | "line">("structured");
 	const [progressText, setProgressText] = useState(
 		"Считаем diff к текущему JSON…",
 	);
@@ -924,9 +956,12 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	const workerUrlRef = useRef<string | null>(null);
 
 	const baselineData = useMemo(
-		() => (currentSchema as Record<string, unknown> | null) ?? null,
-		[currentSchema],
+		() => (snapshotData as Record<string, unknown> | null | undefined) ?? null,
+		[snapshotData],
 	);
+	const [baselineJsonText, setBaselineJsonText] = useState("");
+	const [commitJsonText, setCommitJsonText] = useState("");
+	const [isPreparingText, setIsPreparingText] = useState(false);
 
 	useEffect(() => {
 		const timer = window.setTimeout(() => {
@@ -982,7 +1017,11 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 			setLocalSearchQuery("");
 			setDebouncedSearchQuery("");
 			setExpandedEntityKeys([]);
+			setDiffMode("structured");
 			setProgressText("Считаем diff к текущему JSON…");
+			setBaselineJsonText("");
+			setCommitJsonText("");
+			setIsPreparingText(false);
 
 			if (workerRef.current) {
 				workerRef.current.terminate();
@@ -1134,6 +1173,51 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 		};
 	}, [open, commit, baselineData]);
 
+	useEffect(() => {
+		if (!open || !commit || !baselineData) {
+			setBaselineJsonText("");
+			setCommitJsonText("");
+			setIsPreparingText(false);
+			return;
+		}
+		setIsPreparingText(true);
+		let cancelled = false;
+		const timer = window.setTimeout(() => {
+			if (cancelled) return;
+			const sortKeys = (obj: unknown): unknown => {
+				if (obj === null || obj === undefined) return obj;
+				if (Array.isArray(obj)) return obj.map(sortKeys);
+				if (typeof obj === "object") {
+					const sorted: Record<string, unknown> = {};
+					Object.keys(obj)
+						.sort()
+						.forEach((key) => {
+							sorted[key] = sortKeys((obj as Record<string, unknown>)[key]);
+						});
+					return sorted;
+				}
+				return obj;
+			};
+			const left = JSON.stringify(sortKeys(baselineData ?? {}), null, 2);
+			const right = JSON.stringify(
+				sortKeys(
+					(commit.payload as Record<string, unknown> | null | undefined) ?? {},
+				),
+				null,
+				2,
+			);
+			if (!cancelled) {
+				setBaselineJsonText(left);
+				setCommitJsonText(right);
+				setIsPreparingText(false);
+			}
+		}, 0);
+		return () => {
+			cancelled = true;
+			window.clearTimeout(timer);
+		};
+	}, [open, commit, baselineData]);
+
 	const handleToggleEntity = (entityKey: string) => {
 		setExpandedEntityKeys((previous) => {
 			if (previous.includes(entityKey)) {
@@ -1164,10 +1248,16 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 		return renderHighlightedText(label, debouncedSearchQuery);
 	};
 
+	console.log(
+		"🐸 Pepe said >> DiffJsonDialog >> commitJsonText:",
+		commitJsonText,
+		baselineJsonText,
+	);
+
 	return (
 		<Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
 			<DialogTitle>
-				Diff к текущему JSON
+				Различия с актуальным состоянием данных
 				{commit && (
 					<Typography variant="body2" color="text.secondary">
 						{commit.commit_name} ({commit.id.slice(0, 8)})
@@ -1199,6 +1289,15 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 					</Box>
 				)}
 
+				<Tabs
+					value={diffMode}
+					onChange={(_, value) => setDiffMode(value as "structured" | "line")}
+					sx={{ mb: 2 }}
+				>
+					<Tab value="structured" label="Структурный diff" />
+					<Tab value="line" label="Построчный diff" />
+				</Tabs>
+
 				{isComputing && (
 					<Box
 						sx={{
@@ -1219,64 +1318,74 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 
 				{!isComputing && !error && (
 					<>
+						{diffMode !== "line" && (
+							<>
+								<Box
+									sx={{
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "space-between",
+										gap: 1,
+										mb: 1,
+									}}
+								>
+									<Typography variant="caption" color="text.secondary">
+										Найдено сущностей: {filteredGroups.length}
+									</Typography>
+									<Box sx={{ display: "flex", gap: 1 }}>
+										<Button
+											size="small"
+											onClick={handleExpandAll}
+											disabled={filteredEntityKeys.length === 0}
+										>
+											Раскрыть все
+										</Button>
+										<Button
+											size="small"
+											onClick={handleCollapseAll}
+											disabled={expandedEntityKeys.length === 0}
+										>
+											Свернуть все
+										</Button>
+									</Box>
+								</Box>
+
+								<TextField
+									placeholder="Поиск по сущностям и путям..."
+									value={localSearchQuery}
+									onChange={handleSearchChange}
+									fullWidth
+									size="small"
+									sx={{ mb: 2 }}
+									slotProps={{
+										input: {
+											startAdornment: (
+												<InputAdornment position="start">
+													<SearchIcon fontSize="small" />
+												</InputAdornment>
+											),
+											endAdornment: localSearchQuery && (
+												<InputAdornment position="end">
+													<IconButton size="small" onClick={handleClearSearch}>
+														<CloseIcon fontSize="small" />
+													</IconButton>
+												</InputAdornment>
+											),
+										},
+									}}
+								/>
+
+								<Spacer />
+							</>
+						)}
+
 						<Box
 							sx={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "space-between",
-								gap: 1,
-								mb: 1,
+								maxHeight: 520,
+								overflow: "auto",
+								display: diffMode === "structured" ? "block" : "none",
 							}}
 						>
-							<Typography variant="caption" color="text.secondary">
-								Найдено сущностей: {filteredGroups.length}
-							</Typography>
-							<Box sx={{ display: "flex", gap: 1 }}>
-								<Button
-									size="small"
-									onClick={handleExpandAll}
-									disabled={filteredEntityKeys.length === 0}
-								>
-									Раскрыть все
-								</Button>
-								<Button
-									size="small"
-									onClick={handleCollapseAll}
-									disabled={expandedEntityKeys.length === 0}
-								>
-									Свернуть все
-								</Button>
-							</Box>
-						</Box>
-
-						<TextField
-							placeholder="Поиск по сущностям и путям..."
-							value={localSearchQuery}
-							onChange={handleSearchChange}
-							fullWidth
-							size="small"
-							sx={{ mb: 2 }}
-							slotProps={{
-								input: {
-									startAdornment: (
-										<InputAdornment position="start">
-											<SearchIcon fontSize="small" />
-										</InputAdornment>
-									),
-									endAdornment: localSearchQuery && (
-										<InputAdornment position="end">
-											<IconButton size="small" onClick={handleClearSearch}>
-												<CloseIcon fontSize="small" />
-											</IconButton>
-										</InputAdornment>
-									),
-								},
-							}}
-						/>
-
-						<Spacer />
-
-						<Box sx={{ maxHeight: 520, overflow: "auto" }}>
 							{!diffResult || diffResult.changes.length === 0 ? (
 								<Alert severity="info" sx={{ mt: 1 }}>
 									Изменений не найдено.
@@ -1331,57 +1440,10 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 													}}
 												>
 													{group.changes.map((change) => (
-														<Box
+														<DiffChangeRow
 															key={`${change.type}:${change.path}`}
-															sx={{
-																border: "1px solid",
-																borderColor: "divider",
-																borderRadius: 1,
-																p: 1,
-																backgroundColor:
-																	change.type === "added"
-																		? "rgba(76, 175, 80, 0.08)"
-																		: "rgba(255, 152, 0, 0.08)",
-															}}
-														>
-															<Typography
-																variant="caption"
-																color="text.secondary"
-															>
-																{renderHighlightedText(
-																	change.path || "<root>",
-																	debouncedSearchQuery,
-																)}
-															</Typography>
-															{change.type === "added" ? (
-																<Typography variant="body2" sx={{ mt: 0.5 }}>
-																	Новое value:{" "}
-																	<b>
-																		{renderHighlightedText(
-																			toPreview(change.after),
-																			debouncedSearchQuery,
-																		)}
-																	</b>
-																</Typography>
-															) : (
-																<Typography variant="body2" sx={{ mt: 0.5 }}>
-																	Было:{" "}
-																	<b>
-																		{renderHighlightedText(
-																			toPreview(change.before),
-																			debouncedSearchQuery,
-																		)}
-																	</b>{" "}
-																	→ Стало:{" "}
-																	<b>
-																		{renderHighlightedText(
-																			toPreview(change.after),
-																			debouncedSearchQuery,
-																		)}
-																	</b>
-																</Typography>
-															)}
-														</Box>
+															change={change}
+														/>
 													))}
 												</Box>
 											</AccordionDetails>
@@ -1390,6 +1452,66 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 								})
 							)}
 						</Box>
+
+						{diffMode === "line" && (
+							<Box
+								sx={{
+									height: 520,
+									border: "1px solid",
+									borderColor: "divider",
+									borderRadius: 1,
+									overflow: "hidden",
+								}}
+							>
+								{isPreparingText ? (
+									<Box
+										sx={{
+											display: "flex",
+											flexDirection: "column",
+											alignItems: "center",
+											justifyContent: "center",
+											gap: 1,
+											height: "100%",
+										}}
+									>
+										<CircularProgress size={24} />
+										<Typography variant="body2" color="text.secondary">
+											Подготовка данных…
+										</Typography>
+									</Box>
+								) : (
+									<Suspense
+										fallback={
+											<Box
+												sx={{
+													display: "flex",
+													alignItems: "center",
+													justifyContent: "center",
+													height: "100%",
+												}}
+											>
+												<CircularProgress size={24} />
+											</Box>
+										}
+									>
+										<MonacoDiffEditor
+											original={baselineJsonText}
+											modified={commitJsonText}
+											language="json"
+											height={520}
+											options={{
+												readOnly: true,
+												renderSideBySide: true,
+												minimap: { enabled: false },
+												scrollBeyondLastLine: false,
+												fontSize: 12,
+												wordWrap: "on",
+											}}
+										/>
+									</Suspense>
+								)}
+							</Box>
+						)}
 					</>
 				)}
 			</DialogContent>

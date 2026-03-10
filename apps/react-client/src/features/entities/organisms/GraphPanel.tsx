@@ -22,7 +22,6 @@ import { useDataLineageStore } from "@react-client/common/stores/dataLineageStor
 import { useShallow } from "zustand/react/shallow";
 import { usePaginatedEntities } from "@react-client/api/hooks/usePaginatedEntities";
 import { usePaginatedEntityRelations } from "@react-client/api/hooks/usePaginatedEntityRelations";
-import { buildEntitiesSearch } from "@react-client/api/hooks/buildEntitiesSearch";
 import type {
 	PaginatedEntitiesResponse,
 	PaginatedMappingsResponse,
@@ -32,7 +31,6 @@ import type { DataLineageMapping } from "@react-client/types/dataLineage";
 import { strictSearchEntities } from "../utils/fuzzySearch";
 
 import { useEntitiesStore } from "../stores";
-import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { LoadingSpinner } from "../atoms/LoadingSpinner";
 import { GraphPanelInner, type NodeContextMenuEvent } from "./GraphPanelInner";
 import type { EntityConnection } from "../types";
@@ -56,6 +54,7 @@ export const GraphPanel = memo(() => {
 		globalSearchQuery,
 		setSearchMatchedEntities,
 		hideTempTables,
+		selectedGraphId,
 	} = useEntitiesStore(
 		useShallow((state) => ({
 			selectedEntityId: state.selectedEntityId,
@@ -65,11 +64,20 @@ export const GraphPanel = memo(() => {
 			globalSearchQuery: state.globalSearchQuery,
 			setSearchMatchedEntities: state.setSearchMatchedEntities,
 			hideTempTables: state.hideTempTables,
+			selectedGraphId: state.selectedGraphId,
 		})),
 	);
 
-	// Use currentSchema hook to get data synced with editor
-	const { currentSchema, effectiveGraphId } = useCurrentSchema();
+	const { currentGraph, currentGraphId } = useDataLineageStore(
+		useShallow((state) => ({
+			currentGraph: state.currentGraph,
+			currentGraphId: state.currentGraphId,
+		})),
+	);
+
+	const currentSchema = currentGraph ?? null;
+	const effectiveGraphId = selectedGraphId ?? currentGraphId ?? null;
+
 	const navigate = useNavigate();
 
 	// Backend fallback: if currentSchema is not initialized yet, read from paginated API
@@ -77,10 +85,8 @@ export const GraphPanel = memo(() => {
 		usePaginatedEntities({
 			page: 1,
 			limit: 500,
-			search: buildEntitiesSearch({
-				uiSearch: globalSearchQuery || undefined,
-				hideTempTables,
-			}),
+			search: globalSearchQuery || undefined,
+			hideTempTables,
 			enabled: false,
 		});
 

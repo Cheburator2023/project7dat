@@ -26,8 +26,9 @@ import type {
 } from "@react-client/types/dataLineage";
 import { MappingDetailsDialog } from "@react-client/features/entityPreview/components/MappingDetailsDialog";
 
+import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
+
 import { useEntitiesStore } from "../stores";
-import { useCurrentSchema } from "../hooks/useCurrentSchema";
 import { ObjectTypeChip } from "../atoms/ObjectTypeChip";
 import { HIGHLIGHT_COLORS } from "../constants";
 import { strictSearchObjects, strictSearchLinks } from "../utils/fuzzySearch";
@@ -62,10 +63,13 @@ export const ObjectsPanel = memo(() => {
 		toggleSelectedAttribute,
 		setZoomToNode,
 		globalSearchQuery,
+		filters,
 		hideTempTables,
 	} = useEntitiesStore();
 
-	const { effectiveGraphId } = useCurrentSchema();
+	const currentGraphId = useDataLineageStore((state) => state.currentGraphId);
+	const selectedGraphId = useEntitiesStore((state) => state.selectedGraphId);
+	const effectiveGraphId = selectedGraphId ?? currentGraphId ?? null;
 
 	const {
 		data: entityRelationsData,
@@ -90,6 +94,83 @@ export const ObjectsPanel = memo(() => {
 	const mappingsSource = useMemo<MappingLike[]>(() => {
 		return entityRelationsData?.mappings ?? [];
 	}, [entityRelationsData?.mappings]);
+
+	const filteredEntitiesSource = useMemo<EntityLike[]>(() => {
+		const downstreamByEntityId = new Map<string, number>();
+		const upstreamByEntityId = new Map<string, number>();
+
+		for (const mapping of mappingsSource) {
+			if (!mapping.deps) continue;
+			upstreamByEntityId.set(
+				mapping.entityId,
+				(upstreamByEntityId.get(mapping.entityId) ?? 0) + mapping.deps.length,
+			);
+
+			for (const dep of mapping.deps) {
+				downstreamByEntityId.set(
+					dep.entityId,
+					(downstreamByEntityId.get(dep.entityId) ?? 0) + 1,
+				);
+			}
+		}
+
+		return entitiesSource.filter((entity) => {
+			if (
+				filters.entityTypes.length > 0 &&
+				!filters.entityTypes.includes(entity.type)
+			) {
+				return false;
+			}
+
+			if (filters.modifiedOnly && !entity.modified) {
+				return false;
+			}
+
+			if (
+				filters.namespaces.length > 0 &&
+				!filters.namespaces.includes(entity.namespace ?? "")
+			) {
+				return false;
+			}
+
+			const attrCount = entity.attrSeq?.length ?? 0;
+			const attrCountMin = Number(filters.attrCountMin);
+			if (
+				filters.attrCountMin.trim() &&
+				Number.isFinite(attrCountMin) &&
+				attrCount < attrCountMin
+			) {
+				return false;
+			}
+
+			const attrCountMax = Number(filters.attrCountMax);
+			if (
+				filters.attrCountMax.trim() &&
+				Number.isFinite(attrCountMax) &&
+				attrCount > attrCountMax
+			) {
+				return false;
+			}
+
+			const upstreamCount = upstreamByEntityId.get(entity.id) ?? 0;
+			if (filters.hasUpstream === "yes" && upstreamCount <= 0) {
+				return false;
+			}
+			if (filters.hasUpstream === "no" && upstreamCount > 0) {
+				return false;
+			}
+
+			const downstreamCount = downstreamByEntityId.get(entity.id) ?? 0;
+			if (filters.hasDownstream === "yes" && downstreamCount <= 0) {
+				return false;
+			}
+			if (filters.hasDownstream === "no" && downstreamCount > 0) {
+				return false;
+			}
+
+			return true;
+		});
+	}, [entitiesSource, mappingsSource, filters]);
 
 	const isPanelLoading = isLoadingEntityRelations || isFetchingEntityRelations;
 
@@ -181,7 +262,7 @@ export const ObjectsPanel = memo(() => {
 
 	const objects = useMemo<ObjectRowWithDepth[]>(() => {
 		const rows: ObjectRowWithDepth[] = [];
-		const localEntities = entitiesSource;
+		const localEntities = filteredEntitiesSource;
 		localEntities.forEach((entity) => {
 			const entityDepth = depthByEntityId.get(entity.id) ?? 0;
 			const label = getDepthLabel(entityDepth);
@@ -220,13 +301,18 @@ export const ObjectsPanel = memo(() => {
 		});
 
 		return rows;
-	}, [entitiesSource, effectiveGraphId, depthByEntityId, getDepthLabel]);
+	}, [
+		filteredEntitiesSource,
+		effectiveGraphId,
+		depthByEntityId,
+		getDepthLabel,
+	]);
 
 	// Transform data to link rows (connections)
 	const links = useMemo<LinkRowWithDepth[]>(() => {
 		const rows: LinkRowWithDepth[] = [];
 		const entityMap = new Map<string, { id: string; name?: string | null }>();
-		for (const entity of entitiesSource) {
+		for (const entity of filteredEntitiesSource) {
 			entityMap.set(entity.id, entity);
 		}
 
@@ -235,8 +321,9 @@ export const ObjectsPanel = memo(() => {
 			mapping.deps.forEach((dep, depIndex) => {
 				const sourceEntity = entityMap.get(dep.entityId);
 				const targetEntity = entityMap.get(mapping.entityId);
-				const sourceName = sourceEntity?.name || dep.entityId;
-				const targetName = targetEntity?.name || mapping.entityId;
+				if (!sourceEntity || !targetEntity) return;
+				const sourceName = sourceEntity.name || dep.entityId;
+				const targetName = targetEntity.name || mapping.entityId;
 
 				const attrMaps = dep.attrMaps || [];
 				const mappingId =
@@ -287,7 +374,7 @@ export const ObjectsPanel = memo(() => {
 
 		return rows;
 	}, [
-		entitiesSource,
+		filteredEntitiesSource,
 		mappingsSource,
 		effectiveGraphId,
 		depthByEntityId,

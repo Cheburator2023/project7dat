@@ -1,8 +1,8 @@
 import { Alert, Box, Typography } from "@mui/material";
 import { CodeJsonEditor } from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
-import { useCurrentDataLineageSnapshot } from "@react-client/api/hooks/useCurrentDataLineageSnapshot";
 
 import { LoadingSpinner } from "../atoms/LoadingSpinner";
+import { useCurrentDataLineageWholeData } from "@react-client/api/hooks/useCurrentDataLineageSnapshot";
 
 export const SchemaPanel = () => {
 	const {
@@ -10,13 +10,11 @@ export const SchemaPanel = () => {
 		isLoading,
 		isFetching,
 		error,
-	} = useCurrentDataLineageSnapshot({ enabled: true });
+	} = useCurrentDataLineageWholeData({ enabled: true });
 
 	if (isLoading || isFetching) {
 		return <LoadingSpinner size={24} />;
 	}
-
-	console.log("🐸 Pepe said >> currentGraph:", currentGraph);
 
 	if (error) {
 		return (

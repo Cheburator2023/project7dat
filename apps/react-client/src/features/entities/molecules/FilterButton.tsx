@@ -170,19 +170,6 @@ export const FilterButton = memo(() => {
 						</Box>
 					)} */}
 
-					{/* Modified Only */}
-					<FormControlLabel
-						control={
-							<Checkbox
-								size="small"
-								checked={filters.modifiedOnly}
-								onChange={(e) => updateFilter("modifiedOnly", e.target.checked)}
-							/>
-						}
-						label={<Typography variant="body2">Только изменённые</Typography>}
-						sx={{ mb: 1 }}
-					/>
-
 					{/* Hide temp/tmp tables */}
 					<FormControlLabel
 						control={

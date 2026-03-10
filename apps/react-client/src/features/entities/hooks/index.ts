@@ -1,1 +1,0 @@
-export { useCurrentSchema } from "./useCurrentSchema";

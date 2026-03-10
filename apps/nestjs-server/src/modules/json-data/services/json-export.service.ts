@@ -1277,6 +1277,14 @@ export class JsonExportService {
 		limit: number;
 		search?: string;
 		type?: string;
+		types?: string[];
+		namespaces?: string[];
+		modifiedOnly?: boolean;
+		hasUpstream?: "yes" | "no";
+		hasDownstream?: "yes" | "no";
+		attrCountMin?: number;
+		attrCountMax?: number;
+		hideTempTables?: boolean;
 		sortBy?: string;
 		sortOrder?: "asc" | "desc";
 	}): Promise<{
@@ -1287,9 +1295,23 @@ export class JsonExportService {
 		totalPages: number;
 		desc: JsonExportResponseDto["desc"];
 	}> {
-		const { page, limit, search, type, sortBy, sortOrder } = params;
+		const {
+			page,
+			limit,
+			search,
+			type,
+			types,
+			namespaces,
+			modifiedOnly,
+			hasUpstream,
+			hasDownstream,
+			attrCountMin,
+			attrCountMax,
+			hideTempTables,
+			sortBy,
+			sortOrder,
+		} = params;
 
-		const HIDE_TEMP_TABLES_TOKEN = "__HIDE_TEMP_TABLES__";
 		const isTempEntity = (entity: {
 			id?: string;
 			name?: string | null;
@@ -1308,12 +1330,7 @@ export class JsonExportService {
 			);
 		};
 
-		const rawSearch = search ?? "";
-		const shouldHideTempTables = rawSearch.includes(HIDE_TEMP_TABLES_TOKEN);
-		const effectiveSearch = rawSearch
-			.split(HIDE_TEMP_TABLES_TOKEN)
-			.join(" ")
-			.trim();
+		const effectiveSearch = (search ?? "").trim();
 		const startTime = Date.now();
 
 		// Получаем полный граф из кэша (или прогреваем)
@@ -1324,13 +1341,67 @@ export class JsonExportService {
 		}
 
 		let entities = cached.entities ?? [];
+		const upstreamCounts = new Map<string, number>();
+		const downstreamCounts = new Map<string, number>();
+
+		for (const mapping of cached.mappings ?? []) {
+			const deps = mapping.deps ?? [];
+			upstreamCounts.set(mapping.entityId, deps.length);
+			for (const dep of deps) {
+				downstreamCounts.set(
+					dep.entityId,
+					(downstreamCounts.get(dep.entityId) ?? 0) + 1,
+				);
+			}
+		}
 
 		// Фильтр по типу сущности
 		if (type) {
 			entities = entities.filter((e) => e.type === type);
 		}
+		if (types?.length) {
+			const allowedTypes = new Set(types);
+			entities = entities.filter((e) => allowedTypes.has(e.type));
+		}
 
-		if (shouldHideTempTables) {
+		if (namespaces?.length) {
+			const allowedNamespaces = new Set(namespaces);
+			entities = entities.filter((e) =>
+				allowedNamespaces.has(e.namespace ?? ""),
+			);
+		}
+
+		if (modifiedOnly) {
+			entities = entities.filter((e) => Boolean(e.modified));
+		}
+
+		if (attrCountMin !== undefined) {
+			entities = entities.filter(
+				(e) => (e.attrSeq?.length ?? 0) >= attrCountMin,
+			);
+		}
+
+		if (attrCountMax !== undefined) {
+			entities = entities.filter(
+				(e) => (e.attrSeq?.length ?? 0) <= attrCountMax,
+			);
+		}
+
+		if (hasUpstream) {
+			entities = entities.filter((e) => {
+				const count = upstreamCounts.get(e.id) ?? 0;
+				return hasUpstream === "yes" ? count > 0 : count === 0;
+			});
+		}
+
+		if (hasDownstream) {
+			entities = entities.filter((e) => {
+				const count = downstreamCounts.get(e.id) ?? 0;
+				return hasDownstream === "yes" ? count > 0 : count === 0;
+			});
+		}
+
+		if (hideTempTables) {
 			entities = entities.filter((e) => !isTempEntity(e));
 		}
 
