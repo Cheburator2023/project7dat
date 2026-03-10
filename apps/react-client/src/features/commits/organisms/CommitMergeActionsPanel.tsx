@@ -6,7 +6,6 @@ import {
 	Alert,
 	Typography,
 	Chip,
-	Divider,
 	List,
 	ListItem,
 	ListItemText,
@@ -110,7 +109,6 @@ export const CommitMergeActionsPanel = memo(() => {
 				user: username,
 			});
 			setMergeStep("confirmed");
-			toast.success("Слияние подтверждено, модель данных обновлена");
 			navigate(routes.allCommits.rootPath);
 		} catch (err: any) {
 			setError(
@@ -175,10 +173,6 @@ export const CommitMergeActionsPanel = memo(() => {
 				gap: 2,
 			}}
 		>
-			<Typography variant="subtitle2" color="text.secondary">
-				Применение коммита
-			</Typography>
-
 			{error && <Alert severity="error">{error}</Alert>}
 
 			{isDone && (
@@ -192,7 +186,7 @@ export const CommitMergeActionsPanel = memo(() => {
 					sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto" }}
 				>
 					<Typography variant="body2" color="text.secondary">
-						Нажмите «Предпросмотр», чтобы рассчитать diff и проверить изменения
+						Нажмите «Предпросмотр», чтобы рассчитать &gt; и проверить изменения
 						перед применением к модели данных.
 					</Typography>
 					<Button
@@ -204,7 +198,7 @@ export const CommitMergeActionsPanel = memo(() => {
 						disabled={applying || isDone}
 						fullWidth
 					>
-						{applying ? "Расчёт diff..." : "Предпросмотр слияния"}
+						{applying ? "Расчёт изменений..." : "Предпросмотр слияния"}
 					</Button>
 				</Box>
 			)}
@@ -244,7 +238,7 @@ export const CommitMergeActionsPanel = memo(() => {
 							<List
 								dense
 								disablePadding
-								sx={{ maxHeight: 300, overflow: "auto" }}
+								sx={{ maxHeight: "100%", overflow: "auto" }}
 							>
 								{diffPreview.map((item, idx) => (
 									<ListItem key={idx} disableGutters sx={{ py: 0.25 }}>
@@ -274,8 +268,6 @@ export const CommitMergeActionsPanel = memo(() => {
 						</>
 					)}
 
-					<Divider />
-
 					<Box
 						sx={{
 							display: "flex",
@@ -287,7 +279,7 @@ export const CommitMergeActionsPanel = memo(() => {
 						<Button
 							onClick={handleConfirm}
 							variant="contained"
-							color="success"
+							color="error"
 							startIcon={
 								applying ? <CircularProgress size={16} /> : <CheckCircleIcon />
 							}

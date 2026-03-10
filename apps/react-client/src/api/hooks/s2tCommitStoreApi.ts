@@ -2,7 +2,7 @@ import { default as axios } from "axios";
 
 const API_BASE_URL = window.urlConfig?.DATA_LINEAGE_API;
 
-export type S2tCommitState = "processing" | "done" | "failed";
+export type S2tCommitState = "processing" | "merging" | "done" | "failed";
 export type S2tCommitType = "table" | "json" | "model";
 
 export interface S2tCommitItem {

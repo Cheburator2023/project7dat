@@ -46,35 +46,20 @@ export const commitMergeLayoutJson: SerializedDockview = {
 						views: ["commit-graph-tab"],
 					},
 				},
-				// Right column (20%): Summary + Actions
+				// Right column (20%): Actions
 				{
-					type: "branch",
+					type: "leaf",
 					size: 20,
-					data: [
-						{
-							type: "leaf",
-							size: 65,
-							data: {
-								id: "group-right-top",
-								activeView: "commit-summary-tab",
-								views: ["commit-summary-tab"],
-							},
-						},
-						{
-							type: "leaf",
-							size: 35,
-							data: {
-								id: "group-right-bottom",
-								activeView: "commit-actions-tab",
-								views: ["commit-actions-tab"],
-							},
-						},
-					],
+					data: {
+						id: "group-right",
+						activeView: "commit-actions-tab",
+						views: ["commit-actions-tab"],
+					},
 				},
 			],
 		},
 		height: 800,
-		width: 1200,
+		width: 1300,
 		orientation: Orientation.HORIZONTAL,
 	},
 	panels: {
@@ -97,11 +82,6 @@ export const commitMergeLayoutJson: SerializedDockview = {
 			id: "commit-graph-tab",
 			contentComponent: "commit-graph",
 			title: "🔗 Граф изменений",
-		},
-		"commit-summary-tab": {
-			id: "commit-summary-tab",
-			contentComponent: "commit-summary",
-			title: "📈 Обзор изменений",
 		},
 		"commit-actions-tab": {
 			id: "commit-actions-tab",

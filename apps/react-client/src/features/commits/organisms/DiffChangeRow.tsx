@@ -1,16 +1,18 @@
-import { memo } from "react";
-import type { FC } from "react";
+import { memo, useMemo } from "react";
+import type { FC, ReactNode } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import {
-	formatDiffPathForDisplay,
-	toPreview,
-	getInlineStringDiff,
-} from "../diffWorker";
+	CodeJsonEditor,
+	createJsonEditorStore,
+} from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
+import { formatDiffPathForDisplay, getInlineStringDiff } from "../diffWorker";
 import type { DiffChangeItem } from "../diffWorker";
 
 interface DiffChangeRowProps {
 	change: DiffChangeItem;
 	onJumpToPath?: (path: string) => void;
+	pathLabel?: ReactNode;
+	rowId?: string;
 }
 
 const InlineStringDiff: FC<{ before: string; after: string }> = ({
@@ -83,8 +85,7 @@ const ValueBlock: FC<{
 			: color === "green"
 				? "success.dark"
 				: "text.primary";
-
-	const preview = toPreview(value);
+	const editorStore = useMemo(() => createJsonEditorStore(), []);
 
 	return (
 		<Box
@@ -98,24 +99,28 @@ const ValueBlock: FC<{
 							? "rgba(46,125,50,0.3)"
 							: "divider",
 				borderRadius: 1,
-				px: 1,
-				py: 0.5,
-				fontFamily: "monospace",
-				fontSize: "0.8rem",
-				whiteSpace: "pre-wrap",
-				wordBreak: "break-all",
 				color: textColor,
 				flex: 1,
 				minWidth: 0,
+				overflow: "hidden",
 			}}
 		>
-			{preview}
+			<CodeJsonEditor
+				initialData={value}
+				editable={false}
+				autoExpandAll={true}
+				deferInitialization={true}
+				syncWithDataLineageStore={false}
+				editorStore={editorStore}
+				height={220}
+				showSearchBar={true}
+			/>
 		</Box>
 	);
 };
 
 export const DiffChangeRow: FC<DiffChangeRowProps> = memo(
-	({ change, onJumpToPath }) => {
+	({ change, onJumpToPath, pathLabel, rowId }) => {
 		const isModifiedBothStrings =
 			change.type === "modified" &&
 			typeof change.before === "string" &&
@@ -129,6 +134,7 @@ export const DiffChangeRow: FC<DiffChangeRowProps> = memo(
 
 		return (
 			<Box
+				id={rowId}
 				sx={{
 					border: "1px solid",
 					borderColor: "divider",
@@ -161,7 +167,7 @@ export const DiffChangeRow: FC<DiffChangeRowProps> = memo(
 							minWidth: 0,
 						}}
 					>
-						{formatDiffPathForDisplay(change.path)}
+						{pathLabel ?? formatDiffPathForDisplay(change.path)}
 					</Typography>
 					{onJumpToPath && change.path && (
 						<Button

@@ -22,7 +22,8 @@ import {
 } from "@mui/icons-material";
 import { useDataLineageStore } from "@react-client/common/stores/dataLineageStore";
 import { useShallow } from "zustand/react/shallow";
-import { create } from "zustand";
+import { create, useStore } from "zustand";
+import type { StateCreator } from "zustand";
 import { produce } from "immer";
 import { FixedSizeList as List } from "react-window";
 import {
@@ -65,7 +66,7 @@ interface JsonEditorState {
 	exportToFile: () => void;
 }
 
-export const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
+const createJsonEditorState: StateCreator<JsonEditorState> = (set, get) => ({
 	focusedPath: null,
 	highlightedPaths: {},
 	expandedPaths: { "": true, address: true, hobbies: true },
@@ -200,7 +201,16 @@ export const useJsonEditorStore = create<JsonEditorState>((set, get) => ({
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
 	},
-}));
+});
+
+export const useJsonEditorStore = create<JsonEditorState>(
+	createJsonEditorState,
+);
+
+export const createJsonEditorStore = () =>
+	create<JsonEditorState>(createJsonEditorState);
+
+export type JsonEditorStore = ReturnType<typeof createJsonEditorStore>;
 
 const searchInJsonData = (data: any, query: string, path = ""): string[] => {
 	const results: string[] = [];
@@ -334,16 +344,16 @@ const getTypeHint = (originalValue: any): string => {
 	const type = getValueType(originalValue);
 	switch (type) {
 		case "string":
-			return "Строка";
+			return "cтрока";
 		case "number":
-			return "Число";
+			return "число";
 		case "boolean":
-			return "true или false";
+			return "bool";
 		case "null":
 		case "undefined":
-			return "Любой тип";
+			return "?";
 		default:
-			return "Значение";
+			return "-";
 	}
 };
 
@@ -650,7 +660,7 @@ const JsonLine = styled(Box, {
 			: $isSearchMatch
 				? $isDark
 					? alpha(theme.palette.secondary.main, 0.15)
-					: theme.palette.secondary.main + "20"
+					: "hsl(44.33deg 100% 68.11% / 74%)"
 				: $isFocused
 					? $isDark
 						? alpha(theme.palette.primary.main, 0.2)
@@ -788,9 +798,10 @@ const _JsonSyntax = styled("span")(({ theme }) => ({
 
 interface JsonSearchBarProps {
 	data: any;
+	editorStore: JsonEditorStore;
 }
 
-const JsonSearchBar: React.FC<JsonSearchBarProps> = ({ data }) => {
+const JsonSearchBar: React.FC<JsonSearchBarProps> = ({ data, editorStore }) => {
 	const {
 		searchQuery,
 		searchResults,
@@ -801,7 +812,8 @@ const JsonSearchBar: React.FC<JsonSearchBarProps> = ({ data }) => {
 		goToNextResult,
 		goToPrevResult,
 		setFocus,
-	} = useJsonEditorStore(
+	} = useStore(
+		editorStore,
 		useShallow((state) => ({
 			searchQuery: state.searchQuery,
 			searchResults: state.searchResults,
@@ -896,6 +908,7 @@ interface JsonNodeProps {
 	selectedNodes: string[];
 	currentGraph?: any;
 	changedPaths: Set<string>;
+	editorStore: JsonEditorStore;
 }
 
 const isSelectedNodeName = (
@@ -932,6 +945,7 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 		selectedNodes,
 		currentGraph,
 		changedPaths,
+		editorStore,
 	}) => {
 		const inputRef = useRef<HTMLDivElement>(null);
 		const nodeRef = useRef<HTMLDivElement>(null);
@@ -944,7 +958,8 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 			setEditValue,
 			searchResults,
 			currentSearchIndex,
-		} = useJsonEditorStore(
+		} = useStore(
+			editorStore,
 			useShallow((state) => ({
 				editingPath: state.editingPath,
 				editValue: state.editValue,
@@ -1110,11 +1125,20 @@ const JsonNodeComponent: React.FC<JsonNodeProps> = memo(
 									variant="outlined"
 									sx={{ flex: 1 }}
 									error={!validateInput(editValue, node.value)}
-									helperText={
-										!validateInput(editValue, node.value)
-											? `Ожидается: ${getTypeHint(node.value)}`
-											: `Тип: ${getTypeHint(node.value)}`
-									}
+									slotProps={{
+										input: {
+											startAdornment: (
+												<span style={{ color: isDark ? "#FFD700" : "#B8860B" }}>
+													{"\u00A0Тип\u00A0" + getTypeHint(node.value) + ":"}
+												</span>
+											),
+										},
+									}}
+									// helperText={
+									// 	!validateInput(editValue, node.value)
+									// 		? `Ожидается: ${getTypeHint(node.value)}`
+									// 		: `Тип: ${getTypeHint(node.value)}`
+									// }
 									data-test-id={`json-input-${node.path.replace(/\./g, "-")}`}
 								/>
 								<EditActions>
@@ -1296,6 +1320,9 @@ interface CodeJsonEditorProps {
 	autoExpandAll?: boolean;
 	deferInitialization?: boolean;
 	syncWithDataLineageStore?: boolean;
+	editorStore?: JsonEditorStore;
+	height?: number;
+	showSearchBar?: boolean;
 }
 
 export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
@@ -1328,6 +1355,9 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 	autoExpandAll = true,
 	deferInitialization = false,
 	syncWithDataLineageStore = true,
+	editorStore,
+	height = 700,
+	showSearchBar = true,
 }) => {
 	const { mode } = useColorScheme();
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -1335,6 +1365,10 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 	const isUpdatingFromStore = useRef(false);
 	const lastInitializedKeyRef = useRef<string | number | null>(null);
 	const normalizedDataKey = dataKey ?? "__default__";
+	const resolvedEditorStore = useMemo(
+		() => editorStore ?? useJsonEditorStore,
+		[editorStore],
+	);
 
 	const {
 		focusedPath,
@@ -1352,7 +1386,8 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 		expandAll,
 		searchResults,
 		currentSearchIndex,
-	} = useJsonEditorStore(
+	} = useStore(
+		resolvedEditorStore,
 		useShallow((state) => ({
 			focusedPath: state.focusedPath,
 			highlightedPaths: state.highlightedPaths,
@@ -1440,7 +1475,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 	}, [focusedPath, flatNodes]);
 
 	useEffect(() => {
-		if (!initialData) {
+		if (initialData === undefined) {
 			return;
 		}
 
@@ -1743,6 +1778,7 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 						selectedNodes={selectedNodes}
 						currentGraph={currentGraph}
 						changedPaths={changedPaths}
+						editorStore={resolvedEditorStore}
 					/>
 				</div>
 			);
@@ -1759,15 +1795,18 @@ export const CodeJsonEditor: React.FC<CodeJsonEditorProps> = ({
 			currentGraph,
 			lineNumberMap,
 			changedPaths,
+			resolvedEditorStore,
 		],
 	);
 
 	return (
 		<Container ref={containerRef} data-test-id="json-editor-container">
-			<JsonSearchBar data={jsonData} />
+			{showSearchBar && (
+				<JsonSearchBar data={jsonData} editorStore={resolvedEditorStore} />
+			)}
 			<List
 				ref={listRef}
-				height={700}
+				height={height}
 				itemCount={flatNodes.length}
 				itemSize={32}
 				width="100%"

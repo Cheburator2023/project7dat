@@ -32,7 +32,7 @@ const panelComponents: Record<
 	"commit-entities-comparison": () => <CommitEntitiesComparisonPanel />,
 	"commit-objects": () => <CommitObjectsPanel />,
 	"commit-graph": () => <CommitGraphPanel />,
-	"commit-summary": () => <CommitChangeSummaryPanel />,
+	// "commit-summary": () => <CommitChangeSummaryPanel />,
 	"commit-actions": () => <CommitMergeActionsPanel />,
 };
 

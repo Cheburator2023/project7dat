@@ -21,6 +21,7 @@ import {
 } from "../stores/commitMergeStore";
 import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
 import { useAgGridPersistence } from "@react-client/common/grid/hooks/useAgGridPersistence";
+import { Spacer } from "@react-client/common/primitives/Spacer";
 
 interface ObjectRow {
 	id: string;
@@ -312,10 +313,9 @@ export const CommitObjectsPanel = memo(() => {
 					onSortChanged={objectsGridPersistence.onSortChanged}
 				/>
 			</Box>
+			<Spacer />
 			<Box
 				sx={{
-					borderTop: 1,
-					borderColor: "divider",
 					flex: 1,
 					minHeight: 0,
 				}}
