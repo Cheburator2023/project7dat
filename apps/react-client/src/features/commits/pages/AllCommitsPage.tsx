@@ -127,9 +127,19 @@ export const AllCommitsPage: FC = () => {
 		let cancelled = false;
 
 		const syncMergingSession = async () => {
+			console.info("[merge-sync] effect tick", {
+				mergingCommitId: mergingCommit?.id ?? null,
+				mergingCommitState: mergingCommit?.state ?? null,
+				activeSessionCommitId: activeSession?.commitId ?? null,
+				activeSessionId: activeSession?.mergeSessionId ?? null,
+				activeSessionStatus: activeSession?.status ?? null,
+			});
+
 			if (!mergingCommit) {
+				console.info("[merge-sync] no merging commit, stopping polling");
 				stopPolling();
 				if (activeSession?.status === "merging") {
+					console.info("[merge-sync] clearing stale active session");
 					clearSession();
 				}
 				return;
@@ -140,25 +150,51 @@ export const AllCommitsPage: FC = () => {
 				activeSession.status === "merging" &&
 				activeSession.mergeSessionId
 			) {
+				console.info("[merge-sync] reusing active session from store", {
+					mergeSessionId: activeSession.mergeSessionId,
+					commitId: activeSession.commitId,
+				});
 				startPolling(activeSession.mergeSessionId);
 				return;
 			}
 
 			try {
+				console.info("[merge-sync] requesting active session from backend", {
+					commitId: mergingCommit.id,
+				});
 				const session = await mergeService.getActiveSession();
 				if (cancelled) return;
+
+				console.info("[merge-sync] backend active session response", {
+					sessionId: session?.mergeSessionId ?? null,
+					sessionCommitId: session?.commitId ?? null,
+					sessionStatus: session?.status ?? null,
+					targetCommitId: mergingCommit.id,
+				});
 
 				if (
 					session &&
 					session.commitId === mergingCommit.id &&
 					session.status === "merging"
 				) {
+					console.info("[merge-sync] backend session matches merging commit", {
+						mergeSessionId: session.mergeSessionId,
+						commitId: session.commitId,
+					});
 					setActiveSession(session);
 					startPolling(session.mergeSessionId);
 					return;
 				}
 
 				if (activeSession?.commitId !== mergingCommit.id) {
+					console.warn(
+						"[merge-sync] active backend session missing or mismatched, creating local fallback session",
+						{
+							sessionId: session?.mergeSessionId ?? null,
+							sessionCommitId: session?.commitId ?? null,
+							targetCommitId: mergingCommit.id,
+						},
+					);
 					setActiveSession({
 						mergeSessionId: "",
 						commitId: mergingCommit.id,
@@ -173,8 +209,12 @@ export const AllCommitsPage: FC = () => {
 						errorMessage: null,
 					});
 				}
-			} catch {
+			} catch (error) {
 				if (cancelled) return;
+				console.error("[merge-sync] getActiveSession failed", {
+					targetCommitId: mergingCommit.id,
+					message: error instanceof Error ? error.message : String(error),
+				});
 				if (activeSession?.commitId !== mergingCommit.id) {
 					setActiveSession({
 						mergeSessionId: "",
@@ -197,6 +237,7 @@ export const AllCommitsPage: FC = () => {
 
 		return () => {
 			cancelled = true;
+			console.info("[merge-sync] effect cleanup");
 		};
 	}, [
 		mergingCommit,
