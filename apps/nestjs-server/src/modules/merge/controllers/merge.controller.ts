@@ -24,6 +24,7 @@ import {
 	ApplyMergeResponseDto,
 	ConfirmMergeResponseDto,
 	CancelMergeResponseDto,
+	MergeSessionStatusDto,
 } from "../dto/merge-response.dto";
 import { RealmRole } from "../../../core/auth/decorators/realm-role.decorator";
 import { Permission } from "../../../core/auth/permissions";
@@ -82,7 +83,7 @@ export class MergeController {
 		const result = await this.mergeService.confirmMerge(dto.commitId, dto.user);
 		return {
 			success: result.success,
-			snapshotId: result.snapshotId,
+			mergeSessionId: result.mergeSessionId,
 			message: result.message,
 		};
 	}
@@ -111,18 +112,34 @@ export class MergeController {
 	@Get("session/:sessionId")
 	@RealmRole(Permission.DL_VIEW_COMMITS)
 	@ApiOperation({
-		summary: "Получить информацию о сессии слияния",
+		summary: "Получить статус сессии слияния",
 		description:
-			"Возвращает данные активной сессии слияния по её идентификатору",
+			"Возвращает статус и прогресс сессии слияния по её идентификатору",
 	})
 	@ApiParam({ name: "sessionId", description: "UUID сессии слияния" })
-	@ApiResponse({ status: 200, description: "Сессия найдена" })
+	@ApiResponse({
+		status: 200,
+		description: "Сессия найдена",
+		type: MergeSessionStatusDto,
+	})
 	@ApiResponse({ status: 404, description: "Сессия не найдена" })
-	async getSession(@Param("sessionId") sessionId: string) {
-		const session = this.mergeService.getMergeSession(sessionId);
+	getSession(@Param("sessionId") sessionId: string): MergeSessionStatusDto {
+		const session = this.mergeService.getMergeSessionStatus(sessionId);
 		if (!session) {
 			throw new NotFoundException(`Сессия ${sessionId} не найдена`);
 		}
 		return session;
+	}
+
+	@Get("active")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
+	@ApiOperation({
+		summary: "Получить активную сессию слияния",
+		description:
+			"Возвращает данные активной сессии в статусе merging (если есть)",
+	})
+	@ApiResponse({ status: 200, description: "Активная сессия или null" })
+	getActiveSession(): MergeSessionStatusDto | null {
+		return this.mergeService.getActiveMergingSession();
 	}
 }

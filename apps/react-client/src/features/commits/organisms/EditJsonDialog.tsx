@@ -180,7 +180,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 
 		setIsDiffComputing(true);
 		setDiffResult(null);
-		setDiffProgressText("Вычисляем diff…");
+		setDiffProgressText("Вычисляем различия...");
 		setExpandedEntityKeys([]);
 
 		let cancelled = false;
@@ -237,7 +237,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 					}
 
 					if (msg.type === "error") {
-						setDiffProgressText(msg.message ?? "Не удалось построить diff");
+						setDiffProgressText(msg.message ?? "Не удалось расчитать различия");
 						setIsDiffComputing(false);
 						worker.terminate();
 						workerRef.current = null;
@@ -250,7 +250,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 
 				worker.onerror = () => {
 					if (!cancelled) {
-						setDiffProgressText("Ошибка Web Worker при построении diff");
+						setDiffProgressText("Ошибка Web Worker при построении различий");
 						setIsDiffComputing(false);
 					}
 					worker.terminate();
@@ -267,7 +267,7 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 				});
 			} catch {
 				if (!cancelled) {
-					setDiffProgressText("Не удалось запустить diff");
+					setDiffProgressText("Не удалось запустить расчет различий");
 					setIsDiffComputing(false);
 				}
 			}

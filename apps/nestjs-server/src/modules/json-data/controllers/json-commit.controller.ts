@@ -307,7 +307,7 @@ export class JsonCommitController {
 		@Param("user") user: string,
 		@Query("type") type?: CommitType,
 	): Promise<JsonCommitListResponseDto> {
-		let commits;
+		let commits: JsonCommitEntity[];
 
 		if (type) {
 			const allCommits = await this.jsonCommitService.getCommitsByUser(user);

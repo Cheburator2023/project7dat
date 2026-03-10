@@ -61,16 +61,81 @@ export class ConfirmMergeResponseDto {
 	success: boolean;
 
 	@ApiProperty({
-		description: "ID созданного снепшота",
-		example: "uuid-snapshot",
+		description: "ID сессии слияния для отслеживания прогресса",
+		example: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
 	})
-	snapshotId: string;
+	mergeSessionId: string;
 
 	@ApiProperty({
 		description: "Сообщение",
-		example: "Модель данных успешно обновлена",
+		example: "Слияние запущено в фоновом режиме",
 	})
 	message: string;
+}
+
+export class MergeSessionStatusDto {
+	@ApiProperty({
+		description: "ID сессии слияния",
+		example: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+	})
+	mergeSessionId: string;
+
+	@ApiProperty({
+		description: "ID коммита",
+		example: "123e4567-e89b-12d3-a456-426614174000",
+	})
+	commitId: string;
+
+	@ApiProperty({
+		description: "Название коммита",
+		example: "Импорт данных",
+	})
+	commitName: string;
+
+	@ApiProperty({
+		description: "Статус слияния",
+		enum: ["merging", "done", "failed"],
+	})
+	status: "merging" | "done" | "failed";
+
+	@ApiProperty({
+		description: "Прогресс выполнения от 0 до 100",
+		example: 45,
+	})
+	progress: number;
+
+	@ApiProperty({
+		description: "Текущий этап выполнения",
+		example: "Импорт данных в БД",
+	})
+	stage: string;
+
+	@ApiProperty({
+		description: "Время начала процесса (ISO)",
+		example: "2025-03-10T15:00:00.000Z",
+	})
+	startedAt: string;
+
+	@ApiProperty({
+		description:
+			"Примерное оставшееся время в секундах (null если невозможно определить)",
+		example: 30,
+		nullable: true,
+	})
+	estimatedSecondsLeft: number | null;
+
+	@ApiProperty({
+		description: "ID снепшота (после завершения)",
+		example: "uuid-snapshot",
+		nullable: true,
+	})
+	snapshotId: string | null;
+
+	@ApiProperty({
+		description: "Сообщение об ошибке (при status=failed)",
+		nullable: true,
+	})
+	errorMessage: string | null;
 }
 
 export class CancelMergeResponseDto {

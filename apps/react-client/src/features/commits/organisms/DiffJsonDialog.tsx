@@ -30,6 +30,7 @@ import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { go as fuzzyGo, single as fuzzySingle } from "fuzzysort";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useCurrentDataLineageWholeData } from "@react-client/api/hooks/useCurrentDataLineageSnapshot";
+import { formatDiffPathForDisplay } from "../diffWorker";
 import { DiffChangeRow } from "./DiffChangeRow";
 
 const MonacoDiffEditor = lazy(() =>
@@ -39,6 +40,7 @@ const MonacoDiffEditor = lazy(() =>
 const diffInstance = createDiff();
 const DIFF_DEBOUNCE_MS = 220;
 const SEARCH_DEBOUNCE_MS = 260;
+const SEARCH_MIN_LENGTH = 3;
 const LARGE_JSON_NODE_THRESHOLD = 120000;
 const MAX_CHANGES_IN_OUTPUT = 20000;
 
@@ -71,6 +73,10 @@ interface DiffEntityGroup {
 	modified: number;
 	changes: DiffChangeItem[];
 	searchText: string;
+}
+
+interface SearchHighlightMatch {
+	indexes: number[];
 }
 
 const buildEntityGroups = (changes: DiffChangeItem[]): DiffEntityGroup[] => {
@@ -122,6 +128,45 @@ const renderHighlightedText = (text: string, query: string): ReactNode => {
 
 	const indexes = [...result.indexes].sort((a, b) => a - b);
 	const highlightedIndexSet = new Set(indexes);
+	const nodes: ReactNode[] = [];
+	let segmentStart = 0;
+	let segmentMode: "plain" | "mark" = highlightedIndexSet.has(0)
+		? "mark"
+		: "plain";
+
+	for (let i = 1; i <= text.length; i += 1) {
+		const mode: "plain" | "mark" = highlightedIndexSet.has(i)
+			? "mark"
+			: "plain";
+		if (i === text.length || mode !== segmentMode) {
+			const piece = text.slice(segmentStart, i);
+			if (piece) {
+				nodes.push(
+					segmentMode === "mark" ? (
+						<mark key={`${segmentStart}-${i}`}>{piece}</mark>
+					) : (
+						piece
+					),
+				);
+			}
+			segmentStart = i;
+			segmentMode = mode;
+		}
+	}
+
+	return <>{nodes}</>;
+};
+
+const renderHighlightedTextByIndexes = (
+	text: string,
+	indexes: number[] | undefined,
+): ReactNode => {
+	if (!indexes || indexes.length === 0) {
+		return text;
+	}
+
+	const sortedIndexes = [...indexes].sort((a, b) => a - b);
+	const highlightedIndexSet = new Set(sortedIndexes);
 	const nodes: ReactNode[] = [];
 	let segmentStart = 0;
 	let segmentMode: "plain" | "mark" = highlightedIndexSet.has(0)
@@ -950,7 +995,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	const [expandedEntityKeys, setExpandedEntityKeys] = useState<string[]>([]);
 	const [diffMode, setDiffMode] = useState<"structured" | "line">("structured");
 	const [progressText, setProgressText] = useState(
-		"Считаем diff к текущему JSON…",
+		"Считаем различия к актуальным данным...",
 	);
 	const workerRef = useRef<Worker | null>(null);
 	const workerUrlRef = useRef<string | null>(null);
@@ -965,7 +1010,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 
 	useEffect(() => {
 		const timer = window.setTimeout(() => {
-			setDebouncedSearchQuery(localSearchQuery);
+			setDebouncedSearchQuery(localSearchQuery.trim());
 		}, SEARCH_DEBOUNCE_MS);
 
 		return () => {
@@ -973,25 +1018,103 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 		};
 	}, [localSearchQuery]);
 
-	const filteredGroups = useMemo(() => {
-		if (!diffResult) return [];
-
-		const groups = buildEntityGroups(diffResult.changes);
-		if (!debouncedSearchQuery.trim()) {
-			return groups;
+	const entityGroups = useMemo(() => {
+		if (!diffResult) {
+			return [];
 		}
 
-		const searchResults = fuzzyGo(debouncedSearchQuery, groups, {
-			keys: ["entityLabel", "searchText"],
-			threshold: -12000,
-			limit: groups.length,
-		});
+		return buildEntityGroups(diffResult.changes);
+	}, [diffResult]);
 
-		return searchResults.map((result) => result.obj as DiffEntityGroup);
-	}, [diffResult, debouncedSearchQuery]);
+	const activeSearchQuery = useMemo(
+		() => debouncedSearchQuery.trim(),
+		[debouncedSearchQuery],
+	);
+
+	const isSearchTooShort =
+		activeSearchQuery.length > 0 &&
+		activeSearchQuery.length < SEARCH_MIN_LENGTH;
+	const isSearchActive = activeSearchQuery.length >= SEARCH_MIN_LENGTH;
+
+	const searchState = useMemo(() => {
+		const emptyState = {
+			filteredGroups: entityGroups,
+			groupLabelMatchMap: new Map<string, SearchHighlightMatch>(),
+			changePathMatchMap: new Map<string, SearchHighlightMatch>(),
+		};
+
+		if (!isSearchActive || !diffResult) {
+			return emptyState;
+		}
+
+		const changeResults = [
+			...fuzzyGo(activeSearchQuery, diffResult.changes, {
+				keys: ["entityLabel", "path", "searchText"],
+				threshold: -10000,
+				limit: diffResult.changes.length,
+			}),
+		] as unknown as Array<{
+			obj: DiffChangeItem;
+			indexes?: readonly number[];
+			score?: number;
+		}>;
+
+		if (changeResults.length === 0) {
+			return {
+				filteredGroups: [],
+				groupLabelMatchMap: new Map<string, SearchHighlightMatch>(),
+				changePathMatchMap: new Map<string, SearchHighlightMatch>(),
+			};
+		}
+
+		const matchedChanges: DiffChangeItem[] = [];
+		const groupLabelMatchMap = new Map<string, SearchHighlightMatch>();
+		const changePathMatchMap = new Map<string, SearchHighlightMatch>();
+
+		for (const result of changeResults) {
+			const change = result.obj;
+			matchedChanges.push(change);
+
+			const changeKey = `${change.type}:${change.path}`;
+			const displayPath = formatDiffPathForDisplay(change.path);
+			const pathMatch = fuzzySingle(activeSearchQuery, displayPath);
+			if (pathMatch?.indexes?.length) {
+				changePathMatchMap.set(changeKey, {
+					indexes: [...pathMatch.indexes],
+				});
+			}
+
+			if (!groupLabelMatchMap.has(change.entityKey)) {
+				const labelMatch = fuzzySingle(activeSearchQuery, change.entityLabel);
+				if (labelMatch?.indexes?.length) {
+					groupLabelMatchMap.set(change.entityKey, {
+						indexes: [...labelMatch.indexes],
+					});
+				}
+			}
+		}
+
+		return {
+			filteredGroups: buildEntityGroups(matchedChanges),
+			groupLabelMatchMap,
+			changePathMatchMap,
+		};
+	}, [entityGroups, isSearchActive, diffResult, activeSearchQuery]);
+
+	const filteredGroups = searchState.filteredGroups;
 
 	const filteredEntityKeys = useMemo(() => {
 		return filteredGroups.map((group) => group.entityKey);
+	}, [filteredGroups]);
+
+	const firstMatchedChangeKey = useMemo(() => {
+		const firstGroup = filteredGroups[0];
+		const firstChange = firstGroup?.changes[0];
+		if (!firstChange) {
+			return null;
+		}
+
+		return `${firstChange.type}:${firstChange.path}`;
 	}, [filteredGroups]);
 
 	useEffect(() => {
@@ -1010,6 +1133,26 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	}, [filteredGroups]);
 
 	useEffect(() => {
+		if (!isSearchActive || !firstMatchedChangeKey) {
+			return;
+		}
+
+		const timer = window.setTimeout(() => {
+			const target = document.getElementById(
+				`diff-search-result-${encodeURIComponent(firstMatchedChangeKey)}`,
+			);
+			target?.scrollIntoView({
+				block: "center",
+				behavior: "smooth",
+			});
+		}, 0);
+
+		return () => {
+			window.clearTimeout(timer);
+		};
+	}, [isSearchActive, firstMatchedChangeKey]);
+
+	useEffect(() => {
 		if (!open || !commit) {
 			setDiffResult(null);
 			setError(null);
@@ -1018,7 +1161,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 			setDebouncedSearchQuery("");
 			setExpandedEntityKeys([]);
 			setDiffMode("structured");
-			setProgressText("Считаем diff к текущему JSON…");
+			setProgressText("Считаем различия к актуальным данным...");
 			setBaselineJsonText("");
 			setCommitJsonText("");
 			setIsPreparingText(false);
@@ -1037,7 +1180,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 		setIsComputing(true);
 		setError(null);
 		setDiffResult(null);
-		setProgressText("Готовим данные для diff…");
+		setProgressText("Готовим расчет различий...");
 
 		let cancelled = false;
 		const timer = window.setTimeout(async () => {
@@ -1061,7 +1204,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 					return;
 				}
 
-				setProgressText("Large JSON: запускаем diff в Web Worker…");
+				setProgressText("Large JSON: запускаем различия в Web Worker…");
 				if (typeof Worker === "undefined") {
 					const fallback = await runChunkedMainThreadDiff(
 						original,
@@ -1120,7 +1263,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 					}
 
 					if (data.type === "error") {
-						setError(data.message ?? "Не удалось построить diff в worker");
+						setError(data.message ?? "Не удалось построить различия в worker");
 						setIsComputing(false);
 						worker.terminate();
 						workerRef.current = null;
@@ -1133,7 +1276,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 
 				worker.onerror = () => {
 					if (!cancelled) {
-						setError("Ошибка Web Worker при построении diff");
+						setError("Ошибка Web Worker");
 						setIsComputing(false);
 					}
 					worker.terminate();
@@ -1148,7 +1291,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 			} catch (err: any) {
 				if (!cancelled) {
 					setError(
-						err?.message ?? "Не удалось построить diff для текущего JSON",
+						err?.message ?? "Не удалось построить различия для текущего JSON",
 					);
 				}
 			} finally {
@@ -1245,14 +1388,22 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	};
 
 	const highlightedLabel = (label: string): ReactNode => {
-		return renderHighlightedText(label, debouncedSearchQuery);
-	};
+		if (!isSearchActive) {
+			return renderHighlightedText(label, "");
+		}
 
-	console.log(
-		"🐸 Pepe said >> DiffJsonDialog >> commitJsonText:",
-		commitJsonText,
-		baselineJsonText,
-	);
+		const directMatch = filteredGroups.find(
+			(group) => group.entityLabel === label,
+		);
+		if (!directMatch) {
+			return renderHighlightedText(label, activeSearchQuery);
+		}
+
+		return renderHighlightedTextByIndexes(
+			label,
+			searchState.groupLabelMatchMap.get(directMatch.entityKey)?.indexes,
+		);
+	};
 
 	return (
 		<Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -1294,8 +1445,8 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 					onChange={(_, value) => setDiffMode(value as "structured" | "line")}
 					sx={{ mb: 2 }}
 				>
-					<Tab value="structured" label="Структурный diff" />
-					<Tab value="line" label="Построчный diff" />
+					<Tab value="structured" label="Структурные различия" />
+					<Tab value="line" label="Построчные различия" />
 				</Tabs>
 
 				{isComputing && (
@@ -1351,12 +1502,18 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 								</Box>
 
 								<TextField
-									placeholder="Поиск по сущностям и путям..."
+									placeholder="Поиск..."
+									data-test-id="diff-search-input"
 									value={localSearchQuery}
 									onChange={handleSearchChange}
 									fullWidth
 									size="small"
 									sx={{ mb: 2 }}
+									helperText={
+										isSearchTooShort
+											? `Введите минимум ${SEARCH_MIN_LENGTH} символа`
+											: "Поиск по сущностям, путям и значениям"
+									}
 									slotProps={{
 										input: {
 											startAdornment: (
@@ -1390,9 +1547,13 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 								<Alert severity="info" sx={{ mt: 1 }}>
 									Изменений не найдено.
 								</Alert>
+							) : isSearchTooShort ? (
+								<Alert severity="info" sx={{ mt: 1 }}>
+									Введите минимум {SEARCH_MIN_LENGTH} символа для поиска.
+								</Alert>
 							) : filteredGroups.length === 0 ? (
 								<Alert severity="info" sx={{ mt: 1 }}>
-									По запросу "{debouncedSearchQuery}" ничего не найдено.
+									По запросу "{activeSearchQuery}" ничего не найдено.
 								</Alert>
 							) : (
 								filteredGroups.map((group) => {
@@ -1443,6 +1604,15 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 														<DiffChangeRow
 															key={`${change.type}:${change.path}`}
 															change={change}
+															rowId={`diff-search-result-${encodeURIComponent(
+																`${change.type}:${change.path}`,
+															)}`}
+															pathLabel={renderHighlightedTextByIndexes(
+																formatDiffPathForDisplay(change.path),
+																searchState.changePathMatchMap.get(
+																	`${change.type}:${change.path}`,
+																)?.indexes,
+															)}
 														/>
 													))}
 												</Box>

@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useRef } from "react";
+import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PaginationToolbar } from "@react-client/common/grid/PaginationToolbar";
 import { AgGridStateControls } from "@react-client/common/grid/AgGridStateControls";
@@ -15,6 +15,7 @@ import {
 	DialogTitle,
 	Divider,
 	IconButton,
+	LinearProgress,
 	ListItemIcon,
 	ListItemText,
 	Menu,
@@ -25,12 +26,12 @@ import {
 import type { ChipProps } from "@mui/material";
 import { styled, useColorScheme } from "@mui/material/styles";
 import {
-	Code as CodeIcon,
 	CompareArrows as CompareArrowsIcon,
 	Delete as DeleteIcon,
 	Edit as EditIcon,
 	MoreVert as MoreVertIcon,
 	Visibility as VisibilityIcon,
+	Cancel as CancelIcon,
 } from "@mui/icons-material";
 import {
 	type CellContextMenuEvent,
@@ -61,6 +62,11 @@ import { DiffJsonDialog } from "../organisms/DiffJsonDialog";
 import { EditMetadataDialog } from "../organisms/EditMetadataDialog";
 import { EditJsonDialog } from "../organisms/EditJsonDialog";
 import { MergeIcon } from "lucide-react";
+import { mergeService } from "@react-client/api/hooks/mergeApi";
+import { useMergeCancel } from "@react-client/api/hooks/useMergeCancel";
+import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
+import { useMergingSessionStore } from "../stores/mergingSessionStore";
+import { routes } from "@react-client/routing/routes";
 
 const defaultColDef = {
 	resizable: true,
@@ -105,6 +111,131 @@ export const AllCommitsPage: FC = () => {
 		() => s2tCommits.some((c) => c.state === "processing"),
 		[s2tCommits],
 	);
+	const mergingCommit = useMemo(
+		() => s2tCommits.find((c) => c.state === "merging") ?? null,
+		[s2tCommits],
+	);
+
+	const { setActiveSession } = useMergingSessionStore();
+
+	// Polling для активной сессии слияния
+	const { activeSession, startPolling, stopPolling, clearSession } =
+		useMergeSessionPolling();
+	const cancelMergeMutation = useMergeCancel();
+
+	useEffect(() => {
+		let cancelled = false;
+
+		const syncMergingSession = async () => {
+			if (!mergingCommit) {
+				stopPolling();
+				if (activeSession?.status === "merging") {
+					clearSession();
+				}
+				return;
+			}
+
+			if (
+				activeSession?.commitId === mergingCommit.id &&
+				activeSession.status === "merging" &&
+				activeSession.mergeSessionId
+			) {
+				startPolling(activeSession.mergeSessionId);
+				return;
+			}
+
+			try {
+				const session = await mergeService.getActiveSession();
+				if (cancelled) return;
+
+				if (
+					session &&
+					session.commitId === mergingCommit.id &&
+					session.status === "merging"
+				) {
+					setActiveSession(session);
+					startPolling(session.mergeSessionId);
+					return;
+				}
+
+				if (activeSession?.commitId !== mergingCommit.id) {
+					setActiveSession({
+						mergeSessionId: "",
+						commitId: mergingCommit.id,
+						commitName:
+							mergingCommit.commit_name || mergingCommit.id.slice(0, 8),
+						status: "merging",
+						progress: 0,
+						stage: "Подготовка слияния",
+						startedAt: new Date().toISOString(),
+						estimatedSecondsLeft: null,
+						snapshotId: null,
+						errorMessage: null,
+					});
+				}
+			} catch {
+				if (cancelled) return;
+				if (activeSession?.commitId !== mergingCommit.id) {
+					setActiveSession({
+						mergeSessionId: "",
+						commitId: mergingCommit.id,
+						commitName:
+							mergingCommit.commit_name || mergingCommit.id.slice(0, 8),
+						status: "merging",
+						progress: 0,
+						stage: "Подготовка слияния",
+						startedAt: new Date().toISOString(),
+						estimatedSecondsLeft: null,
+						snapshotId: null,
+						errorMessage: null,
+					});
+				}
+			}
+		};
+
+		void syncMergingSession();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		mergingCommit,
+		activeSession?.commitId,
+		activeSession?.mergeSessionId,
+		activeSession?.status,
+		startPolling,
+		stopPolling,
+		clearSession,
+		setActiveSession,
+	]);
+
+	useEffect(() => {
+		if (activeSession?.status === "done") {
+			toast.success("Слияние завершено! Модель данных обновлена", {
+				duration: Number.POSITIVE_INFINITY,
+				action: {
+					label: "На главную",
+					onClick: () => {
+						clearSession();
+						navigate(routes.allCommits.rootPath);
+					},
+				},
+			});
+			s2tCommitsQuery.refetch();
+		} else if (activeSession?.status === "failed") {
+			toast.error(
+				`Ошибка слияния: ${activeSession.errorMessage ?? "Неизвестная ошибка"}`,
+				{ duration: Number.POSITIVE_INFINITY },
+			);
+		}
+	}, [activeSession?.status]);
+
+	// Обновляем грид при изменении прогресса
+	useEffect(() => {
+		if (activeSession?.status === "merging" && gridRef.current?.api) {
+			gridRef.current.api.refreshCells({ columns: ["state"], force: true });
+		}
+	}, [activeSession?.progress]);
 
 	const [editMetaCommit, setEditMetaCommit] = useState<S2tCommitItem | null>(
 		null,
@@ -185,6 +316,33 @@ export const AllCommitsPage: FC = () => {
 		}
 	};
 
+	const handleCancelMergingCommit = useCallback(
+		async (commit: S2tCommitItem) => {
+			try {
+				await cancelMergeMutation.mutateAsync(commit.id);
+				if (activeSession?.commitId === commit.id) {
+					stopPolling();
+					clearSession();
+				}
+				toast.success("Отмена слияния запрошена");
+				setContextMenuAnchor(null);
+				setContextMenuCommit(null);
+				s2tCommitsQuery.refetch();
+			} catch (e: any) {
+				toast.error(
+					e?.response?.data?.message ?? e?.message ?? "Ошибка отмены слияния",
+				);
+			}
+		},
+		[
+			cancelMergeMutation,
+			activeSession?.commitId,
+			stopPolling,
+			clearSession,
+			s2tCommitsQuery,
+		],
+	);
+
 	const s2tColumnDefs: ColDef<any>[] = useMemo(
 		() => [
 			{
@@ -214,19 +372,112 @@ export const AllCommitsPage: FC = () => {
 			{
 				headerName: "Статус",
 				field: "state",
-				width: 150,
+				width: 180,
 				cellRenderer: (params: any) => {
 					const state = params.value as string | undefined;
+					const commitId = params.data?.id as string | undefined;
 					const labelMap: Record<string, string> = {
 						done: "Готово",
 						failed: "Ошибка",
 						processing: "В обработке",
+						merging: "Слияние",
 					};
 					const colorMap: Record<string, ChipProps["color"]> = {
 						done: "success",
 						failed: "error",
 						processing: "warning",
+						merging: "info",
 					};
+
+					if (state === "merging") {
+						const progress =
+							activeSession?.commitId === commitId &&
+							activeSession?.status === "merging"
+								? activeSession.progress
+								: 0;
+						return (
+							<Box
+								sx={{
+									position: "relative",
+									display: "inline-flex",
+									alignItems: "center",
+									borderRadius: "16px",
+									overflow: "hidden",
+									minWidth: 130,
+									height: 20,
+									border: "1px solid",
+									borderColor: "info.main",
+									background: "transparent",
+									boxShadow: "0 0 0 0 rgba(2, 136, 209, 0.35)",
+									animation:
+										"mergeChipPulse 1.8s ease-in-out infinite, mergeChipFloat 2.4s linear infinite",
+									"@keyframes mergeChipPulse": {
+										"0%": { boxShadow: "0 0 0 0 rgba(2, 136, 209, 0.35)" },
+										"70%": { boxShadow: "0 0 0 6px rgba(2, 136, 209, 0)" },
+										"100%": { boxShadow: "0 0 0 0 rgba(2, 136, 209, 0)" },
+									},
+									"@keyframes mergeChipFloat": {
+										"0%": { transform: "translateX(0)" },
+										"50%": { transform: "translateX(1px)" },
+										"100%": { transform: "translateX(0)" },
+									},
+								}}
+								title={activeSession?.stage ?? "Слияние..."}
+							>
+								<LinearProgress
+									variant="determinate"
+									value={progress}
+									sx={{
+										position: "absolute",
+										top: 0,
+										left: 0,
+										right: 0,
+										bottom: 0,
+										height: "100%",
+										opacity: 0.25,
+										borderRadius: "16px",
+										overflow: "hidden",
+										backgroundColor: "rgba(2, 136, 209, 0.08)",
+										"&::after": {
+											content: '""',
+											position: "absolute",
+											top: 0,
+											left: "-35%",
+											width: "35%",
+											height: "100%",
+											background:
+												"linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)",
+											animation: "mergeChipShimmer 1.6s linear infinite",
+										},
+										"& .MuiLinearProgress-bar": {
+											borderRadius: "16px",
+											transition: "transform 400ms ease",
+										},
+										"@keyframes mergeChipShimmer": {
+											"0%": { left: "-35%" },
+											"100%": { left: "100%" },
+										},
+									}}
+									color="info"
+								/>
+								<Typography
+									variant="caption"
+									sx={{
+										position: "relative",
+										zIndex: 1,
+										px: 1.5,
+										whiteSpace: "nowrap",
+										color: "info.main",
+										fontWeight: 600,
+										textShadow: "0 0 8px rgba(2, 136, 209, 0.18)",
+									}}
+								>
+									Слияние {progress}%
+								</Typography>
+							</Box>
+						);
+					}
+
 					return (
 						<Chip
 							label={labelMap[state ?? ""] ?? state ?? "—"}
@@ -294,7 +545,7 @@ export const AllCommitsPage: FC = () => {
 				},
 			},
 		],
-		[],
+		[activeSession],
 	);
 
 	const handleCloseContextMenu = useCallback(() => {
@@ -406,22 +657,15 @@ export const AllCommitsPage: FC = () => {
 					<Button
 						onClick={handleOpenS2tCommitCreatePage}
 						title={
-							hasProcessing
+							hasProcessing || !!mergingCommit
 								? "Дождитесь завершения обработки текущего коммита"
 								: "Импорт S2T"
 						}
 						variant="contained"
-						disabled={hasProcessing}
+						disabled={hasProcessing || !!mergingCommit}
 					>
 						Импорт S2T
 					</Button>
-					{/* <Button
-						variant="outlined"
-						onClick={handleOpenCompareSelected}
-						disabled={selectedCommits.length !== 2}
-					>
-						Сравнить выбранные ({selectedCommits.length})
-					</Button> */}
 				</Flex>
 			</Header>
 
@@ -515,7 +759,7 @@ export const AllCommitsPage: FC = () => {
 					>
 						<ListItemIcon>
 							{contextMenuCommit.state === "processing" ? (
-								<CodeIcon fontSize="small" />
+								<EditIcon fontSize="small" />
 							) : (
 								<VisibilityIcon fontSize="small" />
 							)}
@@ -543,7 +787,8 @@ export const AllCommitsPage: FC = () => {
 						key="merge"
 						disabled={
 							contextMenuCommit.state === "done" ||
-							contextMenuCommit.state === "failed"
+							contextMenuCommit.state === "failed" ||
+							contextMenuCommit.state === "merging"
 						}
 						onClick={() => {
 							navigate(`/commits/${contextMenuCommit.id}/merge`);
@@ -554,6 +799,22 @@ export const AllCommitsPage: FC = () => {
 							<MergeIcon fontSize={16} />
 						</ListItemIcon>
 						<ListItemText>Начать применение коммита</ListItemText>
+					</MenuItem>,
+					<MenuItem
+						key="cancel-merge"
+						disabled={
+							contextMenuCommit.state !== "merging" ||
+							cancelMergeMutation.isPending
+						}
+						onClick={() => {
+							void handleCancelMergingCommit(contextMenuCommit);
+						}}
+						sx={{ color: "warning.main" }}
+					>
+						<ListItemIcon>
+							<CancelIcon fontSize="small" />
+						</ListItemIcon>
+						<ListItemText>Отменить слияние</ListItemText>
 					</MenuItem>,
 					<MenuItem
 						key="delete"

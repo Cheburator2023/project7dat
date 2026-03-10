@@ -27,8 +27,21 @@ export interface ApplyMergeResponse {
 
 export interface ConfirmMergeResponse {
 	success: boolean;
-	snapshotId: string;
+	mergeSessionId: string;
 	message: string;
+}
+
+export interface MergeSessionStatus {
+	mergeSessionId: string;
+	commitId: string;
+	commitName: string;
+	status: "merging" | "done" | "failed";
+	progress: number;
+	stage: string;
+	startedAt: string;
+	estimatedSecondsLeft: number | null;
+	snapshotId: string | null;
+	errorMessage: string | null;
 }
 
 export interface CancelMergeResponse {
@@ -55,8 +68,13 @@ export const mergeService = {
 		return response.data;
 	},
 
-	getSession: async (sessionId: string): Promise<unknown> => {
+	getSession: async (sessionId: string): Promise<MergeSessionStatus> => {
 		const response = await mergeApi.get(`/session/${sessionId}`);
+		return response.data;
+	},
+
+	getActiveSession: async (): Promise<MergeSessionStatus | null> => {
+		const response = await mergeApi.get("/active");
 		return response.data;
 	},
 };

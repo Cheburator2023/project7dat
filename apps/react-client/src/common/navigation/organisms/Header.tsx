@@ -3,15 +3,17 @@ import CloseRoundedIcon from "@mui/icons-material/MenuOpen";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import SettingsIcon from "@mui/icons-material/Settings";
 import {
+	Box,
 	CircularProgress,
 	Divider,
 	IconButton,
+	LinearProgress,
 	Typography,
 } from "@mui/material";
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useNavigate } from "react-router";
-import { useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { Flex } from "../../primitives/Flex";
 import { useGlobalSettingsStore } from "../../stores/globalSettingsStore";
 import { useMainDataLoadingStore } from "@react-client/common/stores/mainDataLoadingStore";
@@ -22,6 +24,62 @@ import { NotificationButton } from "../../notification/NotificationButton";
 import { Download } from "@mui/icons-material";
 import { ExportDialog } from "../../dialogs/ExportDialog";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
+import { useMergingSessionStore } from "@react-client/features/commits/stores/mergingSessionStore";
+
+const HeaderMergingChip = memo(function HeaderMergingChip() {
+	const activeSession = useMergingSessionStore((s) => s.activeSession);
+
+	if (!activeSession || activeSession.status !== "merging") return null;
+
+	return (
+		<Box
+			sx={{
+				position: "relative",
+				display: "inline-flex",
+				alignItems: "center",
+				borderRadius: "16px",
+				overflow: "hidden",
+				minWidth: 160,
+				height: 26,
+				border: "1px solid",
+				borderColor: "info.main",
+				background: "transparent",
+				flexShrink: 0,
+			}}
+			title={`${activeSession.stage} · ${activeSession.commitName}`}
+		>
+			<LinearProgress
+				variant="determinate"
+				value={activeSession.progress}
+				sx={{
+					position: "absolute",
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					height: "100%",
+					opacity: 0.2,
+					borderRadius: "16px",
+					"& .MuiLinearProgress-bar": { borderRadius: "16px" },
+				}}
+				color="info"
+			/>
+			<Typography
+				variant="caption"
+				sx={{
+					position: "relative",
+					zIndex: 1,
+					px: 1.5,
+					whiteSpace: "nowrap",
+					color: "info.main",
+					fontWeight: 600,
+				}}
+			>
+				Слияние {activeSession.progress}% · {activeSession.commitName}
+			</Typography>
+		</Box>
+	);
+});
 
 export function Header({
 	children,
@@ -116,6 +174,8 @@ export function Header({
 							data-test-id="header--Flex-2"
 						>
 							{children}
+
+							<HeaderMergingChip />
 
 							<Divider orientation="vertical" variant="middle" flexItem />
 

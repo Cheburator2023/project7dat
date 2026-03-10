@@ -105,7 +105,7 @@ export const S2tCommitEditor = ({
 	>([]);
 	const [savedCommit, setSavedCommit] = useState<{
 		id: string;
-		state: "processing" | "done" | "failed";
+		state: "processing" | "done" | "failed" | "merging";
 		change_id: number | null;
 		error: string | null;
 	} | null>(null);
