@@ -6,7 +6,7 @@ export class CreateJsonCommitsTable1760000000022 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS json_commits (
-                                                        commit_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                commit_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 user_name VARCHAR(255) NOT NULL,
                 parent_id UUID,
