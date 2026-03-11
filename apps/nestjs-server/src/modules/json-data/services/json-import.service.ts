@@ -59,6 +59,7 @@ export class JsonImportService {
 			validated = true,
 			allowExistingCycles,
 			skipDuplicateCheck,
+			skipStructureValidation,
 			checkCancelled,
 			onStepProgress,
 		} = importRequest;
@@ -105,6 +106,7 @@ export class JsonImportService {
 			{
 				allowExistingCycles: effectiveAllowExistingCycles,
 				skipDuplicateCheck: effectiveSkipDuplicateCheck,
+				skipStructureValidation,
 			},
 		);
 		checkCancelled?.();
@@ -134,7 +136,11 @@ export class JsonImportService {
 	private async validateAndPreprocessData(
 		data: any,
 		validated: boolean,
-		options?: { allowExistingCycles?: boolean; skipDuplicateCheck?: boolean },
+		options?: {
+			allowExistingCycles?: boolean;
+			skipDuplicateCheck?: boolean;
+			skipStructureValidation?: boolean;
+		},
 	): Promise<any> {
 		if (!validated) {
 			throw new ConflictException(
@@ -206,15 +212,32 @@ export class JsonImportService {
 	 */
 	private hasCriticalErrors(
 		validationResult: any,
-		options?: { allowExistingCycles?: boolean; skipDuplicateCheck?: boolean },
+		options?: {
+			allowExistingCycles?: boolean;
+			skipDuplicateCheck?: boolean;
+			skipStructureValidation?: boolean;
+		},
 	): boolean {
 		// Критические ошибки структуры
-		if (validationResult.validation.errors.length > 0) {
+		if (
+			!options?.skipStructureValidation &&
+			validationResult.validation.errors.length > 0
+		) {
 			this.logger.warn(
 				`Критические ошибки структуры: ${validationResult.validation.errors.length}`,
 				{ errors: validationResult.validation.errors.slice(0, 20) },
 			);
 			return true;
+		}
+
+		if (
+			options?.skipStructureValidation &&
+			validationResult.validation.errors.length > 0
+		) {
+			this.logger.warn(
+				`Пропущены ошибки структуры (skipStructureValidation): ${validationResult.validation.errors.length}`,
+				{ errors: validationResult.validation.errors.slice(0, 10) },
+			);
 		}
 
 		// Проблемы целостности, связанные с отсутствием source/target entities и атрибутов, не являются критическими

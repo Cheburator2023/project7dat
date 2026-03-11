@@ -587,6 +587,7 @@ export class MergeService implements OnModuleInit {
 				schemaVersion: "2.0",
 				allowExistingCycles: hadExistingCycles,
 				skipDuplicateCheck: true,
+				skipStructureValidation: true,
 				checkCancelled: () => {
 					throwIfCancelled();
 				},
