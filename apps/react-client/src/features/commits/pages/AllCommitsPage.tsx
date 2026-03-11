@@ -126,7 +126,7 @@ export const AllCommitsPage: FC = () => {
 					label: "На главную",
 					onClick: () => {
 						clearSession();
-						navigate(routes.allCommits.rootPath);
+						navigate(routes.home.rootPath);
 					},
 				},
 			});
