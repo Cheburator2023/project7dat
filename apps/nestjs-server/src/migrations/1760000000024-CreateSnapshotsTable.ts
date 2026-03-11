@@ -6,7 +6,7 @@ export class CreateSnapshotsTable1760000000023 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS snapshots (
-                                                     snapshot_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                snapshot_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 user_name VARCHAR(255) NOT NULL,
                 snapshot_json JSONB NOT NULL,
