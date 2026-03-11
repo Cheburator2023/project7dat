@@ -199,7 +199,10 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 	normalizeJsonData(data: any): any {
 		this.logger.log("Нормализация JSON данных");
 
-		const normalized = JSON.parse(JSON.stringify(data));
+		// In-place мутация: вызывающий код использует только нормализованный результат,
+		// оригинал больше не нужен. Избегаем JSON.parse(JSON.stringify(data))
+		// deep copy (~195MB), которая вызывала OOM при больших моделях.
+		const normalized = data;
 
 		// Нормализация desc
 		if (!normalized.desc) {

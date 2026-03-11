@@ -123,23 +123,13 @@ export class MergeController {
 		type: MergeSessionStatusDto,
 	})
 	@ApiResponse({ status: 404, description: "Сессия не найдена" })
-	getSession(@Param("sessionId") sessionId: string): MergeSessionStatusDto {
-		const session = this.mergeService.getMergeSessionStatus(sessionId);
+	async getSession(
+		@Param("sessionId") sessionId: string,
+	): Promise<MergeSessionStatusDto> {
+		const session = await this.mergeService.getMergeSessionStatus(sessionId);
 		if (!session) {
 			throw new NotFoundException(`Сессия ${sessionId} не найдена`);
 		}
 		return session;
-	}
-
-	@Get("active")
-	@RealmRole(Permission.DL_VIEW_COMMITS)
-	@ApiOperation({
-		summary: "Получить активную сессию слияния",
-		description:
-			"Возвращает данные активной сессии в статусе merging (если есть)",
-	})
-	@ApiResponse({ status: 200, description: "Активная сессия или null" })
-	getActiveSession(): MergeSessionStatusDto | null {
-		return this.mergeService.getActiveMergingSession();
 	}
 }

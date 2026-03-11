@@ -62,10 +62,8 @@ import { DiffJsonDialog } from "../organisms/DiffJsonDialog";
 import { EditMetadataDialog } from "../organisms/EditMetadataDialog";
 import { EditJsonDialog } from "../organisms/EditJsonDialog";
 import { MergeIcon } from "lucide-react";
-import { mergeService } from "@react-client/api/hooks/mergeApi";
 import { useMergeCancel } from "@react-client/api/hooks/useMergeCancel";
 import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
-import { useMergingSessionStore } from "../stores/mergingSessionStore";
 import { routes } from "@react-client/routing/routes";
 
 const defaultColDef = {
@@ -116,138 +114,22 @@ export const AllCommitsPage: FC = () => {
 		[s2tCommits],
 	);
 
-	const { setActiveSession } = useMergingSessionStore();
-
 	// Polling для активной сессии слияния
-	const { activeSession, startPolling, stopPolling, clearSession } =
-		useMergeSessionPolling();
+	const { stopPolling, clearSession, activeSession } = useMergeSessionPolling();
 	const cancelMergeMutation = useMergeCancel();
 
+	// Останавливаем polling если список загружен и merging commit отсутствует
 	useEffect(() => {
-		let cancelled = false;
-
-		const syncMergingSession = async () => {
-			console.info("[merge-sync] effect tick", {
-				mergingCommitId: mergingCommit?.id ?? null,
-				mergingCommitState: mergingCommit?.state ?? null,
-				activeSessionCommitId: activeSession?.commitId ?? null,
-				activeSessionId: activeSession?.mergeSessionId ?? null,
-				activeSessionStatus: activeSession?.status ?? null,
-			});
-
-			if (!mergingCommit) {
-				console.info("[merge-sync] no merging commit, stopping polling");
-				stopPolling();
-				if (activeSession?.status === "merging") {
-					console.info("[merge-sync] clearing stale active session");
-					clearSession();
-				}
-				return;
-			}
-
-			if (
-				activeSession?.commitId === mergingCommit.id &&
-				activeSession.status === "merging" &&
-				activeSession.mergeSessionId
-			) {
-				console.info("[merge-sync] reusing active session from store", {
-					mergeSessionId: activeSession.mergeSessionId,
-					commitId: activeSession.commitId,
-				});
-				startPolling(activeSession.mergeSessionId);
-				return;
-			}
-
-			try {
-				console.info("[merge-sync] requesting active session from backend", {
-					commitId: mergingCommit.id,
-				});
-				const session = await mergeService.getActiveSession();
-				if (cancelled) return;
-
-				console.info("[merge-sync] backend active session response", {
-					sessionId: session?.mergeSessionId ?? null,
-					sessionCommitId: session?.commitId ?? null,
-					sessionStatus: session?.status ?? null,
-					targetCommitId: mergingCommit.id,
-				});
-
-				if (
-					session &&
-					session.commitId === mergingCommit.id &&
-					session.status === "merging"
-				) {
-					console.info("[merge-sync] backend session matches merging commit", {
-						mergeSessionId: session.mergeSessionId,
-						commitId: session.commitId,
-					});
-					setActiveSession(session);
-					startPolling(session.mergeSessionId);
-					return;
-				}
-
-				if (activeSession?.commitId !== mergingCommit.id) {
-					console.warn(
-						"[merge-sync] active backend session missing or mismatched, creating local fallback session",
-						{
-							sessionId: session?.mergeSessionId ?? null,
-							sessionCommitId: session?.commitId ?? null,
-							targetCommitId: mergingCommit.id,
-						},
-					);
-					setActiveSession({
-						mergeSessionId: "",
-						commitId: mergingCommit.id,
-						commitName:
-							mergingCommit.commit_name || mergingCommit.id.slice(0, 8),
-						status: "merging",
-						progress: 0,
-						stage: "Подготовка слияния",
-						startedAt: new Date().toISOString(),
-						estimatedSecondsLeft: null,
-						snapshotId: null,
-						errorMessage: null,
-					});
-				}
-			} catch (error) {
-				if (cancelled) return;
-				console.error("[merge-sync] getActiveSession failed", {
-					targetCommitId: mergingCommit.id,
-					message: error instanceof Error ? error.message : String(error),
-				});
-				if (activeSession?.commitId !== mergingCommit.id) {
-					setActiveSession({
-						mergeSessionId: "",
-						commitId: mergingCommit.id,
-						commitName:
-							mergingCommit.commit_name || mergingCommit.id.slice(0, 8),
-						status: "merging",
-						progress: 0,
-						stage: "Подготовка слияния",
-						startedAt: new Date().toISOString(),
-						estimatedSecondsLeft: null,
-						snapshotId: null,
-						errorMessage: null,
-					});
-				}
-			}
-		};
-
-		void syncMergingSession();
-
-		return () => {
-			cancelled = true;
-			console.info("[merge-sync] effect cleanup");
-		};
+		if (s2tCommitsQuery.isSuccess && !mergingCommit && activeSession) {
+			stopPolling();
+			clearSession();
+		}
 	}, [
+		s2tCommitsQuery.isSuccess,
 		mergingCommit,
-		activeSession?.commitId,
-		activeSession?.mergeSessionId,
-		activeSession?.status,
-		startPolling,
+		activeSession,
 		stopPolling,
 		clearSession,
-		setActiveSession,
 	]);
 
 	useEffect(() => {
@@ -263,12 +145,13 @@ export const AllCommitsPage: FC = () => {
 				},
 			});
 			s2tCommitsQuery.refetch();
-		} else if (activeSession?.status === "failed") {
-			toast.error(
-				`Ошибка слияния: ${activeSession.errorMessage ?? "Неизвестная ошибка"}`,
-				{ duration: Number.POSITIVE_INFINITY },
-			);
 		}
+		//  else if (activeSession?.status === "failed") {
+		// 	toast.error(
+		// 		`Ошибка слияния: ${activeSession.errorMessage ?? "Неизвестная ошибка"}`,
+		// 		{ duration: Number.POSITIVE_INFINITY },
+		// 	);
+		// }
 	}, [activeSession?.status]);
 
 	// Обновляем грид при изменении прогресса
@@ -413,7 +296,7 @@ export const AllCommitsPage: FC = () => {
 			{
 				headerName: "Статус",
 				field: "state",
-				width: 180,
+				width: activeSession?.commitId ? 300 : 180,
 				cellRenderer: (params: any) => {
 					const state = params.value as string | undefined;
 					const commitId = params.data?.id as string | undefined;
@@ -444,7 +327,7 @@ export const AllCommitsPage: FC = () => {
 									alignItems: "center",
 									borderRadius: "16px",
 									overflow: "hidden",
-									minWidth: 130,
+									minWidth: 100,
 									height: 20,
 									border: "1px solid",
 									borderColor: "info.main",
@@ -513,7 +396,7 @@ export const AllCommitsPage: FC = () => {
 										textShadow: "0 0 8px rgba(2, 136, 209, 0.18)",
 									}}
 								>
-									Слияние {progress}%
+									Слияние: {activeSession?.stage} {activeSession?.progress}%
 								</Typography>
 							</Box>
 						);
@@ -738,7 +621,11 @@ export const AllCommitsPage: FC = () => {
 							onColumnVisible={gridPersistence.onColumnVisible}
 							onCellContextMenu={handleCellContextMenu}
 							preventDefaultOnContextMenu
-							loading={s2tCommitsQuery.isLoading}
+							loading={
+								s2tCommitsQuery.isLoading ||
+								s2tCommitsQuery.isPending ||
+								s2tCommitsQuery.isFetching
+							}
 							theme={
 								mode === "dark"
 									? agGridCustomMUIThemeDark

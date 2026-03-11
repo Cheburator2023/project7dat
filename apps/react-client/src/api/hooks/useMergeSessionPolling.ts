@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { mergeService, type MergeSessionStatus } from "./mergeApi";
 import { useMergingSessionStore } from "@react-client/features/commits/stores/mergingSessionStore";
@@ -6,30 +6,35 @@ import { S2T_COMMIT_LIST_QUERY_KEY } from "./useS2tCommitList";
 import { S2T_COMMIT_BY_ID_QUERY_KEY } from "./useS2tCommitById";
 
 const POLL_INTERVAL_MS = 6000;
+const MERGE_SESSION_STORAGE_KEY = "mergePollingSessionId";
 const MERGE_SESSION_POLLING_QUERY_KEY = [
 	"merge",
 	"session",
 	"polling",
 ] as const;
+let restoreFromStorageDone = false;
 
 export const useMergeSessionPolling = () => {
-	const { activeSession, setActiveSession, clearSession } =
-		useMergingSessionStore();
+	const store = useMergingSessionStore();
+	const { activeSession, setActiveSession, clearSession } = store;
 	const queryClient = useQueryClient();
-	const [pollingSessionId, setPollingSessionId] = useState<string | null>(null);
+	const pollingSessionId = useMergingSessionStore(
+		(s) => s.pollingSessionId ?? null,
+	);
+	const setPollingSessionId = useMergingSessionStore(
+		(s) => s.setPollingSessionId,
+	);
 
 	const stopPolling = useCallback(() => {
-		if (pollingSessionId) {
-			console.info("[merge-polling] stop", {
-				pollingSessionId,
-				activeSessionId: activeSession?.mergeSessionId ?? null,
-			});
+		const currentId = useMergingSessionStore.getState().pollingSessionId;
+		if (currentId) {
+			console.info("[merge-polling] stop", { pollingSessionId: currentId });
 		}
 		setPollingSessionId(null);
 		queryClient.removeQueries({
 			queryKey: [...MERGE_SESSION_POLLING_QUERY_KEY],
 		});
-	}, [pollingSessionId, activeSession?.mergeSessionId, queryClient]);
+	}, [setPollingSessionId, queryClient]);
 
 	const startPolling = useCallback(
 		(mergeSessionId: string) => {
@@ -37,18 +42,56 @@ export const useMergeSessionPolling = () => {
 				console.warn("[merge-polling] start skipped: empty mergeSessionId");
 				return;
 			}
-
-			console.info("[merge-polling] start", {
-				mergeSessionId,
-				activeSessionId: activeSession?.mergeSessionId ?? null,
-				activeCommitId: activeSession?.commitId ?? null,
-			});
-			setPollingSessionId((currentSessionId) =>
-				currentSessionId === mergeSessionId ? currentSessionId : mergeSessionId,
-			);
+			console.info("[merge-polling] start", { mergeSessionId });
+			setPollingSessionId(mergeSessionId);
 		},
-		[activeSession?.mergeSessionId, activeSession?.commitId],
+		[setPollingSessionId],
 	);
+
+	useEffect(() => {
+		if (
+			typeof window === "undefined" ||
+			pollingSessionId ||
+			restoreFromStorageDone
+		) {
+			return;
+		}
+
+		restoreFromStorageDone = true;
+		const storedSessionId = window.sessionStorage.getItem(
+			MERGE_SESSION_STORAGE_KEY,
+		);
+
+		if (!storedSessionId) {
+			return;
+		}
+
+		console.info("[merge-polling] restore from sessionStorage", {
+			mergeSessionId: storedSessionId,
+		});
+
+		if (
+			useMergingSessionStore.getState().pollingSessionId !== storedSessionId
+		) {
+			setPollingSessionId(storedSessionId);
+		}
+	}, [pollingSessionId, setPollingSessionId]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") {
+			return;
+		}
+
+		if (pollingSessionId) {
+			window.sessionStorage.setItem(
+				MERGE_SESSION_STORAGE_KEY,
+				pollingSessionId,
+			);
+			return;
+		}
+
+		window.sessionStorage.removeItem(MERGE_SESSION_STORAGE_KEY);
+	}, [pollingSessionId]);
 
 	const pollingQuery = useQuery<MergeSessionStatus, Error>({
 		queryKey: [...MERGE_SESSION_POLLING_QUERY_KEY, pollingSessionId],
@@ -108,7 +151,7 @@ export const useMergeSessionPolling = () => {
 				queryKey: [S2T_COMMIT_BY_ID_QUERY_KEY],
 			});
 		}
-	}, [pollingQuery.data, setActiveSession, queryClient]);
+	}, [pollingQuery.data, setActiveSession, setPollingSessionId, queryClient]);
 
 	useEffect(() => {
 		if (!pollingQuery.error) {
@@ -121,13 +164,7 @@ export const useMergeSessionPolling = () => {
 		});
 		setPollingSessionId(null);
 		clearSession();
-	}, [pollingQuery.error, pollingSessionId, clearSession]);
-
-	useEffect(() => {
-		return () => {
-			stopPolling();
-		};
-	}, [stopPolling]);
+	}, [pollingQuery.error, pollingSessionId, setPollingSessionId, clearSession]);
 
 	return { activeSession, startPolling, stopPolling, clearSession };
 };

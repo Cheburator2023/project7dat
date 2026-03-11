@@ -13,7 +13,7 @@ import { SystemsEntity } from "../entities/systems.entity";
 
 interface ExistingDepData {
 	sourceEntityId: number;
-	attrMaps: Set<string>;          // ключ "src:dst"
+	attrMaps: Set<string>; // ключ "src:dst"
 	atrDeps: Map<number, Set<string>>; // ключ source_attribute_id, значение Set<deptype_id>
 }
 
@@ -24,6 +24,11 @@ interface ExistingMappingData {
 	deps: Map<number, ExistingDepData>;
 }
 
+const yieldEventLoop = (): Promise<void> =>
+	new Promise((resolve) => setImmediate(resolve));
+
+const EVENT_LOOP_YIELD_INTERVAL = 20;
+
 @Injectable()
 export class MappingProcessingService {
 	private readonly logger = new Logger(MappingProcessingService.name);
@@ -33,27 +38,37 @@ export class MappingProcessingService {
 		processId: number,
 		changeId: number,
 		queryRunner: QueryRunner,
+		checkCancelled?: () => void,
 	): Promise<{ count: number; warnings: string[] }> {
 		if (!mappings || !Array.isArray(mappings)) {
 			return { count: 0, warnings: [] };
 		}
 
 		// Предзагружаем все сущности и атрибуты, упомянутые в маппингах
-		const { entityCache, attributeCacheByEntity } = await this.preloadCommitEntities(mappings, queryRunner);
+		const { entityCache, attributeCacheByEntity } =
+			await this.preloadCommitEntities(mappings, queryRunner);
 
 		// Загружаем существующие маппинги для процесса
-		const existingMappings = await this.loadExistingMappingsOptimized(processId, queryRunner);
+		const existingMappings = await this.loadExistingMappingsOptimized(
+			processId,
+			queryRunner,
+		);
 
 		let processedCount = 0;
 		const warnings: string[] = [];
 		const startTotal = Date.now();
 
-		for (const mapping of mappings) {
+		for (let i = 0; i < mappings.length; i++) {
+			checkCancelled?.();
+			if (i % EVENT_LOOP_YIELD_INTERVAL === 0) await yieldEventLoop();
+			const mapping = mappings[i];
 			const mappingStart = Date.now();
 			try {
 				const targetEntity = entityCache.get(mapping.entityId);
 				if (!targetEntity) {
-					warnings.push(`Target entity не найдена: ${mapping.entityId}, маппинг пропущен`);
+					warnings.push(
+						`Target entity не найдена: ${mapping.entityId}, маппинг пропущен`,
+					);
 					continue;
 				}
 
@@ -67,7 +82,9 @@ export class MappingProcessingService {
 				);
 
 				if (unchanged) {
-					this.logger.log(`Маппинг для ${mapping.entityId} не изменился, пропускаем`);
+					this.logger.log(
+						`Маппинг для ${mapping.entityId} не изменился, пропускаем`,
+					);
 					continue;
 				}
 
@@ -83,17 +100,31 @@ export class MappingProcessingService {
 				);
 				processedCount++;
 			} catch (error) {
-				this.logger.error(`Ошибка обработки маппинга: ${error.message}`, error.stack);
-				await this.handleFailedMapping(mapping, error.message, changeId, queryRunner);
-				warnings.push(`Маппинг для ${mapping.entityId} завершился с ошибкой: ${error.message}`);
+				this.logger.error(
+					`Ошибка обработки маппинга: ${error.message}`,
+					error.stack,
+				);
+				await this.handleFailedMapping(
+					mapping,
+					error.message,
+					changeId,
+					queryRunner,
+				);
+				warnings.push(
+					`Маппинг для ${mapping.entityId} завершился с ошибкой: ${error.message}`,
+				);
 			} finally {
 				const mappingTime = Date.now() - mappingStart;
-				this.logger.log(`Маппинг ${processedCount}/${mappings.length} (${mapping.entityId}) обработан за ${mappingTime}ms`);
+				this.logger.log(
+					`Маппинг ${processedCount}/${mappings.length} (${mapping.entityId}) обработан за ${mappingTime}ms`,
+				);
 			}
 		}
 
 		const totalTime = Date.now() - startTotal;
-		this.logger.log(`handleMappings завершён за ${totalTime}ms, обработано маппингов: ${processedCount}`);
+		this.logger.log(
+			`handleMappings завершён за ${totalTime}ms, обработано маппингов: ${processedCount}`,
+		);
 		return { count: processedCount, warnings };
 	}
 
@@ -116,7 +147,10 @@ export class MappingProcessingService {
 		}
 
 		const entityCache = new Map<string, EntityEntity>();
-		const attributeCacheByEntity = new Map<number, Map<string, AttributeEntity>>();
+		const attributeCacheByEntity = new Map<
+			number,
+			Map<string, AttributeEntity>
+		>();
 
 		if (fullNames.size === 0) return { entityCache, attributeCacheByEntity };
 
@@ -127,7 +161,7 @@ export class MappingProcessingService {
 			entityCache.set(ent.full_name, ent);
 		}
 
-		const entityIds = existingEntities.map(e => e.entity_id);
+		const entityIds = existingEntities.map((e) => e.entity_id);
 		if (entityIds.length > 0) {
 			const attributes = await queryRunner.manager.find(AttributeEntity, {
 				where: { entity_id: In(entityIds) },
@@ -198,7 +232,9 @@ export class MappingProcessingService {
 				}
 				const dep = targetMap.deps.get(row.source_entity_id)!;
 				if (row.source_attribute_name && row.target_attribute_name) {
-					dep.attrMaps.add(`${row.source_attribute_name}:${row.target_attribute_name}`);
+					dep.attrMaps.add(
+						`${row.source_attribute_name}:${row.target_attribute_name}`,
+					);
 				}
 			}
 
@@ -262,7 +298,10 @@ export class MappingProcessingService {
 		if (!existing) return false;
 
 		// Строим данные коммита для сравнения
-		const commitSources = new Map<number, { attrMaps: Set<string>; atrDeps: Map<number, Set<string>> }>();
+		const commitSources = new Map<
+			number,
+			{ attrMaps: Set<string>; atrDeps: Map<number, Set<string>> }
+		>();
 
 		for (const dep of mapping.deps || []) {
 			const sourceEntity = entityCache.get(dep.entityId);
@@ -343,7 +382,7 @@ export class MappingProcessingService {
 			const attrMaps = await queryRunner.manager.find(AttributeMapEntity, {
 				where: { entity_map_id: entityMap.entity_map_id },
 			});
-			const attrMapIds = attrMaps.map(am => am.attribute_map_id);
+			const attrMapIds = attrMaps.map((am) => am.attribute_map_id);
 
 			if (attrMapIds.length > 0) {
 				// Удаление записей из attribute_map_source
@@ -407,7 +446,9 @@ export class MappingProcessingService {
 		const warnings: string[] = [];
 
 		// 1. Ищем source сущность в кэше с учетом system_code
-		let sourceEntity: EntityEntity | null | undefined = entityCache.get(dep.entityId);
+		let sourceEntity: EntityEntity | null | undefined = entityCache.get(
+			dep.entityId,
+		);
 
 		// 2. Если не найдена, создаем с учетом system_code
 		if (!sourceEntity) {
@@ -418,7 +459,7 @@ export class MappingProcessingService {
 			// Создаем новую сущность с учетом system_code
 			sourceEntity = await this.createEntityWithSystemCode(
 				dep.entityId,
-				dep.entityId.split('.').pop() || dep.entityId,
+				dep.entityId.split(".").pop() || dep.entityId,
 				dep.system_code || "1642",
 				changeId,
 				queryRunner,
@@ -483,8 +524,8 @@ export class MappingProcessingService {
 			}
 		}
 
-        return warnings;
-    }
+		return warnings;
+	}
 
 	private async createEntityWithSystemCode(
 		fullName: string,
@@ -499,47 +540,50 @@ export class MappingProcessingService {
 				where: { code: systemCode },
 			});
 
-            if (!system) {
-                system = new SystemsEntity();
-                system.code = systemCode;
-                system.name = `Система ${systemCode}`;
-                system = await queryRunner.manager.save(SystemsEntity, system);
-            }
+			if (!system) {
+				system = new SystemsEntity();
+				system.code = systemCode;
+				system.name = `Система ${systemCode}`;
+				system = await queryRunner.manager.save(SystemsEntity, system);
+			}
 
-            // Создаем контейнер
-            const namespace = fullName.includes('.')
-                ? fullName.substring(0, fullName.lastIndexOf('.'))
-                : 'default';
+			// Создаем контейнер
+			const namespace = fullName.includes(".")
+				? fullName.substring(0, fullName.lastIndexOf("."))
+				: "default";
 
 			let container = await queryRunner.manager.findOne(EntityContainerEntity, {
 				where: { value: namespace },
 			});
 
-            if (!container) {
-                container = new EntityContainerEntity();
-                container.change_id = changeId;
-                container.entity_container_type_id = 1; // DB_HIVE
-                container.value = namespace;
-                container.description = `Контейнер для ${namespace} (система: ${systemCode})`;
-                container.system_id = system.system_id;
-                container = await queryRunner.manager.save(EntityContainerEntity, container);
-            }
+			if (!container) {
+				container = new EntityContainerEntity();
+				container.change_id = changeId;
+				container.entity_container_type_id = 1; // DB_HIVE
+				container.value = namespace;
+				container.description = `Контейнер для ${namespace} (система: ${systemCode})`;
+				container.system_id = system.system_id;
+				container = await queryRunner.manager.save(
+					EntityContainerEntity,
+					container,
+				);
+			}
 
-            // Создаем сущность
-            const entity = new EntityEntity();
-            entity.full_name = fullName;
-            entity.name = name;
-            entity.entity_type_id = 1; // TABLE_HIVE по умолчанию
-            entity.entity_container_id = container.entity_container_id;
-            entity.change_id = changeId;
-            entity.description = `Автоматически созданная сущность для системы ${systemCode}`;
+			// Создаем сущность
+			const entity = new EntityEntity();
+			entity.full_name = fullName;
+			entity.name = name;
+			entity.entity_type_id = 1; // TABLE_HIVE по умолчанию
+			entity.entity_container_id = container.entity_container_id;
+			entity.change_id = changeId;
+			entity.description = `Автоматически созданная сущность для системы ${systemCode}`;
 
-            return await queryRunner.manager.save(EntityEntity, entity);
-        } catch (error) {
-            this.logger.error(`Ошибка создания сущности: ${error.message}`);
-            return null;
-        }
-    }
+			return await queryRunner.manager.save(EntityEntity, entity);
+		} catch (error) {
+			this.logger.error(`Ошибка создания сущности: ${error.message}`);
+			return null;
+		}
+	}
 
 	private async handleAttrMap(
 		attrMap: any,
@@ -755,12 +799,14 @@ export class MappingProcessingService {
 		failedMappings: any[],
 		changeId: number,
 		queryRunner: QueryRunner,
+		checkCancelled?: () => void,
 	): Promise<{ count: number }> {
 		if (!failedMappings || !Array.isArray(failedMappings)) {
 			return { count: 0 };
 		}
 
 		for (const failedMapping of failedMappings) {
+			checkCancelled?.();
 			await this.handleSingleFailedMapping(
 				failedMapping,
 				changeId,

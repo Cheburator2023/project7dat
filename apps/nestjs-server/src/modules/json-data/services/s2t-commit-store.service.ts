@@ -36,6 +36,7 @@ export interface S2tCreateResult {
 @Injectable()
 export class S2tCommitStoreService {
 	private readonly logger = new Logger(S2tCommitStoreService.name);
+	private readonly maxStoredErrorLength = 4000;
 	private readonly sortableFields = new Set<keyof S2tCommitEntity>([
 		"id",
 		"commit_name",
@@ -81,6 +82,17 @@ export class S2tCommitStoreService {
 									: "VALIDATION_ERROR";
 			return { code, message: msg };
 		});
+	}
+
+	private sanitizeCommitError(error: unknown): string {
+		const rawMessage =
+			typeof error === "string"
+				? error
+				: error instanceof Error
+					? error.message
+					: String(error ?? "Unknown error");
+		const compactMessage = rawMessage.replace(/\s+/g, " ").trim();
+		return compactMessage.slice(0, this.maxStoredErrorLength);
 	}
 
 	async convertAndValidateXlsx(dto: CreateS2tCommitRequestDto): Promise<{
@@ -267,7 +279,23 @@ export class S2tCommitStoreService {
 	}
 
 	async findById(id: string): Promise<S2tCommitEntity> {
-		const commit = await this.repo.findOne({ where: { id } });
+		const commit = await this.repo.findOne({
+			select: [
+				"id",
+				"parent_id",
+				"commit_name",
+				"commit_description",
+				"type",
+				"state",
+				"user",
+				"change_id",
+				"error",
+				"created_at",
+				"updated_at",
+				"payload",
+			],
+			where: { id },
+		});
 		if (!commit) throw new NotFoundException(`S2T commit ${id} not found`);
 		return commit;
 	}
@@ -315,8 +343,6 @@ export class S2tCommitStoreService {
 				"error",
 				"created_at",
 				"updated_at",
-				"payload",
-				"original_payload",
 			],
 			where,
 			order: {
@@ -368,7 +394,7 @@ export class S2tCommitStoreService {
 		} catch (e: any) {
 			const errMsg = e?.response?.message || e?.message || "Apply failed";
 			commit.state = "failed";
-			commit.error = String(errMsg);
+			commit.error = this.sanitizeCommitError(errMsg);
 			commit.change_id = null;
 			await this.repo.save(commit);
 			this.logger.error(
