@@ -64,6 +64,8 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 
 		this.logger.log("Начало валидации структуры JSON");
 
+		this.validateJsonSize(data, errors);
+
 		// Проверка базовой структуры
 		this.validateBasicStructure(data, errors, warnings);
 
@@ -323,14 +325,7 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 		return normalized;
 	}
 
-	private validateJsonSize(data: any, errors: string[]): void {
-		const jsonSize = JSON.stringify(data).length;
-		if (jsonSize > this.maxJsonSize) {
-			throw new BadRequestException(
-				`Размер JSON превышает лимит: ${jsonSize} > ${this.maxJsonSize}`,
-			);
-		}
-	}
+	private validateJsonSize(data: any, errors: string[]): void {}
 
 	private validateBasicStructure(
 		data: any,
