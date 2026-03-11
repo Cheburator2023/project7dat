@@ -29,7 +29,7 @@ import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionP
 const HeaderMergingChip = memo(function HeaderMergingChip() {
 	const { activeSession } = useMergeSessionPolling();
 
-	if (!activeSession?.commitId) return null;
+	if (activeSession?.status !== "merging") return null;
 
 	return (
 		<Box
