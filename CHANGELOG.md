@@ -1,5 +1,22 @@
 # Semantic Versioning Changelog
 
+# [1.6.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.5.1...v1.6.0) (2026-03-11)
+
+
+### Bug Fixes
+
+* push limits ([44bdda2](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/44bdda27fb512ded9d582bb9847fc56c6851491c))
+* push limits ([204cbfa](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/204cbfa9536de3025de9d78b84ef6863ab061c52))
+* validation logs added ([d4404a6](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/d4404a68615d83183d49bef0c26e4fabb6ce7892))
+* добавлены типы, статусы коммитов и колбэки для отслеживания прогресса импорта ([c050e3f](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/c050e3fa479cac5853f0fa1348001c833c126121))
+* Изменил генерацию uuid ([b9f3717](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/b9f371705fe2ec1d4970c12caa332bfba92ddb08))
+* оптимизация памяти и производительности для работы с большими моделями ([de3952e](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/de3952e0fbb318e889d7963db53fe14070eb4e48))
+
+
+### Features
+
+* добавлены расширенные фильтры для экспорта сущностей и улучшен просмотр диффов ([666666a](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/666666ac2ac3bc5a35abe8abd9c7967d70010e78))
+
 ## [1.5.1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.5.0...v1.5.1) (2026-03-06)
 
 
