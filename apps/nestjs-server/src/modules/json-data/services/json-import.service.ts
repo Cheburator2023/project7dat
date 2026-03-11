@@ -232,7 +232,7 @@ export class JsonImportService {
 			return true;
 		}
 
-		// Неподдерживаемая версия схемы – критическая ошибка
+		// Неподдерживаемая версия схемы критическая ошибка
 		if (!validationResult.schemaVersion.supported) {
 			this.logger.warn(
 				`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
@@ -240,7 +240,7 @@ export class JsonImportService {
 			return true;
 		}
 
-		// Рекурсия – критическая, если не разрешена явно
+		// Рекурсия критическая, если не разрешена явно
 		if (
 			!options?.allowExistingCycles &&
 			validationResult.recursionCheck.hasRecursion
@@ -252,7 +252,7 @@ export class JsonImportService {
 			return true;
 		}
 
-		// Дубликаты – критическая, если не пропущены явно
+		// Дубликаты критическая, если не пропущены явно
 		if (
 			!options?.skipDuplicateCheck &&
 			validationResult.duplicateCheck.hasDuplicates

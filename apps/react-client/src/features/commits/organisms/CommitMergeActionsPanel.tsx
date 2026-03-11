@@ -25,6 +25,7 @@ import { routes } from "@react-client/routing/routes";
 import { useCommitMergeStore } from "../stores/commitMergeStore";
 import type { MergeDiffItem } from "@react-client/api/hooks/mergeApi";
 import { useMergingSessionStore } from "../stores/mergingSessionStore";
+import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
 
 const DIFF_TYPE_COLOR: Record<
 	MergeDiffItem["type"],
@@ -45,7 +46,7 @@ export const CommitMergeActionsPanel = memo(() => {
 	const navigate = useNavigate();
 	const authStore = useAuthStore();
 	const username = authStore.userInfo?.username ?? "system";
-
+	const { startPolling } = useMergeSessionPolling();
 	const applyMutation = useMergeApply();
 	const confirmMutation = useMergeConfirm();
 	const cancelMutation = useMergeCancel();
@@ -111,6 +112,7 @@ export const CommitMergeActionsPanel = memo(() => {
 			});
 			useMergingSessionStore.getState().setPollingSessionId(mergeSessionId);
 			setMergeStep("confirmed");
+			startPolling(mergeSessionId);
 			navigate(routes.allCommits.rootPath);
 		} catch (err: any) {
 			setError(

@@ -109,25 +109,36 @@ export const AllCommitsPage: FC = () => {
 		() => s2tCommits.some((c) => c.state === "processing"),
 		[s2tCommits],
 	);
-	const mergingCommit = useMemo(
-		() => s2tCommits.find((c) => c.state === "merging") ?? null,
-		[s2tCommits],
+	const mergingCommit = !!(
+		s2tCommits.find((c) => c.state === "merging") ?? null
 	);
 
 	// Polling для активной сессии слияния
-	const { stopPolling, clearSession, activeSession } = useMergeSessionPolling();
+	const { stopPolling, clearSession, activeSession, isPolling } =
+		useMergeSessionPolling();
+
 	const cancelMergeMutation = useMergeCancel();
 
 	// Останавливаем polling если список загружен и merging commit отсутствует
 	useEffect(() => {
-		if (s2tCommitsQuery.isSuccess && !mergingCommit && activeSession) {
+		if (!s2tCommitsQuery.isSuccess) {
+			return;
+		}
+
+		console.log("AllCommitsPage >> isPolling:", isPolling);
+		console.log("AllCommitsPage >> mergingCommit:", mergingCommit);
+
+		if (isPolling && !mergingCommit) {
+			console.log(
+				"AllCommitsPage >> stopping polling: no merging commit found",
+			);
 			stopPolling();
 			clearSession();
 		}
 	}, [
-		s2tCommitsQuery.isSuccess,
+		isPolling,
 		mergingCommit,
-		activeSession,
+		s2tCommitsQuery.isSuccess,
 		stopPolling,
 		clearSession,
 	]);
