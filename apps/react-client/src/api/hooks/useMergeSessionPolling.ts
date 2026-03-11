@@ -12,10 +12,15 @@ const MERGE_SESSION_POLLING_QUERY_KEY = [
 	"session",
 	"polling",
 ] as const;
+const MERGE_SESSION_POLLING_SINGLE_QUERY_KEY = [
+	...MERGE_SESSION_POLLING_QUERY_KEY,
+	"check",
+] as const;
 let restoreFromStorageDone = false;
 
 export const useMergeSessionPolling = () => {
 	const store = useMergingSessionStore();
+
 	const { activeSession, setActiveSession, clearSession } = store;
 	const queryClient = useQueryClient();
 	const pollingSessionId = useMergingSessionStore(
@@ -112,7 +117,7 @@ export const useMergeSessionPolling = () => {
 			});
 			return status;
 		},
-		enabled: Boolean(pollingSessionId),
+		enabled: !!pollingSessionId,
 		refetchInterval: (query) => {
 			const status = query.state.data?.status;
 			if (!pollingSessionId) {
@@ -125,6 +130,37 @@ export const useMergeSessionPolling = () => {
 		},
 		refetchIntervalInBackground: true,
 		refetchOnWindowFocus: false,
+		retry: 1,
+		staleTime: 0,
+	});
+
+	const pollingQuerySingle = useQuery<MergeSessionStatus, Error>({
+		queryKey: [...MERGE_SESSION_POLLING_SINGLE_QUERY_KEY, pollingSessionId],
+		queryFn: async () => {
+			const id =
+				pollingSessionId ||
+				window.sessionStorage.getItem(MERGE_SESSION_STORAGE_KEY);
+			console.log("🐸 Pepe said >> useMergeSessionPolling >> id:", id);
+
+			if (!id) {
+				throw new Error(
+					"Polling session id is required for pollingQuerySingle",
+				);
+			}
+
+			console.info("[merge-polling] request", {
+				mergeSessionId: id,
+			});
+			const status = await mergeService.getSession(id);
+			console.info("[merge-polling] response", {
+				mergeSessionId: id,
+				status: status.status,
+				progress: status.progress,
+				stage: status.stage,
+			});
+			return status;
+		},
+		enabled: false,
 		retry: 1,
 		staleTime: 0,
 	});
@@ -166,5 +202,18 @@ export const useMergeSessionPolling = () => {
 		clearSession();
 	}, [pollingQuery.error, pollingSessionId, setPollingSessionId, clearSession]);
 
-	return { activeSession, startPolling, stopPolling, clearSession };
+	const isPolling =
+		!!pollingSessionId &&
+		activeSession?.status !== "done" &&
+		activeSession?.status !== "failed";
+
+	return {
+		activeSession,
+		startPolling,
+		stopPolling,
+		clearSession,
+		isPolling,
+		pollingSessionId,
+		checkForPolling: pollingQuerySingle,
+	};
 };

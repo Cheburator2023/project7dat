@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { styled, useColorScheme } from "@mui/material/styles";
 import { useGlobalSettingsStore } from "@react-client/common/stores/globalSettingsStore";
-import { useCurrentDataLineageGraph } from "@react-client/api/hooks";
 import { useMainDataLoadingStore } from "@react-client/common/stores/mainDataLoadingStore";
 import { SideMenu } from "../navigation/organisms/SideMenu";
 import { Flex } from "../primitives/Flex";
+import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
 
 const MAIN_LAYOUT_LOADING_STATE_STORAGE_KEY = "main-layout-loading-state";
 const DEFAULT_SIDEBAR_WIDTH = 260;
@@ -64,6 +64,7 @@ export function MainLayout({
 	const { setMainDataLoading, markMainDataLoadedOnce, hasMainDataLoadedOnce } =
 		useMainDataLoadingStore();
 	const { mode } = useColorScheme();
+	const { checkForPolling } = useMergeSessionPolling();
 
 	const isInitialLoading = false;
 	const isRefetching = false;
@@ -198,6 +199,10 @@ export function MainLayout({
 			if (hideTimer) window.clearTimeout(hideTimer);
 		};
 	}, [hasMainDataLoadedOnce, isInitialLoading, isLoaderVisible]);
+
+	useEffect(() => {
+		checkForPolling.refetch();
+	}, []);
 
 	return (
 		<Flex id="main_layout_container" data-test-id="main-layout--Flex-0">

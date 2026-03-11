@@ -13,7 +13,7 @@ import {
 import { Card } from "@react-client/common/muiCustom/Card";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useNavigate } from "react-router";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Flex } from "../../primitives/Flex";
 import { useGlobalSettingsStore } from "../../stores/globalSettingsStore";
 import { useMainDataLoadingStore } from "@react-client/common/stores/mainDataLoadingStore";
@@ -27,7 +27,15 @@ import { useEntitiesStore } from "@react-client/features/entities/stores";
 import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
 
 const HeaderMergingChip = memo(function HeaderMergingChip() {
-	const { activeSession } = useMergeSessionPolling();
+	const { activeSession, checkForPolling, pollingSessionId } =
+		useMergeSessionPolling();
+
+	useEffect(() => {
+		if (pollingSessionId) {
+		}
+		checkForPolling.refetch();
+	}, [pollingSessionId]);
+
 	if (!activeSession?.commitId) return null;
 
 	return (
