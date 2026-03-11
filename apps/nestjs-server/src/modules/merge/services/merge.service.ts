@@ -648,6 +648,59 @@ export class MergeService implements OnModuleInit {
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : "Неизвестная ошибка";
+			const errorResponse =
+				error instanceof Error && "getResponse" in error
+					? (error as { getResponse?: () => unknown }).getResponse?.()
+					: undefined;
+			const mergedJsonDesc =
+				mergedJson && typeof mergedJson === "object"
+					? mergedJson.desc
+					: undefined;
+			const failedMappingsCount =
+				mergedJson &&
+				typeof mergedJson === "object" &&
+				"failedMappings" in mergedJson &&
+				Array.isArray(
+					(mergedJson as { failedMappings?: unknown }).failedMappings,
+				)
+					? (mergedJson as { failedMappings: unknown[] }).failedMappings.length
+					: 0;
+
+			this.logger.error(
+				"Фоновое слияние завершилось ошибкой во время importJsonData",
+				{
+					sessionId,
+					commitId,
+					user,
+					errorMessage,
+					errorResponse,
+					mergeContext: {
+						entitiesCount: mergedJson?.entities?.length ?? 0,
+						mappingsCount: mergedJson?.mappings?.length ?? 0,
+						failedMappingsCount,
+						schemaVersion:
+							mergedJsonDesc &&
+							typeof mergedJsonDesc === "object" &&
+							"schemaVersion" in mergedJsonDesc
+								? (mergedJsonDesc as { schemaVersion?: unknown }).schemaVersion
+								: undefined,
+						process:
+							mergedJsonDesc &&
+							typeof mergedJsonDesc === "object" &&
+							"process" in mergedJsonDesc
+								? (mergedJsonDesc as { process?: unknown }).process
+								: undefined,
+						commitType:
+							mergedJsonDesc &&
+							typeof mergedJsonDesc === "object" &&
+							"commit_type" in mergedJsonDesc
+								? (mergedJsonDesc as { commit_type?: unknown }).commit_type
+								: undefined,
+						hadExistingCycles,
+					},
+				},
+			);
+
 			await this.updateMergeSession(sessionId, {
 				merge_status: "failed",
 				progress: 0,
@@ -714,9 +767,10 @@ export class MergeService implements OnModuleInit {
 	/**
 	 * Отмена слияния – удаление временной сессии
 	 */
-	async cancelMerge(
-		commitId: string,
-	): Promise<{ success: boolean; message: string }> {
+	async cancelMerge(commitId: string): Promise<{
+		success: boolean;
+		message: string;
+	}> {
 		this.logger.log(`Отмена слияния для коммита: ${commitId}`);
 
 		const session = await this.mergeSessionRepository.findOne({
@@ -782,7 +836,9 @@ export class MergeService implements OnModuleInit {
 		const session = await this.mergeSessionRepository.findOne({
 			where: { id: sessionId },
 		});
-		if (!session) return null;
+		if (!session) {
+			return null;
+		}
 		return this.toMergeSessionStatusDto(session);
 	}
 
@@ -877,11 +933,10 @@ export class MergeService implements OnModuleInit {
 		newDuplicates: string[];
 		existingDuplicates: string[];
 	} {
-		// Функция для подсчёта вхождений id
 		const countById = (entities: any[]): Map<string, number> => {
 			const map = new Map<string, number>();
-			for (const e of entities) {
-				const id = e.id;
+			for (const entity of entities) {
+				const id = entity.id;
 				map.set(id, (map.get(id) || 0) + 1);
 			}
 			return map;
@@ -893,14 +948,12 @@ export class MergeService implements OnModuleInit {
 		const newDuplicates: string[] = [];
 		const existingDuplicates: string[] = [];
 
-		for (const [id, mergedCnt] of mergedCounts.entries()) {
-			const currentCnt = currentCounts.get(id) || 0;
-			if (mergedCnt > 1) {
-				if (currentCnt <= 1) {
-					// Появился новый дубликат
+		for (const [id, mergedCount] of mergedCounts.entries()) {
+			const currentCount = currentCounts.get(id) || 0;
+			if (mergedCount > 1) {
+				if (currentCount <= 1) {
 					newDuplicates.push(id);
 				} else {
-					// Дубликат уже был
 					existingDuplicates.push(id);
 				}
 			}

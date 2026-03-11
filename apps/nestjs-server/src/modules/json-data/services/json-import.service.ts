@@ -145,8 +145,41 @@ export class JsonImportService {
 		// Комплексная валидация JSON
 		const validationResult = await this.validationOrchestrator.validate(data);
 
+		this.logger.log("Результат комплексной валидации JSON", {
+			entitiesCount: data?.entities?.length ?? 0,
+			mappingsCount: data?.mappings?.length ?? 0,
+			failedMappingsCount: data?.failedMappings?.length ?? 0,
+			schemaVersion: validationResult.schemaVersion.version,
+			schemaSupported: validationResult.schemaVersion.supported,
+			migrationRequired: validationResult.schemaVersion.migrationRequired,
+			structureErrorsCount: validationResult.validation.errors.length,
+			structureWarningsCount: validationResult.validation.warnings.length,
+			integrityIssuesCount: validationResult.integrity.issues.length,
+			recursionDetected: validationResult.recursionCheck.hasRecursion,
+			recursionCyclesCount: validationResult.recursionCheck.cycles.length,
+			duplicatesDetected: validationResult.duplicateCheck.hasDuplicates,
+			duplicatesCount: validationResult.duplicateCheck.duplicates.length,
+			options,
+		});
+
 		// Разрешаем импорт если есть только предупреждения (но нет критических ошибок)
 		if (this.hasCriticalErrors(validationResult, options)) {
+			this.logger.error("Импорт остановлен из-за ошибок валидации JSON", {
+				entitiesCount: data?.entities?.length ?? 0,
+				mappingsCount: data?.mappings?.length ?? 0,
+				failedMappingsCount: data?.failedMappings?.length ?? 0,
+				schemaVersion: validationResult.schemaVersion.version,
+				schemaSupported: validationResult.schemaVersion.supported,
+				migrationRequired: validationResult.schemaVersion.migrationRequired,
+				structureErrors: validationResult.validation.errors.slice(0, 50),
+				structureWarnings: validationResult.validation.warnings.slice(0, 20),
+				integrityIssues: validationResult.integrity.issues.slice(0, 50),
+				recursionCycles: validationResult.recursionCheck.cycles.slice(0, 10),
+				duplicates: validationResult.duplicateCheck.duplicates.slice(0, 50),
+				recommendations: validationResult.recommendations.slice(0, 20),
+				statistics: validationResult.statistics,
+				options,
+			});
 			throw new BadRequestException({
 				message: "Валидация JSON не пройдена",
 				details: validationResult,
@@ -213,7 +246,8 @@ export class JsonImportService {
 			validationResult.recursionCheck.hasRecursion
 		) {
 			this.logger.warn("Обнаружена рекурсия в зависимостях", {
-				cycles: validationResult.recursionCheck.cycles,
+				cycles: validationResult.recursionCheck.cycles.slice(0, 20),
+				cyclesCount: validationResult.recursionCheck.cycles.length,
 			});
 			return true;
 		}
@@ -224,7 +258,7 @@ export class JsonImportService {
 			validationResult.duplicateCheck.hasDuplicates
 		) {
 			this.logger.warn(
-				`Обнаружены дубликаты: ${validationResult.duplicateCheck.duplicates.join(", ")}`,
+				`Обнаружены дубликаты: ${validationResult.duplicateCheck.duplicates.slice(0, 20).join(", ")}`,
 			);
 			return true;
 		}
