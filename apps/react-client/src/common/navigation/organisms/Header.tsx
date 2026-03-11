@@ -29,7 +29,7 @@ import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionP
 const HeaderMergingChip = memo(function HeaderMergingChip() {
 	const { activeSession } = useMergeSessionPolling();
 
-	if (activeSession?.status !== "merging") return null;
+	if (activeSession?.progress === 100 || activeSession === null) return null;
 
 	return (
 		<Box
@@ -46,11 +46,11 @@ const HeaderMergingChip = memo(function HeaderMergingChip() {
 				background: "transparent",
 				flexShrink: 0,
 			}}
-			title={`${activeSession.stage} · ${activeSession.commitName}`}
+			title={`${activeSession?.stage} · ${activeSession?.commitName}`}
 		>
 			<LinearProgress
 				variant="determinate"
-				value={activeSession.progress}
+				value={activeSession?.progress}
 				sx={{
 					position: "absolute",
 					top: 0,
@@ -66,7 +66,7 @@ const HeaderMergingChip = memo(function HeaderMergingChip() {
 			/>
 			<Typography
 				variant="caption"
-				title={activeSession.stage}
+				title={activeSession?.stage}
 				sx={{
 					position: "relative",
 					zIndex: 1,
@@ -76,7 +76,7 @@ const HeaderMergingChip = memo(function HeaderMergingChip() {
 					fontWeight: 600,
 				}}
 			>
-				Слияние {activeSession.progress}% · {activeSession.commitName}
+				Слияние {activeSession?.progress}% · {activeSession?.commitName}
 			</Typography>
 		</Box>
 	);
