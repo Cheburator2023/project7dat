@@ -6,7 +6,7 @@ import {
 	OnModuleInit,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, DataSource } from "typeorm";
+import { Repository } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 import { S2tCommitEntity } from "../../json-data/entities/s2t-commit.entity";
 import { JsonExportService } from "../../json-data/services/json-export.service";
@@ -16,45 +16,108 @@ import { DiffService } from "../../json-data/services/diff.service";
 import { JsonStructureValidator } from "../../json-data/services/interfaces/validation.interfaces";
 import { JsonExportResponseDto } from "../../json-data/dto";
 import { ApplyMergeResponseDto, MergeDiffDto } from "../dto/merge-response.dto";
+import { MergeSessionEntity } from "../entities/merge-session.entity";
+
+interface MergeSessionPayload {
+	mergedJson: JsonExportResponseDto;
+	hadExistingCycles: boolean;
+}
+
+interface MergeSessionStatusState {
+	mergeSessionId: string;
+	commitId: string;
+	commitName: string;
+	status: "merging" | "done" | "failed";
+	progress: number;
+	stage: string;
+	startedAt: string;
+	estimatedSecondsLeft: number | null;
+	snapshotId: string | null;
+	errorMessage: string | null;
+}
 
 @Injectable()
 export class MergeService implements OnModuleInit {
 	private readonly logger = new Logger(MergeService.name);
-	private readonly mergeSessions = new Map<
+	private readonly sessionPayloadCache = new Map<string, MergeSessionPayload>();
+	private readonly sessionStatusCache = new Map<
 		string,
-		{
-			commitId: string;
-			commitName: string;
-			originalJson: JsonExportResponseDto;
-			mergedJson: JsonExportResponseDto;
-			diff: MergeDiffDto[];
-			timestamp: Date;
-			hadExistingCycles: boolean;
-			// Progress tracking for async confirm
-			mergeStatus: "pending" | "merging" | "done" | "failed";
-			progress: number;
-			stage: string;
-			startedAt: Date | null;
-			snapshotId: string | null;
-			errorMessage: string | null;
-			estimatedSecondsLeft: number | null;
-			cancelRequested: boolean;
-		}
+		MergeSessionStatusState
 	>();
+	private readonly cancelRequestedSessions = new Set<string>();
 
 	constructor(
 		@InjectRepository(S2tCommitEntity)
 		private readonly s2tCommitRepository: Repository<S2tCommitEntity>,
+		@InjectRepository(MergeSessionEntity)
+		private readonly mergeSessionRepository: Repository<MergeSessionEntity>,
 		private readonly jsonExportService: JsonExportService,
 		private readonly jsonImportService: JsonImportService,
 		private readonly snapshotService: SnapshotService,
 		private readonly diffService: DiffService,
-		private readonly dataSource: DataSource,
 		private readonly structureValidator: JsonStructureValidator,
 	) {}
 
 	async onModuleInit(): Promise<void> {
 		await this.failStaleMergingCommitsOnStartup();
+	}
+
+	private toMergeSessionStatusDto(
+		session: MergeSessionEntity,
+	): MergeSessionStatusState {
+		return {
+			mergeSessionId: session.id,
+			commitId: session.commit_id,
+			commitName: session.commit_name,
+			status:
+				session.merge_status === "pending" ? "merging" : session.merge_status,
+			progress: session.progress,
+			stage: session.stage,
+			startedAt:
+				session.started_at?.toISOString() ?? session.created_at.toISOString(),
+			estimatedSecondsLeft: session.estimated_seconds_left ?? null,
+			snapshotId: session.snapshot_id,
+			errorMessage: session.error_message,
+		};
+	}
+
+	private cacheMergeSessionStatus(
+		sessionId: string,
+		patch: Partial<MergeSessionStatusState>,
+	): void {
+		const current = this.sessionStatusCache.get(sessionId);
+		if (!current) {
+			return;
+		}
+		this.sessionStatusCache.set(sessionId, {
+			...current,
+			...patch,
+		});
+	}
+
+	private async updateMergeSession(
+		sessionId: string,
+		patch: Partial<MergeSessionEntity>,
+		cacheOnly = false,
+	): Promise<void> {
+		if (!cacheOnly) {
+			await this.mergeSessionRepository.update(sessionId, {
+				...patch,
+				updated_at: new Date(),
+			});
+		}
+		this.cacheMergeSessionStatus(sessionId, {
+			status:
+				patch.merge_status === undefined || patch.merge_status === "pending"
+					? undefined
+					: patch.merge_status,
+			progress: patch.progress,
+			stage: patch.stage,
+			startedAt: patch.started_at?.toISOString(),
+			estimatedSecondsLeft: patch.estimated_seconds_left,
+			snapshotId: patch.snapshot_id,
+			errorMessage: patch.error_message,
+		});
 	}
 
 	/**
@@ -126,7 +189,7 @@ export class MergeService implements OnModuleInit {
 		}
 
 		// 7. Проверяем рекурсию в результирующей модели
-		const recursionMerged = this.structureValidator.checkForRecursion(
+		this.structureValidator.checkForRecursion(
 			mergedModel.entities,
 			mergedModel.mappings,
 		);
@@ -143,24 +206,31 @@ export class MergeService implements OnModuleInit {
 		// 9. Вычисляем diff
 		const diff = this.diffService.computeDiff(currentModel, mergedModel);
 
-		// 10. Создаём сессию
+		// 10. Создаём сессию (лёгкие метаданные — в БД, тяжёлые JSON — в памяти)
 		const mergeSessionId = uuidv4();
-		this.mergeSessions.set(mergeSessionId, {
-			commitId,
-			commitName: commit.commit_name || commitId.slice(0, 8),
-			originalJson: currentModel,
-			mergedJson: mergedModel,
-			diff,
-			timestamp: new Date(),
-			hadExistingCycles,
-			mergeStatus: "pending",
+		const mergeSession = this.mergeSessionRepository.create({
+			id: mergeSessionId,
+			commit_id: commitId,
+			commit_name: commit.commit_name || commitId.slice(0, 8),
+			had_existing_cycles: hadExistingCycles,
+			merge_status: "pending",
 			progress: 0,
 			stage: "Ожидание подтверждения",
-			startedAt: null,
-			snapshotId: null,
-			errorMessage: null,
-			estimatedSecondsLeft: null,
-			cancelRequested: false,
+			started_at: null,
+			snapshot_id: null,
+			error_message: null,
+			estimated_seconds_left: null,
+			cancel_requested: false,
+		});
+		await this.mergeSessionRepository.save(mergeSession);
+		this.sessionStatusCache.set(
+			mergeSessionId,
+			this.toMergeSessionStatusDto(mergeSession),
+		);
+
+		this.sessionPayloadCache.set(mergeSessionId, {
+			mergedJson: mergedModel,
+			hadExistingCycles,
 		});
 
 		// 11. Подсчёт статистики
@@ -372,16 +442,10 @@ export class MergeService implements OnModuleInit {
 	): Promise<{ success: boolean; mergeSessionId: string; message: string }> {
 		this.logger.log(`Подтверждение слияния для коммита: ${commitId}`);
 
-		// Находим активную сессию
-		let session: any = null;
-		let sessionId: string | null = null;
-		for (const [id, sess] of this.mergeSessions.entries()) {
-			if (sess.commitId === commitId) {
-				session = sess;
-				sessionId = id;
-				break;
-			}
-		}
+		const session = await this.mergeSessionRepository.findOne({
+			where: { commit_id: commitId },
+			order: { created_at: "DESC" },
+		});
 
 		if (!session) {
 			throw new NotFoundException(
@@ -389,26 +453,27 @@ export class MergeService implements OnModuleInit {
 			);
 		}
 
-		if (session.mergeStatus === "merging") {
+		if (session.merge_status === "merging") {
 			return {
 				success: true,
-				mergeSessionId: sessionId!,
+				mergeSessionId: session.id,
 				message: "Слияние уже выполняется",
 			};
 		}
 
-		// Устанавливаем статус merging и сразу отвечаем
-		session.mergeStatus = "merging";
-		session.progress = 0;
-		session.stage = "Запуск слияния";
-		session.startedAt = new Date();
-		session.cancelRequested = false;
+		await this.updateMergeSession(session.id, {
+			merge_status: "merging",
+			progress: 0,
+			stage: "Запуск слияния",
+			started_at: new Date(),
+			cancel_requested: false,
+			error_message: null,
+			estimated_seconds_left: null,
+		});
 
-		// Устанавливаем статус коммита на 'merging' в БД
 		await this.updateCommitStateById(commitId, "merging");
 
-		// Запускаем фоновую задачу
-		this.runMergeAsync(sessionId!, commitId, user).catch((err) => {
+		this.runMergeAsync(session.id, commitId, user).catch((err) => {
 			this.logger.error(
 				`Фоновое слияние провалилось: ${err.message}`,
 				err.stack,
@@ -417,7 +482,7 @@ export class MergeService implements OnModuleInit {
 
 		return {
 			success: true,
-			mergeSessionId: sessionId!,
+			mergeSessionId: session.id,
 			message: "Слияние запущено в фоновом режиме",
 		};
 	}
@@ -430,26 +495,62 @@ export class MergeService implements OnModuleInit {
 		commitId: string,
 		user?: string,
 	): Promise<void> {
-		const session = this.mergeSessions.get(sessionId);
+		const session = await this.mergeSessionRepository.findOne({
+			where: { id: sessionId },
+		});
 		if (!session) return;
+
+		const payload = this.sessionPayloadCache.get(sessionId);
+		if (!payload) {
+			this.logger.error(
+				`In-memory payload для сессии ${sessionId} не найден (возможно, сервер был перезапущен)`,
+			);
+			await this.updateMergeSession(sessionId, {
+				merge_status: "failed",
+				progress: 0,
+				stage: "Ошибка",
+				error_message:
+					"Данные сессии утеряны из-за перезапуска сервера. Повторите apply.",
+			});
+			await this.updateCommitState(commitId, {
+				state: "failed",
+				error:
+					"Данные сессии утеряны из-за перезапуска сервера. Повторите apply.",
+			});
+			return;
+		}
+
+		// Извлекаем тяжёлые данные из кэша и сразу освобождаем кэш, чтобы GC мог собрать память во время импорта
+		const mergedJson = payload.mergedJson;
+		const hadExistingCycles = payload.hadExistingCycles;
+		this.sessionPayloadCache.delete(sessionId);
 
 		const startMs = Date.now();
 
-		const updateProgress = (progress: number, stage: string) => {
-			session.progress = Math.min(progress, 99);
-			session.stage = stage;
+		const updateProgress = async (progress: number, stage: string) => {
+			const normalizedProgress = Math.min(progress, 99);
 			const elapsed = Date.now() - startMs;
+			let estimatedSecondsLeft: number | null = session.estimated_seconds_left;
 			if (progress > 0) {
 				const totalEstimated = (elapsed / progress) * 100;
-				session.estimatedSecondsLeft = Math.max(
+				estimatedSecondsLeft = Math.max(
 					0,
 					Math.round((totalEstimated - elapsed) / 1000),
 				);
 			}
+			await this.updateMergeSession(
+				sessionId,
+				{
+					progress: normalizedProgress,
+					stage,
+					estimated_seconds_left: estimatedSecondsLeft,
+				},
+				true,
+			);
 		};
 
 		const throwIfCancelled = () => {
-			if (!session.cancelRequested) {
+			if (!this.cancelRequestedSessions.has(sessionId)) {
 				return;
 			}
 
@@ -458,12 +559,8 @@ export class MergeService implements OnModuleInit {
 			throw error;
 		};
 
-		const queryRunner = this.dataSource.createQueryRunner();
-		await queryRunner.connect();
-		await queryRunner.startTransaction();
-
 		try {
-			updateProgress(5, "Получение данных коммита");
+			await updateProgress(5, "Получение данных коммита");
 			throwIfCancelled();
 			const commit = await this.s2tCommitRepository.findOne({
 				where: { id: commitId },
@@ -473,97 +570,120 @@ export class MergeService implements OnModuleInit {
 			}
 			const finalUser = user || commit.user || "system";
 
-			updateProgress(15, "Импорт смерженной модели в БД");
+			throwIfCancelled();
+			await updateProgress(15, "Импорт смерженной модели в БД");
+			// Merge result уже в актуальной версии (основа — текущая модель из БД).
+			// Проставляем schemaVersion 2.0, чтобы importJsonData не запускал
+			// тяжёлую миграцию версий с deep copy (~195MB × N шагов → OOM).
+			if (mergedJson.desc) {
+				(mergedJson.desc as any).schemaVersion = "2.0";
+			}
 			await this.jsonImportService.importJsonData({
-				data: session.mergedJson,
+				data: mergedJson,
 				user: finalUser,
 				changeName: `Merge commit ${commit.commit_name || commitId}`,
 				validated: true,
 				sourceType: undefined,
-				schemaVersion: (session.mergedJson.desc as any)?.schemaVersion,
-				allowExistingCycles: session.hadExistingCycles,
+				schemaVersion: "2.0",
+				allowExistingCycles: hadExistingCycles,
 				skipDuplicateCheck: true,
-				checkCancelled: throwIfCancelled,
-				onStepProgress: (step) => {
+				checkCancelled: () => {
+					throwIfCancelled();
+				},
+				onStepProgress: async (step) => {
 					if (step === "createChangeRecord") {
-						updateProgress(25, "Создание change record");
+						await updateProgress(25, "Создание change record");
 						return;
 					}
 					if (step === "handleProcess") {
-						updateProgress(35, "Обработка процесса");
+						await updateProgress(35, "Обработка процесса");
 						return;
 					}
 					if (step === "handleEntities") {
-						updateProgress(50, "Обработка сущностей");
+						await updateProgress(50, "Обработка сущностей");
 						return;
 					}
 					if (step === "handleMappings") {
-						updateProgress(60, "Обработка маппингов");
+						await updateProgress(60, "Обработка маппингов");
 						return;
 					}
 					if (step === "handleFailedMappings") {
-						updateProgress(68, "Обработка ошибок маппингов");
+						await updateProgress(68, "Обработка ошибок маппингов");
 					}
 				},
 			});
+
 			throwIfCancelled();
 
-			updateProgress(70, "Создание снепшота");
+			await updateProgress(70, "Создание снепшота");
 			throwIfCancelled();
+			// Снапшот создаём из свежего экспорта БД (после импорта), а не из in-memory payload,
+			// чтобы не держать ~200MB JSON одновременно с операциями TypeORM
+			const freshModel = await this.jsonExportService.exportToJson();
 			const snapshot = await this.snapshotService.createSnapshot(
 				finalUser,
-				session.mergedJson,
+				freshModel,
 			);
 
-			updateProgress(85, "Обновление статуса коммита");
+			await updateProgress(85, "Обновление статуса коммита");
 			throwIfCancelled();
 			await this.updateCommitState(commitId, {
 				state: "done",
 				error: null,
 			});
 
-			updateProgress(95, "Фиксация транзакции");
-			await queryRunner.commitTransaction();
+			await updateProgress(95, "Фиксация транзакции");
 
-			// Обновляем статус сессии
-			session.mergeStatus = "done";
-			session.progress = 100;
-			session.stage = "Завершено";
-			session.snapshotId = snapshot.snapshot_id;
-			session.estimatedSecondsLeft = 0;
+			await this.updateMergeSession(sessionId, {
+				merge_status: "done",
+				progress: 100,
+				stage: "Завершено",
+				snapshot_id: snapshot.snapshot_id,
+				estimated_seconds_left: 0,
+			});
 
 			this.logger.log(
 				`Фоновое слияние завершено, снепшот: ${snapshot.snapshot_id}`,
 			);
 		} catch (error) {
-			await queryRunner.rollbackTransaction();
-
-			session.mergeStatus = "failed";
-			session.progress = 0;
-			session.stage =
-				error instanceof Error &&
-				error.message === "Слияние отменено пользователем"
-					? "Отменено"
-					: "Ошибка";
-			session.errorMessage = error.message || "Неизвестная ошибка";
+			const errorMessage =
+				error instanceof Error ? error.message : "Неизвестная ошибка";
+			await this.updateMergeSession(sessionId, {
+				merge_status: "failed",
+				progress: 0,
+				stage:
+					error instanceof Error &&
+					error.message === "Слияние отменено пользователем"
+						? "Отменено"
+						: "Ошибка",
+				error_message: errorMessage,
+			});
 
 			try {
 				await this.updateCommitState(commitId, {
 					state: "failed",
-					error: session.errorMessage,
+					error: errorMessage,
 				});
 			} catch (rollbackErr) {
+				const rollbackMessage =
+					rollbackErr instanceof Error
+						? rollbackErr.message
+						: String(rollbackErr);
 				this.logger.error(
-					`Не удалось откатить статус коммита: ${rollbackErr.message}`,
+					`Не удалось откатить статус коммита: ${rollbackMessage}`,
 				);
 			}
 
+			const runtimeErrorMessage =
+				error instanceof Error ? error.message : String(error);
+			const runtimeErrorStack =
+				error instanceof Error ? error.stack : undefined;
 			this.logger.error(
-				`Ошибка при фоновом слиянии: ${error.message}`,
-				error.stack,
+				`Ошибка при фоновом слиянии: ${runtimeErrorMessage}`,
+				runtimeErrorStack,
 			);
 		} finally {
-			await queryRunner.release();
+			this.cancelRequestedSessions.delete(sessionId);
 		}
 	}
 
@@ -599,38 +719,40 @@ export class MergeService implements OnModuleInit {
 	): Promise<{ success: boolean; message: string }> {
 		this.logger.log(`Отмена слияния для коммита: ${commitId}`);
 
-		let deleted = false;
-		for (const [id, sess] of this.mergeSessions.entries()) {
-			if (sess.commitId === commitId) {
-				if (sess.mergeStatus === "merging") {
-					sess.cancelRequested = true;
-					sess.stage = "Отмена слияния";
-					sess.errorMessage = "Слияние отменено пользователем";
-					await this.updateCommitState(commitId, {
-						state: "failed",
-						error: "Слияние отменено пользователем",
-					});
-					return {
-						success: true,
-						message: "Отмена слияния запрошена",
-					};
-				}
+		const session = await this.mergeSessionRepository.findOne({
+			where: { commit_id: commitId },
+			order: { created_at: "DESC" },
+		});
 
-				this.mergeSessions.delete(id);
-				await this.updateCommitState(commitId, {
-					state: "processing",
-					error: null,
-				});
-				deleted = true;
-				break;
-			}
-		}
-
-		if (!deleted) {
+		if (!session) {
 			throw new NotFoundException(
 				`Активная сессия слияния для коммита ${commitId} не найдена`,
 			);
 		}
+
+		if (session.merge_status === "merging") {
+			this.cancelRequestedSessions.add(session.id);
+			await this.updateMergeSession(session.id, {
+				cancel_requested: true,
+				stage: "Отмена слияния",
+				error_message: "Слияние отменено пользователем",
+			});
+			await this.updateCommitState(commitId, {
+				state: "failed",
+				error: "Слияние отменено пользователем",
+			});
+			return {
+				success: true,
+				message: "Отмена слияния запрошена",
+			};
+		}
+
+		this.sessionPayloadCache.delete(session.id);
+		await this.mergeSessionRepository.delete(session.id);
+		await this.updateCommitState(commitId, {
+			state: "processing",
+			error: null,
+		});
 
 		return {
 			success: true,
@@ -641,7 +763,7 @@ export class MergeService implements OnModuleInit {
 	/**
 	 * Получение статуса сессии слияния для polling
 	 */
-	getMergeSessionStatus(sessionId: string): {
+	async getMergeSessionStatus(sessionId: string): Promise<{
 		mergeSessionId: string;
 		commitId: string;
 		commitName: string;
@@ -652,28 +774,22 @@ export class MergeService implements OnModuleInit {
 		estimatedSecondsLeft: number | null;
 		snapshotId: string | null;
 		errorMessage: string | null;
-	} | null {
-		const session = this.mergeSessions.get(sessionId);
+	} | null> {
+		const cachedSession = this.sessionStatusCache.get(sessionId);
+		if (cachedSession) {
+			return cachedSession;
+		}
+		const session = await this.mergeSessionRepository.findOne({
+			where: { id: sessionId },
+		});
 		if (!session) return null;
-		return {
-			mergeSessionId: sessionId,
-			commitId: session.commitId,
-			commitName: session.commitName,
-			status:
-				session.mergeStatus === "pending" ? "merging" : session.mergeStatus,
-			progress: session.progress,
-			stage: session.stage,
-			startedAt: session.startedAt?.toISOString() ?? new Date().toISOString(),
-			estimatedSecondsLeft: session.estimatedSecondsLeft ?? null,
-			snapshotId: session.snapshotId,
-			errorMessage: session.errorMessage,
-		};
+		return this.toMergeSessionStatusDto(session);
 	}
 
 	/**
 	 * Поиск активной сессии в статусе merging (для отображения в Header)
 	 */
-	getActiveMergingSession(): {
+	async getActiveMergingSession(): Promise<{
 		mergeSessionId: string;
 		commitId: string;
 		commitName: string;
@@ -684,13 +800,21 @@ export class MergeService implements OnModuleInit {
 		estimatedSecondsLeft: number | null;
 		snapshotId: string | null;
 		errorMessage: string | null;
-	} | null {
-		for (const [id, session] of this.mergeSessions.entries()) {
-			if (session.mergeStatus === "merging") {
-				return this.getMergeSessionStatus(id);
-			}
+	} | null> {
+		const activeCachedSession = [...this.sessionStatusCache.values()]
+			.filter((session) => session.status === "merging")
+			.sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
+		if (activeCachedSession) {
+			return activeCachedSession;
 		}
-		return null;
+		const session = await this.mergeSessionRepository.findOne({
+			where: { merge_status: "merging" },
+			order: { started_at: "DESC", created_at: "DESC" },
+		});
+		if (!session) {
+			return null;
+		}
+		return this.toMergeSessionStatusDto(session);
 	}
 
 	private async failStaleMergingCommitsOnStartup(): Promise<void> {
@@ -698,24 +822,46 @@ export class MergeService implements OnModuleInit {
 			where: { state: "merging" },
 		});
 
+		const staleSessions = await this.mergeSessionRepository.find({
+			where: { merge_status: "merging" },
+		});
+
 		if (staleCommits.length === 0) {
-			return;
+			if (staleSessions.length === 0) {
+				return;
+			}
 		}
 
 		const errorMessage =
 			"Слияние было прервано из-за перезапуска сервера и помечено как ошибочное";
 
-		await this.s2tCommitRepository.update(
-			{ state: "merging" },
-			{
-				state: "failed",
-				error: errorMessage,
-				updated_at: new Date(),
-			},
-		);
+		if (staleCommits.length > 0) {
+			await this.s2tCommitRepository.update(
+				{ state: "merging" },
+				{
+					state: "failed",
+					error: errorMessage,
+					updated_at: new Date(),
+				},
+			);
+		}
+
+		if (staleSessions.length > 0) {
+			await this.mergeSessionRepository.update(
+				{ merge_status: "merging" },
+				{
+					merge_status: "failed",
+					progress: 0,
+					stage: "Ошибка",
+					error_message: errorMessage,
+					estimated_seconds_left: null,
+					updated_at: new Date(),
+				},
+			);
+		}
 
 		this.logger.warn(
-			`Помечено как failed зависших merge-коммитов после рестарта: ${staleCommits.length}`,
+			`Помечено как failed зависших merge-коммитов после рестарта: ${staleCommits.length}, merge-сессий: ${staleSessions.length}`,
 		);
 	}
 

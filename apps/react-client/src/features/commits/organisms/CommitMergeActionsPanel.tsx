@@ -24,6 +24,7 @@ import { useMergeCancel } from "@react-client/api/hooks/useMergeCancel";
 import { routes } from "@react-client/routing/routes";
 import { useCommitMergeStore } from "../stores/commitMergeStore";
 import type { MergeDiffItem } from "@react-client/api/hooks/mergeApi";
+import { useMergingSessionStore } from "../stores/mergingSessionStore";
 
 const DIFF_TYPE_COLOR: Record<
 	MergeDiffItem["type"],
@@ -108,6 +109,7 @@ export const CommitMergeActionsPanel = memo(() => {
 				commitId: commit.id,
 				user: username,
 			});
+			useMergingSessionStore.getState().setPollingSessionId(mergeSessionId);
 			setMergeStep("confirmed");
 			navigate(routes.allCommits.rootPath);
 		} catch (err: any) {
@@ -186,8 +188,8 @@ export const CommitMergeActionsPanel = memo(() => {
 					sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto" }}
 				>
 					<Typography variant="body2" color="text.secondary">
-						Нажмите «Предпросмотр», чтобы рассчитать &gt; и проверить изменения
-						перед применением к модели данных.
+						Нажмите «Предпросмотр», чтобы проверить изменения перед применением
+						к модели данных.
 					</Typography>
 					<Button
 						onClick={handleApply}

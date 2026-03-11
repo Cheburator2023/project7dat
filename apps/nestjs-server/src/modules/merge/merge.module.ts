@@ -27,6 +27,7 @@ import { DependencyCheckService } from "../json-data/services/dependency-check.s
 import { JsonStructureValidator } from "../json-data/services/interfaces/validation.interfaces";
 import { JsonStructureValidationService } from "../json-data/services/json-structure-validation.service";
 import { JsonDataModule } from "../json-data/json-data.module";
+import { MergeSessionEntity } from "./entities/merge-session.entity";
 
 @Module({
 	imports: [
@@ -47,9 +48,10 @@ import { JsonDataModule } from "../json-data/json-data.module";
 			ProcessEntity,
 			ProcessTypeEntity,
 			ProcessGroupEntity,
-			JsonDataModule,
+			MergeSessionEntity,
 		]),
 		ConfigModule,
+		JsonDataModule,
 	],
 	controllers: [MergeController],
 	providers: [

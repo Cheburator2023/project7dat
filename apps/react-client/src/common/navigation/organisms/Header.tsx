@@ -24,12 +24,11 @@ import { NotificationButton } from "../../notification/NotificationButton";
 import { Download } from "@mui/icons-material";
 import { ExportDialog } from "../../dialogs/ExportDialog";
 import { useEntitiesStore } from "@react-client/features/entities/stores";
-import { useMergingSessionStore } from "@react-client/features/commits/stores/mergingSessionStore";
+import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
 
 const HeaderMergingChip = memo(function HeaderMergingChip() {
-	const activeSession = useMergingSessionStore((s) => s.activeSession);
-
-	if (!activeSession || activeSession.status !== "merging") return null;
+	const { activeSession } = useMergeSessionPolling();
+	if (!activeSession?.commitId) return null;
 
 	return (
 		<Box
@@ -66,6 +65,7 @@ const HeaderMergingChip = memo(function HeaderMergingChip() {
 			/>
 			<Typography
 				variant="caption"
+				title={activeSession.stage}
 				sx={{
 					position: "relative",
 					zIndex: 1,

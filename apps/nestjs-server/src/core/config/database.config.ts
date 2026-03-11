@@ -71,7 +71,7 @@ export const databaseConfig = registerAs(
 		};
 
 		const poolSize = Number.parseInt(
-			process.env.DB_POOL_SIZE || (isProduction ? "10" : "5"),
+			process.env.DB_POOL_SIZE || (isProduction ? "20" : "20"),
 			10,
 		);
 
@@ -86,9 +86,9 @@ export const databaseConfig = registerAs(
 			poolSize,
 			extra: {
 				max: poolSize,
-				connectionTimeoutMillis: 10000,
+				connectionTimeoutMillis: 30000,
 				idleTimeoutMillis: 30000,
-				statement_timeout: 60000,
+				statement_timeout: 120000,
 			},
 		};
 

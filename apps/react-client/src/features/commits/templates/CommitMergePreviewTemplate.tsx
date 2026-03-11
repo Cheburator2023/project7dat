@@ -17,7 +17,6 @@ import { Header } from "@react-client/common/navigation/organisms/Header";
 import { CommitEntitiesPanel } from "../organisms/CommitEntitiesPanel";
 import { CommitEntitiesComparisonPanel } from "../organisms/CommitEntitiesComparisonPanel";
 import { CommitGraphPanel } from "../organisms/CommitGraphPanel";
-import { CommitChangeSummaryPanel } from "../organisms/CommitChangeSummaryPanel";
 import { CommitMergeActionsPanel } from "../organisms/CommitMergeActionsPanel";
 import { CommitObjectsPanel } from "../organisms/CommitObjectsPanel";
 import { commitMergeLayoutJson } from "../constants/commitMergeLayout";
@@ -40,10 +39,14 @@ export const CommitMergePreviewTemplate = () => {
 	const { id: commitId } = useParams<{ id: string }>();
 	const { mode } = useColorScheme();
 
-	const { setCommit, reset } = useCommitMergeStore();
+	const { mergeStep, setCommit, reset } = useCommitMergeStore();
 
-	const { data: commit, isLoading } = useS2tCommitById(commitId ?? null, {
-		enabled: Boolean(commitId),
+	const {
+		data: commit,
+		isLoading,
+		refetch,
+	} = useS2tCommitById(commitId ?? null, {
+		enabled: false,
 	});
 
 	useEffect(() => {
@@ -57,6 +60,10 @@ export const CommitMergePreviewTemplate = () => {
 			reset();
 		};
 	}, [reset]);
+
+	useEffect(() => {
+		refetch();
+	}, []);
 
 	const onReady = useCallback((event: DockviewReadyEvent) => {
 		event.api.fromJSON(commitMergeLayoutJson);

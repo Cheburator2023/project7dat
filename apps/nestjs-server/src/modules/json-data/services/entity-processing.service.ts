@@ -10,6 +10,11 @@ import { AttributeTypeService } from "./attribute-type.service";
 import { EntityContainerEntity } from "../entities/entity-container.entity";
 import { SystemsEntity } from "../entities/systems.entity";
 
+const yieldEventLoop = (): Promise<void> =>
+	new Promise((resolve) => setImmediate(resolve));
+
+const EVENT_LOOP_YIELD_INTERVAL = 50;
+
 @Injectable()
 export class EntityProcessingService {
 	private readonly logger = new Logger(EntityProcessingService.name);
@@ -36,6 +41,7 @@ export class EntityProcessingService {
 		processId: number,
 		changeId: number,
 		queryRunner: QueryRunner,
+		checkCancelled?: () => void,
 	): Promise<{ count: number; attributesCount: number }> {
 		// сброс кэша перед обработкой новой порции данных
 		this.containerCache.clear();
@@ -45,14 +51,17 @@ export class EntityProcessingService {
 		}
 
 		// Предзагрузка всех существующих сущностей и атрибутов для коммита
-		const { entityCache, attributeCacheByEntity } = await this.preloadEntitiesAndAttributes(entities, queryRunner);
+		const { entityCache, attributeCacheByEntity } =
+			await this.preloadEntitiesAndAttributes(entities, queryRunner);
 
 		let attributesCount = 0;
 
 		// Обрабатываем все сущности
-		for (const entityData of entities) {
+		for (let i = 0; i < entities.length; i++) {
+			checkCancelled?.();
+			if (i % EVENT_LOOP_YIELD_INTERVAL === 0) await yieldEventLoop();
 			const entityAttributesCount = await this.handleSingleEntity(
-				entityData,
+				entities[i],
 				changeId,
 				queryRunner,
 				entityCache,
@@ -62,7 +71,13 @@ export class EntityProcessingService {
 		}
 
 		// Создаем entity_map для целевых сущностей (modified = true)
-		await this.handleEntityMappings(entities, processId, changeId, queryRunner);
+		await this.handleEntityMappings(
+			entities,
+			processId,
+			changeId,
+			queryRunner,
+			checkCancelled,
+		);
 
 		return {
 			count: entities.length,
@@ -80,9 +95,12 @@ export class EntityProcessingService {
 		entityCache: Map<string, EntityEntity>;
 		attributeCacheByEntity: Map<number, Map<string, AttributeEntity>>;
 	}> {
-		const fullNames = entities.map(e => e.id).filter(Boolean);
+		const fullNames = entities.map((e) => e.id).filter(Boolean);
 		const entityCache = new Map<string, EntityEntity>();
-		const attributeCacheByEntity = new Map<number, Map<string, AttributeEntity>>();
+		const attributeCacheByEntity = new Map<
+			number,
+			Map<string, AttributeEntity>
+		>();
 
 		if (fullNames.length === 0) {
 			return { entityCache, attributeCacheByEntity };
@@ -97,7 +115,7 @@ export class EntityProcessingService {
 		}
 
 		// Загружаем все атрибуты для найденных сущностей
-		const entityIds = existingEntities.map(e => e.entity_id);
+		const entityIds = existingEntities.map((e) => e.entity_id);
 		if (entityIds.length > 0) {
 			const attributes = await queryRunner.manager.find(AttributeEntity, {
 				where: { entity_id: In(entityIds) },
@@ -166,7 +184,9 @@ export class EntityProcessingService {
 			} else {
 				// Сущность существует – проверяем, изменилась ли она
 				if (this.isEntityUnchanged(entity, entityData, entityContainerId)) {
-					this.logger.log(`Сущность ${entityData.id} не изменилась, пропускаем обновление`);
+					this.logger.log(
+						`Сущность ${entityData.id} не изменилась, пропускаем обновление`,
+					);
 				} else {
 					entity.change_id = changeId;
 					entity.entity_container_id = entityContainerId;
@@ -195,7 +215,9 @@ export class EntityProcessingService {
 
 			return attributesCount;
 		} catch (error) {
-			this.logger.error(`Ошибка обработки сущности ${entityData.id}: ${error.message}`);
+			this.logger.error(
+				`Ошибка обработки сущности ${entityData.id}: ${error.message}`,
+			);
 			throw error;
 		}
 	}
@@ -208,9 +230,10 @@ export class EntityProcessingService {
 		attributeCacheByEntity: Map<number, Map<string, AttributeEntity>>,
 	): Promise<boolean> {
 		try {
-			const typeId = await this.attributeTypeService.resolveAttributeTypeFromJson(
-				attrData.type,
-			);
+			const typeId =
+				await this.attributeTypeService.resolveAttributeTypeFromJson(
+					attrData.type,
+				);
 
 			const entityAttrCache = attributeCacheByEntity.get(entityId);
 			const existing = entityAttrCache?.get(attrData.name);
@@ -220,7 +243,8 @@ export class EntityProcessingService {
 				attribute.entity_id = entityId;
 				attribute.name = attrData.name;
 				attribute.type_id = typeId;
-				attribute.description = attrData.comment || attrData.description || null;
+				attribute.description =
+					attrData.comment || attrData.description || null;
 				attribute.change_id = changeId;
 
 				await queryRunner.manager.save(AttributeEntity, attribute);
@@ -229,25 +253,34 @@ export class EntityProcessingService {
 					attributeCacheByEntity.set(entityId, new Map());
 				}
 				attributeCacheByEntity.get(entityId)!.set(attrData.name, attribute);
-				this.logger.log(`Создан новый атрибут: ${attrData.name} для сущности ${entityId}`);
+				this.logger.log(
+					`Создан новый атрибут: ${attrData.name} для сущности ${entityId}`,
+				);
 				return true;
 			}
 
 			if (this.isAttributeUnchanged(existing, attrData, typeId)) {
-				this.logger.log(`Атрибут ${attrData.name} для сущности ${entityId} не изменился, пропускаем`);
+				this.logger.log(
+					`Атрибут ${attrData.name} для сущности ${entityId} не изменился, пропускаем`,
+				);
 				return false;
 			}
 
 			existing.type_id = typeId;
-			existing.description = attrData.comment || attrData.description || existing.description;
+			existing.description =
+				attrData.comment || attrData.description || existing.description;
 			existing.change_id = changeId;
 			await queryRunner.manager.save(AttributeEntity, existing);
 			// Обновляем кэш
 			attributeCacheByEntity.get(entityId)!.set(attrData.name, existing);
-			this.logger.log(`Атрибут ${attrData.name} для сущности ${entityId} обновлён`);
+			this.logger.log(
+				`Атрибут ${attrData.name} для сущности ${entityId} обновлён`,
+			);
 			return true;
 		} catch (error) {
-			this.logger.error(`Ошибка обработки атрибута ${attrData.name}: ${error.message}`);
+			this.logger.error(
+				`Ошибка обработки атрибута ${attrData.name}: ${error.message}`,
+			);
 			throw error;
 		}
 	}
@@ -309,13 +342,18 @@ export class EntityProcessingService {
 			newContainer.description = containerDescription;
 			newContainer.system_id = system.system_id;
 
-			const saved = await queryRunner.manager.save(EntityContainerEntity, newContainer);
+			const saved = await queryRunner.manager.save(
+				EntityContainerEntity,
+				newContainer,
+			);
 			this.containerCache.set(namespace, saved.entity_container_id);
 			return saved.entity_container_id;
 		} catch (error) {
 			// Если ошибка уникальности (код 23505) – значит, параллельная транзакция уже создала контейнер
-			if (error.code === '23505') {
-				this.logger.warn(`Контейнер ${namespace} создан параллельно, выполняем повторный поиск`);
+			if (error.code === "23505") {
+				this.logger.warn(
+					`Контейнер ${namespace} создан параллельно, выполняем повторный поиск`,
+				);
 				container = await queryRunner.manager.findOne(EntityContainerEntity, {
 					where: { value: namespace },
 				});
@@ -346,15 +384,18 @@ export class EntityProcessingService {
 		processId: number,
 		changeId: number,
 		queryRunner: QueryRunner,
+		checkCancelled?: () => void,
 	): Promise<void> {
 		// Находим целевые сущности (modified = true)
 		const targetEntities = entities.filter(
 			(entity) => entity.modified === true,
 		);
 
-		for (const targetEntity of targetEntities) {
+		for (let i = 0; i < targetEntities.length; i++) {
+			checkCancelled?.();
+			if (i % EVENT_LOOP_YIELD_INTERVAL === 0) await yieldEventLoop();
 			await this.createEntityMap(
-				targetEntity,
+				targetEntities[i],
 				processId,
 				changeId,
 				queryRunner,

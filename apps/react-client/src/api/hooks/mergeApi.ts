@@ -72,9 +72,4 @@ export const mergeService = {
 		const response = await mergeApi.get(`/session/${sessionId}`);
 		return response.data;
 	},
-
-	getActiveSession: async (): Promise<MergeSessionStatus | null> => {
-		const response = await mergeApi.get("/active");
-		return response.data;
-	},
 };

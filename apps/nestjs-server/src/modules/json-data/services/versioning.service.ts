@@ -181,7 +181,7 @@ export class VersioningService {
 		fromVersion: string,
 		toVersion: string,
 	): any {
-		const migrated = JSON.parse(JSON.stringify(data));
+		const migrated = data;
 
 		switch (`${fromVersion}-${toVersion}`) {
 			case "0.9-1.0":
@@ -202,7 +202,7 @@ export class VersioningService {
 	 * Миграция с версии 0.9 на 1.0
 	 */
 	private migrateFromV09ToV10(data: any): any {
-		const migrated = JSON.parse(JSON.stringify(data));
+		const migrated = data;
 
 		// Переименование dependencies -> deps
 		if (migrated.mappings && Array.isArray(migrated.mappings)) {
@@ -237,7 +237,7 @@ export class VersioningService {
 	 * Миграция с версии 1.0 на 1.1
 	 */
 	private migrateFromV10ToV11(data: any): any {
-		const migrated = JSON.parse(JSON.stringify(data));
+		const migrated = data;
 
 		// Добавление поддержки новых типов сущностей
 		if (migrated.entities && Array.isArray(migrated.entities)) {
@@ -257,7 +257,7 @@ export class VersioningService {
 	 * Миграция с версии 1.1 на 2.0
 	 */
 	private migrateFromV11ToV20(data: any): any {
-		const migrated = JSON.parse(JSON.stringify(data));
+		const migrated = data;
 
 		// Добавление расширенных метаданных
 		if (migrated.desc) {

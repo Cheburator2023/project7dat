@@ -84,11 +84,15 @@ export class JsonImportService {
 
 		const importId = randomUUID();
 
+		const estimatedSize =
+			(data?.entities?.length ?? 0) + (data?.mappings?.length ?? 0);
 		this.logger.log(`Импорт JSON данных пользователем: ${user}`, {
 			user,
 			changeName,
 			validated,
-			dataSize: JSON.stringify(data).length,
+			entitiesCount: data?.entities?.length ?? 0,
+			mappingsCount: data?.mappings?.length ?? 0,
+			estimatedItems: estimatedSize,
 			importId,
 			allowExistingCycles: effectiveAllowExistingCycles,
 			skipDuplicateCheck: effectiveSkipDuplicateCheck,
@@ -106,11 +110,14 @@ export class JsonImportService {
 		checkCancelled?.();
 
 		// Проверка конфликтов с учётом флагов
-		await this.checkForConflicts(
-			processedData,
-			effectiveAllowExistingCycles,
-			effectiveSkipDuplicateCheck,
-		);
+		// Пропускаем повторную валидацию, если и циклы, и дубликаты уже разрешены (merge flow)
+		if (!effectiveAllowExistingCycles || !effectiveSkipDuplicateCheck) {
+			await this.checkForConflicts(
+				processedData,
+				effectiveAllowExistingCycles,
+				effectiveSkipDuplicateCheck,
+			);
+		}
 		checkCancelled?.();
 
 		// Выполнение импорта в транзакции
@@ -486,6 +493,7 @@ export class JsonImportService {
 					process.process_id,
 					changeId,
 					queryRunner,
+					checkCancelled,
 				);
 			},
 			checkCancelled,
@@ -505,6 +513,7 @@ export class JsonImportService {
 					process.process_id,
 					changeId,
 					queryRunner,
+					checkCancelled,
 				);
 			},
 			checkCancelled,
@@ -522,6 +531,7 @@ export class JsonImportService {
 					processedData.failedMappings || [],
 					changeId,
 					queryRunner,
+					checkCancelled,
 				);
 			},
 			checkCancelled,
