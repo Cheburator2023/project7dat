@@ -64,9 +64,6 @@ export class JsonStructureValidationService extends JsonStructureValidator {
 
 		this.logger.log("Начало валидации структуры JSON");
 
-		// Проверка размера
-		this.validateJsonSize(data, errors);
-
 		// Проверка базовой структуры
 		this.validateBasicStructure(data, errors, warnings);
 
