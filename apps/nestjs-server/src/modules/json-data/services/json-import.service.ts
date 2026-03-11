@@ -217,11 +217,13 @@ export class JsonImportService {
 			return true;
 		}
 
-		// Проблемы целостности, связанные с отсутствием source entities, не являются критическими
+		// Проблемы целостности, связанные с отсутствием source/target entities и атрибутов, не являются критическими
 		const criticalIntegrityIssues = validationResult.integrity.issues.filter(
 			(issue) =>
 				!issue.includes("source entity не найдена") &&
-				!issue.includes("target entity не найдена"),
+				!issue.includes("target entity не найдена") &&
+				!issue.includes("target атрибут не найден") &&
+				!issue.includes("source атрибут не найден"),
 		);
 
 		if (criticalIntegrityIssues.length > 0) {

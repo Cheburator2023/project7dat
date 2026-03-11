@@ -114,34 +114,9 @@ export const AllCommitsPage: FC = () => {
 	);
 
 	// Polling для активной сессии слияния
-	const { stopPolling, clearSession, activeSession, isPolling } =
-		useMergeSessionPolling();
+	const { stopPolling, clearSession, activeSession } = useMergeSessionPolling();
 
 	const cancelMergeMutation = useMergeCancel();
-
-	// Останавливаем polling если список загружен и merging commit отсутствует
-	useEffect(() => {
-		if (!s2tCommitsQuery.isSuccess) {
-			return;
-		}
-
-		console.log("AllCommitsPage >> isPolling:", isPolling);
-		console.log("AllCommitsPage >> mergingCommit:", mergingCommit);
-
-		if (isPolling && !mergingCommit) {
-			console.log(
-				"AllCommitsPage >> stopping polling: no merging commit found",
-			);
-			stopPolling();
-			clearSession();
-		}
-	}, [
-		isPolling,
-		mergingCommit,
-		s2tCommitsQuery.isSuccess,
-		stopPolling,
-		clearSession,
-	]);
 
 	useEffect(() => {
 		if (activeSession?.status === "done") {

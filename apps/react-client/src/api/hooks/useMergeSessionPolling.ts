@@ -36,6 +36,12 @@ export const useMergeSessionPolling = () => {
 			console.info("[merge-polling] stop", { pollingSessionId: currentId });
 		}
 		setPollingSessionId(null);
+		queryClient.invalidateQueries({
+			queryKey: S2T_COMMIT_LIST_QUERY_KEY,
+		});
+		queryClient.invalidateQueries({
+			queryKey: [S2T_COMMIT_BY_ID_QUERY_KEY],
+		});
 		queryClient.removeQueries({
 			queryKey: [...MERGE_SESSION_POLLING_QUERY_KEY],
 		});
@@ -63,7 +69,7 @@ export const useMergeSessionPolling = () => {
 		}
 
 		restoreFromStorageDone = true;
-		const storedSessionId = window.sessionStorage.getItem(
+		const storedSessionId = window.localStorage.getItem(
 			MERGE_SESSION_STORAGE_KEY,
 		);
 
@@ -71,16 +77,28 @@ export const useMergeSessionPolling = () => {
 			return;
 		}
 
-		console.info("[merge-polling] restore from sessionStorage", {
+		console.info("[merge-polling] restore from localStorage", {
 			mergeSessionId: storedSessionId,
 		});
 
-		if (
-			useMergingSessionStore.getState().pollingSessionId !== storedSessionId
-		) {
-			setPollingSessionId(storedSessionId);
-		}
-	}, [pollingSessionId, setPollingSessionId]);
+		// Проверяем актуальность сессии перед восстановлением поллинга
+		mergeService
+			.getSession(storedSessionId)
+			.then((data) => {
+				console.info("[merge-polling] session status after restore", {
+					mergeSessionId: storedSessionId,
+				});
+				startPolling(data.mergeSessionId);
+			})
+			.catch((error) => {
+				console.error("[merge-polling] failed to restore session", {
+					mergeSessionId: storedSessionId,
+					error: error.message,
+				});
+				// При ошибке очищаем localStorage
+				// window.localStorage.removeItem(MERGE_SESSION_STORAGE_KEY);
+			});
+	}, [pollingSessionId, setPollingSessionId, setActiveSession]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") {
@@ -88,14 +106,11 @@ export const useMergeSessionPolling = () => {
 		}
 
 		if (pollingSessionId) {
-			window.sessionStorage.setItem(
-				MERGE_SESSION_STORAGE_KEY,
-				pollingSessionId,
-			);
+			window.localStorage.setItem(MERGE_SESSION_STORAGE_KEY, pollingSessionId);
 			return;
 		}
 
-		window.sessionStorage.removeItem(MERGE_SESSION_STORAGE_KEY);
+		window.localStorage.removeItem(MERGE_SESSION_STORAGE_KEY);
 	}, [pollingSessionId]);
 
 	const pollingQuery = useQuery<MergeSessionStatus, Error>({
@@ -108,22 +123,23 @@ export const useMergeSessionPolling = () => {
 			console.info("[merge-polling] request", {
 				mergeSessionId: pollingSessionId,
 			});
-			const status = await mergeService.getSession(pollingSessionId);
+			const data = await mergeService.getSession(pollingSessionId);
 			console.info("[merge-polling] response", {
 				mergeSessionId: pollingSessionId,
-				status: status.status,
-				progress: status.progress,
-				stage: status.stage,
+				status: data.status,
+				progress: data.progress,
+				stage: data.stage,
 			});
-			return status;
+			return data;
 		},
 		enabled: !!pollingSessionId,
 		refetchInterval: (query) => {
-			const status = query.state.data?.status;
+			const commitId = query.state.data?.commitId;
+
 			if (!pollingSessionId) {
 				return false;
 			}
-			if (status === "done" || status === "failed") {
+			if (!commitId) {
 				return false;
 			}
 			return POLL_INTERVAL_MS;
@@ -139,8 +155,7 @@ export const useMergeSessionPolling = () => {
 		queryFn: async () => {
 			const id =
 				pollingSessionId ||
-				window.sessionStorage.getItem(MERGE_SESSION_STORAGE_KEY);
-			console.log("🐸 Pepe said >> useMergeSessionPolling >> id:", id);
+				window.localStorage.getItem(MERGE_SESSION_STORAGE_KEY);
 
 			if (!id) {
 				throw new Error(
@@ -151,68 +166,36 @@ export const useMergeSessionPolling = () => {
 			console.info("[merge-polling] request", {
 				mergeSessionId: id,
 			});
-			const status = await mergeService.getSession(id);
+			const data = await mergeService.getSession(id);
 			console.info("[merge-polling] response", {
 				mergeSessionId: id,
-				status: status.status,
-				progress: status.progress,
-				stage: status.stage,
+				status: data.status,
+				progress: data.progress,
+				stage: data.stage,
 			});
-			return status;
+			return data;
 		},
-		enabled: false,
-		retry: 1,
-		staleTime: 0,
+		enabled: true,
 	});
-
-	useEffect(() => {
-		if (!pollingQuery.data) {
-			return;
-		}
-
-		const status = pollingQuery.data;
-		setActiveSession(status);
-
-		if (status.status === "done" || status.status === "failed") {
-			console.info("[merge-polling] terminal status", {
-				mergeSessionId: status.mergeSessionId,
-				status: status.status,
-				progress: status.progress,
-			});
-			setPollingSessionId(null);
-			queryClient.invalidateQueries({
-				queryKey: S2T_COMMIT_LIST_QUERY_KEY,
-			});
-			queryClient.invalidateQueries({
-				queryKey: [S2T_COMMIT_BY_ID_QUERY_KEY],
-			});
-		}
-	}, [pollingQuery.data, setActiveSession, setPollingSessionId, queryClient]);
 
 	useEffect(() => {
 		if (!pollingQuery.error) {
 			return;
 		}
 
-		console.error("[merge-polling] request failed", {
+		console.error("[merge-polling] request failed, stopping polling", {
 			mergeSessionId: pollingSessionId,
 			message: pollingQuery.error.message,
 		});
-		setPollingSessionId(null);
+		stopPolling();
 		clearSession();
-	}, [pollingQuery.error, pollingSessionId, setPollingSessionId, clearSession]);
-
-	const isPolling =
-		!!pollingSessionId &&
-		activeSession?.status !== "done" &&
-		activeSession?.status !== "failed";
+	}, [pollingQuery.error, pollingSessionId, stopPolling, clearSession]);
 
 	return {
 		activeSession,
 		startPolling,
 		stopPolling,
 		clearSession,
-		isPolling,
 		pollingSessionId,
 		checkForPolling: pollingQuerySingle,
 	};
