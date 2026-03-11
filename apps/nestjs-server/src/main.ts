@@ -96,7 +96,7 @@ async function bootstrap() {
 	console.log(`🚀 Сервер запущен на http://localhost:${port}`);
 	console.log("📚 API эндпоинты доступны по адресу /api/json-data");
 	console.log(
-		`📖 API документация доступна по адресу http://localhost:${port}/api/docs`,
+		`📖 OPEN_API документация доступна по адресу http://localhost:${port}/api/docs`,
 	);
 }
 bootstrap();

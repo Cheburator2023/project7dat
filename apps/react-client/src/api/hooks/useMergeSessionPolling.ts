@@ -36,12 +36,6 @@ export const useMergeSessionPolling = () => {
 			console.info("[merge-polling] stop", { pollingSessionId: currentId });
 		}
 		setPollingSessionId(null);
-		queryClient.invalidateQueries({
-			queryKey: S2T_COMMIT_LIST_QUERY_KEY,
-		});
-		queryClient.invalidateQueries({
-			queryKey: [S2T_COMMIT_BY_ID_QUERY_KEY],
-		});
 		queryClient.removeQueries({
 			queryKey: [...MERGE_SESSION_POLLING_QUERY_KEY],
 		});
@@ -177,6 +171,31 @@ export const useMergeSessionPolling = () => {
 		},
 		enabled: true,
 	});
+
+	useEffect(() => {
+		if (!pollingQuery.data) {
+			return;
+		}
+
+		const data = pollingQuery.data;
+		setActiveSession(data);
+
+		if (data.status === "done" || data.status === "failed") {
+			console.info("[merge-polling] terminal status", {
+				mergeSessionId: data.mergeSessionId,
+				status: data.status,
+				progress: data.progress,
+			});
+			setPollingSessionId(null);
+			stopPolling();
+			queryClient.invalidateQueries({
+				queryKey: S2T_COMMIT_LIST_QUERY_KEY,
+			});
+			queryClient.invalidateQueries({
+				queryKey: [S2T_COMMIT_BY_ID_QUERY_KEY],
+			});
+		}
+	}, [pollingQuery.data, setActiveSession, setPollingSessionId, queryClient]);
 
 	useEffect(() => {
 		if (!pollingQuery.error) {
