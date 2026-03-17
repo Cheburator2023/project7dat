@@ -18,6 +18,7 @@ import { JsonValidationOrchestratorService } from "../../json-data/services/json
 import { JsonExportResponseDto } from "../../json-data/dto";
 import { ApplyMergeResponseDto, MergeDiffDto } from "../dto/merge-response.dto";
 import { MergeSessionEntity } from "../entities/merge-session.entity";
+import { DeduplicationService } from "src/modules/merge/services/deduplication.service";
 
 interface MergeSessionPayload {
 	mergedJson: JsonExportResponseDto;
