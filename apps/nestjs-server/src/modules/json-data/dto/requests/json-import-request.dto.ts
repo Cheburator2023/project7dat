@@ -92,6 +92,16 @@ export class JsonImportRequestDto {
 	@IsBoolean()
 	skipStructureValidation?: boolean;
 
+	@ApiProperty({
+		description:
+			"Полностью пропустить валидацию (для merge flow, когда данные уже провалидированы в applyMerge)",
+		required: false,
+		default: false,
+	})
+	@IsOptional()
+	@IsBoolean()
+	skipValidation?: boolean;
+
 	checkCancelled?: () => void;
 
 	onStepProgress?: (step: string) => void;

@@ -47,6 +47,7 @@ import { JsonIntegrityValidationService } from "./services/json-integrity-valida
 import { JsonBusinessRulesValidationService } from "./services/json-business-rules-validation.service";
 import { JsonSchemaVersionValidationService } from "./services/json-schema-version-validation.service";
 import { JsonValidationOrchestratorService } from "./services/json-validation-orchestrator.service";
+import { JsonApplyService } from "./services/json-apply.service";
 import { S2tConversionService } from "./services/s2t-conversion.service";
 import { CacheService } from "./services/cache.service";
 import { JsonExportService } from "./services/json-export.service";
@@ -152,6 +153,7 @@ export class JsonDataModule {
 			ProcessHandlingService,
 			EntityProcessingService,
 			MappingProcessingService,
+			JsonApplyService,
 
 			// Support services
 			EntityTypeService,
@@ -223,6 +225,7 @@ export class JsonDataModule {
 			JsonBusinessRulesValidationService,
 			JsonSchemaVersionValidationService,
 			JsonValidationOrchestratorService,
+			JsonApplyService,
 			JsonExportService,
 			JsonSearchService,
 			CacheService,

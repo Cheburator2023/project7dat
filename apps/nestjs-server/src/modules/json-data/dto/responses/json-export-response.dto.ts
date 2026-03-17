@@ -17,6 +17,31 @@ export class JsonExportDescDto {
 	change_date: string;
 
 	@ApiProperty({
+		description: "Имя процесса",
+		example: "process_name",
+		required: false,
+	})
+	@IsOptional()
+	@IsString()
+	process?: string;
+
+	@ApiProperty({
+		description: "Описание процесса DAG",
+		required: false,
+	})
+	@IsOptional()
+	@IsString()
+	description?: string;
+
+	@ApiProperty({
+		description: "Тип коммита (table/json/model)",
+		required: false,
+	})
+	@IsOptional()
+	@IsString()
+	commit_type?: string;
+
+	@ApiProperty({
 		description: "Код системы по умолчанию",
 		example: "1642",
 		required: false,
