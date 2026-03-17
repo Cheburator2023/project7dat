@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState } from "react";
 import {
 	Box,
 	Button,
@@ -21,6 +21,7 @@ import { useAuthStore } from "@react-client/common/stores/authStore";
 import { useMergeApply } from "@react-client/api/hooks/useMergeApply";
 import { useMergeConfirm } from "@react-client/api/hooks/useMergeConfirm";
 import { useMergeCancel } from "@react-client/api/hooks/useMergeCancel";
+import { useMergeDeduplicate } from "@react-client/api/hooks/useMergeDeduplicate";
 import { routes } from "@react-client/routing/routes";
 import { useCommitMergeStore } from "../stores/commitMergeStore";
 import type { MergeDiffItem } from "@react-client/api/hooks/mergeApi";
@@ -50,6 +51,8 @@ export const CommitMergeActionsPanel = memo(() => {
 	const applyMutation = useMergeApply();
 	const confirmMutation = useMergeConfirm();
 	const cancelMutation = useMergeCancel();
+	const deduplicateMutation = useMergeDeduplicate();
+	const [deduplicating, setDeduplicating] = useState(false);
 
 	const {
 		commit,
@@ -82,6 +85,33 @@ export const CommitMergeActionsPanel = memo(() => {
 				changedAttributesCount: result.changedAttributesCount,
 				changedMappingsCount: result.changedMappingsCount,
 			});
+
+			// Если обнаружены дубликаты — автоматически запускаем дедупликацию
+			if (result.hasDuplicates) {
+				setDeduplicating(true);
+				toast.info(
+					`Обнаружено ${result.duplicatesCount} дубликатов сущностей. Запуск дедупликации...`,
+				);
+				try {
+					const dedupResult = await deduplicateMutation.mutateAsync();
+					if (dedupResult.success) {
+						toast.success(
+							`Дедупликация завершена: удалено ${dedupResult.removedCount} дубликатов`,
+						);
+					} else {
+						toast.error("Ошибка при дедупликации");
+					}
+				} catch (dedupErr: any) {
+					toast.error(
+						dedupErr?.response?.data?.message ??
+							dedupErr?.message ??
+							"Ошибка дедупликации",
+					);
+				} finally {
+					setDeduplicating(false);
+				}
+			}
+
 			setMergeStep("previewing");
 		} catch (err: any) {
 			setError(
@@ -93,6 +123,7 @@ export const CommitMergeActionsPanel = memo(() => {
 	}, [
 		commit,
 		applyMutation,
+		deduplicateMutation,
 		setApplying,
 		setError,
 		setMergeSessionId,
@@ -199,10 +230,14 @@ export const CommitMergeActionsPanel = memo(() => {
 						startIcon={
 							applying ? <CircularProgress size={16} /> : <MergeIcon />
 						}
-						disabled={applying || isDone}
+						disabled={applying || deduplicating || isDone}
 						fullWidth
 					>
-						{applying ? "Расчёт изменений..." : "Предпросмотр слияния"}
+						{deduplicating
+							? "Дедупликация..."
+							: applying
+								? "Расчёт изменений..."
+								: "Предпросмотр слияния"}
 					</Button>
 				</Box>
 			)}

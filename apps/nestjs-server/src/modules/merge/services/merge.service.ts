@@ -58,6 +58,7 @@ export class MergeService implements OnModuleInit {
 		private readonly structureValidator: JsonStructureValidator,
 		private readonly validationOrchestrator: JsonValidationOrchestratorService,
 		private readonly jsonApplyService: JsonApplyService,
+		private readonly deduplicationService: DeduplicationService,
 	) {}
 
 	async onModuleInit(): Promise<void> {
@@ -174,14 +175,14 @@ export class MergeService implements OnModuleInit {
 			commitType,
 		);
 
-		// 6. Проверяем дубликаты в смерженной модели относительно исходной
+		// 6. Проверяем дубликаты в смерженной модели относительно исходной (не блокируем — информируем)
 		const duplicateCheckResult = this.checkDuplicatesAfterMerge(
 			currentModel,
 			mergedModel,
 		);
 		if (!duplicateCheckResult.allowed) {
-			throw new BadRequestException(
-				`Коммит создаёт новые дубликаты сущностей: ${duplicateCheckResult.newDuplicates.join(", ")}. Операция отклонена.`,
+			this.logger.warn(
+				`Коммит создаёт новые дубликаты сущностей: ${duplicateCheckResult.newDuplicates.join(", ")}. Потребуется дедупликация.`,
 			);
 		}
 		if (duplicateCheckResult.existingDuplicates.length > 0) {
@@ -280,32 +281,10 @@ export class MergeService implements OnModuleInit {
 			);
 		}
 
-		// 7.5. Дубликаты из валидатора — блокируем если обнаружены новые
-		// (checkDuplicatesAfterMerge на шаге 6 проверяет только entities по id,
-		// а валидатор может ловить более широкий спектр дубликатов)
+		// 7.5. Дубликаты из валидатора — логируем (не блокируем, дедупликация выполняется отдельно)
 		if (validationResult.duplicateCheck.hasDuplicates) {
-			// Проверяем, не являются ли все дубликаты уже существующими
-			const newDuplicatesFromValidator =
-				validationResult.duplicateCheck.duplicates.filter(
-					(dup) => !duplicateCheckResult.existingDuplicates.includes(dup),
-				);
-			if (newDuplicatesFromValidator.length > 0) {
-				this.logger.error(
-					`Обнаружены новые дубликаты через валидатор: ${newDuplicatesFromValidator.join(", ")}`,
-				);
-				throw new BadRequestException({
-					message: `Merge создаёт новые дубликаты: ${newDuplicatesFromValidator.join(", ")}`,
-					details: {
-						newDuplicates: newDuplicatesFromValidator.slice(0, 50),
-						existingDuplicates: duplicateCheckResult.existingDuplicates.slice(
-							0,
-							50,
-						),
-					},
-				});
-			}
 			this.logger.warn(
-				`Дубликаты обнаружены валидатором, но все уже существовали: ${validationResult.duplicateCheck.duplicates.join(", ")}`,
+				`Дубликаты обнаружены валидатором: ${validationResult.duplicateCheck.duplicates.join(", ")}. Потребуется дедупликация.`,
 			);
 		}
 
@@ -337,8 +316,11 @@ export class MergeService implements OnModuleInit {
 				`дубликаты=${validationResult.duplicateCheck.duplicates.length}`,
 		);
 
-		// 9. Вычисляем diff
-		const diff = this.diffService.computeDiff(currentModel, mergedModel);
+		// 9. Вычисляем diff и фильтруем ложные "removed"
+		// DiffService сравнивает массивы позиционно (по индексам), поэтому
+		// при merge (который только добавляет/изменяет) появляются ложные removed.
+		const rawDiff = this.diffService.computeDiff(currentModel, mergedModel);
+		const diff = rawDiff.filter((d) => d.type !== "removed");
 
 		// 10. Создаём сессию (лёгкие метаданные — в БД, тяжёлые JSON — в памяти)
 		const mergeSessionId = uuidv4();
@@ -372,6 +354,14 @@ export class MergeService implements OnModuleInit {
 
 		this.logger.log(`Слияние применено, сессия: ${mergeSessionId}`);
 
+		// 12. Проверяем дубликаты в БД (full_name + system_code)
+		const dbDuplicates = await this.deduplicationService.checkDuplicatesInDb();
+		if (dbDuplicates.hasDuplicates) {
+			this.logger.warn(
+				`Обнаружены дубликаты в БД: ${dbDuplicates.count} дубликатов в ${dbDuplicates.groups.length} группах. Требуется дедупликация.`,
+			);
+		}
+
 		return {
 			mergeSessionId,
 			mergedJson: mergedModel,
@@ -379,6 +369,8 @@ export class MergeService implements OnModuleInit {
 			changedEntitiesCount: stats.entities,
 			changedAttributesCount: stats.attributes,
 			changedMappingsCount: stats.mappings,
+			hasDuplicates: dbDuplicates.hasDuplicates,
+			duplicatesCount: dbDuplicates.count,
 		};
 	}
 
@@ -608,9 +600,12 @@ export class MergeService implements OnModuleInit {
 		});
 
 		if (!session) {
-			throw new NotFoundException(
-				`Активная сессия слияния для коммита ${commitId} не найдена`,
-			);
+			this.logger.warn(`Сессия слияния для коммита ${commitId} не найдена`);
+			return {
+				success: false,
+				mergeSessionId: "",
+				message: `Сессия слияния для коммита ${commitId} не найдена. Повторите apply.`,
+			};
 		}
 
 		if (session.merge_status === "merging") {

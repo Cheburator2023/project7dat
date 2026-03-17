@@ -15,6 +15,7 @@ import {
 	ApiParam,
 } from "@nestjs/swagger";
 import { MergeService } from "../services/merge.service";
+import { DeduplicationService } from "../services/deduplication.service";
 import {
 	ApplyMergeRequestDto,
 	ConfirmMergeRequestDto,
@@ -33,7 +34,10 @@ import { Permission } from "../../../core/auth/permissions";
 @ApiTags("Слияние коммитов (Merge)")
 @Controller("merge")
 export class MergeController {
-	constructor(private readonly mergeService: MergeService) {}
+	constructor(
+		private readonly mergeService: MergeService,
+		private readonly deduplicationService: DeduplicationService,
+	) {}
 
 	@Post("apply")
 	@RealmRole(Permission.DL_CREATE_COMMITS)
@@ -107,6 +111,31 @@ export class MergeController {
 		@Body() dto: CancelMergeRequestDto,
 	): Promise<CancelMergeResponseDto> {
 		return await this.mergeService.cancelMerge(dto.commitId);
+	}
+
+	@Post("deduplicate")
+	@RealmRole(Permission.DL_CREATE_COMMITS)
+	@ApiOperation({
+		summary: "Дедупликация сущностей",
+		description:
+			"Удаляет дубликаты сущностей в БД, оставляя самые новые по дате. " +
+			"Уникальность определяется по связке full_name + system_code.",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Дедупликация выполнена",
+	})
+	async deduplicateEntities(): Promise<{
+		success: boolean;
+		removedCount: number;
+		affectedGroups: number;
+	}> {
+		const result = await this.deduplicationService.deduplicateEntities();
+		return {
+			success: result.success,
+			removedCount: result.removedCount,
+			affectedGroups: result.affectedGroups,
+		};
 	}
 
 	@Get("session/:sessionId")

@@ -22,6 +22,7 @@ import { ProcessGroupEntity } from "../json-data/entities/process-group.entity";
 import { DiffService } from "../json-data/services/diff.service";
 import { MergeController } from "./controllers/merge.controller";
 import { MergeService } from "./services/merge.service";
+import { DeduplicationService } from "./services/deduplication.service";
 import { ConfigModule } from "@nestjs/config";
 import { DependencyCheckService } from "../json-data/services/dependency-check.service";
 import { JsonStructureValidator } from "../json-data/services/interfaces/validation.interfaces";
@@ -56,6 +57,7 @@ import { MergeSessionEntity } from "./entities/merge-session.entity";
 	controllers: [MergeController],
 	providers: [
 		MergeService,
+		DeduplicationService,
 		DiffService,
 		JsonExportService,
 		JsonImportService,
@@ -66,6 +68,6 @@ import { MergeSessionEntity } from "./entities/merge-session.entity";
 			useClass: JsonStructureValidationService,
 		},
 	],
-	exports: [MergeService],
+	exports: [MergeService, DeduplicationService],
 })
 export class MergeModule {}
