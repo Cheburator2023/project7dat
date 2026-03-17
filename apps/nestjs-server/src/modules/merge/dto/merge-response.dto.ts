@@ -54,6 +54,19 @@ export class ApplyMergeResponseDto {
 		example: 3,
 	})
 	changedMappingsCount: number;
+
+	@ApiProperty({
+		description:
+			"Обнаружены ли дубликаты сущностей в БД (требуется дедупликация перед confirm)",
+		example: false,
+	})
+	hasDuplicates: boolean;
+
+	@ApiProperty({
+		description: "Количество дубликатов сущностей в БД",
+		example: 0,
+	})
+	duplicatesCount: number;
 }
 
 export class ConfirmMergeResponseDto {

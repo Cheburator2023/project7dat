@@ -23,6 +23,14 @@ export interface ApplyMergeResponse {
 	changedEntitiesCount: number;
 	changedAttributesCount: number;
 	changedMappingsCount: number;
+	hasDuplicates: boolean;
+	duplicatesCount: number;
+}
+
+export interface DeduplicateResponse {
+	success: boolean;
+	removedCount: number;
+	affectedGroups: number;
 }
 
 export interface ConfirmMergeResponse {
@@ -70,6 +78,11 @@ export const mergeService = {
 
 	getSession: async (sessionId: string): Promise<MergeSessionStatus> => {
 		const response = await mergeApi.get(`/session/${sessionId}`);
+		return response.data;
+	},
+
+	deduplicate: async (): Promise<DeduplicateResponse> => {
+		const response = await mergeApi.post("/deduplicate");
 		return response.data;
 	},
 };
