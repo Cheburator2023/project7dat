@@ -191,95 +191,55 @@ export class MergeService implements OnModuleInit {
 			);
 		}
 
-		// 7. Комплексная валидация merged JSON — полное соответствие с hasCriticalErrors + checkForConflicts
-		// Выполняем здесь заранее, чтобы ВСЕ ошибки обнаруживались до confirm, а не в фоновом процессе
-		const mergedJsonForValidation = {
-			...mergedModel,
-			desc: { ...mergedModel.desc, schemaVersion: "2.0" },
-			failedMappings: (mergedModel as any).failedMappings || [],
-		};
-		const validationResult = await this.validationOrchestrator.validate(
-			mergedJsonForValidation,
-		);
-
-		this.logger.log("Результат комплексной валидации merged JSON", {
-			entitiesCount: mergedModel.entities?.length ?? 0,
-			mappingsCount: mergedModel.mappings?.length ?? 0,
-			schemaVersion: validationResult.schemaVersion.version,
-			schemaSupported: validationResult.schemaVersion.supported,
-			migrationRequired: validationResult.schemaVersion.migrationRequired,
-			structureErrorsCount: validationResult.validation.errors.length,
-			structureWarningsCount: validationResult.validation.warnings.length,
-			integrityIssuesCount: validationResult.integrity.issues.length,
-			recursionDetected: validationResult.recursionCheck.hasRecursion,
-			recursionCyclesCount: validationResult.recursionCheck.cycles.length,
-			duplicatesDetected: validationResult.duplicateCheck.hasDuplicates,
-			duplicatesCount: validationResult.duplicateCheck.duplicates.length,
-		});
-
-		// 7.1-7.7. Валидация — собираем warnings, НЕ блокируем apply.
-		// Все проблемы возвращаются клиенту как флаги/warnings в response.
-		// Дедупликация и очистка выполняются отдельным эндпоинтом.
+		// 7. Комплексная валидация merged JSON — обёрнута в try-catch, чтобы НИКОГДА не блокировать apply
 		const validationWarnings: string[] = [];
-
-		if (!validationResult.schemaVersion.supported) {
-			validationWarnings.push(
-				`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
+		try {
+			const mergedJsonForValidation = {
+				...mergedModel,
+				desc: { ...mergedModel.desc, schemaVersion: "2.0" },
+				failedMappings: (mergedModel as any).failedMappings || [],
+			};
+			const validationResult = await this.validationOrchestrator.validate(
+				mergedJsonForValidation,
 			);
+
+			this.logger.log("Результат валидации merged JSON", {
+				structureErrors: validationResult.validation.errors.length,
+				integrityIssues: validationResult.integrity.issues.length,
+				recursion: validationResult.recursionCheck.hasRecursion,
+				duplicates: validationResult.duplicateCheck.duplicates.length,
+			});
+
+			if (!validationResult.schemaVersion.supported) {
+				validationWarnings.push(
+					`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
+				);
+			}
+			if (validationResult.validation.errors.length > 0) {
+				validationWarnings.push(
+					`Структурные ошибки: ${validationResult.validation.errors.length}`,
+				);
+			}
+			if (validationResult.recursionCheck.hasRecursion && !hadExistingCycles) {
+				validationWarnings.push(
+					`Новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length}`,
+				);
+			}
+			if (validationResult.duplicateCheck.hasDuplicates) {
+				validationWarnings.push(
+					`Дубликаты сущностей в JSON: ${validationResult.duplicateCheck.duplicates.length}`,
+				);
+			}
+		} catch (validationError) {
+			const msg =
+				validationError instanceof Error
+					? validationError.message
+					: String(validationError);
+			this.logger.error(
+				`Ошибка при валидации merged JSON (не блокирует apply): ${msg}`,
+			);
+			validationWarnings.push(`Валидация не завершена: ${msg}`);
 		}
-
-		if (validationResult.validation.errors.length > 0) {
-			this.logger.warn(
-				`Структурные ошибки в merged JSON: ${validationResult.validation.errors.length}`,
-				{ errors: validationResult.validation.errors.slice(0, 10) },
-			);
-			validationWarnings.push(
-				`Структурные ошибки: ${validationResult.validation.errors.length}`,
-			);
-		}
-
-		const criticalIntegrityIssues = validationResult.integrity.issues.filter(
-			(issue) =>
-				!issue.includes("source entity не найдена") &&
-				!issue.includes("target entity не найдена") &&
-				!issue.includes("target атрибут не найден") &&
-				!issue.includes("source атрибут не найден"),
-		);
-		if (criticalIntegrityIssues.length > 0) {
-			this.logger.warn(
-				`Критические ошибки целостности: ${criticalIntegrityIssues.length}`,
-				{ issues: criticalIntegrityIssues.slice(0, 10) },
-			);
-			validationWarnings.push(
-				`Ошибки целостности: ${criticalIntegrityIssues.length}`,
-			);
-		}
-
-		if (validationResult.recursionCheck.hasRecursion && !hadExistingCycles) {
-			this.logger.warn(
-				`Merge создаёт новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length} циклов`,
-			);
-			validationWarnings.push(
-				`Новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length}`,
-			);
-		}
-
-		if (validationResult.duplicateCheck.hasDuplicates) {
-			this.logger.warn(
-				`Дубликаты в merged JSON: ${validationResult.duplicateCheck.duplicates.length}`,
-			);
-			validationWarnings.push(
-				`Дубликаты сущностей: ${validationResult.duplicateCheck.duplicates.length}`,
-			);
-		}
-
-		this.logger.log(
-			`Валидация merged JSON завершена: warnings=${validationWarnings.length}, ` +
-				`структурных=${validationResult.validation.errors.length}, ` +
-				`integrity=${validationResult.integrity.issues.length}, ` +
-				`рекурсия=${validationResult.recursionCheck.hasRecursion}, ` +
-				`дубликаты=${validationResult.duplicateCheck.duplicates.length}`,
-		);
 
 		// 9. Вычисляем diff и фильтруем ложные "removed"
 		// DiffService сравнивает массивы позиционно (по индексам), поэтому

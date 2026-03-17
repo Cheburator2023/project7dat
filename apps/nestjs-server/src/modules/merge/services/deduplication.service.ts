@@ -40,10 +40,13 @@ export class DeduplicationService {
 		try {
 			await queryRunner.startTransaction();
 
-			// 1. Находим группы дубликатов по name + namespace + system_code
+			// 1. Находим группы дубликатов по name + entity_container_id
+			// entity_container_id уже включает namespace + system (через entity_container.value + system_id)
+			// Это реальный unique key — сущности с одинаковым name и container_id являются дублями
 			const duplicateGroups = await queryRunner.query(`
 				SELECT
 					e.name AS entity_name,
+					e.entity_container_id,
 					COALESCE(ec.value, 'default') AS namespace,
 					COALESCE(s.code, '1642') AS system_code,
 					array_agg(e.entity_id ORDER BY c.change_date DESC NULLS LAST, e.entity_id DESC) AS entity_ids,
@@ -53,7 +56,7 @@ export class DeduplicationService {
 				LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
 				LEFT JOIN systems s ON ec.system_id = s.system_id
 				LEFT JOIN changes c ON e.change_id = c.change_id
-				GROUP BY e.name, COALESCE(ec.value, 'default'), COALESCE(s.code, '1642')
+				GROUP BY e.name, e.entity_container_id, ec.value, s.code
 				HAVING count(*) > 1
 				ORDER BY count(*) DESC
 			`);
@@ -178,7 +181,7 @@ export class DeduplicationService {
 
 	/**
 	 * Проверяет наличие дубликатов в БД (без удаления).
-	 * Группирует по name + namespace + system_code.
+	 * Группирует по name + entity_container_id.
 	 */
 	async checkDuplicatesInDb(): Promise<{
 		hasDuplicates: boolean;
@@ -192,13 +195,14 @@ export class DeduplicationService {
 		const groups = await this.dataSource.query(`
 			SELECT
 				e.name AS entity_name,
+				e.entity_container_id,
 				COALESCE(ec.value, 'default') AS namespace,
 				COALESCE(s.code, '1642') AS system_code,
 				count(*) AS cnt
 			FROM entity e
 			LEFT JOIN entity_container ec ON e.entity_container_id = ec.entity_container_id
 			LEFT JOIN systems s ON ec.system_id = s.system_id
-			GROUP BY e.name, COALESCE(ec.value, 'default'), COALESCE(s.code, '1642')
+			GROUP BY e.name, e.entity_container_id, ec.value, s.code
 			HAVING count(*) > 1
 			ORDER BY count(*) DESC
 		`);
