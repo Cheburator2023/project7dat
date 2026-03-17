@@ -86,6 +86,13 @@ export const CommitMergeActionsPanel = memo(() => {
 				changedMappingsCount: result.changedMappingsCount,
 			});
 
+			// Показываем предупреждения валидации
+			if (result.validationWarnings?.length > 0) {
+				for (const w of result.validationWarnings.slice(0, 3)) {
+					toast.warning(w);
+				}
+			}
+
 			// Если обнаружены дубликаты — автоматически запускаем дедупликацию
 			if (result.hasDuplicates) {
 				setDeduplicating(true);

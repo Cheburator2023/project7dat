@@ -217,29 +217,27 @@ export class MergeService implements OnModuleInit {
 			duplicatesCount: validationResult.duplicateCheck.duplicates.length,
 		});
 
-		// 7.1. Неподдерживаемая версия схемы — критическая ошибка
+		// 7.1-7.7. Валидация — собираем warnings, НЕ блокируем apply.
+		// Все проблемы возвращаются клиенту как флаги/warnings в response.
+		// Дедупликация и очистка выполняются отдельным эндпоинтом.
+		const validationWarnings: string[] = [];
+
 		if (!validationResult.schemaVersion.supported) {
-			throw new BadRequestException({
-				message: `Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
-			});
-		}
-
-		// 7.2. Структурные ошибки — критическая ошибка (аналог hasCriticalErrors без skipStructureValidation)
-		if (validationResult.validation.errors.length > 0) {
-			this.logger.error(
-				`Критические ошибки структуры в merged JSON: ${validationResult.validation.errors.length}`,
-				{ errors: validationResult.validation.errors.slice(0, 20) },
+			validationWarnings.push(
+				`Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
 			);
-			throw new BadRequestException({
-				message:
-					"Валидация merged JSON не пройдена: критические ошибки структуры",
-				details: {
-					structureErrors: validationResult.validation.errors.slice(0, 50),
-				},
-			});
 		}
 
-		// 7.3. Критические ошибки целостности (фильтруем некритические — отсутствие source/target)
+		if (validationResult.validation.errors.length > 0) {
+			this.logger.warn(
+				`Структурные ошибки в merged JSON: ${validationResult.validation.errors.length}`,
+				{ errors: validationResult.validation.errors.slice(0, 10) },
+			);
+			validationWarnings.push(
+				`Структурные ошибки: ${validationResult.validation.errors.length}`,
+			);
+		}
+
 		const criticalIntegrityIssues = validationResult.integrity.issues.filter(
 			(issue) =>
 				!issue.includes("source entity не найдена") &&
@@ -247,72 +245,39 @@ export class MergeService implements OnModuleInit {
 				!issue.includes("target атрибут не найден") &&
 				!issue.includes("source атрибут не найден"),
 		);
-
 		if (criticalIntegrityIssues.length > 0) {
-			this.logger.error(
-				`Критические ошибки целостности в merged JSON: ${criticalIntegrityIssues.length}`,
-				{ issues: criticalIntegrityIssues.slice(0, 20) },
-			);
-			throw new BadRequestException({
-				message:
-					"Валидация merged JSON не пройдена: критические ошибки целостности",
-				details: {
-					criticalIntegrityIssues: criticalIntegrityIssues.slice(0, 50),
-				},
-			});
-		}
-
-		// 7.4. Рекурсия — блокируем если появились НОВЫЕ циклы (которых не было в currentModel)
-		if (validationResult.recursionCheck.hasRecursion && !hadExistingCycles) {
-			this.logger.error(
-				`Merge создаёт новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length} циклов`,
-				{ cycles: validationResult.recursionCheck.cycles.slice(0, 10) },
-			);
-			throw new BadRequestException({
-				message: "Merge создаёт новые рекурсивные зависимости",
-				details: {
-					cycles: validationResult.recursionCheck.cycles.slice(0, 20),
-				},
-			});
-		}
-		if (validationResult.recursionCheck.hasRecursion && hadExistingCycles) {
 			this.logger.warn(
-				`Рекурсия обнаружена в merged JSON, но разрешена (циклы уже существовали в текущей модели). Циклов: ${validationResult.recursionCheck.cycles.length}`,
+				`Критические ошибки целостности: ${criticalIntegrityIssues.length}`,
+				{ issues: criticalIntegrityIssues.slice(0, 10) },
+			);
+			validationWarnings.push(
+				`Ошибки целостности: ${criticalIntegrityIssues.length}`,
 			);
 		}
 
-		// 7.5. Дубликаты из валидатора — логируем (не блокируем, дедупликация выполняется отдельно)
+		if (validationResult.recursionCheck.hasRecursion && !hadExistingCycles) {
+			this.logger.warn(
+				`Merge создаёт новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length} циклов`,
+			);
+			validationWarnings.push(
+				`Новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length}`,
+			);
+		}
+
 		if (validationResult.duplicateCheck.hasDuplicates) {
 			this.logger.warn(
-				`Дубликаты обнаружены валидатором: ${validationResult.duplicateCheck.duplicates.join(", ")}. Потребуется дедупликация.`,
+				`Дубликаты в merged JSON: ${validationResult.duplicateCheck.duplicates.length}`,
 			);
-		}
-
-		// 7.6. Дополнительная проверка целостности маппингов
-		const integrityWarnings = this.validateMergedJsonIntegrity(mergedModel);
-		if (integrityWarnings.length > 0) {
-			this.logger.warn(
-				`Обнаружены проблемы целостности маппингов в смерженном JSON: ${integrityWarnings.length}`,
-				{ warnings: integrityWarnings.slice(0, 10) },
-			);
-		}
-
-		// 7.7. Некритические предупреждения — логируем
-		if (
-			validationResult.integrity.issues.length > criticalIntegrityIssues.length
-		) {
-			const nonCriticalCount =
-				validationResult.integrity.issues.length -
-				criticalIntegrityIssues.length;
-			this.logger.warn(
-				`Некритические integrity issues (отсутствующие source/target): ${nonCriticalCount}`,
+			validationWarnings.push(
+				`Дубликаты сущностей: ${validationResult.duplicateCheck.duplicates.length}`,
 			);
 		}
 
 		this.logger.log(
-			`Валидация merged JSON завершена: структурных ошибок=${validationResult.validation.errors.length}, ` +
-				`integrity issues=${validationResult.integrity.issues.length} (критических=${criticalIntegrityIssues.length}), ` +
-				`рекурсия=${validationResult.recursionCheck.hasRecursion} (существующая=${hadExistingCycles}), ` +
+			`Валидация merged JSON завершена: warnings=${validationWarnings.length}, ` +
+				`структурных=${validationResult.validation.errors.length}, ` +
+				`integrity=${validationResult.integrity.issues.length}, ` +
+				`рекурсия=${validationResult.recursionCheck.hasRecursion}, ` +
 				`дубликаты=${validationResult.duplicateCheck.duplicates.length}`,
 		);
 
@@ -371,6 +336,7 @@ export class MergeService implements OnModuleInit {
 			changedMappingsCount: stats.mappings,
 			hasDuplicates: dbDuplicates.hasDuplicates,
 			duplicatesCount: dbDuplicates.count,
+			validationWarnings,
 		};
 	}
 
