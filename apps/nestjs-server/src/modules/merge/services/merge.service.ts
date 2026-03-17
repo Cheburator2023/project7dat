@@ -10,10 +10,11 @@ import { Repository } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 import { S2tCommitEntity } from "../../json-data/entities/s2t-commit.entity";
 import { JsonExportService } from "../../json-data/services/json-export.service";
-import { JsonImportService } from "../../json-data/services/json-import.service";
+import { JsonApplyService } from "../../json-data/services/json-apply.service";
 import { SnapshotService } from "../../snapshots/services/snapshot.service";
 import { DiffService } from "../../json-data/services/diff.service";
 import { JsonStructureValidator } from "../../json-data/services/interfaces/validation.interfaces";
+import { JsonValidationOrchestratorService } from "../../json-data/services/json-validation-orchestrator.service";
 import { JsonExportResponseDto } from "../../json-data/dto";
 import { ApplyMergeResponseDto, MergeDiffDto } from "../dto/merge-response.dto";
 import { MergeSessionEntity } from "../entities/merge-session.entity";
@@ -52,10 +53,11 @@ export class MergeService implements OnModuleInit {
 		@InjectRepository(MergeSessionEntity)
 		private readonly mergeSessionRepository: Repository<MergeSessionEntity>,
 		private readonly jsonExportService: JsonExportService,
-		private readonly jsonImportService: JsonImportService,
 		private readonly snapshotService: SnapshotService,
 		private readonly diffService: DiffService,
 		private readonly structureValidator: JsonStructureValidator,
+		private readonly validationOrchestrator: JsonValidationOrchestratorService,
+		private readonly jsonApplyService: JsonApplyService,
 	) {}
 
 	async onModuleInit(): Promise<void> {
@@ -203,6 +205,59 @@ export class MergeService implements OnModuleInit {
 			);
 		}
 
+		// 8.5. Комплексная валидация merged JSON (та же, что раньше выполнялась при importJsonData)
+		// Выполняем здесь заранее, чтобы ошибки обнаруживались до confirm, а не в фоновом процессе
+		const mergedJsonForValidation = {
+			...mergedModel,
+			desc: { ...mergedModel.desc, schemaVersion: "2.0" },
+			failedMappings: (mergedModel as any).failedMappings || [],
+		};
+		const validationResult = await this.validationOrchestrator.validate(
+			mergedJsonForValidation,
+		);
+
+		// Фильтруем некритические ошибки (аналогично hasCriticalErrors в json-import.service)
+		const criticalIntegrityIssues = validationResult.integrity.issues.filter(
+			(issue) =>
+				!issue.includes("source entity не найдена") &&
+				!issue.includes("target entity не найдена") &&
+				!issue.includes("target атрибут не найден") &&
+				!issue.includes("source атрибут не найден"),
+		);
+
+		if (criticalIntegrityIssues.length > 0) {
+			this.logger.error(
+				`Критические ошибки целостности в merged JSON: ${criticalIntegrityIssues.length}`,
+				{ issues: criticalIntegrityIssues.slice(0, 20) },
+			);
+			throw new BadRequestException({
+				message:
+					"Валидация merged JSON не пройдена: критические ошибки целостности",
+				details: {
+					criticalIntegrityIssues: criticalIntegrityIssues.slice(0, 50),
+				},
+			});
+		}
+
+		if (!validationResult.schemaVersion.supported) {
+			throw new BadRequestException({
+				message: `Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
+			});
+		}
+
+		// Структурные ошибки и бизнес-правила логируем как предупреждения (не блокируем merge)
+		if (validationResult.validation.errors.length > 0) {
+			this.logger.warn(
+				`Структурные предупреждения в merged JSON (не блокируют merge): ${validationResult.validation.errors.length}`,
+				{ errors: validationResult.validation.errors.slice(0, 10) },
+			);
+		}
+
+		this.logger.log(
+			`Валидация merged JSON завершена: структурных ошибок=${validationResult.validation.errors.length}, ` +
+				`integrity issues=${validationResult.integrity.issues.length} (критических=${criticalIntegrityIssues.length})`,
+		);
+
 		// 9. Вычисляем diff
 		const diff = this.diffService.computeDiff(currentModel, mergedModel);
 
@@ -250,25 +305,38 @@ export class MergeService implements OnModuleInit {
 
 	/**
 	 * Основная логика слияния.
+	 * Вместо JSON.parse(JSON.stringify) используем shallow copy:
+	 * - массивы entities/mappings копируются поверхностно
+	 * - элементы клонируются только при мутации (copy-on-write)
 	 */
 	private performMerge(
 		currentModel: JsonExportResponseDto,
 		commitJson: any,
 		commitType: string,
 	): JsonExportResponseDto {
-		const merged = JSON.parse(JSON.stringify(currentModel));
+		const merged: JsonExportResponseDto = {
+			desc: { ...currentModel.desc },
+			entities: currentModel.entities.map((e) => ({
+				...e,
+				attrSeq: [...e.attrSeq],
+			})),
+			mappings: currentModel.mappings.map((m) => ({
+				...m,
+				deps: m.deps.map((d) => ({ ...d })),
+			})),
+		};
 
 		// --- Копируем информацию о процессе и типе коммита из коммита ---
 		if (commitJson.desc) {
-			// process – имя процесса (обязательно для table/model)
+			// process  имя процесса (обязательно для table/model)
 			if (commitJson.desc.process) {
 				merged.desc.process = commitJson.desc.process;
 			}
-			// description – описание процесса (опционально)
+			// description  описание процесса (опционально)
 			if (commitJson.desc.description) {
 				merged.desc.description = commitJson.desc.description;
 			}
-			// commit_type – тип коммита (table/json/model)
+			// commit_type  тип коммита (table/json/model)
 			if (commitJson.desc.commit_type) {
 				merged.desc.commit_type = commitJson.desc.commit_type;
 			}
@@ -294,18 +362,21 @@ export class MergeService implements OnModuleInit {
 	 * - Для каждой сущности из коммита ищем в основе по id (включает system_code)
 	 * - Если найдена: добавляем только новые атрибуты из коммита в attrSeq
 	 * - Если не найдена: добавляем всю сущность из коммита
+	 * Используем Map для O(1) поиска вместо findIndex O(n)
 	 */
 	private mergeEntities(
 		merged: JsonExportResponseDto,
 		commitEntities: any[],
 	): void {
-		for (const commitEntity of commitEntities) {
-			const existingIndex = merged.entities.findIndex(
-				(e) => e.id === commitEntity.id,
-			);
+		const entityIndexMap = new Map<string, number>(
+			merged.entities.map((e, idx) => [e.id, idx]),
+		);
 
-			if (existingIndex >= 0) {
-				// Сущность уже есть – добавляем новые атрибуты
+		for (const commitEntity of commitEntities) {
+			const existingIndex = entityIndexMap.get(commitEntity.id);
+
+			if (existingIndex !== undefined) {
+				// Сущность уже есть  добавляем новые атрибуты
 				const existingAttrs = new Set(
 					merged.entities[existingIndex].attrSeq.map((a) =>
 						a.name.toLowerCase(),
@@ -322,8 +393,9 @@ export class MergeService implements OnModuleInit {
 					);
 				}
 			} else {
-				// Новой сущности нет – добавляем полностью
+				// Новой сущности нет  добавляем полностью
 				merged.entities.push(commitEntity);
+				entityIndexMap.set(commitEntity.id, merged.entities.length - 1);
 				this.logger.debug(`Добавлена новая сущность ${commitEntity.id}`);
 			}
 		}
@@ -332,44 +404,53 @@ export class MergeService implements OnModuleInit {
 	/**
 	 * Слияние маппингов:
 	 * - Для каждого mapping из коммита ищем в основе по entityId
-	 * - Если не найден – добавляем весь mapping
+	 * - Если не найден  добавляем весь mapping
 	 * - Если найден:
 	 *   - Для каждого deps из коммита ищем в основе deps с таким же source_entity_id и process_id
-	 *   - Если найден – заменяем этот deps (attrMaps и atrDeps) новым из коммита
-	 *   - Если не найден – добавляем новый deps
+	 *   - Если найден  заменяем этот deps (attrMaps и atrDeps) новым из коммита
+	 *   - Если не найден  добавляем новый deps
+	 * Используем Map для O(1) поиска вместо findIndex O(n)
 	 */
 	private mergeMappings(
 		merged: JsonExportResponseDto,
 		commitMappings: any[],
 	): void {
-		for (const commitMapping of commitMappings) {
-			const existingMappingIndex = merged.mappings.findIndex(
-				(m) => m.entityId === commitMapping.entityId,
-			);
+		const mappingIndexMap = new Map<string, number>(
+			merged.mappings.map((m, idx) => [m.entityId, idx]),
+		);
 
-			if (existingMappingIndex === -1) {
-				// Маппинг для данной цели отсутствует – добавляем целиком
+		for (const commitMapping of commitMappings) {
+			const existingMappingIndex = mappingIndexMap.get(commitMapping.entityId);
+
+			if (existingMappingIndex === undefined) {
+				// Маппинг для данной цели отсутствует  добавляем целиком
 				merged.mappings.push(commitMapping);
+				mappingIndexMap.set(commitMapping.entityId, merged.mappings.length - 1);
 				continue;
 			}
 
 			const existingMapping = merged.mappings[existingMappingIndex];
 
+			// Map для быстрого поиска deps по ключу entityId:process_id
+			const depsMap = new Map<string, number>(
+				existingMapping.deps.map((d, idx) => [
+					`${d.entityId}:${d.process_id}`,
+					idx,
+				]),
+			);
+
 			// Для каждого deps из коммита
 			for (const commitDep of commitMapping.deps || []) {
-				// Ищем в основе deps с таким же source_entity_id и process_id
-				const existingDepIndex = existingMapping.deps.findIndex(
-					(d) =>
-						d.entityId === commitDep.entityId &&
-						d.process_id === commitDep.process_id,
-				);
+				const depKey = `${commitDep.entityId}:${commitDep.process_id}`;
+				const existingDepIndex = depsMap.get(depKey);
 
-				if (existingDepIndex >= 0) {
+				if (existingDepIndex !== undefined) {
 					// Заменяем существующий deps новым из коммита
 					existingMapping.deps[existingDepIndex] = { ...commitDep };
 				} else {
 					// Добавляем новый deps
 					existingMapping.deps.push({ ...commitDep });
+					depsMap.set(depKey, existingMapping.deps.length - 1);
 				}
 			}
 			// Сортируем deps по process_id
@@ -571,23 +652,17 @@ export class MergeService implements OnModuleInit {
 			const finalUser = user || commit.user || "system";
 
 			throwIfCancelled();
-			await updateProgress(15, "Импорт смерженной модели в БД");
-			// Merge result уже в актуальной версии (основа — текущая модель из БД).
-			// Проставляем schemaVersion 2.0, чтобы importJsonData не запускал
-			// тяжёлую миграцию версий с deep copy (~195MB × N шагов → OOM).
+			await updateProgress(15, "Применение изменений коммита в БД");
+			// INCREMENTAL MERGE: применяем только commit payload напрямую в БД
+			// без полного export/import merged JSON — это ускоряет merge в разы
 			if (mergedJson.desc) {
 				(mergedJson.desc as any).schemaVersion = "2.0";
 			}
-			await this.jsonImportService.importJsonData({
+			await this.jsonApplyService.applyDataInTransaction({
 				data: mergedJson,
 				user: finalUser,
 				changeName: `Merge commit ${commit.commit_name || commitId}`,
-				validated: true,
-				sourceType: undefined,
-				schemaVersion: "2.0",
-				allowExistingCycles: hadExistingCycles,
-				skipDuplicateCheck: true,
-				skipStructureValidation: true,
+				operationId: `merge-${sessionId}`,
 				checkCancelled: () => {
 					throwIfCancelled();
 				},
@@ -766,7 +841,7 @@ export class MergeService implements OnModuleInit {
 	}
 
 	/**
-	 * Отмена слияния – удаление временной сессии
+	 * Отмена слияния удаление временной сессии
 	 */
 	async cancelMerge(commitId: string): Promise<{
 		success: boolean;
