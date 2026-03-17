@@ -87,39 +87,40 @@ export const CommitMergeActionsPanel = memo(() => {
 			});
 
 			// Показываем предупреждения валидации
+			console.log("🐸 Pepe said >> result:", result);
+
 			if (result.validationWarnings?.length > 0) {
 				for (const w of result.validationWarnings.slice(0, 3)) {
 					toast.warning(w);
 				}
 			}
 
-			setMergeStep("previewing");
-		} catch (err: any) {
-			console.log("🐸 Pepe said >> err:", err);
+			if (result.hasDuplicates) {
+				// Если обнаружены дубликаты — автоматически запускаем дедупликацию
 
-			// Если обнаружены дубликаты — автоматически запускаем дедупликацию
-
-			setDeduplicating(true);
-			toast.info(`Обнаружены дубликаты сущностей. Запуск дедупликации...`);
-			try {
-				const dedupResult = await deduplicateMutation.mutateAsync();
-				if (dedupResult.success) {
-					toast.success(
-						`Дедупликация завершена: удалено ${dedupResult.removedCount} дубликатов`,
+				setDeduplicating(true);
+				toast.info(`Обнаружены дубликаты сущностей. Запуск дедупликации...`);
+				try {
+					const dedupResult = await deduplicateMutation.mutateAsync();
+					if (dedupResult.success) {
+						toast.success(
+							`Дедупликация завершена: удалено ${dedupResult.removedCount} дубликатов`,
+						);
+					} else {
+						toast.error("Ошибка при дедупликации");
+					}
+				} catch (dedupErr: any) {
+					toast.error(
+						dedupErr?.response?.data?.message ??
+							dedupErr?.message ??
+							"Ошибка дедупликации",
 					);
-				} else {
-					toast.error("Ошибка при дедупликации");
+				} finally {
+					setDeduplicating(false);
+					setMergeStep("previewing");
 				}
-			} catch (dedupErr: any) {
-				toast.error(
-					dedupErr?.response?.data?.message ??
-						dedupErr?.message ??
-						"Ошибка дедупликации",
-				);
-			} finally {
-				setDeduplicating(false);
 			}
-
+		} catch (err: any) {
 			setError(
 				err?.response?.data?.message ?? err?.message ?? "Ошибка применения",
 			);
