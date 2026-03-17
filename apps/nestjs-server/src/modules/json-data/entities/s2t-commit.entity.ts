@@ -8,7 +8,12 @@ import {
 	UpdateDateColumn,
 } from "typeorm";
 
-export type S2tCommitState = "processing" | "merging" | "done" | "failed";
+export type S2tCommitState =
+	| "processing"
+	| "merging"
+	| "deduplicating"
+	| "done"
+	| "failed";
 export type S2tCommitType = "table" | "json" | "model";
 
 @Entity("s2t_commits")

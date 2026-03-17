@@ -36,6 +36,15 @@ export class CancelMergeRequestDto {
 	commitId: string;
 }
 
+export class DeduplicateMergeRequestDto {
+	@ApiProperty({
+		description: "GUID пользовательской версии коммита",
+		example: "123e4567-e89b-12d3-a456-426614174000",
+	})
+	@IsUUID()
+	commitId: string;
+}
+
 export class EntityExportPaginationDto {
 	@ApiPropertyOptional({
 		description: "Номер страницы",

@@ -21,6 +21,7 @@ export class EntityProcessingService {
 	private readonly logger = new Logger(EntityProcessingService.name);
 
 	private containerCache = new Map<string, number>();
+	private readonly defaultSystemCode = "1642";
 
 	constructor(
 		@InjectRepository(EntityEntity)
@@ -97,9 +98,11 @@ export class EntityProcessingService {
 		attributeCacheByEntity: Map<number, Map<string, AttributeEntity>>;
 	}> {
 		// Извлекаем full_name из composite id (entityData.id может содержать system_code суффикс)
-		const fullNames = entities
-			.map((e) => extractFullName(e.id))
-			.filter(Boolean);
+		const fullNames = Array.from(
+			new Set(
+				entities.map((e) => this.resolveEntityFullName(e)).filter(Boolean),
+			),
+		);
 		const entityCache = new Map<string, EntityEntity>();
 		const attributeCacheByEntity = new Map<
 			number,
@@ -111,11 +114,20 @@ export class EntityProcessingService {
 		}
 
 		// Загружаем все сущности по full_name (без system_code суффикса)
-		const existingEntities = await queryRunner.manager.find(EntityEntity, {
-			where: { full_name: In(fullNames) },
-		});
+		const existingEntities = await queryRunner.manager
+			.createQueryBuilder(EntityEntity, "entity")
+			.leftJoinAndSelect("entity.entity_container", "entityContainer")
+			.leftJoinAndSelect("entityContainer.system", "system")
+			.where("entity.full_name IN (:...fullNames)", { fullNames })
+			.getMany();
 		for (const ent of existingEntities) {
-			entityCache.set(ent.full_name, ent);
+			entityCache.set(
+				this.buildEntityCacheKey(
+					ent.full_name,
+					ent.entity_container?.system?.code || this.defaultSystemCode,
+				),
+				ent,
+			);
 		}
 
 		// Загружаем все атрибуты для найденных сущностей
@@ -143,8 +155,9 @@ export class EntityProcessingService {
 		attributeCacheByEntity: Map<number, Map<string, AttributeEntity>>,
 	): Promise<number> {
 		try {
-			// Извлекаем full_name из composite id (entityData.id может содержать system_code суффикс)
-			const fullName = extractFullName(entityData.id);
+			const fullName = this.resolveEntityFullName(entityData);
+			const systemCode = entityData.system_code || this.defaultSystemCode;
+			const entityCacheKey = this.buildEntityCacheKey(fullName, systemCode);
 
 			// Валидация типа сущности
 			const isValidType = await this.entityTypeService.validateEntityType(
@@ -169,7 +182,7 @@ export class EntityProcessingService {
 			);
 
 			// Поиск существующей сущности по full_name в кэше (без system_code суффикса)
-			let entity = entityCache.get(fullName);
+			let entity = entityCache.get(entityCacheKey);
 
 			if (!entity) {
 				this.logger.log(
@@ -187,7 +200,7 @@ export class EntityProcessingService {
 
 				entity = await queryRunner.manager.save(EntityEntity, entity);
 				// Добавляем в кэш по full_name
-				entityCache.set(fullName, entity);
+				entityCache.set(entityCacheKey, entity);
 				attributeCacheByEntity.set(entity.entity_id, new Map());
 				this.logger.log(`Создана новая сущность: ${fullName}`);
 			} else {
@@ -202,7 +215,7 @@ export class EntityProcessingService {
 					entity.description = entityData.description || entity.description;
 					entity = await queryRunner.manager.save(EntityEntity, entity);
 					// Обновляем кэш
-					entityCache.set(fullName, entity);
+					entityCache.set(entityCacheKey, entity);
 					this.logger.log(`Сущность ${fullName} обновлена`);
 				}
 			}
@@ -307,29 +320,18 @@ export class EntityProcessingService {
 		const namespace = entityData.namespace;
 		if (!namespace) return null;
 
-		// Проверка кэша
-		if (this.containerCache.has(namespace)) {
-			return this.containerCache.get(namespace)!;
+		const systemCode = entityData.system_code || this.defaultSystemCode;
+		const containerCacheKey = this.buildEntityCacheKey(namespace, systemCode);
+		if (this.containerCache.has(containerCacheKey)) {
+			return this.containerCache.get(containerCacheKey)!;
 		}
 
-		// Получаем или создаем систему на основе system_code
-		const systemCode = entityData.system_code || "1642";
 		const systemName = `Система ${systemCode}`;
 		const containerDescription =
 			entityData.container_description ||
 			`Контейнер для ${namespace} (система: ${systemCode})`;
 		const containerTypeId = await this.determineContainerType(entityData.type);
 
-		// 1. Ищем существующий контейнер по значению
-		let container = await queryRunner.manager.findOne(EntityContainerEntity, {
-			where: { value: namespace },
-		});
-		if (container) {
-			this.containerCache.set(namespace, container.entity_container_id);
-			return container.entity_container_id;
-		}
-
-		// 2. Получаем или создаём систему
 		let system = await queryRunner.manager.findOne(SystemsEntity, {
 			where: { code: systemCode },
 		});
@@ -342,7 +344,17 @@ export class EntityProcessingService {
 			system = await queryRunner.manager.save(SystemsEntity, system);
 		}
 
-		// 3. Создаём новый контейнер
+		let container = await queryRunner.manager.findOne(EntityContainerEntity, {
+			where: {
+				value: namespace,
+				system_id: system.system_id,
+			},
+		});
+		if (container) {
+			this.containerCache.set(containerCacheKey, container.entity_container_id);
+			return container.entity_container_id;
+		}
+
 		try {
 			const newContainer = new EntityContainerEntity();
 			newContainer.change_id = changeId;
@@ -355,7 +367,7 @@ export class EntityProcessingService {
 				EntityContainerEntity,
 				newContainer,
 			);
-			this.containerCache.set(namespace, saved.entity_container_id);
+			this.containerCache.set(containerCacheKey, saved.entity_container_id);
 			return saved.entity_container_id;
 		} catch (error) {
 			// Если ошибка уникальности (код 23505) – значит, параллельная транзакция уже создала контейнер
@@ -364,10 +376,16 @@ export class EntityProcessingService {
 					`Контейнер ${namespace} создан параллельно, выполняем повторный поиск`,
 				);
 				container = await queryRunner.manager.findOne(EntityContainerEntity, {
-					where: { value: namespace },
+					where: {
+						value: namespace,
+						system_id: system.system_id,
+					},
 				});
 				if (container) {
-					this.containerCache.set(namespace, container.entity_container_id);
+					this.containerCache.set(
+						containerCacheKey,
+						container.entity_container_id,
+					);
 					return container.entity_container_id;
 				}
 			}
@@ -419,10 +437,18 @@ export class EntityProcessingService {
 		queryRunner: QueryRunner,
 	): Promise<void> {
 		try {
-			const fullName = extractFullName(entityData.id);
-			const entity = await queryRunner.manager.findOne(EntityEntity, {
-				where: { full_name: fullName },
-			});
+			const fullName = this.resolveEntityFullName(entityData);
+			const systemCode = entityData.system_code || this.defaultSystemCode;
+			const entity = await queryRunner.manager
+				.createQueryBuilder(EntityEntity, "entity")
+				.leftJoin("entity.entity_container", "entityContainer")
+				.leftJoin("entityContainer.system", "system")
+				.where("entity.full_name = :fullName", { fullName })
+				.andWhere("COALESCE(system.code, :defaultSystemCode) = :systemCode", {
+					defaultSystemCode: this.defaultSystemCode,
+					systemCode,
+				})
+				.getOne();
 
 			if (!entity) {
 				this.logger.warn(
@@ -469,6 +495,21 @@ export class EntityProcessingService {
 			);
 			throw error;
 		}
+	}
+
+	private resolveEntityFullName(entityData: {
+		id?: string;
+		namespace?: string;
+		name?: string;
+	}): string {
+		if (entityData.namespace && entityData.name) {
+			return `${entityData.namespace}.${entityData.name}`;
+		}
+		return extractFullName(entityData.id || "");
+	}
+
+	private buildEntityCacheKey(fullName: string, systemCode?: string): string {
+		return `${fullName}::${systemCode || this.defaultSystemCode}`;
 	}
 
 	/**

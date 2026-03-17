@@ -110,7 +110,9 @@ export const AllCommitsPage: FC = () => {
 		[s2tCommits],
 	);
 	const mergingCommit = !!(
-		s2tCommits.find((c) => c.state === "merging") ?? null
+		s2tCommits.find(
+			(c) => c.state === "merging" || c.state === "deduplicating",
+		) ?? null
 	);
 
 	// Polling для активной сессии слияния
@@ -120,32 +122,44 @@ export const AllCommitsPage: FC = () => {
 
 	useEffect(() => {
 		if (activeSession?.status === "done") {
-			toast.success("Слияние завершено! Модель данных обновлена", {
-				duration: Number.POSITIVE_INFINITY,
-				action: {
-					label: "На главную",
-					onClick: () => {
-						clearSession();
-						navigate(routes.home.rootPath);
+			if (activeSession.operation === "deduplication") {
+				// toast.success("Дедупликация завершена. Повторите предпросмотр слияния.");
+			} else {
+				toast.success("Слияние завершено! Модель данных обновлена", {
+					duration: Number.POSITIVE_INFINITY,
+					action: {
+						label: "На главную",
+						onClick: () => {
+							clearSession();
+							navigate(routes.home.rootPath);
+						},
 					},
-				},
-			});
+				});
+			}
 			s2tCommitsQuery.refetch();
+			return;
 		}
-		//  else if (activeSession?.status === "failed") {
-		// 	toast.error(
-		// 		`Ошибка слияния: ${activeSession.errorMessage ?? "Неизвестная ошибка"}`,
-		// 		{ duration: Number.POSITIVE_INFINITY },
-		// 	);
-		// }
-	}, [activeSession?.status]);
+		if (activeSession?.status === "failed") {
+			const processLabel =
+				activeSession.operation === "deduplication"
+					? "дедупликации"
+					: "слияния";
+			toast.error(
+				`Ошибка ${processLabel}: ${activeSession.errorMessage ?? "Неизвестная ошибка"}`,
+			);
+		}
+	}, [activeSession?.status, activeSession?.operation]);
 
 	// Обновляем грид при изменении прогресса
 	useEffect(() => {
-		if (activeSession?.status === "merging" && gridRef.current?.api) {
+		if (
+			(activeSession?.status === "merging" ||
+				activeSession?.status === "deduplicating") &&
+			gridRef.current?.api
+		) {
 			gridRef.current.api.refreshCells({ columns: ["state"], force: true });
 		}
-	}, [activeSession?.progress]);
+	}, [activeSession?.progress, activeSession?.status]);
 
 	const [editMetaCommit, setEditMetaCommit] = useState<S2tCommitItem | null>(
 		null,
@@ -234,13 +248,17 @@ export const AllCommitsPage: FC = () => {
 					stopPolling();
 					clearSession();
 				}
-				toast.success("Отмена слияния запрошена");
+				toast.success(
+					commit.state === "deduplicating"
+						? "Отмена дедупликации запрошена"
+						: "Отмена слияния запрошена",
+				);
 				setContextMenuAnchor(null);
 				setContextMenuCommit(null);
 				s2tCommitsQuery.refetch();
 			} catch (e: any) {
 				toast.error(
-					e?.response?.data?.message ?? e?.message ?? "Ошибка отмены слияния",
+					e?.response?.data?.message ?? e?.message ?? "Ошибка отмены процесса",
 				);
 			}
 		},
@@ -291,18 +309,22 @@ export const AllCommitsPage: FC = () => {
 						failed: "Ошибка",
 						processing: "В обработке",
 						merging: "Слияние",
+						deduplicating: "Дедупликация",
 					};
 					const colorMap: Record<string, ChipProps["color"]> = {
 						done: "success",
 						failed: "error",
 						processing: "warning",
 						merging: "info",
+						deduplicating: "info",
 					};
 
-					if (state === "merging") {
+					if (state === "merging" || state === "deduplicating") {
+						const processLabel =
+							state === "deduplicating" ? "Дедупликация" : "Слияние";
 						const progress =
 							activeSession?.commitId === commitId &&
-							activeSession?.status === "merging"
+							activeSession?.status === state
 								? activeSession.progress
 								: 0;
 						return (
@@ -332,7 +354,7 @@ export const AllCommitsPage: FC = () => {
 										"100%": { transform: "translateX(0)" },
 									},
 								}}
-								title={activeSession?.stage ?? "Слияние..."}
+								title={activeSession?.stage ?? `${processLabel}...`}
 							>
 								<LinearProgress
 									variant="determinate"
@@ -382,7 +404,8 @@ export const AllCommitsPage: FC = () => {
 										textShadow: "0 0 8px rgba(2, 136, 209, 0.18)",
 									}}
 								>
-									Слияние: {activeSession?.stage} {activeSession?.progress}%
+									{processLabel}: {activeSession?.stage}{" "}
+									{activeSession?.progress}%
 								</Typography>
 							</Box>
 						);
@@ -567,12 +590,12 @@ export const AllCommitsPage: FC = () => {
 					<Button
 						onClick={handleOpenS2tCommitCreatePage}
 						title={
-							hasProcessing || !!mergingCommit
+							hasProcessing || mergingCommit
 								? "Дождитесь завершения обработки текущего коммита"
 								: "Импорт S2T"
 						}
 						variant="contained"
-						disabled={hasProcessing || !!mergingCommit}
+						disabled={hasProcessing || mergingCommit}
 					>
 						Импорт S2T
 					</Button>
@@ -702,7 +725,8 @@ export const AllCommitsPage: FC = () => {
 						disabled={
 							contextMenuCommit.state === "done" ||
 							contextMenuCommit.state === "failed" ||
-							contextMenuCommit.state === "merging"
+							contextMenuCommit.state === "merging" ||
+							contextMenuCommit.state === "deduplicating"
 						}
 						onClick={() => {
 							navigate(`/commits/${contextMenuCommit.id}/merge`);
@@ -717,7 +741,8 @@ export const AllCommitsPage: FC = () => {
 					<MenuItem
 						key="cancel-merge"
 						disabled={
-							contextMenuCommit.state !== "merging" ||
+							(contextMenuCommit.state !== "merging" &&
+								contextMenuCommit.state !== "deduplicating") ||
 							cancelMergeMutation.isPending
 						}
 						onClick={() => {
@@ -728,7 +753,11 @@ export const AllCommitsPage: FC = () => {
 						<ListItemIcon>
 							<CancelIcon fontSize="small" />
 						</ListItemIcon>
-						<ListItemText>Отменить слияние</ListItemText>
+						<ListItemText>
+							{contextMenuCommit.state === "deduplicating"
+								? "Отменить дедупликацию"
+								: "Отменить слияние"}
+						</ListItemText>
 					</MenuItem>,
 					<MenuItem
 						key="delete"

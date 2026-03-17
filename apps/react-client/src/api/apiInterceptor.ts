@@ -119,6 +119,10 @@ const setupInterceptorsForInstance = (instance: AxiosInstance) => {
 		(response: AxiosResponse) => {
 			const method = getMethodFromConfig(response.config);
 			const url = getUrlFromConfig(response.config);
+			console.log(
+				"🐸 Pepe said >> setupInterceptorsForInstance >> response:",
+				response,
+			);
 
 			if (shouldShowToast(url)) {
 				const message = getSuccessMessage(method, url);

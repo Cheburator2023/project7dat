@@ -28,6 +28,8 @@ import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionP
 
 const HeaderMergingChip = memo(function HeaderMergingChip() {
 	const { activeSession } = useMergeSessionPolling();
+	const processLabel =
+		activeSession?.operation === "deduplication" ? "Дедупликация" : "Слияние";
 
 	if (activeSession?.progress === 100 || activeSession === null) return null;
 
@@ -66,7 +68,7 @@ const HeaderMergingChip = memo(function HeaderMergingChip() {
 			/>
 			<Typography
 				variant="caption"
-				title={activeSession?.stage}
+				title={`${processLabel}: ${activeSession?.stage}`}
 				sx={{
 					position: "relative",
 					zIndex: 1,
@@ -76,7 +78,7 @@ const HeaderMergingChip = memo(function HeaderMergingChip() {
 					fontWeight: 600,
 				}}
 			>
-				Слияние {activeSession?.progress}% · {activeSession?.commitName}
+				{processLabel} {activeSession?.progress}% · {activeSession?.commitName}
 			</Typography>
 		</Box>
 	);

@@ -61,7 +61,7 @@ export const parseEntityCompositeId = (compositeId: string): ParsedEntityId => {
 	const possibleCode = compositeId.substring(lastDotIndex + 1);
 
 	// System_code — числовой код длиной 1-6 символов
-	if (/^\d{1,6}$/.test(possibleCode)) {
+	if (/^\d[\d_]{0,31}$/.test(possibleCode)) {
 		return {
 			fullName: compositeId.substring(0, lastDotIndex),
 			systemCode: possibleCode,
@@ -94,5 +94,5 @@ export const hasSystemCodeSuffix = (id: string): boolean => {
 	const lastDotIndex = id.lastIndexOf(SYSTEM_CODE_SEPARATOR);
 	if (lastDotIndex === -1) return false;
 	const possibleCode = id.substring(lastDotIndex + 1);
-	return /^\d{1,6}$/.test(possibleCode);
+	return /^\d[\d_]{0,31}$/.test(possibleCode);
 };

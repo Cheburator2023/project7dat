@@ -67,30 +67,44 @@ export const useMergeSessionPolling = () => {
 			MERGE_SESSION_STORAGE_KEY,
 		);
 
-		if (!storedSessionId) {
+		if (storedSessionId) {
+			console.info("[merge-polling] restore from localStorage", {
+				mergeSessionId: storedSessionId,
+			});
+
+			mergeService
+				.getSession(storedSessionId)
+				.then((data) => {
+					console.info("[merge-polling] session status after restore", {
+						mergeSessionId: storedSessionId,
+					});
+					startPolling(data.mergeSessionId);
+				})
+				.catch((error) => {
+					console.error("[merge-polling] failed to restore session", {
+						mergeSessionId: storedSessionId,
+						error: error.message,
+					});
+				});
 			return;
 		}
 
-		console.info("[merge-polling] restore from localStorage", {
-			mergeSessionId: storedSessionId,
-		});
-
-		// Проверяем актуальность сессии перед восстановлением поллинга
 		mergeService
-			.getSession(storedSessionId)
+			.getActiveSession()
 			.then((data) => {
-				console.info("[merge-polling] session status after restore", {
-					mergeSessionId: storedSessionId,
+				if (!data) {
+					return;
+				}
+				console.info("[merge-polling] restore active session from api", {
+					mergeSessionId: data.mergeSessionId,
+					operation: data.operation,
 				});
 				startPolling(data.mergeSessionId);
 			})
 			.catch((error) => {
-				console.error("[merge-polling] failed to restore session", {
-					mergeSessionId: storedSessionId,
+				console.error("[merge-polling] failed to fetch active session", {
 					error: error.message,
 				});
-				// При ошибке очищаем localStorage
-				// window.localStorage.removeItem(MERGE_SESSION_STORAGE_KEY);
 			});
 	}, [pollingSessionId, setPollingSessionId, setActiveSession]);
 

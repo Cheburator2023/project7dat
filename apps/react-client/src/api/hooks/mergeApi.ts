@@ -30,8 +30,8 @@ export interface ApplyMergeResponse {
 
 export interface DeduplicateResponse {
 	success: boolean;
-	removedCount: number;
-	affectedGroups: number;
+	mergeSessionId: string;
+	message: string;
 }
 
 export interface ConfirmMergeResponse {
@@ -44,7 +44,8 @@ export interface MergeSessionStatus {
 	mergeSessionId: string;
 	commitId: string;
 	commitName: string;
-	status: "merging" | "done" | "failed";
+	status: "merging" | "deduplicating" | "done" | "failed";
+	operation: "merge" | "deduplication";
 	progress: number;
 	stage: string;
 	startedAt: string;
@@ -82,8 +83,13 @@ export const mergeService = {
 		return response.data;
 	},
 
-	deduplicate: async (): Promise<DeduplicateResponse> => {
-		const response = await mergeApi.post("/deduplicate");
+	getActiveSession: async (): Promise<MergeSessionStatus | null> => {
+		const response = await mergeApi.get("/active-session");
+		return response.data;
+	},
+
+	deduplicate: async (commitId: string): Promise<DeduplicateResponse> => {
+		const response = await mergeApi.post("/deduplicate", { commitId });
 		return response.data;
 	},
 };

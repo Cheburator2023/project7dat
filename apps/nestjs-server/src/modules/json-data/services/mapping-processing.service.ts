@@ -33,6 +33,7 @@ const EVENT_LOOP_YIELD_INTERVAL = 20;
 @Injectable()
 export class MappingProcessingService {
 	private readonly logger = new Logger(MappingProcessingService.name);
+	private readonly defaultSystemCode = "1642";
 
 	async handleMappings(
 		mappings: any[],
@@ -65,7 +66,15 @@ export class MappingProcessingService {
 			const mapping = mappings[i];
 			const mappingStart = Date.now();
 			try {
-				const targetEntity = entityCache.get(extractFullName(mapping.entityId));
+				const targetEntity = entityCache.get(
+					this.buildEntityCacheKey(
+						this.resolveReferenceFullName(
+							mapping.entityId,
+							mapping.system_code,
+						),
+						mapping.system_code,
+					),
+				);
 				if (!targetEntity) {
 					warnings.push(
 						`Target entity не найдена: ${mapping.entityId}, маппинг пропущен`,
@@ -142,9 +151,15 @@ export class MappingProcessingService {
 		// Собираем full_name из composite entityId (убираем system_code суффикс)
 		const fullNames = new Set<string>();
 		for (const m of mappings) {
-			if (m.entityId) fullNames.add(extractFullName(m.entityId));
+			if (m.entityId) {
+				fullNames.add(this.resolveReferenceFullName(m.entityId, m.system_code));
+			}
 			for (const d of m.deps || []) {
-				if (d.entityId) fullNames.add(extractFullName(d.entityId));
+				if (d.entityId) {
+					fullNames.add(
+						this.resolveReferenceFullName(d.entityId, d.system_code),
+					);
+				}
 			}
 		}
 
@@ -156,11 +171,22 @@ export class MappingProcessingService {
 
 		if (fullNames.size === 0) return { entityCache, attributeCacheByEntity };
 
-		const existingEntities = await queryRunner.manager.find(EntityEntity, {
-			where: { full_name: In([...fullNames]) },
-		});
+		const existingEntities = await queryRunner.manager
+			.createQueryBuilder(EntityEntity, "entity")
+			.leftJoinAndSelect("entity.entity_container", "entityContainer")
+			.leftJoinAndSelect("entityContainer.system", "system")
+			.where("entity.full_name IN (:...fullNames)", {
+				fullNames: [...fullNames],
+			})
+			.getMany();
 		for (const ent of existingEntities) {
-			entityCache.set(ent.full_name, ent);
+			entityCache.set(
+				this.buildEntityCacheKey(
+					ent.full_name,
+					ent.entity_container?.system?.code || this.defaultSystemCode,
+				),
+				ent,
+			);
 		}
 
 		const entityIds = existingEntities.map((e) => e.entity_id);
@@ -239,10 +265,6 @@ export class MappingProcessingService {
 					);
 				}
 			}
-
-			if (row.dep_source_attribute_id && row.deptype_id) {
-				const srcAttrId = row.dep_source_attribute_id;
-			}
 		}
 
 		const depQuery = `
@@ -291,7 +313,7 @@ export class MappingProcessingService {
 	private async isMappingUnchanged(
 		mapping: any,
 		targetEntityId: number,
-		processId: number,
+		_processId: number,
 		existingMappings: Map<number, ExistingMappingData>,
 		entityCache: Map<string, EntityEntity>,
 		attributeCacheByEntity: Map<number, Map<string, AttributeEntity>>,
@@ -306,7 +328,12 @@ export class MappingProcessingService {
 		>();
 
 		for (const dep of mapping.deps || []) {
-			const sourceEntity = entityCache.get(extractFullName(dep.entityId));
+			const sourceEntity = entityCache.get(
+				this.buildEntityCacheKey(
+					this.resolveReferenceFullName(dep.entityId, dep.system_code),
+					dep.system_code,
+				),
+			);
 			if (!sourceEntity) continue; // новая сущность – маппинг точно изменился
 			const sourceId = sourceEntity.entity_id;
 
@@ -447,10 +474,14 @@ export class MappingProcessingService {
 	): Promise<string[]> {
 		const warnings: string[] = [];
 
-		// 1. Ищем source сущность в кэше по full_name (без system_code суффикса)
-		const depFullName = extractFullName(dep.entityId);
-		let sourceEntity: EntityEntity | null | undefined =
-			entityCache.get(depFullName);
+		const depFullName = this.resolveReferenceFullName(
+			dep.entityId,
+			dep.system_code,
+		);
+		const depSystemCode = dep.system_code || this.defaultSystemCode;
+		let sourceEntity: EntityEntity | null | undefined = entityCache.get(
+			this.buildEntityCacheKey(depFullName, depSystemCode),
+		);
 
 		// 2. Если не найдена, создаем с учетом system_code
 		if (!sourceEntity) {
@@ -461,15 +492,17 @@ export class MappingProcessingService {
 			// Создаем новую сущность — full_name БЕЗ system_code
 			sourceEntity = await this.createEntityWithSystemCode(
 				depFullName,
-				depFullName.split("/").pop() || depFullName,
-				dep.system_code || "1642",
+				depFullName.split(".").pop() || depFullName,
+				depSystemCode,
 				changeId,
 				queryRunner,
 			);
 
 			if (sourceEntity) {
-				// Добавляем в кэш по full_name
-				entityCache.set(depFullName, sourceEntity);
+				entityCache.set(
+					this.buildEntityCacheKey(depFullName, depSystemCode),
+					sourceEntity,
+				);
 				attributeCacheByEntity.set(sourceEntity.entity_id, new Map());
 			} else {
 				// Создать не удалось – дальше обрабатывать эту зависимость нельзя
@@ -477,9 +510,9 @@ export class MappingProcessingService {
 				return warnings;
 			}
 		} else if (dep.system_code) {
-			// Проверяем соответствие system_code
-			const entitySystemCode = sourceEntity.entity_container?.system?.code;
-			if (entitySystemCode !== dep.system_code) {
+			const entitySystemCode =
+				sourceEntity.entity_container?.system?.code || this.defaultSystemCode;
+			if (entitySystemCode !== depSystemCode) {
 				const warning = `Несоответствие system_code: сущность ${dep.entityId} имеет system_code ${entitySystemCode}, а в зависимости указан ${dep.system_code}`;
 				this.logger.warn(warning);
 				warnings.push(warning);
@@ -555,7 +588,10 @@ export class MappingProcessingService {
 				: "default";
 
 			let container = await queryRunner.manager.findOne(EntityContainerEntity, {
-				where: { value: namespace },
+				where: {
+					value: namespace,
+					system_id: system.system_id,
+				},
 			});
 
 			if (!container) {
@@ -569,6 +605,16 @@ export class MappingProcessingService {
 					EntityContainerEntity,
 					container,
 				);
+			}
+
+			const existingEntity = await queryRunner.manager.findOne(EntityEntity, {
+				where: {
+					full_name: fullName,
+					entity_container_id: container.entity_container_id,
+				},
+			});
+			if (existingEntity) {
+				return existingEntity;
 			}
 
 			// Создаем сущность
@@ -585,6 +631,23 @@ export class MappingProcessingService {
 			this.logger.error(`Ошибка создания сущности: ${error.message}`);
 			return null;
 		}
+	}
+
+	private resolveReferenceFullName(
+		entityId: string | undefined,
+		systemCode?: string,
+	): string {
+		const safeEntityId = entityId || "";
+		const safeSystemCode = systemCode || this.defaultSystemCode;
+		const suffix = `.${safeSystemCode}`;
+		if (safeEntityId.endsWith(suffix)) {
+			return safeEntityId.slice(0, -suffix.length);
+		}
+		return extractFullName(safeEntityId);
+	}
+
+	private buildEntityCacheKey(fullName: string, systemCode?: string): string {
+		return `${fullName}::${systemCode || this.defaultSystemCode}`;
 	}
 
 	private async handleAttrMap(
