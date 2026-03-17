@@ -31,6 +31,7 @@ export interface S2tValidationError {
 export interface S2tCreateResult {
 	commit: S2tCommitEntity;
 	warnings: S2tValidationError[];
+	reusedExisting?: boolean;
 }
 
 @Injectable()
@@ -261,6 +262,26 @@ export class S2tCommitStoreService {
 			return { commit, warnings };
 		}
 
+		const existingByPayload = await this.findExistingCommitByPayload(
+			payload,
+			commitType,
+		);
+		if (existingByPayload) {
+			return {
+				commit: existingByPayload,
+				reusedExisting: true,
+				warnings: [
+					...warnings,
+					{
+						code: "DUPLICATE_COMMIT_SKIPPED",
+						message:
+							"Коммит с идентичным содержимым уже существует. Использована существующая запись.",
+						details: existingByPayload.id,
+					},
+				],
+			};
+		}
+
 		const entity = this.repo.create({
 			parent_id: dto.parent_id ?? null,
 			commit_name: dto.commit_name,
@@ -276,6 +297,24 @@ export class S2tCommitStoreService {
 
 		const commit = await this.repo.save(entity);
 		return { commit, warnings };
+	}
+
+	private async findExistingCommitByPayload(
+		payload: Record<string, any>,
+		type: "table" | "json" | "model",
+	): Promise<S2tCommitEntity | null> {
+		const payloadJson = JSON.stringify(payload);
+		const existing = await this.repo
+			.createQueryBuilder("commit")
+			.where("commit.type = :type", { type })
+			.andWhere("commit.payload = CAST(:payload AS jsonb)", {
+				payload: payloadJson,
+			})
+			.orderBy("commit.updated_at", "DESC")
+			.addOrderBy("commit.created_at", "DESC")
+			.getOne();
+
+		return existing ?? null;
 	}
 
 	async findById(id: string): Promise<S2tCommitEntity> {

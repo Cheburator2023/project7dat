@@ -9,7 +9,12 @@ import {
 } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 
-export type MergeSessionState = "pending" | "merging" | "done" | "failed";
+export type MergeSessionState =
+	| "pending"
+	| "merging"
+	| "deduplicating"
+	| "done"
+	| "failed";
 
 @Entity("merge_sessions")
 @Index("idx_merge_sessions_commit_id", ["commit_id"])

@@ -15,16 +15,17 @@ import {
 	ApiParam,
 } from "@nestjs/swagger";
 import { MergeService } from "../services/merge.service";
-import { DeduplicationService } from "../services/deduplication.service";
 import {
 	ApplyMergeRequestDto,
 	ConfirmMergeRequestDto,
 	CancelMergeRequestDto,
+	DeduplicateMergeRequestDto,
 } from "../dto/merge-request.dto";
 import {
 	ApplyMergeResponseDto,
 	ConfirmMergeResponseDto,
 	CancelMergeResponseDto,
+	DeduplicateMergeResponseDto,
 	MergeSessionStatusDto,
 } from "../dto/merge-response.dto";
 import { RealmRole } from "../../../core/auth/decorators/realm-role.decorator";
@@ -34,10 +35,7 @@ import { Permission } from "../../../core/auth/permissions";
 @ApiTags("Слияние коммитов (Merge)")
 @Controller("merge")
 export class MergeController {
-	constructor(
-		private readonly mergeService: MergeService,
-		private readonly deduplicationService: DeduplicationService,
-	) {}
+	constructor(private readonly mergeService: MergeService) {}
 
 	@Post("apply")
 	@RealmRole(Permission.DL_CREATE_COMMITS)
@@ -116,26 +114,36 @@ export class MergeController {
 	@Post("deduplicate")
 	@RealmRole(Permission.DL_CREATE_COMMITS)
 	@ApiOperation({
-		summary: "Дедупликация сущностей",
+		summary: "Запустить дедупликацию сущностей",
 		description:
-			"Удаляет дубликаты сущностей в БД, оставляя самые новые по дате. " +
+			"Запускает дедупликацию сущностей в фоне. " +
 			"Уникальность определяется по связке full_name + system_code.",
 	})
 	@ApiResponse({
 		status: 200,
-		description: "Дедупликация выполнена",
+		description: "Дедупликация запущена",
+		type: DeduplicateMergeResponseDto,
 	})
-	async deduplicateEntities(): Promise<{
-		success: boolean;
-		removedCount: number;
-		affectedGroups: number;
-	}> {
-		const result = await this.deduplicationService.deduplicateEntities();
-		return {
-			success: result.success,
-			removedCount: result.removedCount,
-			affectedGroups: result.affectedGroups,
-		};
+	async deduplicateEntities(
+		@Body() dto: DeduplicateMergeRequestDto,
+	): Promise<DeduplicateMergeResponseDto> {
+		return await this.mergeService.startDeduplication(dto.commitId);
+	}
+
+	@Get("active-session")
+	@RealmRole(Permission.DL_VIEW_COMMITS)
+	@ApiOperation({
+		summary: "Получить активную фоновую сессию",
+		description:
+			"Возвращает активную merge или deduplication сессию, если она есть",
+	})
+	@ApiResponse({
+		status: 200,
+		description: "Активная сессия найдена",
+		type: MergeSessionStatusDto,
+	})
+	async getActiveSession(): Promise<MergeSessionStatusDto | null> {
+		return await this.mergeService.getActiveSession();
 	}
 
 	@Get("session/:sessionId")

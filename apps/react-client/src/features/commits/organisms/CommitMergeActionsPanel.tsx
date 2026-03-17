@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect } from "react";
 import {
 	Box,
 	Button,
@@ -25,7 +25,6 @@ import { useMergeDeduplicate } from "@react-client/api/hooks/useMergeDeduplicate
 import { routes } from "@react-client/routing/routes";
 import { useCommitMergeStore } from "../stores/commitMergeStore";
 import type { MergeDiffItem } from "@react-client/api/hooks/mergeApi";
-import { useMergingSessionStore } from "../stores/mergingSessionStore";
 import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
 
 const DIFF_TYPE_COLOR: Record<
@@ -47,12 +46,11 @@ export const CommitMergeActionsPanel = memo(() => {
 	const navigate = useNavigate();
 	const authStore = useAuthStore();
 	const username = authStore.userInfo?.username ?? "system";
-	const { startPolling } = useMergeSessionPolling();
+	const { startPolling, activeSession } = useMergeSessionPolling();
 	const applyMutation = useMergeApply();
 	const confirmMutation = useMergeConfirm();
 	const cancelMutation = useMergeCancel();
 	const deduplicateMutation = useMergeDeduplicate();
-	const [deduplicating, setDeduplicating] = useState(false);
 
 	const {
 		commit,
@@ -62,15 +60,62 @@ export const CommitMergeActionsPanel = memo(() => {
 		mergeSessionId,
 		mergeDiff,
 		mergeStats,
+		hasDuplicates,
+		duplicatesCount,
 		setApplying,
 		setError,
 		setMergeStep,
 		setMergeSessionId,
 		setMergeDiff,
 		setMergeStats,
+		setDuplicateState,
 	} = useCommitMergeStore();
 
 	const isDone = commit?.state === "done" || commit?.state === "failed";
+	const isCurrentCommitSession =
+		Boolean(commit?.id) && activeSession?.commitId === commit?.id;
+	const isDeduplicationRunning =
+		isCurrentCommitSession && activeSession?.status === "deduplicating";
+	const isMergeRunning =
+		isCurrentCommitSession && activeSession?.status === "merging";
+
+	useEffect(() => {
+		if (!commit || !activeSession || activeSession.commitId !== commit.id) {
+			return;
+		}
+		if (activeSession.operation !== "deduplication") {
+			return;
+		}
+		if (activeSession.status === "done") {
+			// toast.success("Дедупликация завершена. Повторите предпросмотр слияния.");
+			setMergeStep("idle");
+			setMergeSessionId(null);
+			setMergeDiff([]);
+			setMergeStats(null);
+			setDuplicateState(false, 0);
+			setError(null);
+			return;
+		}
+		if (activeSession.status === "failed") {
+			const isCancelled = activeSession.stage.toLowerCase().includes("отмен");
+			if (isCancelled) {
+				toast.info("Дедупликация отменена");
+				setError(null);
+			} else {
+				setError(activeSession.errorMessage ?? "Ошибка дедупликации");
+			}
+			setMergeStep("previewing");
+		}
+	}, [
+		activeSession,
+		commit,
+		setDuplicateState,
+		setError,
+		setMergeDiff,
+		setMergeSessionId,
+		setMergeStats,
+		setMergeStep,
+	]);
 
 	const handleApply = useCallback(async () => {
 		if (!commit) return;
@@ -85,6 +130,8 @@ export const CommitMergeActionsPanel = memo(() => {
 				changedAttributesCount: result.changedAttributesCount,
 				changedMappingsCount: result.changedMappingsCount,
 			});
+			setDuplicateState(result.hasDuplicates, result.duplicatesCount);
+			setMergeStep("previewing");
 
 			// Показываем предупреждения валидации
 			console.log("🐸 Pepe said >> result:", result);
@@ -96,29 +143,9 @@ export const CommitMergeActionsPanel = memo(() => {
 			}
 
 			if (result.hasDuplicates) {
-				// Если обнаружены дубликаты — автоматически запускаем дедупликацию
-
-				setDeduplicating(true);
-				toast.info(`Обнаружены дубликаты сущностей. Запуск дедупликации...`);
-				try {
-					const dedupResult = await deduplicateMutation.mutateAsync();
-					if (dedupResult.success) {
-						toast.success(
-							`Дедупликация завершена: удалено ${dedupResult.removedCount} дубликатов`,
-						);
-					} else {
-						toast.error("Ошибка при дедупликации");
-					}
-				} catch (dedupErr: any) {
-					toast.error(
-						dedupErr?.response?.data?.message ??
-							dedupErr?.message ??
-							"Ошибка дедупликации",
-					);
-				} finally {
-					setDeduplicating(false);
-					setMergeStep("previewing");
-				}
+				toast.warning(
+					`Обнаружены дубликаты сущностей: ${result.duplicatesCount}. Запустите дедупликацию перед подтверждением слияния.`,
+				);
 			}
 		} catch (err: any) {
 			setError(
@@ -130,13 +157,44 @@ export const CommitMergeActionsPanel = memo(() => {
 	}, [
 		commit,
 		applyMutation,
-		deduplicateMutation,
 		setApplying,
+		setDuplicateState,
 		setError,
 		setMergeSessionId,
 		setMergeDiff,
 		setMergeStats,
 		setMergeStep,
+	]);
+
+	const handleStartDeduplication = useCallback(async () => {
+		if (!commit) return;
+		setApplying(true);
+		setError(null);
+		try {
+			const result = await deduplicateMutation.mutateAsync(commit.id);
+			if (!result.mergeSessionId) {
+				toast.info(result.message);
+				setDuplicateState(false, 0);
+				return;
+			}
+			setMergeStep("deduplicating");
+			startPolling(result.mergeSessionId);
+			toast.info(result.message);
+		} catch (err: any) {
+			setError(
+				err?.response?.data?.message ?? err?.message ?? "Ошибка дедупликации",
+			);
+		} finally {
+			setApplying(false);
+		}
+	}, [
+		commit,
+		deduplicateMutation,
+		setApplying,
+		setDuplicateState,
+		setError,
+		setMergeStep,
+		startPolling,
 	]);
 
 	const handleConfirm = useCallback(async () => {
@@ -148,7 +206,6 @@ export const CommitMergeActionsPanel = memo(() => {
 				commitId: commit.id,
 				user: username,
 			});
-			useMergingSessionStore.getState().setPollingSessionId(mergeSessionId);
 			setMergeStep("confirmed");
 			startPolling(mergeSessionId);
 			navigate(routes.allCommits.rootPath);
@@ -169,6 +226,7 @@ export const CommitMergeActionsPanel = memo(() => {
 		setApplying,
 		setError,
 		setMergeStep,
+		startPolling,
 		navigate,
 	]);
 
@@ -178,14 +236,22 @@ export const CommitMergeActionsPanel = memo(() => {
 		setError(null);
 		try {
 			await cancelMutation.mutateAsync(commit.id);
+			if (isDeduplicationRunning) {
+				setMergeStep("previewing");
+				toast.info("Отмена дедупликации запрошена");
+				return;
+			}
 			setMergeStep("idle");
 			setMergeSessionId(null);
 			setMergeDiff([]);
 			setMergeStats(null);
+			setDuplicateState(false, 0);
 			toast.info("Слияние отменено");
 		} catch (err: any) {
 			setError(
-				err?.response?.data?.message ?? err?.message ?? "Ошибка отмены слияния",
+				err?.response?.data?.message ??
+					err?.message ??
+					"Ошибка отмены процесса",
 			);
 		} finally {
 			setApplying(false);
@@ -193,7 +259,9 @@ export const CommitMergeActionsPanel = memo(() => {
 	}, [
 		commit,
 		cancelMutation,
+		isDeduplicationRunning,
 		setApplying,
+		setDuplicateState,
 		setError,
 		setMergeStep,
 		setMergeSessionId,
@@ -215,12 +283,7 @@ export const CommitMergeActionsPanel = memo(() => {
 				gap: 2,
 			}}
 		>
-			{error && (
-				<Alert severity="error">
-					Обнаружены дублирующиеся сущности. Пожалуйста, выполните дедупликацию
-					перед применением коммита.
-				</Alert>
-			)}
+			{error && <Alert severity="error">{error}</Alert>}
 
 			{isDone && (
 				<Alert severity="info">
@@ -242,118 +305,157 @@ export const CommitMergeActionsPanel = memo(() => {
 						startIcon={
 							applying ? <CircularProgress size={16} /> : <MergeIcon />
 						}
-						disabled={applying || deduplicating || isDone}
+						disabled={applying || isDone}
 						fullWidth
 					>
-						{deduplicating
-							? "Дедупликация..."
-							: applying
-								? "Расчёт изменений..."
-								: "Предпросмотр слияния"}
+						{applying ? "Расчёт изменений..." : "Предпросмотр слияния"}
 					</Button>
 				</Box>
 			)}
 
-			{mergeStep === "previewing" && mergeStats && (
-				<>
-					<Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-						<Chip
-							label={`Сущностей: ${mergeStats.changedEntitiesCount}`}
-							color="primary"
-							size="small"
-							variant="outlined"
-						/>
-						<Chip
-							label={`Атрибутов: ${mergeStats.changedAttributesCount}`}
-							color="secondary"
-							size="small"
-							variant="outlined"
-						/>
-						<Chip
-							label={`Маппингов: ${mergeStats.changedMappingsCount}`}
-							color="default"
-							size="small"
-							variant="outlined"
-						/>
-					</Box>
+			{(mergeStep === "previewing" || mergeStep === "deduplicating") &&
+				mergeStats && (
+					<>
+						<Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+							<Chip
+								label={`Сущностей: ${mergeStats.changedEntitiesCount}`}
+								color="primary"
+								size="small"
+								variant="outlined"
+							/>
+							<Chip
+								label={`Атрибутов: ${mergeStats.changedAttributesCount}`}
+								color="secondary"
+								size="small"
+								variant="outlined"
+							/>
+							<Chip
+								label={`Маппингов: ${mergeStats.changedMappingsCount}`}
+								color="default"
+								size="small"
+								variant="outlined"
+							/>
+						</Box>
 
-					{mergeDiff.length === 0 ? (
-						<Alert severity="info">
-							Изменений нет — модель данных не изменится
-						</Alert>
-					) : (
-						<>
-							<Typography variant="caption" color="text.secondary">
-								Изменения ({mergeDiff.length})
-							</Typography>
-							<List
-								dense
-								disablePadding
-								sx={{ maxHeight: "100%", overflow: "auto" }}
+						{hasDuplicates && !isDeduplicationRunning && (
+							<Alert severity="warning">
+								Обнаружены дубликаты сущностей: {duplicatesCount}. Перед
+								подтверждением слияния нужно запустить дедупликацию.
+							</Alert>
+						)}
+
+						{isDeduplicationRunning && activeSession && (
+							<Alert severity="info">
+								Дедупликация выполняется: {activeSession.stage}{" "}
+								{activeSession.progress}%
+							</Alert>
+						)}
+
+						{mergeDiff.length === 0 ? (
+							<Alert severity="info">
+								Изменений нет — модель данных не изменится
+							</Alert>
+						) : (
+							<>
+								<Typography variant="caption" color="text.secondary">
+									Изменения ({mergeDiff.length})
+								</Typography>
+								<List
+									dense
+									disablePadding
+									sx={{ maxHeight: "100%", overflow: "auto" }}
+								>
+									{diffPreview.map((item, idx) => (
+										<ListItem key={idx} disableGutters sx={{ py: 0.25 }}>
+											<Chip
+												label={DIFF_TYPE_LABEL[item.type]}
+												color={DIFF_TYPE_COLOR[item.type]}
+												size="small"
+												sx={{ mr: 1, minWidth: 80 }}
+											/>
+											<ListItemText
+												primary={item.path}
+												primaryTypographyProps={{
+													variant: "caption",
+													sx: {
+														fontFamily: "monospace",
+														wordBreak: "break-all",
+													},
+												}}
+											/>
+										</ListItem>
+									))}
+									{diffOverflow > 0 && (
+										<ListItem disableGutters>
+											<Typography variant="caption" color="text.secondary">
+												...и ещё {diffOverflow} изменений
+											</Typography>
+										</ListItem>
+									)}
+								</List>
+							</>
+						)}
+
+						<Box
+							sx={{
+								display: "flex",
+								flexDirection: "column",
+								gap: 1,
+								mt: "auto",
+							}}
+						>
+							{hasDuplicates && !isDeduplicationRunning && (
+								<Button
+									onClick={handleStartDeduplication}
+									variant="contained"
+									color="warning"
+									startIcon={
+										applying ? <CircularProgress size={16} /> : <MergeIcon />
+									}
+									disabled={applying}
+									fullWidth
+								>
+									{applying
+										? "Запуск дедупликации..."
+										: "Запустить дедупликацию"}
+								</Button>
+							)}
+							<Button
+								onClick={handleConfirm}
+								variant="contained"
+								color="error"
+								startIcon={
+									applying ? (
+										<CircularProgress size={16} />
+									) : (
+										<CheckCircleIcon />
+									)
+								}
+								disabled={
+									applying ||
+									hasDuplicates ||
+									isDeduplicationRunning ||
+									isMergeRunning
+								}
+								fullWidth
 							>
-								{diffPreview.map((item, idx) => (
-									<ListItem key={idx} disableGutters sx={{ py: 0.25 }}>
-										<Chip
-											label={DIFF_TYPE_LABEL[item.type]}
-											color={DIFF_TYPE_COLOR[item.type]}
-											size="small"
-											sx={{ mr: 1, minWidth: 80 }}
-										/>
-										<ListItemText
-											primary={item.path}
-											primaryTypographyProps={{
-												variant: "caption",
-												sx: { fontFamily: "monospace", wordBreak: "break-all" },
-											}}
-										/>
-									</ListItem>
-								))}
-								{diffOverflow > 0 && (
-									<ListItem disableGutters>
-										<Typography variant="caption" color="text.secondary">
-											...и ещё {diffOverflow} изменений
-										</Typography>
-									</ListItem>
-								)}
-							</List>
-						</>
-					)}
-
-					<Box
-						sx={{
-							display: "flex",
-							flexDirection: "column",
-							gap: 1,
-							mt: "auto",
-						}}
-					>
-						<Button
-							onClick={handleConfirm}
-							variant="contained"
-							color="error"
-							startIcon={
-								applying ? <CircularProgress size={16} /> : <CheckCircleIcon />
-							}
-							disabled={applying}
-							fullWidth
-						>
-							{applying ? "Сохранение..." : "Подтвердить слияние"}
-						</Button>
-						<Button
-							onClick={handleCancel}
-							variant="outlined"
-							color="error"
-							startIcon={
-								applying ? <CircularProgress size={16} /> : <CancelIcon />
-							}
-							disabled={applying}
-							fullWidth
-						>
-							Отменить
-						</Button>
-					</Box>
-				</>
-			)}
+								{applying ? "Сохранение..." : "Подтвердить слияние"}
+							</Button>
+							<Button
+								onClick={handleCancel}
+								variant="outlined"
+								color="error"
+								startIcon={
+									applying ? <CircularProgress size={16} /> : <CancelIcon />
+								}
+								disabled={applying}
+								fullWidth
+							>
+								{isDeduplicationRunning ? "Отменить дедупликацию" : "Отменить"}
+							</Button>
+						</Box>
+					</>
+				)}
 		</Box>
 	);
 });

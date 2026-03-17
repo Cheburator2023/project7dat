@@ -28,7 +28,12 @@ interface CommitMapping {
 	}>;
 }
 
-export type MergeStep = "idle" | "previewing" | "confirmed" | "cancelled";
+export type MergeStep =
+	| "idle"
+	| "previewing"
+	| "deduplicating"
+	| "confirmed"
+	| "cancelled";
 
 interface MergeStats {
 	changedEntitiesCount: number;
@@ -48,6 +53,8 @@ interface CommitMergeState {
 	mergeSessionId: string | null;
 	mergeDiff: MergeDiffItem[];
 	mergeStats: MergeStats | null;
+	hasDuplicates: boolean;
+	duplicatesCount: number;
 
 	setCommit: (commit: S2tCommitItem | null) => void;
 	setSourceType: (sourceType: "SURM" | "DAPP") => void;
@@ -59,6 +66,7 @@ interface CommitMergeState {
 	setMergeSessionId: (id: string | null) => void;
 	setMergeDiff: (diff: MergeDiffItem[]) => void;
 	setMergeStats: (stats: MergeStats | null) => void;
+	setDuplicateState: (hasDuplicates: boolean, duplicatesCount: number) => void;
 	reset: () => void;
 }
 
@@ -75,6 +83,8 @@ const initialState = {
 	mergeSessionId: null,
 	mergeDiff: [],
 	mergeStats: null,
+	hasDuplicates: false,
+	duplicatesCount: 0,
 };
 
 export const useCommitMergeStore = create<CommitMergeState>()((set) => ({
@@ -89,6 +99,8 @@ export const useCommitMergeStore = create<CommitMergeState>()((set) => ({
 	setMergeSessionId: (mergeSessionId) => set({ mergeSessionId }),
 	setMergeDiff: (mergeDiff) => set({ mergeDiff }),
 	setMergeStats: (mergeStats) => set({ mergeStats }),
+	setDuplicateState: (hasDuplicates, duplicatesCount) =>
+		set({ hasDuplicates, duplicatesCount }),
 	reset: () => set(initialState),
 }));
 

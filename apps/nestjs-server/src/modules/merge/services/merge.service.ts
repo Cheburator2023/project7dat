@@ -29,7 +29,8 @@ interface MergeSessionStatusState {
 	mergeSessionId: string;
 	commitId: string;
 	commitName: string;
-	status: "merging" | "done" | "failed";
+	status: "merging" | "deduplicating" | "done" | "failed";
+	operation: "merge" | "deduplication";
 	progress: number;
 	stage: string;
 	startedAt: string;
@@ -66,15 +67,38 @@ export class MergeService implements OnModuleInit {
 		await this.failStaleMergingCommitsOnStartup();
 	}
 
+	private inferSessionOperation(
+		mergeStatus?: MergeSessionEntity["merge_status"],
+		stage?: string | null,
+		fallback: "merge" | "deduplication" = "merge",
+	): "merge" | "deduplication" {
+		if (mergeStatus === "deduplicating") {
+			return "deduplication";
+		}
+		if (mergeStatus === "merging") {
+			return "merge";
+		}
+		const normalizedStage = (stage || "").toLowerCase();
+		if (normalizedStage.includes("дедуп")) {
+			return "deduplication";
+		}
+		return fallback;
+	}
+
 	private toMergeSessionStatusDto(
 		session: MergeSessionEntity,
 	): MergeSessionStatusState {
+		const status =
+			session.merge_status === "pending" ? "merging" : session.merge_status;
 		return {
 			mergeSessionId: session.id,
 			commitId: session.commit_id,
 			commitName: session.commit_name,
-			status:
-				session.merge_status === "pending" ? "merging" : session.merge_status,
+			status,
+			operation: this.inferSessionOperation(
+				session.merge_status,
+				session.stage,
+			),
 			progress: session.progress,
 			stage: session.stage,
 			startedAt:
@@ -110,11 +134,17 @@ export class MergeService implements OnModuleInit {
 				updated_at: new Date(),
 			});
 		}
+		const cached = this.sessionStatusCache.get(sessionId);
 		this.cacheMergeSessionStatus(sessionId, {
 			status:
 				patch.merge_status === undefined || patch.merge_status === "pending"
 					? undefined
 					: patch.merge_status,
+			operation: this.inferSessionOperation(
+				patch.merge_status,
+				patch.stage,
+				cached?.operation,
+			),
 			progress: patch.progress,
 			stage: patch.stage,
 			startedAt: patch.started_at?.toISOString(),
@@ -226,6 +256,11 @@ export class MergeService implements OnModuleInit {
 					`Новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length}`,
 				);
 			}
+			console.log(
+				"🐸 Pepe said >> MergeService >> applyMerge >> validationResult:",
+				validationResult,
+			);
+
 			if (validationResult.duplicateCheck.hasDuplicates) {
 				validationWarnings.push(
 					`Дубликаты сущностей в JSON: ${validationResult.duplicateCheck.duplicates.length}`,
@@ -458,41 +493,6 @@ export class MergeService implements OnModuleInit {
 		}
 	}
 
-	private validateMergedJsonIntegrity(
-		mergedJson: JsonExportResponseDto,
-	): string[] {
-		const warnings: string[] = [];
-		const entityMap = new Map(mergedJson.entities.map((e) => [e.id, e]));
-
-		for (const mapping of mergedJson.mappings || []) {
-			for (const dep of mapping.deps || []) {
-				const sourceEntity = entityMap.get(dep.entityId);
-				if (!sourceEntity) {
-					warnings.push(`Source entity not found: ${dep.entityId}`);
-					continue;
-				}
-				const sourceAttrsLower = new Map(
-					sourceEntity.attrSeq.map((a) => [a.name.toLowerCase(), a]),
-				);
-				for (const attrMap of dep.attrMaps || []) {
-					if (!sourceAttrsLower.has(attrMap.src.toLowerCase())) {
-						warnings.push(
-							`Source attribute '${attrMap.src}' not found in entity ${dep.entityId}`,
-						);
-					}
-				}
-				for (const attrDep of dep.atrDeps || []) {
-					if (!sourceAttrsLower.has(attrDep.attr.toLowerCase())) {
-						warnings.push(
-							`Attribute dependency '${attrDep.attr}' not found in entity ${dep.entityId}`,
-						);
-					}
-				}
-			}
-		}
-		return warnings;
-	}
-
 	private calculateChangeStats(diff: MergeDiffDto[]): {
 		entities: number;
 		attributes: number;
@@ -513,6 +513,186 @@ export class MergeService implements OnModuleInit {
 		}
 
 		return { entities, attributes, mappings };
+	}
+
+	async startDeduplication(
+		commitId: string,
+	): Promise<{ success: boolean; mergeSessionId: string; message: string }> {
+		this.logger.log(`Запуск дедупликации для коммита: ${commitId}`);
+
+		const commit = await this.s2tCommitRepository.findOne({
+			where: { id: commitId },
+		});
+		if (!commit) {
+			throw new NotFoundException(`Коммит с ID ${commitId} не найден`);
+		}
+
+		const latestSession = await this.mergeSessionRepository.findOne({
+			where: { commit_id: commitId },
+			order: { created_at: "DESC" },
+		});
+
+		if (latestSession?.merge_status === "merging") {
+			throw new BadRequestException(
+				"Нельзя запускать дедупликацию во время активного слияния",
+			);
+		}
+
+		if (latestSession?.merge_status === "deduplicating") {
+			return {
+				success: true,
+				mergeSessionId: latestSession.id,
+				message: "Дедупликация уже выполняется",
+			};
+		}
+
+		const dbDuplicates = await this.deduplicationService.checkDuplicatesInDb();
+		if (!dbDuplicates.hasDuplicates) {
+			return {
+				success: true,
+				mergeSessionId: "",
+				message: "Дубликаты не найдены",
+			};
+		}
+
+		const mergeSessionId = uuidv4();
+		const mergeSession = this.mergeSessionRepository.create({
+			id: mergeSessionId,
+			commit_id: commitId,
+			commit_name: commit.commit_name || commitId.slice(0, 8),
+			had_existing_cycles: false,
+			merge_status: "deduplicating",
+			progress: 0,
+			stage: "Запуск дедупликации",
+			started_at: new Date(),
+			snapshot_id: null,
+			error_message: null,
+			estimated_seconds_left: null,
+			cancel_requested: false,
+		});
+		await this.mergeSessionRepository.save(mergeSession);
+		this.sessionStatusCache.set(
+			mergeSessionId,
+			this.toMergeSessionStatusDto(mergeSession),
+		);
+
+		await this.updateCommitStateById(commitId, "deduplicating");
+
+		this.runDeduplicationAsync(mergeSessionId, commitId).catch((err) => {
+			this.logger.error(
+				`Фоновая дедупликация провалилась: ${err.message}`,
+				err.stack,
+			);
+		});
+
+		return {
+			success: true,
+			mergeSessionId,
+			message: "Дедупликация запущена в фоновом режиме",
+		};
+	}
+
+	private async runDeduplicationAsync(
+		sessionId: string,
+		commitId: string,
+	): Promise<void> {
+		const session = await this.mergeSessionRepository.findOne({
+			where: { id: sessionId },
+		});
+		if (!session) return;
+
+		const startMs = Date.now();
+
+		const updateProgress = async (progress: number, stage: string) => {
+			const normalizedProgress = Math.min(progress, 99);
+			const elapsed = Date.now() - startMs;
+			let estimatedSecondsLeft: number | null = session.estimated_seconds_left;
+			if (progress > 0) {
+				const totalEstimated = (elapsed / progress) * 100;
+				estimatedSecondsLeft = Math.max(
+					0,
+					Math.round((totalEstimated - elapsed) / 1000),
+				);
+			}
+			await this.updateMergeSession(
+				sessionId,
+				{
+					progress: normalizedProgress,
+					stage,
+					estimated_seconds_left: estimatedSecondsLeft,
+				},
+				true,
+			);
+		};
+
+		const throwIfCancelled = () => {
+			if (!this.cancelRequestedSessions.has(sessionId)) {
+				return;
+			}
+
+			const error = new Error("Дедупликация отменена пользователем");
+			(error as Error & { code?: string }).code = "DEDUPLICATION_CANCELLED";
+			throw error;
+		};
+
+		try {
+			await updateProgress(5, "Поиск дубликатов");
+			throwIfCancelled();
+
+			const result = await this.deduplicationService.deduplicateEntities({
+				checkCancelled: throwIfCancelled,
+				onProgress: async ({ progress, stage }) => {
+					throwIfCancelled();
+					await updateProgress(progress, stage);
+				},
+			});
+
+			throwIfCancelled();
+
+			if (!result.success) {
+				throw new Error(
+					result.errorMessage || "Дедупликация завершилась с ошибкой",
+				);
+			}
+
+			await this.updateCommitState(commitId, {
+				state: "processing",
+				error: null,
+			});
+
+			await this.updateMergeSession(sessionId, {
+				merge_status: "done",
+				progress: 100,
+				stage: `Дедупликация завершена: удалено ${result.removedCount}`,
+				snapshot_id: null,
+				error_message: null,
+				estimated_seconds_left: 0,
+			});
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Неизвестная ошибка";
+			const cancelled = errorMessage === "Дедупликация отменена пользователем";
+
+			await this.updateMergeSession(sessionId, {
+				merge_status: "failed",
+				progress: 0,
+				stage: cancelled ? "Дедупликация отменена" : "Ошибка дедупликации",
+				error_message: errorMessage,
+				estimated_seconds_left: null,
+			});
+
+			await this.updateCommitState(commitId, {
+				state: "processing",
+				error: cancelled ? null : errorMessage,
+			});
+
+			this.logger.error(
+				`Ошибка при фоновой дедупликации: ${errorMessage}`,
+				error instanceof Error ? error.stack : undefined,
+			);
+		} finally {
+			this.cancelRequestedSessions.delete(sessionId);
+		}
 	}
 
 	async confirmMerge(
@@ -541,6 +721,19 @@ export class MergeService implements OnModuleInit {
 				mergeSessionId: session.id,
 				message: "Слияние уже выполняется",
 			};
+		}
+
+		if (session.merge_status === "deduplicating") {
+			throw new BadRequestException(
+				"Дождитесь завершения дедупликации перед подтверждением слияния",
+			);
+		}
+
+		const dbDuplicates = await this.deduplicationService.checkDuplicatesInDb();
+		if (dbDuplicates.hasDuplicates) {
+			throw new BadRequestException(
+				"Обнаружены дубликаты сущностей. Сначала выполните дедупликацию и затем повторите предпросмотр.",
+			);
 		}
 
 		await this.updateMergeSession(session.id, {
@@ -822,7 +1015,7 @@ export class MergeService implements OnModuleInit {
 	 */
 	private async updateCommitStateById(
 		commitId: string,
-		state: "processing" | "merging" | "done" | "failed",
+		state: "processing" | "merging" | "deduplicating" | "done" | "failed",
 	): Promise<void> {
 		await this.updateCommitState(commitId, { state });
 	}
@@ -830,7 +1023,7 @@ export class MergeService implements OnModuleInit {
 	private async updateCommitState(
 		commitId: string,
 		params: {
-			state: "processing" | "merging" | "done" | "failed";
+			state: "processing" | "merging" | "deduplicating" | "done" | "failed";
 			error?: string | null;
 		},
 	): Promise<void> {
@@ -878,6 +1071,23 @@ export class MergeService implements OnModuleInit {
 			};
 		}
 
+		if (session.merge_status === "deduplicating") {
+			this.cancelRequestedSessions.add(session.id);
+			await this.updateMergeSession(session.id, {
+				cancel_requested: true,
+				stage: "Отмена дедупликации",
+				error_message: "Дедупликация отменена пользователем",
+			});
+			await this.updateCommitState(commitId, {
+				state: "processing",
+				error: null,
+			});
+			return {
+				success: true,
+				message: "Отмена дедупликации запрошена",
+			};
+		}
+
 		this.sessionPayloadCache.delete(session.id);
 		await this.mergeSessionRepository.delete(session.id);
 		await this.updateCommitState(commitId, {
@@ -894,18 +1104,9 @@ export class MergeService implements OnModuleInit {
 	/**
 	 * Получение статуса сессии слияния для polling
 	 */
-	async getMergeSessionStatus(sessionId: string): Promise<{
-		mergeSessionId: string;
-		commitId: string;
-		commitName: string;
-		status: "merging" | "done" | "failed";
-		progress: number;
-		stage: string;
-		startedAt: string;
-		estimatedSecondsLeft: number | null;
-		snapshotId: string | null;
-		errorMessage: string | null;
-	} | null> {
+	async getMergeSessionStatus(
+		sessionId: string,
+	): Promise<MergeSessionStatusState | null> {
 		const cachedSession = this.sessionStatusCache.get(sessionId);
 		if (cachedSession) {
 			return cachedSession;
@@ -922,28 +1123,24 @@ export class MergeService implements OnModuleInit {
 	/**
 	 * Поиск активной сессии в статусе merging (для отображения в Header)
 	 */
-	async getActiveMergingSession(): Promise<{
-		mergeSessionId: string;
-		commitId: string;
-		commitName: string;
-		status: "merging" | "done" | "failed";
-		progress: number;
-		stage: string;
-		startedAt: string;
-		estimatedSecondsLeft: number | null;
-		snapshotId: string | null;
-		errorMessage: string | null;
-	} | null> {
+	async getActiveSession(): Promise<MergeSessionStatusState | null> {
 		const activeCachedSession = [...this.sessionStatusCache.values()]
-			.filter((session) => session.status === "merging")
+			.filter(
+				(session) =>
+					session.status === "merging" || session.status === "deduplicating",
+			)
 			.sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0];
 		if (activeCachedSession) {
 			return activeCachedSession;
 		}
-		const session = await this.mergeSessionRepository.findOne({
-			where: { merge_status: "merging" },
-			order: { started_at: "DESC", created_at: "DESC" },
-		});
+		const session = await this.mergeSessionRepository
+			.createQueryBuilder("mergeSession")
+			.where("mergeSession.merge_status IN (:...statuses)", {
+				statuses: ["merging", "deduplicating"],
+			})
+			.orderBy("mergeSession.started_at", "DESC")
+			.addOrderBy("mergeSession.created_at", "DESC")
+			.getOne();
 		if (!session) {
 			return null;
 		}
@@ -951,42 +1148,78 @@ export class MergeService implements OnModuleInit {
 	}
 
 	private async failStaleMergingCommitsOnStartup(): Promise<void> {
-		const staleCommits = await this.s2tCommitRepository.find({
+		const staleMergeCommits = await this.s2tCommitRepository.find({
 			where: { state: "merging" },
 		});
-
-		const staleSessions = await this.mergeSessionRepository.find({
-			where: { merge_status: "merging" },
+		const staleDedupCommits = await this.s2tCommitRepository.find({
+			where: { state: "deduplicating" },
 		});
 
-		if (staleCommits.length === 0) {
-			if (staleSessions.length === 0) {
-				return;
-			}
+		const staleMergeSessions = await this.mergeSessionRepository.find({
+			where: { merge_status: "merging" },
+		});
+		const staleDedupSessions = await this.mergeSessionRepository.find({
+			where: { merge_status: "deduplicating" },
+		});
+
+		if (
+			staleMergeCommits.length === 0 &&
+			staleDedupCommits.length === 0 &&
+			staleMergeSessions.length === 0 &&
+			staleDedupSessions.length === 0
+		) {
+			return;
 		}
 
-		const errorMessage =
+		const mergeErrorMessage =
 			"Слияние было прервано из-за перезапуска сервера и помечено как ошибочное";
+		const dedupErrorMessage =
+			"Дедупликация была прервана из-за перезапуска сервера и остановлена";
 
-		if (staleCommits.length > 0) {
+		if (staleMergeCommits.length > 0) {
 			await this.s2tCommitRepository.update(
 				{ state: "merging" },
 				{
 					state: "failed",
-					error: errorMessage,
+					error: mergeErrorMessage,
 					updated_at: new Date(),
 				},
 			);
 		}
 
-		if (staleSessions.length > 0) {
+		if (staleDedupCommits.length > 0) {
+			await this.s2tCommitRepository.update(
+				{ state: "deduplicating" },
+				{
+					state: "processing",
+					error: dedupErrorMessage,
+					updated_at: new Date(),
+				},
+			);
+		}
+
+		if (staleMergeSessions.length > 0) {
 			await this.mergeSessionRepository.update(
 				{ merge_status: "merging" },
 				{
 					merge_status: "failed",
 					progress: 0,
 					stage: "Ошибка",
-					error_message: errorMessage,
+					error_message: mergeErrorMessage,
+					estimated_seconds_left: null,
+					updated_at: new Date(),
+				},
+			);
+		}
+
+		if (staleDedupSessions.length > 0) {
+			await this.mergeSessionRepository.update(
+				{ merge_status: "deduplicating" },
+				{
+					merge_status: "failed",
+					progress: 0,
+					stage: "Дедупликация прервана",
+					error_message: dedupErrorMessage,
 					estimated_seconds_left: null,
 					updated_at: new Date(),
 				},
@@ -994,7 +1227,7 @@ export class MergeService implements OnModuleInit {
 		}
 
 		this.logger.warn(
-			`Помечено как failed зависших merge-коммитов после рестарта: ${staleCommits.length}, merge-сессий: ${staleSessions.length}`,
+			`Помечено зависших процессов после рестарта: merge-коммитов ${staleMergeCommits.length}, dedup-коммитов ${staleDedupCommits.length}, merge-сессий ${staleMergeSessions.length}, dedup-сессий ${staleDedupSessions.length}`,
 		);
 	}
 

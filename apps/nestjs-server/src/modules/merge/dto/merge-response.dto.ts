@@ -94,6 +94,23 @@ export class ConfirmMergeResponseDto {
 	message: string;
 }
 
+export class DeduplicateMergeResponseDto {
+	@ApiProperty({ description: "Успешность операции", example: true })
+	success: boolean;
+
+	@ApiProperty({
+		description: "ID сессии дедупликации для отслеживания прогресса",
+		example: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+	})
+	mergeSessionId: string;
+
+	@ApiProperty({
+		description: "Сообщение",
+		example: "Дедупликация запущена в фоновом режиме",
+	})
+	message: string;
+}
+
 export class MergeSessionStatusDto {
 	@ApiProperty({
 		description: "ID сессии слияния",
@@ -114,10 +131,16 @@ export class MergeSessionStatusDto {
 	commitName: string;
 
 	@ApiProperty({
-		description: "Статус слияния",
-		enum: ["merging", "done", "failed"],
+		description: "Статус фонового процесса",
+		enum: ["merging", "deduplicating", "done", "failed"],
 	})
-	status: "merging" | "done" | "failed";
+	status: "merging" | "deduplicating" | "done" | "failed";
+
+	@ApiProperty({
+		description: "Тип фоновой операции",
+		enum: ["merge", "deduplication"],
+	})
+	operation: "merge" | "deduplication";
 
 	@ApiProperty({
 		description: "Прогресс выполнения от 0 до 100",
