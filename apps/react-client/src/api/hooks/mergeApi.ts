@@ -25,6 +25,7 @@ export interface ApplyMergeResponse {
 	changedMappingsCount: number;
 	hasDuplicates: boolean;
 	duplicatesCount: number;
+	validationWarnings: string[];
 }
 
 export interface DeduplicateResponse {

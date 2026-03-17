@@ -67,6 +67,14 @@ export class ApplyMergeResponseDto {
 		example: 0,
 	})
 	duplicatesCount: number;
+
+	@ApiProperty({
+		description:
+			"Предупреждения валидации (не блокируют merge, но информируют клиента)",
+		example: [],
+		type: [String],
+	})
+	validationWarnings: string[];
 }
 
 export class ConfirmMergeResponseDto {
