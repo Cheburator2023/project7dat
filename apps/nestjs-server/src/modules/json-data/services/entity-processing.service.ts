@@ -9,6 +9,7 @@ import { EntityTypeService } from "./entity-type.service";
 import { AttributeTypeService } from "./attribute-type.service";
 import { EntityContainerEntity } from "../entities/entity-container.entity";
 import { SystemsEntity } from "../entities/systems.entity";
+import { extractFullName } from "../utils/entity-id.utils";
 
 const yieldEventLoop = (): Promise<void> =>
 	new Promise((resolve) => setImmediate(resolve));
@@ -95,7 +96,10 @@ export class EntityProcessingService {
 		entityCache: Map<string, EntityEntity>;
 		attributeCacheByEntity: Map<number, Map<string, AttributeEntity>>;
 	}> {
-		const fullNames = entities.map((e) => e.id).filter(Boolean);
+		// Извлекаем full_name из composite id (entityData.id может содержать system_code суффикс)
+		const fullNames = entities
+			.map((e) => extractFullName(e.id))
+			.filter(Boolean);
 		const entityCache = new Map<string, EntityEntity>();
 		const attributeCacheByEntity = new Map<
 			number,
@@ -106,7 +110,7 @@ export class EntityProcessingService {
 			return { entityCache, attributeCacheByEntity };
 		}
 
-		// Загружаем все сущности по full_name
+		// Загружаем все сущности по full_name (без system_code суффикса)
 		const existingEntities = await queryRunner.manager.find(EntityEntity, {
 			where: { full_name: In(fullNames) },
 		});
@@ -139,6 +143,9 @@ export class EntityProcessingService {
 		attributeCacheByEntity: Map<number, Map<string, AttributeEntity>>,
 	): Promise<number> {
 		try {
+			// Извлекаем full_name из composite id (entityData.id может содержать system_code суффикс)
+			const fullName = extractFullName(entityData.id);
+
 			// Валидация типа сущности
 			const isValidType = await this.entityTypeService.validateEntityType(
 				entityData.type,
@@ -161,15 +168,17 @@ export class EntityProcessingService {
 				queryRunner,
 			);
 
-			// Поиск существующей сущности по full_name в кэше
-			let entity = entityCache.get(entityData.id);
+			// Поиск существующей сущности по full_name в кэше (без system_code суффикса)
+			let entity = entityCache.get(fullName);
 
 			if (!entity) {
-				this.logger.log(`Создание новой сущности: ${entityData.id}`);
+				this.logger.log(
+					`Создание новой сущности: ${fullName} (id: ${entityData.id})`,
+				);
 
-				// Создание новой сущности
+				// Создание новой сущности — в БД full_name хранится БЕЗ system_code
 				entity = new EntityEntity();
-				entity.full_name = entityData.id;
+				entity.full_name = fullName;
 				entity.name = entityData.name;
 				entity.entity_type_id = entityTypeId;
 				entity.entity_container_id = entityContainerId;
@@ -177,15 +186,15 @@ export class EntityProcessingService {
 				entity.description = entityData.description || null;
 
 				entity = await queryRunner.manager.save(EntityEntity, entity);
-				// Добавляем в кэш
-				entityCache.set(entityData.id, entity);
+				// Добавляем в кэш по full_name
+				entityCache.set(fullName, entity);
 				attributeCacheByEntity.set(entity.entity_id, new Map());
-				this.logger.log(`Создана новая сущность: ${entityData.id}`);
+				this.logger.log(`Создана новая сущность: ${fullName}`);
 			} else {
 				// Сущность существует – проверяем, изменилась ли она
 				if (this.isEntityUnchanged(entity, entityData, entityContainerId)) {
 					this.logger.log(
-						`Сущность ${entityData.id} не изменилась, пропускаем обновление`,
+						`Сущность ${fullName} не изменилась, пропускаем обновление`,
 					);
 				} else {
 					entity.change_id = changeId;
@@ -193,8 +202,8 @@ export class EntityProcessingService {
 					entity.description = entityData.description || entity.description;
 					entity = await queryRunner.manager.save(EntityEntity, entity);
 					// Обновляем кэш
-					entityCache.set(entityData.id, entity);
-					this.logger.log(`Сущность ${entityData.id} обновлена`);
+					entityCache.set(fullName, entity);
+					this.logger.log(`Сущность ${fullName} обновлена`);
 				}
 			}
 
@@ -410,8 +419,9 @@ export class EntityProcessingService {
 		queryRunner: QueryRunner,
 	): Promise<void> {
 		try {
+			const fullName = extractFullName(entityData.id);
 			const entity = await queryRunner.manager.findOne(EntityEntity, {
-				where: { full_name: entityData.id },
+				where: { full_name: fullName },
 			});
 
 			if (!entity) {

@@ -7,6 +7,7 @@ import { EntityEntity } from "../entities/entity.entity";
 import { ConfigService } from "@nestjs/config";
 import { CacheService } from "./cache.service";
 import { GraphIndexService } from "./graph-index.service";
+import { buildEntityCompositeId } from "../utils/entity-id.utils";
 
 interface EntityWithDetails {
 	entity_id: number;
@@ -1740,14 +1741,11 @@ export class JsonExportService {
 		};
 	}
 
-	/**
-	 * Формирование уникального ID сущности: full_name.system_code
-	 */
 	private buildEntityId(
 		fullName: string,
 		systemCode: string | null | undefined,
 	): string {
-		return `${fullName}.${systemCode || "1642"}`;
+		return buildEntityCompositeId(fullName, systemCode);
 	}
 
 	/**
