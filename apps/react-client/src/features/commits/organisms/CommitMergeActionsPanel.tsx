@@ -62,6 +62,7 @@ export const CommitMergeActionsPanel = memo(() => {
 		mergeStats,
 		hasDuplicates,
 		duplicatesCount,
+		validationWarnings,
 		setApplying,
 		setError,
 		setMergeStep,
@@ -69,6 +70,7 @@ export const CommitMergeActionsPanel = memo(() => {
 		setMergeDiff,
 		setMergeStats,
 		setDuplicateState,
+		setValidationWarnings,
 	} = useCommitMergeStore();
 
 	const isDone = commit?.state === "done" || commit?.state === "failed";
@@ -79,50 +81,14 @@ export const CommitMergeActionsPanel = memo(() => {
 	const isMergeRunning =
 		isCurrentCommitSession && activeSession?.status === "merging";
 
-	useEffect(() => {
-		if (!commit || !activeSession || activeSession.commitId !== commit.id) {
-			return;
-		}
-		if (activeSession.operation !== "deduplication") {
-			return;
-		}
-		if (activeSession.status === "done") {
-			// toast.success("Дедупликация завершена. Повторите предпросмотр слияния.");
-			setMergeStep("idle");
-			setMergeSessionId(null);
-			setMergeDiff([]);
-			setMergeStats(null);
-			setDuplicateState(false, 0);
-			setError(null);
-			return;
-		}
-		if (activeSession.status === "failed") {
-			const isCancelled = activeSession.stage.toLowerCase().includes("отмен");
-			if (isCancelled) {
-				toast.info("Дедупликация отменена");
-				setError(null);
-			} else {
-				setError(activeSession.errorMessage ?? "Ошибка дедупликации");
-			}
-			setMergeStep("previewing");
-		}
-	}, [
-		activeSession,
-		commit,
-		setDuplicateState,
-		setError,
-		setMergeDiff,
-		setMergeSessionId,
-		setMergeStats,
-		setMergeStep,
-	]);
-
 	const handleApply = useCallback(async () => {
 		if (!commit) return;
 		setApplying(true);
 		setError(null);
 		try {
 			const result = await applyMutation.mutateAsync(commit.id);
+			console.log("🐸 Pepe said >> result:", result);
+
 			setMergeSessionId(result.mergeSessionId);
 			setMergeDiff(result.diff);
 			setMergeStats({
@@ -131,10 +97,8 @@ export const CommitMergeActionsPanel = memo(() => {
 				changedMappingsCount: result.changedMappingsCount,
 			});
 			setDuplicateState(result.hasDuplicates, result.duplicatesCount);
+			setValidationWarnings(result.validationWarnings || []);
 			setMergeStep("previewing");
-
-			// Показываем предупреждения валидации
-			console.log("🐸 Pepe said >> result:", result);
 
 			if (result.validationWarnings?.length > 0) {
 				for (const w of result.validationWarnings.slice(0, 3)) {
@@ -164,6 +128,49 @@ export const CommitMergeActionsPanel = memo(() => {
 		setMergeDiff,
 		setMergeStats,
 		setMergeStep,
+		setValidationWarnings,
+	]);
+
+	useEffect(() => {
+		if (!commit || !activeSession || activeSession.commitId !== commit.id) {
+			return;
+		}
+		if (activeSession.operation !== "deduplication") {
+			return;
+		}
+		if (activeSession.status === "done") {
+			toast.success("Дедупликация завершена. Запускаем предпросмотр...");
+			setMergeStep("idle");
+			setMergeSessionId(null);
+			setMergeDiff([]);
+			setMergeStats(null);
+			setDuplicateState(false, 0);
+			setValidationWarnings([]);
+			setError(null);
+			handleApply();
+			return;
+		}
+		if (activeSession.status === "failed") {
+			const isCancelled = activeSession.stage.toLowerCase().includes("отмен");
+			if (isCancelled) {
+				toast.info("Дедупликация отменена");
+				setError(null);
+			} else {
+				setError(activeSession.errorMessage ?? "Ошибка дедупликации");
+			}
+			setMergeStep("previewing");
+		}
+	}, [
+		activeSession,
+		commit,
+		handleApply,
+		setDuplicateState,
+		setError,
+		setMergeDiff,
+		setMergeSessionId,
+		setMergeStats,
+		setMergeStep,
+		setValidationWarnings,
 	]);
 
 	const handleStartDeduplication = useCallback(async () => {
@@ -173,8 +180,10 @@ export const CommitMergeActionsPanel = memo(() => {
 		try {
 			const result = await deduplicateMutation.mutateAsync(commit.id);
 			if (!result.mergeSessionId) {
-				toast.info(result.message);
+				toast.success(result.message);
 				setDuplicateState(false, 0);
+				setValidationWarnings([]);
+				handleApply();
 				return;
 			}
 			setMergeStep("deduplicating");
@@ -190,10 +199,12 @@ export const CommitMergeActionsPanel = memo(() => {
 	}, [
 		commit,
 		deduplicateMutation,
+		handleApply,
 		setApplying,
 		setDuplicateState,
 		setError,
 		setMergeStep,
+		setValidationWarnings,
 		startPolling,
 	]);
 
@@ -404,6 +415,23 @@ export const CommitMergeActionsPanel = memo(() => {
 								mt: "auto",
 							}}
 						>
+							{validationWarnings.length > 0 && (
+								<Alert severity="warning">
+									<Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+										Предупреждения валидации:
+									</Typography>
+									<List dense disablePadding>
+										{validationWarnings.map((warning, idx) => (
+											<ListItem key={idx} disableGutters sx={{ py: 0 }}>
+												<ListItemText
+													primary={warning}
+													primaryTypographyProps={{ variant: "caption" }}
+												/>
+											</ListItem>
+										))}
+									</List>
+								</Alert>
+							)}
 							{hasDuplicates && !isDeduplicationRunning && (
 								<Button
 									onClick={handleStartDeduplication}

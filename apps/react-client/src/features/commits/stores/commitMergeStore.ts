@@ -55,6 +55,7 @@ interface CommitMergeState {
 	mergeStats: MergeStats | null;
 	hasDuplicates: boolean;
 	duplicatesCount: number;
+	validationWarnings: string[];
 
 	setCommit: (commit: S2tCommitItem | null) => void;
 	setSourceType: (sourceType: "SURM" | "DAPP") => void;
@@ -67,6 +68,7 @@ interface CommitMergeState {
 	setMergeDiff: (diff: MergeDiffItem[]) => void;
 	setMergeStats: (stats: MergeStats | null) => void;
 	setDuplicateState: (hasDuplicates: boolean, duplicatesCount: number) => void;
+	setValidationWarnings: (warnings: string[]) => void;
 	reset: () => void;
 }
 
@@ -85,6 +87,7 @@ const initialState = {
 	mergeStats: null,
 	hasDuplicates: false,
 	duplicatesCount: 0,
+	validationWarnings: [],
 };
 
 export const useCommitMergeStore = create<CommitMergeState>()((set) => ({
@@ -101,6 +104,7 @@ export const useCommitMergeStore = create<CommitMergeState>()((set) => ({
 	setMergeStats: (mergeStats) => set({ mergeStats }),
 	setDuplicateState: (hasDuplicates, duplicatesCount) =>
 		set({ hasDuplicates, duplicatesCount }),
+	setValidationWarnings: (validationWarnings) => set({ validationWarnings }),
 	reset: () => set(initialState),
 }));
 

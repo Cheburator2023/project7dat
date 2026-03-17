@@ -543,6 +543,37 @@ export class MergeService implements OnModuleInit {
 			};
 		}
 
+		// Сначала проверяем дубликаты в кешированном merged JSON (он ещё не применён в БД)
+		if (latestSession) {
+			const cachedPayload = this.sessionPayloadCache.get(latestSession.id);
+			if (cachedPayload) {
+				const jsonDuplicates = this.countDuplicatesInJsonModel(
+					cachedPayload.mergedJson,
+				);
+				if (jsonDuplicates.hasDuplicates) {
+					this.logger.log(
+						`Найдены дубликаты в merged JSON: ${jsonDuplicates.count} в ${jsonDuplicates.groups.length} группах. Дедуплицируем JSON в кеше.`,
+					);
+					const deduplicatedJson = this.deduplicateMergedJson(
+						cachedPayload.mergedJson,
+					);
+					this.sessionPayloadCache.set(latestSession.id, {
+						...cachedPayload,
+						mergedJson: deduplicatedJson,
+					});
+					const afterDedup = this.countDuplicatesInJsonModel(deduplicatedJson);
+					this.logger.log(
+						`JSON-дедупликация завершена. Осталось дубликатов: ${afterDedup.count}`,
+					);
+					return {
+						success: true,
+						mergeSessionId: "",
+						message: `JSON-дедупликация выполнена: удалено ${jsonDuplicates.count} дубликатов из ${jsonDuplicates.groups.length} групп`,
+					};
+				}
+			}
+		}
+
 		const dbDuplicates = await this.deduplicationService.checkDuplicatesInDb();
 		if (!dbDuplicates.hasDuplicates) {
 			return {
@@ -1270,6 +1301,70 @@ export class MergeService implements OnModuleInit {
 			allowed: newDuplicates.length === 0,
 			newDuplicates,
 			existingDuplicates,
+		};
+	}
+
+	private deduplicateMergedJson(
+		model: JsonExportResponseDto,
+	): JsonExportResponseDto {
+		const entityKey = (e: JsonExportResponseDto["entities"][number]) => {
+			const ns = e.namespace || "default";
+			const name = e.name || e.id;
+			const sc = e.system_code || "1642";
+			return `${ns}.${name}.${sc}`;
+		};
+
+		// Группируем entities по ключу, оставляем первый (самый полный), мержим атрибуты
+		const seen = new Map<
+			string,
+			{ entity: JsonExportResponseDto["entities"][number]; index: number }
+		>();
+		const deduplicatedEntities: JsonExportResponseDto["entities"] = [];
+		const idRemap = new Map<string, string>(); // oldId → keptId
+
+		for (const entity of model.entities) {
+			const key = entityKey(entity);
+			const existing = seen.get(key);
+			if (existing) {
+				// Мержим уникальные атрибуты дубликата в оставляемую сущность
+				const keptEntity = existing.entity;
+				const existingAttrNames = new Set(
+					keptEntity.attrSeq.map((a) => a.name),
+				);
+				for (const attr of entity.attrSeq) {
+					if (!existingAttrNames.has(attr.name)) {
+						keptEntity.attrSeq.push(attr);
+						existingAttrNames.add(attr.name);
+					}
+				}
+				// Запоминаем ремаппинг ID
+				if (entity.id !== keptEntity.id) {
+					idRemap.set(entity.id, keptEntity.id);
+				}
+				this.logger.debug(
+					`JSON-дедупликация: удалён дубликат ${entity.id} (key=${key}), оставлен ${keptEntity.id}`,
+				);
+			} else {
+				seen.set(key, { entity, index: deduplicatedEntities.length });
+				deduplicatedEntities.push(entity);
+			}
+		}
+
+		// Обновляем ссылки в маппингах
+		const remapId = (id: string) => idRemap.get(id) || id;
+		const deduplicatedMappings = model.mappings.map((m) => ({
+			...m,
+			entityId: remapId(m.entityId),
+			deps: m.deps.map((d) => ({
+				...d,
+				entityId: remapId(d.entityId),
+			})),
+		}));
+
+		return {
+			...model,
+			entities: deduplicatedEntities,
+			mappings: deduplicatedMappings,
 		};
 	}
 
