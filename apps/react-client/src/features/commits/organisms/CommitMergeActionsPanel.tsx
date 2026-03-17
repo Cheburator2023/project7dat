@@ -147,7 +147,6 @@ export const CommitMergeActionsPanel = memo(() => {
 			setDuplicateState(false, 0);
 			setValidationWarnings([]);
 			setError(null);
-			handleApply();
 			return;
 		}
 		if (activeSession.status === "failed") {
@@ -183,7 +182,6 @@ export const CommitMergeActionsPanel = memo(() => {
 				toast.success(result.message);
 				setDuplicateState(false, 0);
 				setValidationWarnings([]);
-				handleApply();
 				return;
 			}
 			setMergeStep("deduplicating");
