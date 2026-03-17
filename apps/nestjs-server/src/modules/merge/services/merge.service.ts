@@ -190,23 +190,8 @@ export class MergeService implements OnModuleInit {
 			);
 		}
 
-		// 7. Проверяем рекурсию в результирующей модели
-		this.structureValidator.checkForRecursion(
-			mergedModel.entities,
-			mergedModel.mappings,
-		);
-
-		// 8. Дополнительная проверка целостности смерженного JSON (необязательно)
-		const integrityWarnings = this.validateMergedJsonIntegrity(mergedModel);
-		if (integrityWarnings.length > 0) {
-			this.logger.warn(
-				`Обнаружены проблемы целостности в смерженном JSON: ${integrityWarnings.length}`,
-				{ warnings: integrityWarnings.slice(0, 10) },
-			);
-		}
-
-		// 8.5. Комплексная валидация merged JSON (та же, что раньше выполнялась при importJsonData)
-		// Выполняем здесь заранее, чтобы ошибки обнаруживались до confirm, а не в фоновом процессе
+		// 7. Комплексная валидация merged JSON — полное соответствие с hasCriticalErrors + checkForConflicts
+		// Выполняем здесь заранее, чтобы ВСЕ ошибки обнаруживались до confirm, а не в фоновом процессе
 		const mergedJsonForValidation = {
 			...mergedModel,
 			desc: { ...mergedModel.desc, schemaVersion: "2.0" },
@@ -216,7 +201,44 @@ export class MergeService implements OnModuleInit {
 			mergedJsonForValidation,
 		);
 
-		// Фильтруем некритические ошибки (аналогично hasCriticalErrors в json-import.service)
+		this.logger.log("Результат комплексной валидации merged JSON", {
+			entitiesCount: mergedModel.entities?.length ?? 0,
+			mappingsCount: mergedModel.mappings?.length ?? 0,
+			schemaVersion: validationResult.schemaVersion.version,
+			schemaSupported: validationResult.schemaVersion.supported,
+			migrationRequired: validationResult.schemaVersion.migrationRequired,
+			structureErrorsCount: validationResult.validation.errors.length,
+			structureWarningsCount: validationResult.validation.warnings.length,
+			integrityIssuesCount: validationResult.integrity.issues.length,
+			recursionDetected: validationResult.recursionCheck.hasRecursion,
+			recursionCyclesCount: validationResult.recursionCheck.cycles.length,
+			duplicatesDetected: validationResult.duplicateCheck.hasDuplicates,
+			duplicatesCount: validationResult.duplicateCheck.duplicates.length,
+		});
+
+		// 7.1. Неподдерживаемая версия схемы — критическая ошибка
+		if (!validationResult.schemaVersion.supported) {
+			throw new BadRequestException({
+				message: `Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
+			});
+		}
+
+		// 7.2. Структурные ошибки — критическая ошибка (аналог hasCriticalErrors без skipStructureValidation)
+		if (validationResult.validation.errors.length > 0) {
+			this.logger.error(
+				`Критические ошибки структуры в merged JSON: ${validationResult.validation.errors.length}`,
+				{ errors: validationResult.validation.errors.slice(0, 20) },
+			);
+			throw new BadRequestException({
+				message:
+					"Валидация merged JSON не пройдена: критические ошибки структуры",
+				details: {
+					structureErrors: validationResult.validation.errors.slice(0, 50),
+				},
+			});
+		}
+
+		// 7.3. Критические ошибки целостности (фильтруем некритические — отсутствие source/target)
 		const criticalIntegrityIssues = validationResult.integrity.issues.filter(
 			(issue) =>
 				!issue.includes("source entity не найдена") &&
@@ -239,23 +261,80 @@ export class MergeService implements OnModuleInit {
 			});
 		}
 
-		if (!validationResult.schemaVersion.supported) {
+		// 7.4. Рекурсия — блокируем если появились НОВЫЕ циклы (которых не было в currentModel)
+		if (validationResult.recursionCheck.hasRecursion && !hadExistingCycles) {
+			this.logger.error(
+				`Merge создаёт новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length} циклов`,
+				{ cycles: validationResult.recursionCheck.cycles.slice(0, 10) },
+			);
 			throw new BadRequestException({
-				message: `Неподдерживаемая версия схемы: ${validationResult.schemaVersion.version}`,
+				message: "Merge создаёт новые рекурсивные зависимости",
+				details: {
+					cycles: validationResult.recursionCheck.cycles.slice(0, 20),
+				},
 			});
 		}
-
-		// Структурные ошибки и бизнес-правила логируем как предупреждения (не блокируем merge)
-		if (validationResult.validation.errors.length > 0) {
+		if (validationResult.recursionCheck.hasRecursion && hadExistingCycles) {
 			this.logger.warn(
-				`Структурные предупреждения в merged JSON (не блокируют merge): ${validationResult.validation.errors.length}`,
-				{ errors: validationResult.validation.errors.slice(0, 10) },
+				`Рекурсия обнаружена в merged JSON, но разрешена (циклы уже существовали в текущей модели). Циклов: ${validationResult.recursionCheck.cycles.length}`,
+			);
+		}
+
+		// 7.5. Дубликаты из валидатора — блокируем если обнаружены новые
+		// (checkDuplicatesAfterMerge на шаге 6 проверяет только entities по id,
+		// а валидатор может ловить более широкий спектр дубликатов)
+		if (validationResult.duplicateCheck.hasDuplicates) {
+			// Проверяем, не являются ли все дубликаты уже существующими
+			const newDuplicatesFromValidator =
+				validationResult.duplicateCheck.duplicates.filter(
+					(dup) => !duplicateCheckResult.existingDuplicates.includes(dup),
+				);
+			if (newDuplicatesFromValidator.length > 0) {
+				this.logger.error(
+					`Обнаружены новые дубликаты через валидатор: ${newDuplicatesFromValidator.join(", ")}`,
+				);
+				throw new BadRequestException({
+					message: `Merge создаёт новые дубликаты: ${newDuplicatesFromValidator.join(", ")}`,
+					details: {
+						newDuplicates: newDuplicatesFromValidator.slice(0, 50),
+						existingDuplicates: duplicateCheckResult.existingDuplicates.slice(
+							0,
+							50,
+						),
+					},
+				});
+			}
+			this.logger.warn(
+				`Дубликаты обнаружены валидатором, но все уже существовали: ${validationResult.duplicateCheck.duplicates.join(", ")}`,
+			);
+		}
+
+		// 7.6. Дополнительная проверка целостности маппингов
+		const integrityWarnings = this.validateMergedJsonIntegrity(mergedModel);
+		if (integrityWarnings.length > 0) {
+			this.logger.warn(
+				`Обнаружены проблемы целостности маппингов в смерженном JSON: ${integrityWarnings.length}`,
+				{ warnings: integrityWarnings.slice(0, 10) },
+			);
+		}
+
+		// 7.7. Некритические предупреждения — логируем
+		if (
+			validationResult.integrity.issues.length > criticalIntegrityIssues.length
+		) {
+			const nonCriticalCount =
+				validationResult.integrity.issues.length -
+				criticalIntegrityIssues.length;
+			this.logger.warn(
+				`Некритические integrity issues (отсутствующие source/target): ${nonCriticalCount}`,
 			);
 		}
 
 		this.logger.log(
 			`Валидация merged JSON завершена: структурных ошибок=${validationResult.validation.errors.length}, ` +
-				`integrity issues=${validationResult.integrity.issues.length} (критических=${criticalIntegrityIssues.length})`,
+				`integrity issues=${validationResult.integrity.issues.length} (критических=${criticalIntegrityIssues.length}), ` +
+				`рекурсия=${validationResult.recursionCheck.hasRecursion} (существующая=${hadExistingCycles}), ` +
+				`дубликаты=${validationResult.duplicateCheck.duplicates.length}`,
 		);
 
 		// 9. Вычисляем diff
