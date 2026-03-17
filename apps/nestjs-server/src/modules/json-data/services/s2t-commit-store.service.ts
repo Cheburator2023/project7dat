@@ -445,13 +445,19 @@ export class S2tCommitStoreService {
 	}
 
 	async deleteCommit(id: string): Promise<void> {
-		const commit = await this.findById(id);
+		const commit = await this.repo.findOne({
+			select: ["id", "state"],
+			where: { id },
+		});
+		if (!commit) {
+			throw new NotFoundException(`S2T commit ${id} not found`);
+		}
 
 		if (commit.state === "done") {
 			throw new BadRequestException("Нельзя удалить уже применённый коммит");
 		}
 
-		await this.repo.remove(commit);
+		await this.repo.delete(id);
 	}
 
 	private async setState(id: string, state: S2tCommitState): Promise<void> {

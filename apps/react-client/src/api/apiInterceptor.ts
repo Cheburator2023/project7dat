@@ -21,6 +21,77 @@ const getUrlFromConfig = (config: any): string => {
 	return config?.url || "";
 };
 
+const getPathnameFromResponseUrl = (responseUrl?: string): string => {
+	if (!responseUrl) {
+		return "";
+	}
+
+	try {
+		const parsedUrl = new URL(responseUrl);
+		return `${parsedUrl.pathname}${parsedUrl.search}`;
+	} catch {
+		return responseUrl;
+	}
+};
+
+const getUrlFromResponse = (response: AxiosResponse): string => {
+	const responseUrl = (response.request as { responseURL?: string } | undefined)
+		?.responseURL;
+	return getPathnameFromResponseUrl(responseUrl);
+};
+
+const getUrlFromError = (error: AxiosError): string => {
+	const responseUrl = (
+		error.response?.request as { responseURL?: string } | undefined
+	)?.responseURL;
+	return getPathnameFromResponseUrl(responseUrl);
+};
+
+const getOperationLabel = (method: string): string => {
+	return method === "GET"
+		? "загружены"
+		: method === "POST"
+			? "созданы"
+			: method === "PUT" || method === "PATCH"
+				? "обновлены"
+				: method === "DELETE"
+					? "удалены"
+					: "обработаны";
+};
+
+const getReadableEndpointName = (url: string): string | null => {
+	const normalizedUrl = url.split("?")[0];
+	const parts = normalizedUrl
+		.split("/")
+		.map((part) => part.trim())
+		.filter(Boolean)
+		.filter((part) => part !== "api")
+		.filter((part) => !/^\d+$/.test(part))
+		.filter((part) => !/^v\d+$/i.test(part))
+		.filter(
+			(part) =>
+				!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+					part,
+				),
+		);
+
+	const candidate = parts.at(-1);
+	if (!candidate) {
+		return null;
+	}
+
+	const normalizedName = candidate
+		.replace(/[-_]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+
+	if (!normalizedName) {
+		return null;
+	}
+
+	return normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1);
+};
+
 const shouldShowToast = (url: string): boolean => {
 	return !url.includes("/health") && !url.includes("/ping");
 };
@@ -28,16 +99,7 @@ const shouldShowToast = (url: string): boolean => {
 const getSuccessMessage = (method: string, url: string): string => {
 	const IS_DEV = process.env.NODE_ENV === "development";
 	const debugMessage = IS_DEV ? ` ${url}, ${method}` : "";
-	const operation =
-		method === "GET"
-			? "загружены"
-			: method === "POST"
-				? "созданы"
-				: method === "PUT"
-					? "обновлены"
-					: method === "DELETE"
-						? "удалены"
-						: "обработаны";
+	const operation = getOperationLabel(method);
 
 	if (url.includes("validate")) return "Валидация выполнена";
 	if (url.includes("/s2t-import/convert-xlsx-to-commit-json"))
@@ -58,7 +120,12 @@ const getSuccessMessage = (method: string, url: string): string => {
 	if (url.includes("/debug"))
 		return `Отладочная информация ${operation} ${debugMessage}`;
 
-	return `Операция выполнена успешно${debugMessage}`;
+	const endpointName = getReadableEndpointName(url);
+	if (endpointName) {
+		return `${endpointName} успешно ${operation}${debugMessage}`;
+	}
+
+	return `Запрос успешно обработан${debugMessage}`;
 };
 
 const getErrorMessage = (
@@ -118,7 +185,8 @@ const setupInterceptorsForInstance = (instance: AxiosInstance) => {
 	instance.interceptors.response.use(
 		(response: AxiosResponse) => {
 			const method = getMethodFromConfig(response.config);
-			const url = getUrlFromConfig(response.config);
+			const url =
+				getUrlFromResponse(response) || getUrlFromConfig(response.config);
 			console.log(
 				"🐸 Pepe said >> setupInterceptorsForInstance >> response:",
 				response,
@@ -145,7 +213,7 @@ const setupInterceptorsForInstance = (instance: AxiosInstance) => {
 		},
 		(error: AxiosError) => {
 			const method = getMethodFromConfig(error.config);
-			const url = getUrlFromConfig(error.config);
+			const url = getUrlFromError(error) || getUrlFromConfig(error.config);
 			const status = error.response?.status;
 
 			// Handle authentication errors

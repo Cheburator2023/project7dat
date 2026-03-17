@@ -26,7 +26,12 @@ async function bootstrap() {
 		attachFieldsToBody: true,
 	});
 
-	app.enableCors();
+	app.enableCors({
+		origin: true,
+		methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+		credentials: true,
+		allowedHeaders: "*",
+	});
 
 	app.useGlobalPipes(
 		new ValidationPipe({

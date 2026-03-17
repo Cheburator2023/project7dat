@@ -19,6 +19,7 @@ import { styled } from "@mui/material/styles";
 import { useUserStore } from "@react-client/common/stores/userStore";
 import { useProcesses, useS2tCommitList } from "@react-client/api/hooks";
 import {
+	S2tCommitState,
 	s2tCommitStoreService,
 	type S2tValidationError,
 } from "@react-client/api/hooks/s2tCommitStoreApi";
@@ -61,7 +62,7 @@ interface S2tCommitEditorProps {
 	active: boolean;
 	onClose?: () => void;
 	onImported?: () => void;
-	onSaved?: (commitId: string) => void;
+	onSaved?: (payload: { commitId: string; reusedExisting: boolean }) => void;
 	onOpenNewVersionUpload?: () => void;
 	prefillCommitId?: string | null;
 	showCloseButton?: boolean;
@@ -105,7 +106,7 @@ export const S2tCommitEditor = ({
 	>([]);
 	const [savedCommit, setSavedCommit] = useState<{
 		id: string;
-		state: "processing" | "done" | "failed" | "merging";
+		state: S2tCommitState;
 		change_id: number | null;
 		error: string | null;
 	} | null>(null);
@@ -387,7 +388,10 @@ export const S2tCommitEditor = ({
 
 				setInfoMessage("Коммит сохранён.");
 				onImported?.();
-				onSaved?.(savedId);
+				onSaved?.({
+					commitId: savedId,
+					reusedExisting: Boolean(saveResponse.reusedExisting),
+				});
 			} catch (e: any) {
 				const errData = e?.response?.data;
 				if (errData?.errors?.length) {
@@ -662,6 +666,8 @@ export const S2tCommitEditor = ({
 
 				{error && <Alert severity="error">{error}</Alert>}
 			</Box>
+
+			<Spacer />
 
 			<Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
 				{prefillCommitId && (

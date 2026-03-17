@@ -29,7 +29,7 @@ interface MergeSessionStatusState {
 	mergeSessionId: string;
 	commitId: string;
 	commitName: string;
-	status: "merging" | "deduplicating" | "done" | "failed";
+	status: "pending" | "merging" | "deduplicating" | "done" | "failed";
 	operation: "merge" | "deduplication";
 	progress: number;
 	stage: string;
@@ -88,13 +88,11 @@ export class MergeService implements OnModuleInit {
 	private toMergeSessionStatusDto(
 		session: MergeSessionEntity,
 	): MergeSessionStatusState {
-		const status =
-			session.merge_status === "pending" ? "merging" : session.merge_status;
 		return {
 			mergeSessionId: session.id,
 			commitId: session.commit_id,
 			commitName: session.commit_name,
-			status,
+			status: session.merge_status,
 			operation: this.inferSessionOperation(
 				session.merge_status,
 				session.stage,
@@ -117,9 +115,12 @@ export class MergeService implements OnModuleInit {
 		if (!current) {
 			return;
 		}
+		const definedPatch = Object.fromEntries(
+			Object.entries(patch).filter(([, v]) => v !== undefined),
+		);
 		this.sessionStatusCache.set(sessionId, {
 			...current,
-			...patch,
+			...definedPatch,
 		});
 	}
 
@@ -136,10 +137,7 @@ export class MergeService implements OnModuleInit {
 		}
 		const cached = this.sessionStatusCache.get(sessionId);
 		this.cacheMergeSessionStatus(sessionId, {
-			status:
-				patch.merge_status === undefined || patch.merge_status === "pending"
-					? undefined
-					: patch.merge_status,
+			status: patch.merge_status,
 			operation: this.inferSessionOperation(
 				patch.merge_status,
 				patch.stage,
@@ -312,14 +310,13 @@ export class MergeService implements OnModuleInit {
 
 		// 11. Подсчёт статистики
 		const stats = this.calculateChangeStats(diff);
+		const mergedDuplicates = this.countDuplicatesInJsonModel(mergedModel);
 
 		this.logger.log(`Слияние применено, сессия: ${mergeSessionId}`);
 
-		// 12. Проверяем дубликаты в БД (full_name + system_code)
-		const dbDuplicates = await this.deduplicationService.checkDuplicatesInDb();
-		if (dbDuplicates.hasDuplicates) {
+		if (mergedDuplicates.hasDuplicates) {
 			this.logger.warn(
-				`Обнаружены дубликаты в БД: ${dbDuplicates.count} дубликатов в ${dbDuplicates.groups.length} группах. Требуется дедупликация.`,
+				`После предпросмотра обнаружены дубликаты сущностей: ${mergedDuplicates.count} в ${mergedDuplicates.groups.length} группах. Требуется дедупликация перед confirm.`,
 			);
 		}
 
@@ -330,8 +327,8 @@ export class MergeService implements OnModuleInit {
 			changedEntitiesCount: stats.entities,
 			changedAttributesCount: stats.attributes,
 			changedMappingsCount: stats.mappings,
-			hasDuplicates: dbDuplicates.hasDuplicates,
-			duplicatesCount: dbDuplicates.count,
+			hasDuplicates: mergedDuplicates.hasDuplicates,
+			duplicatesCount: mergedDuplicates.count,
 			validationWarnings,
 		};
 	}
@@ -1273,6 +1270,38 @@ export class MergeService implements OnModuleInit {
 			allowed: newDuplicates.length === 0,
 			newDuplicates,
 			existingDuplicates,
+		};
+	}
+
+	private countDuplicatesInJsonModel(mergedModel: JsonExportResponseDto): {
+		hasDuplicates: boolean;
+		count: number;
+		groups: Array<{
+			key: string;
+			count: number;
+		}>;
+	} {
+		const counts = new Map<string, number>();
+
+		for (const entity of mergedModel.entities) {
+			const namespace = entity.namespace || "default";
+			const name = entity.name || entity.id;
+			const systemCode = entity.system_code || "1642";
+			const key = `${namespace}.${name}.${systemCode}`;
+			counts.set(key, (counts.get(key) || 0) + 1);
+		}
+
+		const groups = [...counts.entries()]
+			.filter(([, count]) => count > 1)
+			.map(([key, count]) => ({
+				key,
+				count,
+			}));
+
+		return {
+			hasDuplicates: groups.length > 0,
+			count: groups.reduce((sum, group) => sum + (group.count - 1), 0),
+			groups,
 		};
 	}
 }

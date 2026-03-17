@@ -31,7 +31,13 @@ const HeaderMergingChip = memo(function HeaderMergingChip() {
 	const processLabel =
 		activeSession?.operation === "deduplication" ? "Дедупликация" : "Слияние";
 
-	if (activeSession?.progress === 100 || activeSession === null) return null;
+	if (
+		activeSession === null ||
+		activeSession.progress === 100 ||
+		(activeSession.status !== "merging" &&
+			activeSession.status !== "deduplicating")
+	)
+		return null;
 
 	return (
 		<Box

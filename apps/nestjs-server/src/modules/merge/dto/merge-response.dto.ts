@@ -132,9 +132,9 @@ export class MergeSessionStatusDto {
 
 	@ApiProperty({
 		description: "Статус фонового процесса",
-		enum: ["merging", "deduplicating", "done", "failed"],
+		enum: ["pending", "merging", "deduplicating", "done", "failed"],
 	})
-	status: "merging" | "deduplicating" | "done" | "failed";
+	status: "pending" | "merging" | "deduplicating" | "done" | "failed";
 
 	@ApiProperty({
 		description: "Тип фоновой операции",

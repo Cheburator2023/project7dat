@@ -44,7 +44,7 @@ export interface MergeSessionStatus {
 	mergeSessionId: string;
 	commitId: string;
 	commitName: string;
-	status: "merging" | "deduplicating" | "done" | "failed";
+	status: "pending" | "merging" | "deduplicating" | "done" | "failed";
 	operation: "merge" | "deduplication";
 	progress: number;
 	stage: string;

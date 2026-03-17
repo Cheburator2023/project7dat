@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { mergeService, type MergeSessionStatus } from "./mergeApi";
 import { useMergingSessionStore } from "@react-client/features/commits/stores/mergingSessionStore";
@@ -17,6 +17,10 @@ const MERGE_SESSION_POLLING_SINGLE_QUERY_KEY = [
 	"check",
 ] as const;
 let restoreFromStorageDone = false;
+
+const isActiveBackgroundStatus = (
+	status: MergeSessionStatus["status"] | null | undefined,
+): boolean => status === "merging" || status === "deduplicating";
 
 export const useMergeSessionPolling = () => {
 	const store = useMergingSessionStore();
@@ -41,6 +45,8 @@ export const useMergeSessionPolling = () => {
 		});
 	}, [setPollingSessionId, queryClient]);
 
+	const justStartedRef = useRef(false);
+
 	const startPolling = useCallback(
 		(mergeSessionId: string) => {
 			if (!mergeSessionId) {
@@ -48,9 +54,13 @@ export const useMergeSessionPolling = () => {
 				return;
 			}
 			console.info("[merge-polling] start", { mergeSessionId });
+			queryClient.removeQueries({
+				queryKey: [...MERGE_SESSION_POLLING_QUERY_KEY, mergeSessionId],
+			});
+			justStartedRef.current = true;
 			setPollingSessionId(mergeSessionId);
 		},
-		[setPollingSessionId],
+		[setPollingSessionId, queryClient],
 	);
 
 	useEffect(() => {
@@ -77,7 +87,13 @@ export const useMergeSessionPolling = () => {
 				.then((data) => {
 					console.info("[merge-polling] session status after restore", {
 						mergeSessionId: storedSessionId,
+						status: data.status,
 					});
+					if (!isActiveBackgroundStatus(data.status)) {
+						window.localStorage.removeItem(MERGE_SESSION_STORAGE_KEY);
+						clearSession();
+						return;
+					}
 					startPolling(data.mergeSessionId);
 				})
 				.catch((error) => {
@@ -98,7 +114,11 @@ export const useMergeSessionPolling = () => {
 				console.info("[merge-polling] restore active session from api", {
 					mergeSessionId: data.mergeSessionId,
 					operation: data.operation,
+					status: data.status,
 				});
+				if (!isActiveBackgroundStatus(data.status)) {
+					return;
+				}
 				startPolling(data.mergeSessionId);
 			})
 			.catch((error) => {
@@ -150,6 +170,9 @@ export const useMergeSessionPolling = () => {
 			if (!commitId) {
 				return false;
 			}
+			if (!isActiveBackgroundStatus(query.state.data?.status)) {
+				return false;
+			}
 			return POLL_INTERVAL_MS;
 		},
 		refetchIntervalInBackground: true,
@@ -192,6 +215,35 @@ export const useMergeSessionPolling = () => {
 		}
 
 		const data = pollingQuery.data;
+		if (
+			!isActiveBackgroundStatus(data.status) &&
+			data.status !== "done" &&
+			data.status !== "failed"
+		) {
+			if (justStartedRef.current) {
+				justStartedRef.current = false;
+				console.info(
+					"[merge-polling] ignoring stale cached status after startPolling",
+					{
+						mergeSessionId: data.mergeSessionId,
+						status: data.status,
+					},
+				);
+				return;
+			}
+			console.info(
+				"[merge-polling] non-background status received, stopping polling",
+				{
+					mergeSessionId: data.mergeSessionId,
+					status: data.status,
+				},
+			);
+			stopPolling();
+			clearSession();
+			return;
+		}
+		justStartedRef.current = false;
+
 		setActiveSession(data);
 
 		if (data.status === "done" || data.status === "failed") {
@@ -209,7 +261,14 @@ export const useMergeSessionPolling = () => {
 				queryKey: [S2T_COMMIT_BY_ID_QUERY_KEY],
 			});
 		}
-	}, [pollingQuery.data, setActiveSession, setPollingSessionId, queryClient]);
+	}, [
+		pollingQuery.data,
+		setActiveSession,
+		setPollingSessionId,
+		queryClient,
+		stopPolling,
+		clearSession,
+	]);
 
 	useEffect(() => {
 		if (!pollingQuery.error) {
