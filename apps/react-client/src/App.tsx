@@ -89,7 +89,7 @@ export function App({ bridged, user, onLogout, keycloak }: AppProps) {
 				<BrowserRouter basename={bridged ? "/dataLineage" : "/"}>
 					<AppTheme themeComponents={xThemeComponents as any}>
 						<CssBaseline enableColorScheme />
-						<Toaster position="bottom-right" richColors closeButton />
+						<Toaster position="top-right" richColors closeButton />
 						<Suspense fallback={<CircularProgress title="Suspense loading" />}>
 							<LocalizationProvider dateAdapter={AdapterDateFns}>
 								<MainLayout onLogout={_onLogoutHandler}>

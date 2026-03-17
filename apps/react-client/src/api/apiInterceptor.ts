@@ -4,7 +4,6 @@ import axios, {
 	type AxiosInstance,
 } from "axios";
 import { toast } from "sonner";
-import { useNotificationStore } from "../common/stores/notificationStore";
 import { useAuthStore } from "../common/stores/authStore";
 import { jsonDataApi } from "./hooks/jsonDataApi";
 import { jsonCommitApi } from "./hooks/jsonCommitApi";
@@ -96,7 +95,13 @@ const shouldShowToast = (url: string): boolean => {
 	return !url.includes("/health") && !url.includes("/ping");
 };
 
-const getSuccessMessage = (method: string, url: string): string => {
+const getSuccessMessage = (
+	method: string,
+	url: string,
+	response?: AxiosResponse,
+): string => {
+	console.log("🐸 Pepe said >> getSuccessMessage >> response:", response);
+
 	const IS_DEV = process.env.NODE_ENV === "development";
 	const debugMessage = IS_DEV ? ` ${url}, ${method}` : "";
 	const operation = getOperationLabel(method);
@@ -110,13 +115,15 @@ const getSuccessMessage = (method: string, url: string): string => {
 		url.includes("apply")
 	)
 		return "Коммит применён" + debugMessage;
-	if (method === "POST" && url.includes("/s2t-import/commits"))
+	if (
+		method === "POST" &&
+		url.includes("/s2t-import/commits") &&
+		!response?.data.reusedExisting
+	)
 		return "Коммит сохранён" + debugMessage;
 
 	if (url.includes("/json-data"))
 		return `Данные успешно ${operation} ${debugMessage}`;
-	if (url.includes("/json-commits"))
-		return `Коммиты успешно ${operation} ${debugMessage}`;
 	if (url.includes("/debug"))
 		return `Отладочная информация ${operation} ${debugMessage}`;
 
@@ -187,26 +194,22 @@ const setupInterceptorsForInstance = (instance: AxiosInstance) => {
 			const method = getMethodFromConfig(response.config);
 			const url =
 				getUrlFromResponse(response) || getUrlFromConfig(response.config);
-			console.log(
-				"🐸 Pepe said >> setupInterceptorsForInstance >> response:",
-				response,
-			);
 
 			if (shouldShowToast(url)) {
-				const message = getSuccessMessage(method, url);
+				const _message = getSuccessMessage(method, url, response);
 
 				// Only show toast for non-GET success operations
 				if (method !== "GET") {
-					toast.success(message);
+					// toast.success(message);
 				}
 
 				// Always add to notification store
-				useNotificationStore.getState().addNotification({
-					type: "success",
-					message,
-					method,
-					url,
-				});
+				// useNotificationStore.getState().addNotification({
+				// 	type: "success",
+				// 	message,
+				// 	method,
+				// 	url,
+				// });
 			}
 
 			return response;
@@ -226,15 +229,15 @@ const setupInterceptorsForInstance = (instance: AxiosInstance) => {
 			}
 
 			if (shouldShowToast(url)) {
-				const message = getErrorMessage(method, url, status);
-				toast.error(message);
+				const _message = getErrorMessage(method, url, status);
+				// toast.error(message);
 
-				useNotificationStore.getState().addNotification({
-					type: "error",
-					message,
-					method,
-					url,
-				});
+				// useNotificationStore.getState().addNotification({
+				// 	type: "error",
+				// 	message,
+				// 	method,
+				// 	url,
+				// });
 			}
 
 			return Promise.reject(error);

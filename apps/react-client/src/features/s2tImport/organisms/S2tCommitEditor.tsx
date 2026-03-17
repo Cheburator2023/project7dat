@@ -66,6 +66,7 @@ interface S2tCommitEditorProps {
 	onOpenNewVersionUpload?: () => void;
 	prefillCommitId?: string | null;
 	showCloseButton?: boolean;
+	forceCreate?: boolean;
 }
 
 export const S2tCommitEditor = ({
@@ -76,6 +77,7 @@ export const S2tCommitEditor = ({
 	onOpenNewVersionUpload,
 	prefillCommitId,
 	showCloseButton = false,
+	forceCreate = false,
 }: S2tCommitEditorProps) => {
 	const username = useUserStore((state) => state.username) ?? "system";
 	const S2T_PENDING_COMMIT_LS_KEY = "s2t_pending_commit";
@@ -308,7 +310,7 @@ export const S2tCommitEditor = ({
 	}, [commitType]);
 
 	const handleSaveCommit = useCallback(
-		async (mode?: "overwrite") => {
+		async (_mode?: "overwrite") => {
 			setFieldErrors({});
 			if (!commitName.trim()) {
 				setError("");
@@ -349,10 +351,11 @@ export const S2tCommitEditor = ({
 					processDescription: showProcessFields
 						? processDescription.trim() || undefined
 						: undefined,
+					forceCreate: forceCreate || undefined,
 				};
-				if (mode === "overwrite" && savedCommit?.id) {
-					createPayload.id = savedCommit.id;
-				}
+				// if (mode === "overwrite" && savedCommit?.id) {
+				// 	createPayload.id = savedCommit.id;
+				// }
 
 				const saveResponse = await s2tCommitStoreService.create(createPayload);
 
@@ -410,6 +413,7 @@ export const S2tCommitEditor = ({
 			commitDescription,
 			commitName,
 			commitType,
+			forceCreate,
 			onImported,
 			processDescription,
 			processName,
@@ -422,6 +426,12 @@ export const S2tCommitEditor = ({
 			onSaved,
 		],
 	);
+
+	useEffect(() => {
+		if (forceCreate && selectedFile && !isSaving) {
+			handleSaveCommit();
+		}
+	}, [forceCreate]);
 
 	return (
 		<Card>

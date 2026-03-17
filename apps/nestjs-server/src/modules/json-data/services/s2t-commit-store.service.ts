@@ -262,24 +262,24 @@ export class S2tCommitStoreService {
 			return { commit, warnings };
 		}
 
-		const existingByPayload = await this.findExistingCommitByPayload(
-			payload,
-			commitType,
-		);
-		if (existingByPayload) {
-			return {
-				commit: existingByPayload,
-				reusedExisting: true,
-				warnings: [
-					...warnings,
-					{
-						code: "DUPLICATE_COMMIT_SKIPPED",
-						message:
-							"Коммит с идентичным содержимым уже существует. Использована существующая запись.",
-						details: existingByPayload.id,
-					},
-				],
-			};
+		if (dto.fileName && !dto.forceCreate) {
+			const appliedCommit = await this.findAppliedCommitByFileName(
+				dto.fileName,
+			);
+			if (appliedCommit) {
+				return {
+					commit: appliedCommit,
+					reusedExisting: true,
+					warnings: [
+						...warnings,
+						{
+							code: "DUPLICATE_COMMIT_SKIPPED",
+							message: `Файл "${dto.fileName}" уже был успешно применён ранее.`,
+							details: appliedCommit.id,
+						},
+					],
+				};
+			}
 		}
 
 		const entity = this.repo.create({
@@ -289,6 +289,7 @@ export class S2tCommitStoreService {
 			type: commitType,
 			state: "processing",
 			user: dto.user ?? null,
+			file_name: dto.fileName ?? null,
 			payload,
 			original_payload: structuredClone(payload),
 			change_id: null,
@@ -299,21 +300,13 @@ export class S2tCommitStoreService {
 		return { commit, warnings };
 	}
 
-	private async findExistingCommitByPayload(
-		payload: Record<string, any>,
-		type: "table" | "json" | "model",
+	private async findAppliedCommitByFileName(
+		fileName: string,
 	): Promise<S2tCommitEntity | null> {
-		const payloadJson = JSON.stringify(payload);
-		const existing = await this.repo
-			.createQueryBuilder("commit")
-			.where("commit.type = :type", { type })
-			.andWhere("commit.payload = CAST(:payload AS jsonb)", {
-				payload: payloadJson,
-			})
-			.orderBy("commit.updated_at", "DESC")
-			.addOrderBy("commit.created_at", "DESC")
-			.getOne();
-
+		const existing = await this.repo.findOne({
+			where: { file_name: fileName, state: "done" as S2tCommitState },
+			order: { updated_at: "DESC" },
+		});
 		return existing ?? null;
 	}
 

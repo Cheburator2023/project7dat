@@ -162,18 +162,19 @@ export const useMergeSessionPolling = () => {
 		},
 		enabled: !!pollingSessionId,
 		refetchInterval: (query) => {
-			const commitId = query.state.data?.commitId;
-
 			if (!pollingSessionId) {
 				return false;
 			}
-			if (!commitId) {
-				return false;
+			const data = query.state.data;
+			// Пока данных нет (первый fetch) — продолжаем polling
+			if (!data) {
+				return POLL_INTERVAL_MS;
 			}
-			if (!isActiveBackgroundStatus(query.state.data?.status)) {
-				return false;
+			// pending — бэкенд мог не успеть обновить на merging, продолжаем
+			if (isActiveBackgroundStatus(data.status) || data.status === "pending") {
+				return POLL_INTERVAL_MS;
 			}
-			return POLL_INTERVAL_MS;
+			return false;
 		},
 		refetchIntervalInBackground: true,
 		refetchOnWindowFocus: false,
@@ -206,7 +207,10 @@ export const useMergeSessionPolling = () => {
 			});
 			return data;
 		},
-		enabled: true,
+		enabled:
+			!!pollingSessionId ||
+			(typeof window !== "undefined" &&
+				!!window.localStorage.getItem(MERGE_SESSION_STORAGE_KEY)),
 	});
 
 	useEffect(() => {
@@ -215,6 +219,19 @@ export const useMergeSessionPolling = () => {
 		}
 
 		const data = pollingQuery.data;
+
+		// pending — бэкенд ещё не обновил на merging, просто ждём следующий poll
+		if (data.status === "pending") {
+			console.info(
+				"[merge-polling] pending status, waiting for backend update",
+				{
+					mergeSessionId: data.mergeSessionId,
+				},
+			);
+			justStartedRef.current = false;
+			return;
+		}
+
 		if (
 			!isActiveBackgroundStatus(data.status) &&
 			data.status !== "done" &&

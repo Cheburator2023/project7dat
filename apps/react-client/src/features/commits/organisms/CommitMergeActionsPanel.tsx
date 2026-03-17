@@ -106,11 +106,11 @@ export const CommitMergeActionsPanel = memo(() => {
 				}
 			}
 
-			if (result.hasDuplicates) {
-				toast.warning(
-					`Обнаружены дубликаты сущностей: ${result.duplicatesCount}. Запустите дедупликацию перед подтверждением слияния.`,
-				);
-			}
+			// if (result.hasDuplicates) {
+			// 	toast.warning(
+			// 		`Обнаружены дубликаты сущностей: ${result.duplicatesCount}. Запустите дедупликацию перед подтверждением слияния.`,
+			// 	);
+			// }
 		} catch (err: any) {
 			setError(
 				err?.response?.data?.message ?? err?.message ?? "Ошибка применения",
@@ -213,12 +213,12 @@ export const CommitMergeActionsPanel = memo(() => {
 		setApplying(true);
 		setError(null);
 		try {
-			await confirmMutation.mutateAsync({
+			const result = await confirmMutation.mutateAsync({
 				commitId: commit.id,
 				user: username,
 			});
 			setMergeStep("confirmed");
-			startPolling(mergeSessionId);
+			startPolling(result.mergeSessionId || mergeSessionId);
 			navigate(routes.allCommits.rootPath);
 		} catch (err: any) {
 			setError(
@@ -347,13 +347,6 @@ export const CommitMergeActionsPanel = memo(() => {
 								variant="outlined"
 							/>
 						</Box>
-
-						{hasDuplicates && !isDeduplicationRunning && (
-							<Alert severity="warning">
-								Обнаружены дубликаты сущностей: {duplicatesCount}. Перед
-								подтверждением слияния нужно запустить дедупликацию.
-							</Alert>
-						)}
 
 						{isDeduplicationRunning && activeSession && (
 							<Alert severity="info">

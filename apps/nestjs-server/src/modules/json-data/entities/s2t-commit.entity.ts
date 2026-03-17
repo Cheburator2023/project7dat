@@ -43,6 +43,9 @@ export class S2tCommitEntity {
 	@Column({ type: "varchar", length: 200, nullable: true })
 	user: string | null;
 
+	@Column({ type: "varchar", length: 500, nullable: true })
+	file_name: string | null;
+
 	@Column({ type: "jsonb" })
 	payload: Record<string, any>;
 

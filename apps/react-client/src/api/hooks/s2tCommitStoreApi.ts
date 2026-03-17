@@ -54,6 +54,7 @@ export interface CreateS2tCommitPayload {
 	type?: S2tCommitType;
 	parent_id?: string;
 	id?: string;
+	forceCreate?: boolean;
 }
 
 export interface S2tCreateResult {

@@ -757,10 +757,23 @@ export class MergeService implements OnModuleInit {
 			);
 		}
 
+		// Проверяем JSON-дубликаты в кеше сессии
+		const cachedPayload = this.sessionPayloadCache.get(session.id);
+		if (cachedPayload) {
+			const jsonDuplicates = this.countDuplicatesInJsonModel(
+				cachedPayload.mergedJson,
+			);
+			if (jsonDuplicates.hasDuplicates) {
+				throw new BadRequestException(
+					`Обнаружены дубликаты сущностей в JSON (${jsonDuplicates.count}). Сначала выполните дедупликацию.`,
+				);
+			}
+		}
+
 		const dbDuplicates = await this.deduplicationService.checkDuplicatesInDb();
 		if (dbDuplicates.hasDuplicates) {
 			throw new BadRequestException(
-				"Обнаружены дубликаты сущностей. Сначала выполните дедупликацию и затем повторите предпросмотр.",
+				"Обнаружены дубликаты сущностей в БД. Сначала выполните дедупликацию и затем повторите предпросмотр.",
 			);
 		}
 

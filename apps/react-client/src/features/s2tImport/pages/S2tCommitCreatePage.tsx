@@ -16,6 +16,7 @@ import { S2tCommitEditor } from "../organisms/S2tCommitEditor";
 export const S2tCommitCreatePage: FC = () => {
 	const navigate = useNavigate();
 	const [isReuseDialogOpen, setIsReuseDialogOpen] = useState(false);
+	const [forceCreate, setForceCreate] = useState(false);
 
 	const handleSaved = useCallback(
 		(payload: { commitId: string; reusedExisting: boolean }) => {
@@ -31,8 +32,12 @@ export const S2tCommitCreatePage: FC = () => {
 
 	const handleCloseReuseDialog = useCallback(() => {
 		setIsReuseDialogOpen(false);
-		// navigate(routes.allCommits.rootPath);
-	}, [navigate]);
+	}, []);
+
+	const handleForceCreate = useCallback(() => {
+		setIsReuseDialogOpen(false);
+		setForceCreate(true);
+	}, []);
 
 	return (
 		<Box>
@@ -43,6 +48,7 @@ export const S2tCommitCreatePage: FC = () => {
 				onSaved={handleSaved}
 				onClose={() => navigate(-1)}
 				showCloseButton={false}
+				forceCreate={forceCreate}
 			/>
 			<Dialog
 				open={isReuseDialogOpen}
@@ -53,13 +59,18 @@ export const S2tCommitCreatePage: FC = () => {
 				<DialogTitle>Изменения уже были применены</DialogTitle>
 				<DialogContent>
 					<Typography>
-						Файл с подобными изменениями уже был применён. Повторно изменения
-						внесены не будут.
+						Файл с таким именем уже был успешно применён ранее. Повторно
+						изменения внесены не будут.
 					</Typography>
 				</DialogContent>
 				<DialogActions>
-					<Button onClick={handleCloseReuseDialog} variant="contained">
-						Понятно
+					<Button onClick={handleCloseReuseDialog}>Понятно</Button>
+					<Button
+						onClick={handleForceCreate}
+						variant="contained"
+						color="warning"
+					>
+						Всё равно продолжить
 					</Button>
 				</DialogActions>
 			</Dialog>

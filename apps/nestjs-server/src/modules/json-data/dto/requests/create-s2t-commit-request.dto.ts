@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import {
+	IsBoolean,
 	IsIn,
 	IsNotEmpty,
 	IsObject,
@@ -113,4 +114,14 @@ export class CreateS2tCommitRequestDto {
 	@IsOptional()
 	@IsString()
 	processDescription?: string;
+
+	@ApiProperty({
+		description:
+			"Force create even if a commit with the same file name was already applied",
+		required: false,
+		example: false,
+	})
+	@IsOptional()
+	@IsBoolean()
+	forceCreate?: boolean;
 }
