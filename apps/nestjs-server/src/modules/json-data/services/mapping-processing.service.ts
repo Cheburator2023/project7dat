@@ -10,6 +10,7 @@ import { AttributeEntity } from "../entities/attribute.entity";
 import { EntityMapSourceEntity } from "../entities/entity-map-source.entity";
 import { EntityContainerEntity } from "../entities/entity-container.entity";
 import { SystemsEntity } from "../entities/systems.entity";
+import { extractFullName } from "../utils/entity-id.utils";
 
 interface ExistingDepData {
 	sourceEntityId: number;
@@ -64,7 +65,7 @@ export class MappingProcessingService {
 			const mapping = mappings[i];
 			const mappingStart = Date.now();
 			try {
-				const targetEntity = entityCache.get(mapping.entityId);
+				const targetEntity = entityCache.get(extractFullName(mapping.entityId));
 				if (!targetEntity) {
 					warnings.push(
 						`Target entity не найдена: ${mapping.entityId}, маппинг пропущен`,
@@ -138,11 +139,12 @@ export class MappingProcessingService {
 		entityCache: Map<string, EntityEntity>;
 		attributeCacheByEntity: Map<number, Map<string, AttributeEntity>>;
 	}> {
+		// Собираем full_name из composite entityId (убираем system_code суффикс)
 		const fullNames = new Set<string>();
 		for (const m of mappings) {
-			if (m.entityId) fullNames.add(m.entityId);
+			if (m.entityId) fullNames.add(extractFullName(m.entityId));
 			for (const d of m.deps || []) {
-				if (d.entityId) fullNames.add(d.entityId);
+				if (d.entityId) fullNames.add(extractFullName(d.entityId));
 			}
 		}
 
@@ -304,7 +306,7 @@ export class MappingProcessingService {
 		>();
 
 		for (const dep of mapping.deps || []) {
-			const sourceEntity = entityCache.get(dep.entityId);
+			const sourceEntity = entityCache.get(extractFullName(dep.entityId));
 			if (!sourceEntity) continue; // новая сущность – маппинг точно изменился
 			const sourceId = sourceEntity.entity_id;
 
@@ -445,29 +447,29 @@ export class MappingProcessingService {
 	): Promise<string[]> {
 		const warnings: string[] = [];
 
-		// 1. Ищем source сущность в кэше с учетом system_code
-		let sourceEntity: EntityEntity | null | undefined = entityCache.get(
-			dep.entityId,
-		);
+		// 1. Ищем source сущность в кэше по full_name (без system_code суффикса)
+		const depFullName = extractFullName(dep.entityId);
+		let sourceEntity: EntityEntity | null | undefined =
+			entityCache.get(depFullName);
 
 		// 2. Если не найдена, создаем с учетом system_code
 		if (!sourceEntity) {
-			const warning = `Source сущность не найдена: ${dep.entityId}. Будет создана новая запись.`;
+			const warning = `Source сущность не найдена: ${dep.entityId} (full_name: ${depFullName}). Будет создана новая запись.`;
 			this.logger.warn(warning);
 			warnings.push(warning);
 
-			// Создаем новую сущность с учетом system_code
+			// Создаем новую сущность — full_name БЕЗ system_code
 			sourceEntity = await this.createEntityWithSystemCode(
-				dep.entityId,
-				dep.entityId.split(".").pop() || dep.entityId,
+				depFullName,
+				depFullName.split("/").pop() || depFullName,
 				dep.system_code || "1642",
 				changeId,
 				queryRunner,
 			);
 
 			if (sourceEntity) {
-				// Добавляем в кэш
-				entityCache.set(dep.entityId, sourceEntity);
+				// Добавляем в кэш по full_name
+				entityCache.set(depFullName, sourceEntity);
 				attributeCacheByEntity.set(sourceEntity.entity_id, new Map());
 			} else {
 				// Создать не удалось – дальше обрабатывать эту зависимость нельзя
