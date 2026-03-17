@@ -93,34 +93,33 @@ export const CommitMergeActionsPanel = memo(() => {
 				}
 			}
 
-			// Если обнаружены дубликаты — автоматически запускаем дедупликацию
-			if (result.hasDuplicates) {
-				setDeduplicating(true);
-				toast.info(
-					`Обнаружено ${result.duplicatesCount} дубликатов сущностей. Запуск дедупликации...`,
-				);
-				try {
-					const dedupResult = await deduplicateMutation.mutateAsync();
-					if (dedupResult.success) {
-						toast.success(
-							`Дедупликация завершена: удалено ${dedupResult.removedCount} дубликатов`,
-						);
-					} else {
-						toast.error("Ошибка при дедупликации");
-					}
-				} catch (dedupErr: any) {
-					toast.error(
-						dedupErr?.response?.data?.message ??
-							dedupErr?.message ??
-							"Ошибка дедупликации",
-					);
-				} finally {
-					setDeduplicating(false);
-				}
-			}
-
 			setMergeStep("previewing");
 		} catch (err: any) {
+			console.log("🐸 Pepe said >> err:", err);
+
+			// Если обнаружены дубликаты — автоматически запускаем дедупликацию
+
+			setDeduplicating(true);
+			toast.info(`Обнаружены дубликаты сущностей. Запуск дедупликации...`);
+			try {
+				const dedupResult = await deduplicateMutation.mutateAsync();
+				if (dedupResult.success) {
+					toast.success(
+						`Дедупликация завершена: удалено ${dedupResult.removedCount} дубликатов`,
+					);
+				} else {
+					toast.error("Ошибка при дедупликации");
+				}
+			} catch (dedupErr: any) {
+				toast.error(
+					dedupErr?.response?.data?.message ??
+						dedupErr?.message ??
+						"Ошибка дедупликации",
+				);
+			} finally {
+				setDeduplicating(false);
+			}
+
 			setError(
 				err?.response?.data?.message ?? err?.message ?? "Ошибка применения",
 			);
@@ -215,7 +214,12 @@ export const CommitMergeActionsPanel = memo(() => {
 				gap: 2,
 			}}
 		>
-			{error && <Alert severity="error">{error}</Alert>}
+			{error && (
+				<Alert severity="error">
+					Обнаружены дублирующиеся сущности. Пожалуйста, выполните дедупликацию
+					перед применением коммита.
+				</Alert>
+			)}
 
 			{isDone && (
 				<Alert severity="info">
