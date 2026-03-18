@@ -1,5 +1,27 @@
 # Semantic Versioning Changelog
 
+# [1.7.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.6.0...v1.7.0) (2026-03-18)
+
+
+### Bug Fixes
+
+* **dedup:** группировка по name+entity_container_id, валидация в try-catch ([51630d0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/51630d08aa1149d629a87b02bbbaa921b7ef4ed9))
+* **dedup:** группировка по name+namespace+system_code, apply без 400 ([66c8df4](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/66c8df492d201a0315a14ce7fad4d4620f596df1))
+* **entities:** унификация entity composite id — extractFullName во всех сервисах ([501be93](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/501be93c25a054ae72812dd830a4020b7780b346))
+* **merge:** автоматическая дедупликация при обнаружении дубликатов в applyMerge ([02c0574](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/02c057409b2a7bf9957f3b1a9a520386249cddc0))
+* **merge:** полная валидация merged JSON в applyMerge — 1:1 с hasCriticalErrors ([c2a7cb1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/c2a7cb14becef0c5fb23d41c7603f685ecfeeb4f))
+* **merge:** проверка дубликатов по merged JSON вместо БД + улучшения CORS и toast сообщений ([1715a16](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/1715a1604a929f3e8aa16774365cf9a36ce10669))
+* **merge:** убраны лишние вызовы handleApply после дедупликации ([8baf7f0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/8baf7f0002a7f654ab79db5b750afb622de6d272))
+* **ui:** загрузка полного payload коммита через useS2tCommitById + отключение staleTime для актуальности данных ([46d0d4a](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/46d0d4a381b7eb6eedb031235ae3132bd5040fc9))
+
+
+### Features
+
+* добавлено поле file_name для предотвращения дублирования коммитов по имени файла ([c694ccd](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/c694ccd2a4bf277fe91791c0284f13ca1ce03a44))
+* **backend:** оптимизация merge performance через incremental apply ([e2d0b7f](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/e2d0b7f9f6a310cfbab90421a459932701ea2bc2))
+* **merge:** дедупликация merged JSON в кеше перед применением + автоматический перезапуск preview после dedup ([aa57826](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/aa5782638a6685dda3f7ba0f4c74482589dd5089))
+* **merge:** дедупликация сущностей в БД + безопасный confirm ([8965886](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/89658860eec6dbc0c964a36d1b50cc2fa5c6814f))
+
 # [1.6.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.5.1...v1.6.0) (2026-03-11)
 
 
