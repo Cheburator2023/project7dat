@@ -1,5 +1,12 @@
 # Semantic Versioning Changelog
 
+## [1.7.1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.7.0...v1.7.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* **merge:** дедупликация JSON и БД теперь выполняется последовательно, сообщение о JSON-дедупликации сохраняется ([06cfb5e](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/06cfb5e16bb94158f72704ad60687cee126f3116))
+
 # [1.7.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.6.0...v1.7.0) (2026-03-18)
 
 
