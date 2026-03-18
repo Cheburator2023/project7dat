@@ -15,7 +15,7 @@ export const useCurrentDataLineageWholeData = (options?: {
 	return useQuery({
 		queryKey: CURRENT_DATA_LINEAGE_SNAPSHOT_QUERY_KEY,
 		queryFn: jsonDataService.getCurrentGraph,
-		staleTime: 30 * 1000,
+		staleTime: 0,
 		enabled: options?.enabled ?? true,
 	});
 };

@@ -17,6 +17,6 @@ export const useS2tCommitById = (
 		queryKey: [S2T_COMMIT_BY_ID_QUERY_KEY, commitId],
 		queryFn: () => s2tCommitStoreService.getById(commitId!),
 		enabled: enabled && Boolean(commitId),
-		staleTime: 30 * 1000,
+		staleTime: 0,
 	});
 };

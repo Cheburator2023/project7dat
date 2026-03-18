@@ -20,6 +20,7 @@ import {
 import { ExpandMore as ExpandMoreIcon } from "@mui/icons-material";
 import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { s2tCommitStoreService } from "@react-client/api/hooks/s2tCommitStoreApi";
+import { useS2tCommitById } from "@react-client/api/hooks/useS2tCommitById";
 import { CodeJsonEditor } from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
 import { useJsonEditorStore } from "@react-client/features/codeEditor/organisms/CodeJsonEditor";
 import { useShallow } from "zustand/react/shallow";
@@ -96,6 +97,16 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 	const [isEditorMounted, setIsEditorMounted] = useState(false);
 	const [activeTab, setActiveTab] = useState(0);
 
+	const {
+		data: fullCommit,
+		isLoading: isCommitLoading,
+		isFetching: isCommitFetching,
+		error: commitFetchError,
+	} = useS2tCommitById(commit?.id ?? null, { enabled: open && !!commit });
+
+	const isPayloadLoading =
+		open && !!commit && (isCommitLoading || (isCommitFetching && !fullCommit));
+
 	// Diff state
 	const [diffResult, setDiffResult] = useState<DiffComputationResult | null>(
 		null,
@@ -115,41 +126,66 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 			})),
 		);
 
-	// При открытии диалога — заполняем из commit без API-запроса
+	// При открытии диалога — сбрасываем состояние
 	useEffect(() => {
-		if (!open || !commit) return;
+		if (!open || !commit) {
+			setOriginalPayload(null);
+			setEditedPayload(null);
+			return;
+		}
 
 		setError(null);
 		setDiffResult(null);
 		setExpandedEntityKeys([]);
-		// original_payload хранится на бэке и не меняется при update
-		const orig = (commit.original_payload ?? commit.payload) as Record<
+		setActiveTab(0);
+	}, [open, commit]);
+
+	// Заполняем payload из полного коммита (загруженного по id)
+	useEffect(() => {
+		if (!open || !fullCommit) return;
+
+		const safeClone = (obj: unknown): Record<string, unknown> => {
+			try {
+				return structuredClone(obj) as Record<string, unknown>;
+			} catch {
+				return JSON.parse(JSON.stringify(obj)) as Record<string, unknown>;
+			}
+		};
+
+		const orig = (fullCommit.original_payload ?? fullCommit.payload) as Record<
 			string,
 			unknown
 		>;
-		setOriginalPayload(structuredClone(orig));
-		setEditedPayload(
-			structuredClone(commit.payload as Record<string, unknown>),
-		);
-	}, [open, commit]);
+		setOriginalPayload(safeClone(orig));
+		setEditedPayload(safeClone(fullCommit.payload as Record<string, unknown>));
+	}, [open, fullCommit]);
 
 	useEffect(() => {
-		if (!open || !commit) {
+		if (!open || !editedPayload) {
 			setIsEditorMounted(false);
 			return;
 		}
 
 		setIsEditorMounted(false);
+		let cancelled = false;
 		const rafId = window.requestAnimationFrame(() => {
-			window.setTimeout(() => {
-				setIsEditorMounted(true);
+			if (cancelled) return;
+			timerId = window.setTimeout(() => {
+				if (!cancelled) {
+					setIsEditorMounted(true);
+				}
 			}, 0);
 		});
+		let timerId: number | undefined;
 
 		return () => {
+			cancelled = true;
 			window.cancelAnimationFrame(rafId);
+			if (timerId !== undefined) {
+				window.clearTimeout(timerId);
+			}
 		};
-	}, [open, commit]);
+	}, [open, editedPayload]);
 
 	// Cleanup worker on close
 	useEffect(() => {
@@ -375,240 +411,273 @@ export const EditJsonDialog: FC<EditJsonDialogProps> = ({
 				)}
 			</DialogTitle>
 			<DialogContent sx={{ p: 0, display: "flex", flexDirection: "column" }}>
-				{error && (
+				{(error || commitFetchError) && (
 					<Alert severity="error" sx={{ mx: 2, mt: 1 }}>
-						{error}
+						{error || commitFetchError?.message || "Ошибка загрузки коммита"}
 					</Alert>
 				)}
 
-				<Tabs
-					value={activeTab}
-					onChange={(_, v) => setActiveTab(v as number)}
-					sx={{ px: 2, borderBottom: 1, borderColor: "divider" }}
-				>
-					<Tab label={editable ? "Редактор" : "Просмотр"} />
-					<Tab
-						label={
-							<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-								Различия
-								{isDiffComputing && <CircularProgress size={14} />}
-								{diffResult && diffResult.changes.length > 0 && (
-									<Chip
-										label={diffResult.changes.length}
-										size="small"
-										color="warning"
-										sx={{ height: 18, fontSize: "0.65rem" }}
-									/>
-								)}
-							</Box>
-						}
-					/>
-				</Tabs>
+				{isPayloadLoading && (
+					<Box
+						sx={{
+							height: 520,
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							justifyContent: "center",
+							gap: 1,
+						}}
+					>
+						<CircularProgress size={24} />
+						<Typography variant="body2" color="text.secondary">
+							Загрузка данных коммита…
+						</Typography>
+					</Box>
+				)}
 
-				{/* Editor tab */}
-				<Box
-					sx={{
-						p: 2,
-						height: 520,
-						display: activeTab === 0 ? "block" : "none",
-					}}
-				>
-					{!isEditorMounted || !editedPayload || !commit ? (
+				{!isPayloadLoading && (
+					<>
+						<Tabs
+							value={activeTab}
+							onChange={(_, v) => setActiveTab(v as number)}
+							sx={{ px: 2, borderBottom: 1, borderColor: "divider" }}
+						>
+							<Tab label={editable ? "Редактор" : "Просмотр"} />
+							<Tab
+								label={
+									<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+										Различия
+										{isDiffComputing && <CircularProgress size={14} />}
+										{diffResult && diffResult.changes.length > 0 && (
+											<Chip
+												label={diffResult.changes.length}
+												size="small"
+												color="warning"
+												sx={{ height: 18, fontSize: "0.65rem" }}
+											/>
+										)}
+									</Box>
+								}
+							/>
+						</Tabs>
+
+						{/* Editor tab */}
 						<Box
 							sx={{
-								height: "100%",
-								display: "flex",
-								flexDirection: "column",
-								alignItems: "center",
-								justifyContent: "center",
-								gap: 1,
+								p: 2,
+								height: 520,
+								display: activeTab === 0 ? "block" : "none",
 							}}
 						>
-							<CircularProgress size={24} />
-							<Typography variant="body2" color="text.secondary">
-								Подготавливаем JSON редактор…
-							</Typography>
-						</Box>
-					) : (
-						<EditJsonDialogEditor
-							data={editedPayload}
-							dataKey={commit.id}
-							editable={editable}
-							saving={saving}
-							onChange={handleEditorChange}
-						/>
-					)}
-				</Box>
-
-				{/* Diff tab */}
-				<Box
-					sx={{
-						p: 2,
-						height: 520,
-						overflow: "auto",
-						display: activeTab === 1 ? "block" : "none",
-					}}
-				>
-					{isDiffComputing && (
-						<Box
-							sx={{
-								height: "100%",
-								display: "flex",
-								flexDirection: "column",
-								alignItems: "center",
-								justifyContent: "center",
-								gap: 1,
-							}}
-						>
-							<CircularProgress size={24} />
-							<Typography variant="body2" color="text.secondary">
-								{diffProgressText}
-							</Typography>
-						</Box>
-					)}
-
-					{!isDiffComputing && diffResult && (
-						<>
-							<Box
-								sx={{
-									display: "flex",
-									flexWrap: "wrap",
-									gap: 1,
-									mb: 2,
-									alignItems: "center",
-									justifyContent: "space-between",
-								}}
-							>
-								<Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-									<Chip
-										label={`Добавлено: ${diffResult.summary.added}`}
-										size="small"
-										color="success"
-										variant="outlined"
-									/>
-									{diffResult.summary.skippedDeletions > 0 && (
-										<Chip
-											label={`Удалено: ${diffResult.summary.skippedDeletions}`}
-											size="small"
-											color="error"
-											variant="outlined"
-										/>
-									)}
-									{diffResult.truncated && (
-										<Chip
-											label={`Показаны первые ${diffResult.changes.length}`}
-											size="small"
-											variant="outlined"
-										/>
-									)}
+							{!isEditorMounted || !editedPayload || !commit ? (
+								<Box
+									sx={{
+										height: "100%",
+										display: "flex",
+										flexDirection: "column",
+										alignItems: "center",
+										justifyContent: "center",
+										gap: 1,
+									}}
+								>
+									<CircularProgress size={24} />
+									<Typography variant="body2" color="text.secondary">
+										Подготавливаем JSON редактор…
+									</Typography>
 								</Box>
-								<Box sx={{ display: "flex", gap: 1 }}>
-									<Button
-										size="small"
-										onClick={() =>
-											setExpandedEntityKeys(diffGroups.map((g) => g.entityKey))
-										}
-										disabled={diffGroups.length === 0}
-									>
-										Раскрыть все
-									</Button>
-									<Button
-										size="small"
-										onClick={() => setExpandedEntityKeys([])}
-										disabled={expandedEntityKeys.length === 0}
-									>
-										Свернуть все
-									</Button>
-								</Box>
-							</Box>
-
-							{diffResult.changes.length === 0 ? (
-								<Alert severity="info">Изменений не найдено.</Alert>
 							) : (
-								diffGroups.map((group) => {
-									const expanded = expandedEntityKeys.includes(group.entityKey);
-									return (
-										<Accordion
-											key={group.entityKey}
-											expanded={expanded}
-											onChange={() => handleToggleEntity(group.entityKey)}
-											disableGutters
-											sx={{ mb: 1 }}
-										>
-											<AccordionSummary
-												expandIcon={<ExpandMoreIcon />}
-												sx={{
-													borderBottom: "1px solid",
-													borderColor: "divider",
-													"& .MuiAccordionSummary-content": {
-														alignItems: "center",
-														gap: 1,
-													},
-												}}
-											>
-												<Box
-													sx={{ display: "flex", alignItems: "center", gap: 1 }}
-												>
-													<Typography variant="body2" sx={{ fontWeight: 600 }}>
-														{formatEntityLabelForDisplay(group.entityLabel)}
-													</Typography>
-													{group.added > 0 && (
-														<Chip
-															label={`+${group.added}`}
-															size="small"
-															color="success"
-															variant="outlined"
-														/>
-													)}
-													{group.modified > 0 && (
-														<Chip
-															label={`~${group.modified}`}
-															size="small"
-															color="warning"
-															variant="outlined"
-														/>
-													)}
-												</Box>
-											</AccordionSummary>
-											<AccordionDetails sx={{ pt: 0 }}>
-												<Box
-													sx={{
-														display: "flex",
-														flexDirection: "column",
-														gap: 1,
-													}}
-												>
-													{group.changes.map((change) => (
-														<DiffChangeRow
-															key={`${change.type}:${change.path}`}
-															change={change}
-															onJumpToPath={handleJumpToJsonPath}
-														/>
-													))}
-												</Box>
-											</AccordionDetails>
-										</Accordion>
-									);
-								})
+								<EditJsonDialogEditor
+									data={editedPayload}
+									dataKey={commit.id}
+									editable={editable}
+									saving={saving}
+									onChange={handleEditorChange}
+								/>
 							)}
-						</>
-					)}
+						</Box>
 
-					{!isDiffComputing && !diffResult && activeTab === 1 && (
+						{/* Diff tab */}
 						<Box
 							sx={{
-								height: "100%",
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
+								p: 2,
+								height: 520,
+								overflow: "auto",
+								display: activeTab === 1 ? "block" : "none",
 							}}
 						>
-							<Typography variant="body2" color="text.secondary">
-								Внесите изменения в редакторе и переключитесь на эту вкладку
-							</Typography>
+							{isDiffComputing && (
+								<Box
+									sx={{
+										height: "100%",
+										display: "flex",
+										flexDirection: "column",
+										alignItems: "center",
+										justifyContent: "center",
+										gap: 1,
+									}}
+								>
+									<CircularProgress size={24} />
+									<Typography variant="body2" color="text.secondary">
+										{diffProgressText}
+									</Typography>
+								</Box>
+							)}
+
+							{!isDiffComputing && diffResult && (
+								<>
+									<Box
+										sx={{
+											display: "flex",
+											flexWrap: "wrap",
+											gap: 1,
+											mb: 2,
+											alignItems: "center",
+											justifyContent: "space-between",
+										}}
+									>
+										<Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+											<Chip
+												label={`Добавлено: ${diffResult.summary.added}`}
+												size="small"
+												color="success"
+												variant="outlined"
+											/>
+											{diffResult.summary.skippedDeletions > 0 && (
+												<Chip
+													label={`Удалено: ${diffResult.summary.skippedDeletions}`}
+													size="small"
+													color="error"
+													variant="outlined"
+												/>
+											)}
+											{diffResult.truncated && (
+												<Chip
+													label={`Показаны первые ${diffResult.changes.length}`}
+													size="small"
+													variant="outlined"
+												/>
+											)}
+										</Box>
+										<Box sx={{ display: "flex", gap: 1 }}>
+											<Button
+												size="small"
+												onClick={() =>
+													setExpandedEntityKeys(
+														diffGroups.map((g) => g.entityKey),
+													)
+												}
+												disabled={diffGroups.length === 0}
+											>
+												Раскрыть все
+											</Button>
+											<Button
+												size="small"
+												onClick={() => setExpandedEntityKeys([])}
+												disabled={expandedEntityKeys.length === 0}
+											>
+												Свернуть все
+											</Button>
+										</Box>
+									</Box>
+
+									{diffResult.changes.length === 0 ? (
+										<Alert severity="info">Изменений не найдено.</Alert>
+									) : (
+										diffGroups.map((group) => {
+											const expanded = expandedEntityKeys.includes(
+												group.entityKey,
+											);
+											return (
+												<Accordion
+													key={group.entityKey}
+													expanded={expanded}
+													onChange={() => handleToggleEntity(group.entityKey)}
+													disableGutters
+													sx={{ mb: 1 }}
+												>
+													<AccordionSummary
+														expandIcon={<ExpandMoreIcon />}
+														sx={{
+															borderBottom: "1px solid",
+															borderColor: "divider",
+															"& .MuiAccordionSummary-content": {
+																alignItems: "center",
+																gap: 1,
+															},
+														}}
+													>
+														<Box
+															sx={{
+																display: "flex",
+																alignItems: "center",
+																gap: 1,
+															}}
+														>
+															<Typography
+																variant="body2"
+																sx={{ fontWeight: 600 }}
+															>
+																{formatEntityLabelForDisplay(group.entityLabel)}
+															</Typography>
+															{group.added > 0 && (
+																<Chip
+																	label={`+${group.added}`}
+																	size="small"
+																	color="success"
+																	variant="outlined"
+																/>
+															)}
+															{group.modified > 0 && (
+																<Chip
+																	label={`~${group.modified}`}
+																	size="small"
+																	color="warning"
+																	variant="outlined"
+																/>
+															)}
+														</Box>
+													</AccordionSummary>
+													<AccordionDetails sx={{ pt: 0 }}>
+														<Box
+															sx={{
+																display: "flex",
+																flexDirection: "column",
+																gap: 1,
+															}}
+														>
+															{group.changes.map((change) => (
+																<DiffChangeRow
+																	key={`${change.type}:${change.path}`}
+																	change={change}
+																	onJumpToPath={handleJumpToJsonPath}
+																/>
+															))}
+														</Box>
+													</AccordionDetails>
+												</Accordion>
+											);
+										})
+									)}
+								</>
+							)}
+
+							{!isDiffComputing && !diffResult && activeTab === 1 && (
+								<Box
+									sx={{
+										height: "100%",
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+									}}
+								>
+									<Typography variant="body2" color="text.secondary">
+										Внесите изменения в редакторе и переключитесь на эту вкладку
+									</Typography>
+								</Box>
+							)}
 						</Box>
-					)}
-				</Box>
+					</>
+				)}
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={onClose} disabled={saving}>

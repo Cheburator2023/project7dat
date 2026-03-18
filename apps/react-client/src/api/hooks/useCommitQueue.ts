@@ -10,7 +10,7 @@ export const useCommitQueue = (options?: {
 	return useQuery({
 		queryKey: COMMIT_QUEUE_QUERY_KEY,
 		queryFn: () => jsonCommitService.getCommitQueue(),
-		staleTime: 30_000,
+		staleTime: 0,
 		enabled: options?.enabled ?? true,
 	});
 };

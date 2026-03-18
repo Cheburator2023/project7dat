@@ -325,6 +325,7 @@ export class S2tCommitStoreService {
 				"created_at",
 				"updated_at",
 				"payload",
+				"original_payload",
 			],
 			where: { id },
 		});

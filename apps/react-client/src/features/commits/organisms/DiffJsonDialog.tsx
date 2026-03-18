@@ -30,6 +30,7 @@ import type { S2tCommitItem } from "@react-client/api/hooks/s2tCommitStoreApi";
 import { go as fuzzyGo, single as fuzzySingle } from "fuzzysort";
 import { Spacer } from "@react-client/common/primitives/Spacer";
 import { useCurrentDataLineageWholeData } from "@react-client/api/hooks/useCurrentDataLineageSnapshot";
+import { useS2tCommitById } from "@react-client/api/hooks/useS2tCommitById";
 import { formatDiffPathForDisplay } from "../diffWorker";
 import { DiffChangeRow } from "./DiffChangeRow";
 
@@ -40,6 +41,7 @@ const MonacoDiffEditor = lazy(() =>
 const diffInstance = createDiff();
 const DIFF_DEBOUNCE_MS = 220;
 const SEARCH_DEBOUNCE_MS = 260;
+const LINE_DIFF_MAX_LENGTH = 4_000_000;
 const SEARCH_MIN_LENGTH = 3;
 const LARGE_JSON_NODE_THRESHOLD = 120000;
 const MAX_CHANGES_IN_OUTPUT = 20000;
@@ -982,9 +984,27 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	commit,
 	onClose,
 }) => {
-	const { data: snapshotData } = useCurrentDataLineageWholeData({
+	const {
+		data: snapshotData,
+		isLoading,
+		isFetching,
+		isPending,
+	} = useCurrentDataLineageWholeData({
 		enabled: open,
 	});
+
+	const {
+		data: fullCommit,
+		isLoading: isCommitLoading,
+		isFetching: isCommitFetching,
+		error: commitFetchError,
+	} = useS2tCommitById(commit?.id ?? null, { enabled: open && !!commit });
+
+	const commitPayload = useMemo<Record<string, unknown> | null>(
+		() => (fullCommit?.payload as Record<string, unknown> | undefined) ?? null,
+		[fullCommit],
+	);
+
 	const [diffResult, setDiffResult] = useState<DiffComputationResult | null>(
 		null,
 	);
@@ -999,6 +1019,12 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 	);
 	const workerRef = useRef<Worker | null>(null);
 	const workerUrlRef = useRef<string | null>(null);
+
+	const isSnapshotLoading =
+		open && (isLoading || isPending || (isFetching && !snapshotData));
+	const isCommitPayloadLoading =
+		open && !!commit && (isCommitLoading || (isCommitFetching && !fullCommit));
+	const isDataLoading = isSnapshotLoading || isCommitPayloadLoading;
 
 	const baselineData = useMemo(
 		() => (snapshotData as Record<string, unknown> | null | undefined) ?? null,
@@ -1177,6 +1203,10 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 			return;
 		}
 
+		if (!baselineData || !commitPayload) {
+			return;
+		}
+
 		setIsComputing(true);
 		setError(null);
 		setDiffResult(null);
@@ -1187,9 +1217,8 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 			if (cancelled) return;
 
 			try {
-				const original = baselineData ?? {};
-				const payload =
-					(commit.payload as Record<string, unknown> | null | undefined) ?? {};
+				const original = baselineData;
+				const payload = commitPayload;
 				const complexity = estimateComplexity(original, payload);
 
 				if (complexity < LARGE_JSON_NODE_THRESHOLD) {
@@ -1314,10 +1343,10 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 				workerUrlRef.current = null;
 			}
 		};
-	}, [open, commit, baselineData]);
+	}, [open, commit, baselineData, commitPayload]);
 
 	useEffect(() => {
-		if (!open || !commit || !baselineData) {
+		if (!open || !commit || !baselineData || !commitPayload) {
 			setBaselineJsonText("");
 			setCommitJsonText("");
 			setIsPreparingText(false);
@@ -1341,14 +1370,8 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 				}
 				return obj;
 			};
-			const left = JSON.stringify(sortKeys(baselineData ?? {}), null, 2);
-			const right = JSON.stringify(
-				sortKeys(
-					(commit.payload as Record<string, unknown> | null | undefined) ?? {},
-				),
-				null,
-				2,
-			);
+			const left = JSON.stringify(sortKeys(baselineData), null, 2);
+			const right = JSON.stringify(sortKeys(commitPayload), null, 2);
 			if (!cancelled) {
 				setBaselineJsonText(left);
 				setCommitJsonText(right);
@@ -1359,7 +1382,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 			cancelled = true;
 			window.clearTimeout(timer);
 		};
-	}, [open, commit, baselineData]);
+	}, [open, commit, baselineData, commitPayload]);
 
 	const handleToggleEntity = (entityKey: string) => {
 		setExpandedEntityKeys((previous) => {
@@ -1416,13 +1439,35 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 				)}
 			</DialogTitle>
 			<DialogContent sx={{ overflow: "hidden" }}>
-				{error && (
+				{(error || commitFetchError) && (
 					<Alert severity="error" sx={{ mb: 2 }}>
-						{error}
+						{error || commitFetchError?.message || "Ошибка загрузки коммита"}
 					</Alert>
 				)}
 
-				{!error && diffResult && (
+				{isDataLoading && (
+					<Box
+						sx={{
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							justifyContent: "center",
+							gap: 1,
+							minHeight: 180,
+						}}
+					>
+						<CircularProgress size={24} />
+						<Typography variant="body2" color="text.secondary">
+							{isCommitPayloadLoading && isSnapshotLoading
+								? "Загрузка данных коммита и актуального состояния…"
+								: isCommitPayloadLoading
+									? "Загрузка данных коммита…"
+									: "Загрузка актуального состояния данных…"}
+						</Typography>
+					</Box>
+				)}
+
+				{!error && !commitFetchError && !isDataLoading && diffResult && (
 					<Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
 						<Chip
 							label={`Добавлено: ${diffResult.summary.added}`}
@@ -1440,16 +1485,18 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 					</Box>
 				)}
 
-				<Tabs
-					value={diffMode}
-					onChange={(_, value) => setDiffMode(value as "structured" | "line")}
-					sx={{ mb: 2 }}
-				>
-					<Tab value="structured" label="Структурные различия" />
-					<Tab value="line" label="Построчные различия" />
-				</Tabs>
+				{!isDataLoading && (
+					<Tabs
+						value={diffMode}
+						onChange={(_, value) => setDiffMode(value as "structured" | "line")}
+						sx={{ mb: 2 }}
+					>
+						<Tab value="structured" label="Структурные различия" />
+						<Tab value="line" label="Построчные различия" />
+					</Tabs>
+				)}
 
-				{isComputing && (
+				{!isDataLoading && isComputing && (
 					<Box
 						sx={{
 							display: "flex",
@@ -1467,7 +1514,7 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 					</Box>
 				)}
 
-				{!isComputing && !error && (
+				{!isDataLoading && !isComputing && !error && !commitFetchError && (
 					<>
 						{diffMode !== "line" && (
 							<>
@@ -1649,6 +1696,16 @@ export const DiffJsonDialog: FC<DiffJsonDialogProps> = ({
 											Подготовка данных…
 										</Typography>
 									</Box>
+								) : baselineJsonText.length > LINE_DIFF_MAX_LENGTH ||
+									commitJsonText.length > LINE_DIFF_MAX_LENGTH ? (
+									<Alert severity="warning" sx={{ m: 2 }}>
+										Данные слишком большие для построчного сравнения (
+										{Math.round(
+											Math.max(baselineJsonText.length, commitJsonText.length) /
+												1_000_000,
+										)}{" "}
+										МБ). Используйте вкладку «Структурные различия».
+									</Alert>
 								) : (
 									<Suspense
 										fallback={

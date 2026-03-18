@@ -713,6 +713,10 @@ export const AllCommitsPage: FC = () => {
 							setDiffCommit(contextMenuCommit);
 							handleCloseContextMenu();
 						}}
+						disabled={
+							contextMenuCommit.state === "done" ||
+							contextMenuCommit.state === "merging"
+						}
 					>
 						<ListItemIcon>
 							<CompareArrowsIcon fontSize="small" />
