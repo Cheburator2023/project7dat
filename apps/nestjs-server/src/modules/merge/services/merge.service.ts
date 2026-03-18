@@ -544,6 +544,7 @@ export class MergeService implements OnModuleInit {
 		}
 
 		// Сначала проверяем дубликаты в кешированном merged JSON (он ещё не применён в БД)
+		let jsonDedupMessage: string | null = null;
 		if (latestSession) {
 			const cachedPayload = this.sessionPayloadCache.get(latestSession.id);
 			if (cachedPayload) {
@@ -565,21 +566,18 @@ export class MergeService implements OnModuleInit {
 					this.logger.log(
 						`JSON-дедупликация завершена. Осталось дубликатов: ${afterDedup.count}`,
 					);
-					return {
-						success: true,
-						mergeSessionId: "",
-						message: `JSON-дедупликация выполнена: удалено ${jsonDuplicates.count} дубликатов из ${jsonDuplicates.groups.length} групп`,
-					};
+					jsonDedupMessage = `JSON-дедупликация выполнена: удалено ${jsonDuplicates.count} дубликатов из ${jsonDuplicates.groups.length} групп`;
 				}
 			}
 		}
 
+		// Проверяем дубликаты в БД (могут существовать независимо от JSON-дубликатов)
 		const dbDuplicates = await this.deduplicationService.checkDuplicatesInDb();
 		if (!dbDuplicates.hasDuplicates) {
 			return {
 				success: true,
 				mergeSessionId: "",
-				message: "Дубликаты не найдены",
+				message: jsonDedupMessage || "Дубликаты не найдены",
 			};
 		}
 
