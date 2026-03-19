@@ -16,10 +16,11 @@ export enum Role {
 export type UserRoles = Role[];
 
 export enum Permission {
-	ANKETA_VIEW_ALL_CALCULATIONS = "anketa_view_all_calculations",
-	ANKETA_CREATE_CALCULATION = "anketa_create_calculation",
-	ANKETA_EDIT_CALCULATION = "anketa_edit_calculation",
-	ANKETA_EXPORT_REPORTS = "anketa_export_reports",
-	ANKETA_ADMIN_PANEL = "anketa_admin_panel",
+	DL_COMMIT_IMPORT_S2T = "dl_commit_import_s2t",
+	DL_COMMIT_EDIT_DESCRIPTION = "dl_commit_edit_description",
+	DL_COMMIT_APLAY = "dl_commit_aplay",
+	DL_COMMIT_EDIT_DATA = "dl_commit_edit_data",
+	DL_COMMIT_ABORT = "dl_commit_abort",
+	DL_COMMIT_DELETE = "dl_commit_delete",
 }
 export type UserPermissions = Permission[];
