@@ -65,9 +65,8 @@ import { MergeIcon } from "lucide-react";
 import { useMergeCancel } from "@react-client/api/hooks/useMergeCancel";
 import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
 import { routes } from "@react-client/routing/routes";
-import {useGlobalSettingsStore} from "@react-client/common/stores/globalSettingsStore";
-import {useUserStore} from "@react-client/common/stores/userStore";
-import {CommitPermission, Permission} from "@react-client/types/roles";
+import { useUserStore } from "@react-client/common/stores/userStore";
+import { Permission } from "@react-client/types/roles";
 
 const defaultColDef = {
 	resizable: true,
@@ -86,7 +85,7 @@ const formatCommitOptionLabel = (commit: S2tCommitItem): string => {
 };
 
 export const AllCommitsPage: FC = () => {
-	const {hasPermission } = useUserStore();
+	const { hasPermission } = useUserStore();
 
 	const { mode } = useColorScheme();
 	const navigate = useNavigate();
@@ -592,18 +591,20 @@ export const AllCommitsPage: FC = () => {
 		<Box>
 			<Header title="Коммиты">
 				<Flex gap={8} alignItems="center">
-					{hasPermission(Permission.DL_COMMIT_IMPORT_S2T) && (<Button
-						onClick={handleOpenS2tCommitCreatePage}
-						title={
-							hasProcessing || mergingCommit
-								? "Дождитесь завершения обработки текущего коммита"
-								: "Импорт S2T"
-						}
-						variant="contained"
-						disabled={hasProcessing || mergingCommit}
-					>
-						Импорт S2T
-					</Button>)}
+					{hasPermission(Permission.DL_COMMIT_IMPORT_S2T) && (
+						<Button
+							onClick={handleOpenS2tCommitCreatePage}
+							title={
+								hasProcessing || mergingCommit
+									? "Дождитесь завершения обработки текущего коммита"
+									: "Импорт S2T"
+							}
+							variant="contained"
+							disabled={hasProcessing || mergingCommit}
+						>
+							Импорт S2T
+						</Button>
+					)}
 				</Flex>
 			</Header>
 
@@ -679,41 +680,51 @@ export const AllCommitsPage: FC = () => {
 				}
 			>
 				{contextMenuCommit && [
-					...[hasPermission(Permission.DL_COMMIT_EDIT_DESCRIPTION) && (
-					<MenuItem
-						key="edit-meta"
-						disabled={contextMenuCommit.state !== "processing"}
-						onClick={() => {
-							setEditMetaCommit(contextMenuCommit);
-							handleCloseContextMenu();
-						}}
-					>
-						<ListItemIcon>
-							<EditIcon fontSize="small" />
-						</ListItemIcon>
-						<ListItemText>Редактировать наименование и описание</ListItemText>
-					</MenuItem>)],
-					...[((hasPermission(Permission.DL_COMMIT_EDIT_DATA) && contextMenuCommit.state === "processing") || contextMenuCommit.state !== "processing") && (
-					<MenuItem
-						key="edit-json"
-						onClick={() => {
-							setEditJsonCommit(contextMenuCommit);
-							handleCloseContextMenu();
-						}}
-					>
-						<ListItemIcon>
-							{contextMenuCommit.state === "processing" ? (
-								<EditIcon fontSize="small" />
-							) : (
-								<VisibilityIcon fontSize="small" />
-							)}
-						</ListItemIcon>
-						<ListItemText>
-							{contextMenuCommit.state === "processing"
-								? "Редактировать данные коммита"
-								: "Просмотреть данные коммита"}
-						</ListItemText>
-					</MenuItem>)],
+					...[
+						hasPermission(Permission.DL_COMMIT_EDIT_DESCRIPTION) && (
+							<MenuItem
+								key="edit-meta"
+								disabled={contextMenuCommit.state !== "processing"}
+								onClick={() => {
+									setEditMetaCommit(contextMenuCommit);
+									handleCloseContextMenu();
+								}}
+							>
+								<ListItemIcon>
+									<EditIcon fontSize="small" />
+								</ListItemIcon>
+								<ListItemText>
+									Редактировать наименование и описание
+								</ListItemText>
+							</MenuItem>
+						),
+					],
+					...[
+						((hasPermission(Permission.DL_COMMIT_EDIT_DATA) &&
+							contextMenuCommit.state === "processing") ||
+							contextMenuCommit.state !== "processing") && (
+							<MenuItem
+								key="edit-json"
+								onClick={() => {
+									setEditJsonCommit(contextMenuCommit);
+									handleCloseContextMenu();
+								}}
+							>
+								<ListItemIcon>
+									{contextMenuCommit.state === "processing" ? (
+										<EditIcon fontSize="small" />
+									) : (
+										<VisibilityIcon fontSize="small" />
+									)}
+								</ListItemIcon>
+								<ListItemText>
+									{contextMenuCommit.state === "processing"
+										? "Редактировать данные коммита"
+										: "Просмотреть данные коммита"}
+								</ListItemText>
+							</MenuItem>
+						),
+					],
 					<MenuItem
 						key="diff"
 						onClick={() => {
@@ -731,62 +742,71 @@ export const AllCommitsPage: FC = () => {
 						<ListItemText>Сравнить с актуальными данными</ListItemText>
 					</MenuItem>,
 					<Divider key="divider" />,
-					...[hasPermission(Permission.DL_COMMIT_APLAY) && (
-					<MenuItem
-						key="merge"
-						disabled={
-							contextMenuCommit.state === "done" ||
-							contextMenuCommit.state === "failed" ||
-							contextMenuCommit.state === "merging" ||
-							contextMenuCommit.state === "deduplicating"
-						}
-						onClick={() => {
-							navigate(`/commits/${contextMenuCommit.id}/merge`);
-							handleCloseContextMenu();
-						}}
-					>
-						<ListItemIcon>
-							<MergeIcon fontSize={16} />
-						</ListItemIcon>
-						<ListItemText>Начать применение коммита</ListItemText>
-					</MenuItem>)],
-					...[hasPermission(Permission.DL_COMMIT_ABORT) && (
-					<MenuItem
-						key="cancel-merge"
-						disabled={
-							(contextMenuCommit.state !== "merging" &&
-								contextMenuCommit.state !== "deduplicating") ||
-							cancelMergeMutation.isPending
-						}
-						onClick={() => {
-							void handleCancelMergingCommit(contextMenuCommit);
-						}}
-						sx={{ color: "warning.main" }}
-					>
-						<ListItemIcon>
-							<CancelIcon fontSize="small" />
-						</ListItemIcon>
-						<ListItemText>
-							{contextMenuCommit.state === "deduplicating"
-								? "Отменить дедупликацию"
-								: "Отменить слияние"}
-						</ListItemText>
-					</MenuItem>)],
-					...[hasPermission(Permission.DL_COMMIT_DELETE) && (
-					<MenuItem
-						key="delete"
-						disabled={contextMenuCommit.state !== "processing"}
-						onClick={() => {
-							setDeleteCommit(contextMenuCommit);
-							handleCloseContextMenu();
-						}}
-						sx={{ color: "error.main" }}
-					>
-						<ListItemIcon>
-							<DeleteIcon fontSize="small" color="error" />
-						</ListItemIcon>
-						<ListItemText>Удалить коммит</ListItemText>
-					</MenuItem>)],
+					...[
+						hasPermission(Permission.DL_COMMIT_APLAY) && (
+							<MenuItem
+								key="merge"
+								disabled={
+									contextMenuCommit.state === "done" ||
+									contextMenuCommit.state === "failed" ||
+									contextMenuCommit.state === "merging" ||
+									contextMenuCommit.state === "deduplicating"
+								}
+								onClick={() => {
+									navigate(`/commits/${contextMenuCommit.id}/merge`);
+									handleCloseContextMenu();
+								}}
+							>
+								<ListItemIcon>
+									<MergeIcon fontSize={16} />
+								</ListItemIcon>
+								<ListItemText>Начать применение коммита</ListItemText>
+							</MenuItem>
+						),
+					],
+					...[
+						hasPermission(Permission.DL_COMMIT_ABORT) && (
+							<MenuItem
+								key="cancel-merge"
+								disabled={
+									(contextMenuCommit.state !== "merging" &&
+										contextMenuCommit.state !== "deduplicating") ||
+									cancelMergeMutation.isPending
+								}
+								onClick={() => {
+									void handleCancelMergingCommit(contextMenuCommit);
+								}}
+								sx={{ color: "warning.main" }}
+							>
+								<ListItemIcon>
+									<CancelIcon fontSize="small" />
+								</ListItemIcon>
+								<ListItemText>
+									{contextMenuCommit.state === "deduplicating"
+										? "Отменить дедупликацию"
+										: "Отменить слияние"}
+								</ListItemText>
+							</MenuItem>
+						),
+					],
+					...[
+						hasPermission(Permission.DL_COMMIT_DELETE) && (
+							<MenuItem
+								key="delete"
+								disabled={contextMenuCommit.state !== "processing"}
+								onClick={() => {
+									setDeleteCommit(contextMenuCommit);
+									handleCloseContextMenu();
+								}}
+								sx={{ color: "error.main" }}
+							>
+								<ListItemIcon>
+									<DeleteIcon fontSize="small" color="error" />
+								</ListItemIcon>
+								<ListItemText>Удалить коммит</ListItemText>
+							</MenuItem>
+						),
+					],
 				]}
 			</Menu>
 
