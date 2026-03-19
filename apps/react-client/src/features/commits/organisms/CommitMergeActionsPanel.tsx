@@ -26,6 +26,8 @@ import { routes } from "@react-client/routing/routes";
 import { useCommitMergeStore } from "../stores/commitMergeStore";
 import type { MergeDiffItem } from "@react-client/api/hooks/mergeApi";
 import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
+import {useUserStore} from "@react-client/common/stores/userStore";
+import {Permission} from "@react-client/types/roles";
 
 const DIFF_TYPE_COLOR: Record<
 	MergeDiffItem["type"],
@@ -43,6 +45,8 @@ const DIFF_TYPE_LABEL: Record<MergeDiffItem["type"], string> = {
 };
 
 export const CommitMergeActionsPanel = memo(() => {
+	const {hasPermission } = useUserStore();
+
 	const navigate = useNavigate();
 	const authStore = useAuthStore();
 	const username = authStore.userInfo?.username ?? "system";
@@ -423,7 +427,7 @@ export const CommitMergeActionsPanel = memo(() => {
 									</List>
 								</Alert>
 							)}
-							{hasDuplicates && !isDeduplicationRunning && (
+							{hasPermission(Permission.DL_COMMIT_ABORT) && hasDuplicates && !isDeduplicationRunning && (
 								<Button
 									onClick={handleStartDeduplication}
 									variant="contained"
@@ -439,39 +443,41 @@ export const CommitMergeActionsPanel = memo(() => {
 										: "Запустить дедупликацию"}
 								</Button>
 							)}
-							<Button
-								onClick={handleConfirm}
-								variant="contained"
-								color="error"
-								startIcon={
-									applying ? (
-										<CircularProgress size={16} />
-									) : (
-										<CheckCircleIcon />
-									)
-								}
-								disabled={
-									applying ||
-									hasDuplicates ||
-									isDeduplicationRunning ||
-									isMergeRunning
-								}
-								fullWidth
-							>
-								{applying ? "Сохранение..." : "Подтвердить слияние"}
-							</Button>
-							<Button
-								onClick={handleCancel}
-								variant="outlined"
-								color="error"
-								startIcon={
-									applying ? <CircularProgress size={16} /> : <CancelIcon />
-								}
-								disabled={applying}
-								fullWidth
-							>
-								{isDeduplicationRunning ? "Отменить дедупликацию" : "Отменить"}
-							</Button>
+							{hasPermission(Permission.DL_COMMIT_APLAY) &&
+								(<Button
+									onClick={handleConfirm}
+									variant="contained"
+									color="error"
+									startIcon={
+										applying ? (
+											<CircularProgress size={16} />
+										) : (
+											<CheckCircleIcon />
+										)
+									}
+									disabled={
+										applying ||
+										hasDuplicates ||
+										isDeduplicationRunning ||
+										isMergeRunning
+									}
+									fullWidth
+								>
+									{applying ? "Сохранение..." : "Подтвердить слияние"}
+								</Button>)}
+							{hasPermission(Permission.DL_COMMIT_ABORT) &&
+								(<Button
+									onClick={handleCancel}
+									variant="outlined"
+									color="error"
+									startIcon={
+										applying ? <CircularProgress size={16} /> : <CancelIcon />
+									}
+									disabled={applying}
+									fullWidth
+								>
+									{isDeduplicationRunning ? "Отменить дедупликацию" : "Отменить"}
+								</Button>)}
 						</Box>
 					</>
 				)}

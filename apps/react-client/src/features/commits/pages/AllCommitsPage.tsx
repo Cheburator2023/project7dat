@@ -65,6 +65,9 @@ import { MergeIcon } from "lucide-react";
 import { useMergeCancel } from "@react-client/api/hooks/useMergeCancel";
 import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
 import { routes } from "@react-client/routing/routes";
+import {useGlobalSettingsStore} from "@react-client/common/stores/globalSettingsStore";
+import {useUserStore} from "@react-client/common/stores/userStore";
+import {CommitPermission, Permission} from "@react-client/types/roles";
 
 const defaultColDef = {
 	resizable: true,
@@ -83,6 +86,8 @@ const formatCommitOptionLabel = (commit: S2tCommitItem): string => {
 };
 
 export const AllCommitsPage: FC = () => {
+	const {hasPermission } = useUserStore();
+
 	const { mode } = useColorScheme();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -587,7 +592,7 @@ export const AllCommitsPage: FC = () => {
 		<Box>
 			<Header title="Коммиты">
 				<Flex gap={8} alignItems="center">
-					<Button
+					{hasPermission(Permission.DL_COMMIT_IMPORT_S2T) && (<Button
 						onClick={handleOpenS2tCommitCreatePage}
 						title={
 							hasProcessing || mergingCommit
@@ -598,7 +603,7 @@ export const AllCommitsPage: FC = () => {
 						disabled={hasProcessing || mergingCommit}
 					>
 						Импорт S2T
-					</Button>
+					</Button>)}
 				</Flex>
 			</Header>
 
@@ -674,6 +679,7 @@ export const AllCommitsPage: FC = () => {
 				}
 			>
 				{contextMenuCommit && [
+					...[hasPermission(Permission.DL_COMMIT_EDIT_DESCRIPTION) && (
 					<MenuItem
 						key="edit-meta"
 						disabled={contextMenuCommit.state !== "processing"}
@@ -686,7 +692,8 @@ export const AllCommitsPage: FC = () => {
 							<EditIcon fontSize="small" />
 						</ListItemIcon>
 						<ListItemText>Редактировать наименование и описание</ListItemText>
-					</MenuItem>,
+					</MenuItem>)],
+					...[((hasPermission(Permission.DL_COMMIT_EDIT_DATA) && contextMenuCommit.state === "processing") || contextMenuCommit.state !== "processing") && (
 					<MenuItem
 						key="edit-json"
 						onClick={() => {
@@ -706,7 +713,7 @@ export const AllCommitsPage: FC = () => {
 								? "Редактировать данные коммита"
 								: "Просмотреть данные коммита"}
 						</ListItemText>
-					</MenuItem>,
+					</MenuItem>)],
 					<MenuItem
 						key="diff"
 						onClick={() => {
@@ -724,6 +731,7 @@ export const AllCommitsPage: FC = () => {
 						<ListItemText>Сравнить с актуальными данными</ListItemText>
 					</MenuItem>,
 					<Divider key="divider" />,
+					...[hasPermission(Permission.DL_COMMIT_APLAY) && (
 					<MenuItem
 						key="merge"
 						disabled={
@@ -741,7 +749,8 @@ export const AllCommitsPage: FC = () => {
 							<MergeIcon fontSize={16} />
 						</ListItemIcon>
 						<ListItemText>Начать применение коммита</ListItemText>
-					</MenuItem>,
+					</MenuItem>)],
+					...[hasPermission(Permission.DL_COMMIT_ABORT) && (
 					<MenuItem
 						key="cancel-merge"
 						disabled={
@@ -762,7 +771,8 @@ export const AllCommitsPage: FC = () => {
 								? "Отменить дедупликацию"
 								: "Отменить слияние"}
 						</ListItemText>
-					</MenuItem>,
+					</MenuItem>)],
+					...[hasPermission(Permission.DL_COMMIT_DELETE) && (
 					<MenuItem
 						key="delete"
 						disabled={contextMenuCommit.state !== "processing"}
@@ -776,7 +786,7 @@ export const AllCommitsPage: FC = () => {
 							<DeleteIcon fontSize="small" color="error" />
 						</ListItemIcon>
 						<ListItemText>Удалить коммит</ListItemText>
-					</MenuItem>,
+					</MenuItem>)],
 				]}
 			</Menu>
 
