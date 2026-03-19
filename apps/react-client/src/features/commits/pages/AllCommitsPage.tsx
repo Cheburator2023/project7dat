@@ -86,7 +86,7 @@ const formatCommitOptionLabel = (commit: S2tCommitItem): string => {
 };
 
 export const AllCommitsPage: FC = () => {
-	const { user,hasPermission,roles,permissions } = useUserStore();
+	const {hasPermission } = useUserStore();
 
 	const { mode } = useColorScheme();
 	const navigate = useNavigate();
