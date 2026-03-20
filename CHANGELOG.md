@@ -1,5 +1,18 @@
 # Semantic Versioning Changelog
 
+# [1.8.0](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.7.1...v1.8.0) (2026-03-20)
+
+
+### Bug Fixes
+
+* lint fix ([f986bac](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/f986bac7fe1d20c71dc360f58b6d01f33dffb225))
+
+
+### Features
+
+* Добавил пермишены для работы с коммитами ([e2f8b02](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/e2f8b02f251c51fc2405c77859c416be0466b38f))
+* Добавил пермишены для работы с коммитами ([5a7938c](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/commit/5a7938c1996f5bf57e8f16761096cba319fb2e72))
+
 ## [1.7.1](https://git.sfera.inno.local:7999/SUMD/data_lineage_monorepo/compare/v1.7.0...v1.7.1) (2026-03-18)
 
 
