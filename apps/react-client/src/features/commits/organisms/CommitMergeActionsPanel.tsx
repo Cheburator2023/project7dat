@@ -26,8 +26,8 @@ import { routes } from "@react-client/routing/routes";
 import { useCommitMergeStore } from "../stores/commitMergeStore";
 import type { MergeDiffItem } from "@react-client/api/hooks/mergeApi";
 import { useMergeSessionPolling } from "@react-client/api/hooks/useMergeSessionPolling";
-import {useUserStore} from "@react-client/common/stores/userStore";
-import {Permission} from "@react-client/types/roles";
+import { useUserStore } from "@react-client/common/stores/userStore";
+import { Permission } from "@react-client/types/roles";
 
 const DIFF_TYPE_COLOR: Record<
 	MergeDiffItem["type"],
@@ -45,7 +45,7 @@ const DIFF_TYPE_LABEL: Record<MergeDiffItem["type"], string> = {
 };
 
 export const CommitMergeActionsPanel = memo(() => {
-	const {hasPermission } = useUserStore();
+	const { hasPermission } = useUserStore();
 
 	const navigate = useNavigate();
 	const authStore = useAuthStore();
@@ -304,27 +304,23 @@ export const CommitMergeActionsPanel = memo(() => {
 				</Alert>
 			)}
 
-			{mergeStep === "idle" && (
-				<Box
-					sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto" }}
+			<Box
+				sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto" }}
+			>
+				<Typography variant="body2" color="text.secondary">
+					Нажмите «Предпросмотр», чтобы проверить изменения перед применением к
+					модели данных.
+				</Typography>
+				<Button
+					onClick={handleApply}
+					variant="contained"
+					startIcon={applying ? <CircularProgress size={16} /> : <MergeIcon />}
+					disabled={applying || isDone}
+					fullWidth
 				>
-					<Typography variant="body2" color="text.secondary">
-						Нажмите «Предпросмотр», чтобы проверить изменения перед применением
-						к модели данных.
-					</Typography>
-					<Button
-						onClick={handleApply}
-						variant="contained"
-						startIcon={
-							applying ? <CircularProgress size={16} /> : <MergeIcon />
-						}
-						disabled={applying || isDone}
-						fullWidth
-					>
-						{applying ? "Расчёт изменений..." : "Предпросмотр слияния"}
-					</Button>
-				</Box>
-			)}
+					{applying ? "Расчёт изменений..." : "Предпросмотр слияния"}
+				</Button>
+			</Box>
 
 			{(mergeStep === "previewing" || mergeStep === "deduplicating") &&
 				mergeStats && (
@@ -427,24 +423,26 @@ export const CommitMergeActionsPanel = memo(() => {
 									</List>
 								</Alert>
 							)}
-							{hasPermission(Permission.DL_COMMIT_ABORT) && hasDuplicates && !isDeduplicationRunning && (
+							{hasPermission(Permission.DL_COMMIT_ABORT) &&
+								hasDuplicates &&
+								!isDeduplicationRunning && (
+									<Button
+										onClick={handleStartDeduplication}
+										variant="contained"
+										color="warning"
+										startIcon={
+											applying ? <CircularProgress size={16} /> : <MergeIcon />
+										}
+										disabled={applying}
+										fullWidth
+									>
+										{applying
+											? "Запуск дедупликации..."
+											: "Запустить дедупликацию"}
+									</Button>
+								)}
+							{hasPermission(Permission.DL_COMMIT_APLAY) && (
 								<Button
-									onClick={handleStartDeduplication}
-									variant="contained"
-									color="warning"
-									startIcon={
-										applying ? <CircularProgress size={16} /> : <MergeIcon />
-									}
-									disabled={applying}
-									fullWidth
-								>
-									{applying
-										? "Запуск дедупликации..."
-										: "Запустить дедупликацию"}
-								</Button>
-							)}
-							{hasPermission(Permission.DL_COMMIT_APLAY) &&
-								(<Button
 									onClick={handleConfirm}
 									variant="contained"
 									color="error"
@@ -464,9 +462,10 @@ export const CommitMergeActionsPanel = memo(() => {
 									fullWidth
 								>
 									{applying ? "Сохранение..." : "Подтвердить слияние"}
-								</Button>)}
-							{hasPermission(Permission.DL_COMMIT_ABORT) &&
-								(<Button
+								</Button>
+							)}
+							{hasPermission(Permission.DL_COMMIT_ABORT) && (
+								<Button
 									onClick={handleCancel}
 									variant="outlined"
 									color="error"
@@ -476,8 +475,11 @@ export const CommitMergeActionsPanel = memo(() => {
 									disabled={applying}
 									fullWidth
 								>
-									{isDeduplicationRunning ? "Отменить дедупликацию" : "Отменить"}
-								</Button>)}
+									{isDeduplicationRunning
+										? "Отменить дедупликацию"
+										: "Отменить"}
+								</Button>
+							)}
 						</Box>
 					</>
 				)}
