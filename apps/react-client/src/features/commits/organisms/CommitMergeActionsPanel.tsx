@@ -304,23 +304,27 @@ export const CommitMergeActionsPanel = memo(() => {
 				</Alert>
 			)}
 
-			<Box
-				sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto" }}
-			>
-				<Typography variant="body2" color="text.secondary">
-					Нажмите «Предпросмотр», чтобы проверить изменения перед применением к
-					модели данных.
-				</Typography>
-				<Button
-					onClick={handleApply}
-					variant="contained"
-					startIcon={applying ? <CircularProgress size={16} /> : <MergeIcon />}
-					disabled={applying || isDone}
-					fullWidth
+			{mergeStep === "idle" && (
+				<Box
+					sx={{ display: "flex", flexDirection: "column", gap: 1, mt: "auto" }}
 				>
-					{applying ? "Расчёт изменений..." : "Предпросмотр слияния"}
-				</Button>
-			</Box>
+					<Typography variant="body2" color="text.secondary">
+						Нажмите «Предпросмотр», чтобы проверить изменения перед применением
+						к модели данных.
+					</Typography>
+					<Button
+						onClick={handleApply}
+						variant="contained"
+						startIcon={
+							applying ? <CircularProgress size={16} /> : <MergeIcon />
+						}
+						disabled={applying || isDone}
+						fullWidth
+					>
+						{applying ? "Расчёт изменений..." : "Предпросмотр слияния"}
+					</Button>
+				</Box>
+			)}
 
 			{(mergeStep === "previewing" || mergeStep === "deduplicating") &&
 				mergeStats && (
