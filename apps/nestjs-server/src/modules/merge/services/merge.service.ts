@@ -210,13 +210,27 @@ export class MergeService implements OnModuleInit {
 			mergedModel,
 		);
 		if (!duplicateCheckResult.allowed) {
+			const newDupsPreview = duplicateCheckResult.newDuplicates
+				.slice(0, 10)
+				.join(", ");
+			const moreNewDups =
+				duplicateCheckResult.newDuplicates.length > 10
+					? ` и ещё ${duplicateCheckResult.newDuplicates.length - 10}`
+					: "";
 			this.logger.warn(
-				`Коммит создаёт новые дубликаты сущностей: ${duplicateCheckResult.newDuplicates.join(", ")}. Потребуется дедупликация.`,
+				`Коммит создаёт новые дубликаты сущностей (${duplicateCheckResult.newDuplicates.length}): ${newDupsPreview}${moreNewDups}. Потребуется дедупликация.`,
 			);
 		}
 		if (duplicateCheckResult.existingDuplicates.length > 0) {
+			const existingDupsPreview = duplicateCheckResult.existingDuplicates
+				.slice(0, 10)
+				.join(", ");
+			const moreExistingDups =
+				duplicateCheckResult.existingDuplicates.length > 10
+					? ` и ещё ${duplicateCheckResult.existingDuplicates.length - 10}`
+					: "";
 			this.logger.warn(
-				`В исходной модели уже есть дубликаты (${duplicateCheckResult.existingDuplicates.length}), они будут сохранены.`,
+				`В исходной модели уже есть дубликаты (${duplicateCheckResult.existingDuplicates.length}): ${existingDupsPreview}${moreExistingDups}, они будут сохранены.`,
 			);
 		}
 
@@ -245,23 +259,43 @@ export class MergeService implements OnModuleInit {
 				);
 			}
 			if (validationResult.validation.errors.length > 0) {
+				const errorDetails = validationResult.validation.errors
+					.slice(0, 5)
+					.map((err) => `  - ${err}`)
+					.join("\n");
+				const moreErrors =
+					validationResult.validation.errors.length > 5
+						? `\n  ... и ещё ${validationResult.validation.errors.length - 5} ошибок`
+						: "";
 				validationWarnings.push(
-					`Структурные ошибки: ${validationResult.validation.errors.length}`,
+					`Структурные ошибки (${validationResult.validation.errors.length}):\n${errorDetails}${moreErrors}`,
 				);
 			}
 			if (validationResult.recursionCheck.hasRecursion && !hadExistingCycles) {
+				const cycleDetails = validationResult.recursionCheck.cycles
+					.slice(0, 3)
+					.map((cycle) => `  - Цикл: ${cycle.join(" → ")} → ${cycle[0]}`)
+					.join("\n");
+				const moreCycles =
+					validationResult.recursionCheck.cycles.length > 3
+						? `\n  ... и ещё ${validationResult.recursionCheck.cycles.length - 3} циклов`
+						: "";
 				validationWarnings.push(
-					`Новые рекурсивные зависимости: ${validationResult.recursionCheck.cycles.length}`,
+					`Новые рекурсивные зависимости (${validationResult.recursionCheck.cycles.length} циклов):\n${cycleDetails}${moreCycles}`,
 				);
 			}
-			console.log(
-				"🐸 Pepe said >> MergeService >> applyMerge >> validationResult:",
-				validationResult,
-			);
 
 			if (validationResult.duplicateCheck.hasDuplicates) {
+				const duplicateDetails = validationResult.duplicateCheck.duplicates
+					.slice(0, 5)
+					.map((dup) => `  - ${dup}`)
+					.join("\n");
+				const moreDuplicates =
+					validationResult.duplicateCheck.duplicates.length > 5
+						? `\n  ... и ещё ${validationResult.duplicateCheck.duplicates.length - 5} дубликатов`
+						: "";
 				validationWarnings.push(
-					`Дубликаты сущностей в JSON: ${validationResult.duplicateCheck.duplicates.length}`,
+					`Дубликаты сущностей в JSON (${validationResult.duplicateCheck.duplicates.length} дубликатов):\n${duplicateDetails}${moreDuplicates}`,
 				);
 			}
 		} catch (validationError) {
@@ -315,8 +349,16 @@ export class MergeService implements OnModuleInit {
 		this.logger.log(`Слияние применено, сессия: ${mergeSessionId}`);
 
 		if (mergedDuplicates.hasDuplicates) {
+			const groupsPreview = mergedDuplicates.groups
+				.slice(0, 5)
+				.map((g) => `${g.key} (${g.count} экз.)`)
+				.join(", ");
+			const moreGroups =
+				mergedDuplicates.groups.length > 5
+					? ` и ещё ${mergedDuplicates.groups.length - 5} групп`
+					: "";
 			this.logger.warn(
-				`После предпросмотра обнаружены дубликаты сущностей: ${mergedDuplicates.count} в ${mergedDuplicates.groups.length} группах. Требуется дедупликация перед confirm.`,
+				`После предпросмотра обнаружены дубликаты сущностей: ${mergedDuplicates.count} дубликатов в ${mergedDuplicates.groups.length} группах. Группы: ${groupsPreview}${moreGroups}. Требуется дедупликация перед confirm.`,
 			);
 		}
 
@@ -552,8 +594,16 @@ export class MergeService implements OnModuleInit {
 					cachedPayload.mergedJson,
 				);
 				if (jsonDuplicates.hasDuplicates) {
+					const groupsInfo = jsonDuplicates.groups
+						.slice(0, 5)
+						.map((g) => `${g.key} (${g.count} экз.)`)
+						.join(", ");
+					const moreGroups =
+						jsonDuplicates.groups.length > 5
+							? ` и ещё ${jsonDuplicates.groups.length - 5} групп`
+							: "";
 					this.logger.log(
-						`Найдены дубликаты в merged JSON: ${jsonDuplicates.count} в ${jsonDuplicates.groups.length} группах. Дедуплицируем JSON в кеше.`,
+						`Найдены дубликаты в merged JSON: ${jsonDuplicates.count} дубликатов в ${jsonDuplicates.groups.length} группах (${groupsInfo}${moreGroups}). Дедуплицируем JSON в кеше.`,
 					);
 					const deduplicatedJson = this.deduplicateMergedJson(
 						cachedPayload.mergedJson,
@@ -563,10 +613,11 @@ export class MergeService implements OnModuleInit {
 						mergedJson: deduplicatedJson,
 					});
 					const afterDedup = this.countDuplicatesInJsonModel(deduplicatedJson);
+					const removedCount = jsonDuplicates.count - afterDedup.count;
 					this.logger.log(
-						`JSON-дедупликация завершена. Осталось дубликатов: ${afterDedup.count}`,
+						`JSON-дедупликация завершена. Удалено: ${removedCount} дубликатов. Осталось: ${afterDedup.count} (в ${afterDedup.groups.length} группах).`,
 					);
-					jsonDedupMessage = `JSON-дедупликация выполнена: удалено ${jsonDuplicates.count} дубликатов из ${jsonDuplicates.groups.length} групп`;
+					jsonDedupMessage = `JSON-дедупликация выполнена: удалено ${removedCount} дубликатов из ${jsonDuplicates.groups.length} групп`;
 				}
 			}
 		}
@@ -762,8 +813,16 @@ export class MergeService implements OnModuleInit {
 				cachedPayload.mergedJson,
 			);
 			if (jsonDuplicates.hasDuplicates) {
+				const groupsInfo = jsonDuplicates.groups
+					.slice(0, 3)
+					.map((g) => `${g.key} (${g.count} экз.)`)
+					.join(", ");
+				const moreGroups =
+					jsonDuplicates.groups.length > 3
+						? ` и ещё ${jsonDuplicates.groups.length - 3} групп`
+						: "";
 				throw new BadRequestException(
-					`Обнаружены дубликаты сущностей в JSON (${jsonDuplicates.count}). Сначала выполните дедупликацию.`,
+					`Обнаружены дубликаты сущностей в JSON: ${jsonDuplicates.count} дубликатов в ${jsonDuplicates.groups.length} группах (${groupsInfo}${moreGroups}). Сначала выполните дедупликацию.`,
 				);
 			}
 		}
